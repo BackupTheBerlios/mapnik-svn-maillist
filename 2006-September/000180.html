@@ -1,0 +1,214 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r295 - in trunk: . bindings/python fonts	plugins/input/postgis plugins/input/raster plugins/input/shape src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-September/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r295%20-%20in%20trunk%3A%20.%20bindings/python%20fonts%0A%09plugins/input/postgis%20plugins/input/raster%20plugins/input/shape%20src&In-Reply-To=%3C200609060915.k869FMRh021885%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="000181.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r295 - in trunk: . bindings/python fonts	plugins/input/postgis plugins/input/raster plugins/input/shape src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r295%20-%20in%20trunk%3A%20.%20bindings/python%20fonts%0A%09plugins/input/postgis%20plugins/input/raster%20plugins/input/shape%20src&In-Reply-To=%3C200609060915.k869FMRh021885%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r295 - in trunk: . bindings/python fonts	plugins/input/postgis plugins/input/raster plugins/input/shape src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Wed Sep  6 11:15:22 CEST 2006</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="000181.html">[Mapnik-svn] r296 - in trunk: bindings/python include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#180">[ date ]</a>
+              <a href="thread.html#180">[ thread ]</a>
+              <a href="subject.html#180">[ subject ]</a>
+              <a href="author.html#180">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-09-06 11:14:41 +0200 (Wed, 06 Sep 2006)
+New Revision: 295
+
+Modified:
+   trunk/SConstruct
+   trunk/bindings/python/SConscript
+   trunk/fonts/SConscript
+   trunk/plugins/input/postgis/SConscript
+   trunk/plugins/input/raster/SConscript
+   trunk/plugins/input/shape/SConscript
+   trunk/src/SConscript
+Log:
+added support for building on x86_64 platform e.g. /usr/lib64 etc.
+
+
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2006-08-31 21:32:07 UTC (rev 294)
++++ trunk/SConstruct	2006-09-06 09:14:41 UTC (rev 295)
+@@ -20,30 +20,39 @@
+ # $Id$
+ 
+ 
+-import os, sys
++import os, sys, platform
+ 
++
++
++if platform.uname()[4] == 'x86_64':
++    LIB_PLATFORM = 'lib64'
++else :
++    LIB_PLATFORM = 'lib'
++
++    
+ opts = Options()
+ 
+ opts.Add('PREFIX', 'The install path &quot;prefix&quot;', '/usr/local')
+ opts.Add(PathOption('BOOST_INCLUDES', 'Search path for boost include files', '/usr/include'))
+-opts.Add(PathOption('BOOST_LIBS', 'Search path for boost library files', '/usr/lib'))
++opts.Add(PathOption('BOOST_LIBS', 'Search path for boost library files', '/usr/' + LIB_PLATFORM))
+ opts.Add(PathOption('FREETYPE_CONFIG', 'The path to the freetype-config executable.', '/usr/bin/freetype-config'))
+ opts.Add(PathOption('PNG_INCLUDES', 'Search path for libpng include files', '/usr/include'))
+-opts.Add(PathOption('PNG_LIBS', 'Search path for libpng include files', '/usr/lib'))
++opts.Add(PathOption('PNG_LIBS', 'Search path for libpng include files', '/usr/' + LIB_PLATFORM))
+ opts.Add(PathOption('JPEG_INCLUDES', 'Search path for libjpeg include files', '/usr/include'))
+-opts.Add(PathOption('JPEG_LIBS', 'Search path for libjpeg library files', '/usr/lib'))
++opts.Add(PathOption('JPEG_LIBS', 'Search path for libjpeg library files', '/usr/' + LIB_PLATFORM))
+ opts.Add(PathOption('TIFF_INCLUDES', 'Search path for libtiff include files', '/usr/include'))
+-opts.Add(PathOption('TIFF_LIBS', 'Search path for libtiff library files', '/usr/lib'))
++opts.Add(PathOption('TIFF_LIBS', 'Search path for libtiff library files', '/usr/' + LIB_PLATFORM))
+ opts.Add(PathOption('PGSQL_INCLUDES', 'Search path for PostgreSQL include files', '/usr/include'))
+-opts.Add(PathOption('PGSQL_LIBS', 'Search path for PostgreSQL library files', '/usr/lib'))
++opts.Add(PathOption('PGSQL_LIBS', 'Search path for PostgreSQL library files', '/usr/' + LIB_PLATFORM))
+ opts.Add(PathOption('PROJ_INCLUDES', 'Search path for PROJ.4 include files', '/usr/local/include'))
+-opts.Add(PathOption('PROJ_LIBS', 'Search path for PROJ.4 include files', '/usr/local/lib'))
++opts.Add(PathOption('PROJ_LIBS', 'Search path for PROJ.4 include files', '/usr/local/' + LIB_PLATFORM))
+ opts.Add(PathOption('PYTHON','Python executable', sys.executable))
+ opts.Add(ListOption('INPUT_PLUGINS','Input drivers to include','all',['postgis','shape','raster']))
+ opts.Add(ListOption('BINDINGS','Language bindings to build','all',['python']))
+ opts.Add('DEBUG', 'Compile a debug version of mapnik', '')
+ 
+ env = Environment(ENV=os.environ, options=opts)
++env['LIB_PLATFORM'] = LIB_PLATFORM
+ 
+ Help(opts.GenerateHelpText(env))
+ 
+
+Modified: trunk/bindings/python/SConscript
+===================================================================
+--- trunk/bindings/python/SConscript	2006-08-31 21:32:07 UTC (rev 294)
++++ trunk/bindings/python/SConscript	2006-09-06 09:14:41 UTC (rev 295)
+@@ -23,7 +23,7 @@
+ 
+ Import('env')
+ 
+-prefix = env['PYTHON_PREFIX'] + '/lib/python' + env['PYTHON_VERSION'] + '/site-packages/'
++prefix = env['PYTHON_PREFIX'] + '/'+env['LIB_PLATFORM']+ '/python' + env['PYTHON_VERSION'] + '/site-packages/'
+ 
+ libraries = ['mapnik', 'boost_python%s' % env['BOOST_APPEND']]
+ headers = [env['PYTHON_PREFIX'] + '/include/python' + env['PYTHON_VERSION']] + env['CPPPATH']
+@@ -36,7 +36,7 @@
+ fontscollectionpath = mapniklibpath + '/fonts'
+ &quot;&quot;&quot;
+ 
+-file('mapnik/paths.py','w').write(paths % (env['PREFIX'] + '/lib/mapnik',))
++file('mapnik/paths.py','w').write(paths % (env['PREFIX'] + '/'+env['LIB_PLATFORM']+'/mapnik',))
+ 
+ pymapnik = glob.glob('mapnik/*.py')
+ env.Alias(target='install', source=env.Install(prefix+'/mapnik', pymapnik))
+
+Modified: trunk/fonts/SConscript
+===================================================================
+--- trunk/fonts/SConscript	2006-08-31 21:32:07 UTC (rev 294)
++++ trunk/fonts/SConscript	2006-09-06 09:14:41 UTC (rev 295)
+@@ -24,4 +24,4 @@
+ prefix = env['PREFIX']
+ 
+ includes = glob.glob('*/*.ttf')
+-env.Alias(target='install', source=env.Install(prefix+'/lib/mapnik/fonts', includes))
++env.Alias(target='install', source=env.Install(prefix+'/' + env['LIB_PLATFORM'] + '/mapnik/fonts', includes))
+
+Modified: trunk/plugins/input/postgis/SConscript
+===================================================================
+--- trunk/plugins/input/postgis/SConscript	2006-08-31 21:32:07 UTC (rev 294)
++++ trunk/plugins/input/postgis/SConscript	2006-09-06 09:14:41 UTC (rev 295)
+@@ -32,5 +32,5 @@
+ 
+ postgis_inputdriver = env.SharedLibrary('postgis', source=postgis_src, SHLIBPREFIX='', LIBS='pq')
+ 
+-env.Install(prefix + '/lib/mapnik/input', postgis_inputdriver)
+-env.Alias(&quot;install&quot;, prefix + '/lib/mapnik/input')
++env.Install(prefix + '/' + env['LIB_PLATFORM'] + '/mapnik/input', postgis_inputdriver)
++env.Alias('install', prefix + '/' + env['LIB_PLATFORM'] + '/mapnik/input')
+
+Modified: trunk/plugins/input/raster/SConscript
+===================================================================
+--- trunk/plugins/input/raster/SConscript	2006-08-31 21:32:07 UTC (rev 294)
++++ trunk/plugins/input/raster/SConscript	2006-09-06 09:14:41 UTC (rev 295)
+@@ -33,5 +33,5 @@
+ 
+ raster_inputdriver = env.SharedLibrary('raster', source=raster_src, SHLIBPREFIX='', LIBS=[])
+ 
+-env.Install(prefix + '/lib/mapnik/input', raster_inputdriver)
+-env.Alias('install', prefix + '/lib/mapnik/input')
++env.Install(prefix + '/' + env['LIB_PLATFORM'] + '/mapnik/input', raster_inputdriver)
++env.Alias('install', prefix + '/' + env['LIB_PLATFORM'] + '/mapnik/input')
+
+Modified: trunk/plugins/input/shape/SConscript
+===================================================================
+--- trunk/plugins/input/shape/SConscript	2006-08-31 21:32:07 UTC (rev 294)
++++ trunk/plugins/input/shape/SConscript	2006-09-06 09:14:41 UTC (rev 295)
+@@ -38,5 +38,5 @@
+ 
+ shape_inputdriver = env.SharedLibrary('shape', source=shape_src, SHLIBPREFIX='', LIBS=[])
+ 
+-env.Install(prefix+'/lib/mapnik/input', shape_inputdriver)
+-env.Alias('install', prefix + '/lib/mapnik/input')
++env.Install(prefix + '/' + env['LIB_PLATFORM'] + '/mapnik/input', shape_inputdriver)
++env.Alias('install', prefix + '/' + env['LIB_PLATFORM'] + '/mapnik/input')
+
+Modified: trunk/src/SConscript
+===================================================================
+--- trunk/src/SConscript	2006-08-31 21:32:07 UTC (rev 294)
++++ trunk/src/SConscript	2006-09-06 09:14:41 UTC (rev 295)
+@@ -57,6 +57,6 @@
+ 
+ mapnik = env.SharedLibrary('mapnik', source, LIBS=libraries, LINKFLAGS=linkflags)
+ 
+-env.Alias(target='install', source=env.Install(prefix+'/lib', mapnik))
++env.Alias(target='install', source=env.Install(prefix + '/' + env['LIB_PLATFORM'], mapnik))
+ includes = glob.glob('../include' + '/*.hpp')
+ env.Alias(target='install', source=env.Install(prefix+'/include/mapnik', includes))
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="000181.html">[Mapnik-svn] r296 - in trunk: bindings/python include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#180">[ date ]</a>
+              <a href="thread.html#180">[ thread ]</a>
+              <a href="subject.html#180">[ subject ]</a>
+              <a href="author.html#180">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

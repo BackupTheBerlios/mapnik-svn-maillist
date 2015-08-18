@@ -1,0 +1,294 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r353 - in trunk: bindings/python include/mapnik src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r353%20-%20in%20trunk%3A%20bindings/python%20include/mapnik%20src&In-Reply-To=%3C200610191711.k9JHBjQC010501%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000237.html">
+   <LINK REL="Next"  HREF="000239.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r353 - in trunk: bindings/python include/mapnik src</H1>
+    <B>vspader10east at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r353%20-%20in%20trunk%3A%20bindings/python%20include/mapnik%20src&In-Reply-To=%3C200610191711.k9JHBjQC010501%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r353 - in trunk: bindings/python include/mapnik src">vspader10east at mail.berlios.de
+       </A><BR>
+    <I>Thu Oct 19 19:11:45 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000237.html">[Mapnik-svn] r352 - in trunk: plugins/input/postgis src
+</A></li>
+        <LI>Next message: <A HREF="000239.html">[Mapnik-svn] r354 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#238">[ date ]</a>
+              <a href="thread.html#238">[ thread ]</a>
+              <a href="subject.html#238">[ subject ]</a>
+              <a href="author.html#238">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: vspader10east
+Date: 2006-10-19 19:11:45 +0200 (Thu, 19 Oct 2006)
+New Revision: 353
+
+Modified:
+   trunk/bindings/python/mapnik_shield_symbolizer.cpp
+   trunk/bindings/python/mapnik_text_symbolizer.cpp
+   trunk/include/mapnik/shield_symbolizer.hpp
+   trunk/include/mapnik/text_symbolizer.hpp
+   trunk/src/agg_renderer.cpp
+   trunk/src/load_map.cpp
+   trunk/src/shield_symbolizer.cpp
+   trunk/src/text_symbolizer.cpp
+Log:
+Added face_name parameter to text and shield symbolizers,
+which specifies the font face to be used for rendering.
+New constructor is: text_symbolizer(name, face_name, size, ...)
+
+
+Modified: trunk/bindings/python/mapnik_shield_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_shield_symbolizer.cpp	2006-10-19 09:24:26 UTC (rev 352)
++++ trunk/bindings/python/mapnik_shield_symbolizer.cpp	2006-10-19 17:11:45 UTC (rev 353)
+@@ -32,7 +32,7 @@
+     
+     class_&lt;shield_symbolizer&gt;(&quot;ShieldSymbolizer&quot;,
+                              init&lt;&gt;(&quot;Default Shield Symbolizer - 4x4 black square&quot;))
+-        .def (init&lt; std::string const&amp;, unsigned, mapnik::Color const&amp;,
++        .def (init&lt; std::string const&amp;, std::string const&amp;, unsigned, mapnik::Color const&amp;,
+               std::string const&amp;, std::string const&amp;,unsigned,unsigned&gt;(&quot;TODO&quot;))
+         ;
+     
+
+Modified: trunk/bindings/python/mapnik_text_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_text_symbolizer.cpp	2006-10-19 09:24:26 UTC (rev 352)
++++ trunk/bindings/python/mapnik_text_symbolizer.cpp	2006-10-19 17:11:45 UTC (rev 353)
+@@ -38,7 +38,7 @@
+         ;
+ 
+     class_&lt;text_symbolizer&gt;(&quot;TextSymbolizer&quot;,
+-			    init&lt;std::string const&amp;,unsigned,Color const&amp;&gt;())
++			    init&lt;std::string const&amp;,std::string const&amp;, unsigned,Color const&amp;&gt;())
+         .add_property(&quot;halo_fill&quot;,make_function(
+                       &amp;text_symbolizer::get_halo_fill,
+                       return_value_policy&lt;copy_const_reference&gt;()),
+
+Modified: trunk/include/mapnik/shield_symbolizer.hpp
+===================================================================
+--- trunk/include/mapnik/shield_symbolizer.hpp	2006-10-19 09:24:26 UTC (rev 352)
++++ trunk/include/mapnik/shield_symbolizer.hpp	2006-10-19 17:11:45 UTC (rev 353)
+@@ -34,6 +34,7 @@
+     {	
+         explicit shield_symbolizer();
+         shield_symbolizer(std::string const&amp; name,
++                          std::string const&amp; face_name,
+                           unsigned size,
+                           Color const&amp; fill, 
+                           std::string const&amp; file,
+@@ -44,6 +45,7 @@
+         boost::shared_ptr&lt;ImageData32&gt; const&amp; get_data() const;
+       
+         std::string const&amp; get_name() const;
++        std::string const&amp; get_face_name() const;
+ 
+         unsigned get_text_size() const;
+         Color const&amp; get_fill() const;
+@@ -53,6 +55,7 @@
+         
+     private:
+         std::string name_;
++        std::string face_name_;
+         unsigned size_;
+         Color fill_;
+         boost::shared_ptr&lt;ImageData32&gt; symbol_;
+
+Modified: trunk/include/mapnik/text_symbolizer.hpp
+===================================================================
+--- trunk/include/mapnik/text_symbolizer.hpp	2006-10-19 09:24:26 UTC (rev 352)
++++ trunk/include/mapnik/text_symbolizer.hpp	2006-10-19 17:11:45 UTC (rev 353)
+@@ -38,11 +38,12 @@
+     
+     struct MAPNIK_DECL text_symbolizer
+     {		
+-        text_symbolizer(std::string const&amp; name,unsigned size,Color const&amp; fill);	
++	text_symbolizer(std::string const&amp; name,std::string const&amp; face_name, unsigned size,Color const&amp; fill);	
+         text_symbolizer(text_symbolizer const&amp; rhs);
+         text_symbolizer&amp; operator=(text_symbolizer const&amp; rhs);
+         std::string const&amp; get_name() const;
+         unsigned get_text_size() const;
++	std::string const&amp; get_face_name() const;
+         Color const&amp; get_fill() const;
+         void set_halo_fill(Color const&amp; fill);
+         Color const&amp; get_halo_fill() const;
+@@ -56,6 +57,7 @@
+         position const&amp; get_displacement() const;
+     private:
+         std::string name_;
++  std::string face_name_;
+         unsigned size_;
+         Color fill_;
+         Color halo_fill_;
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-10-19 09:24:26 UTC (rev 352)
++++ trunk/src/agg_renderer.cpp	2006-10-19 17:11:45 UTC (rev 353)
+@@ -331,7 +331,7 @@
+             
+             if (text.length() &gt; 0 &amp;&amp; data)
+             {
+-                face_ptr face = font_manager_.get_face(&quot;Bitstream Vera Sans Roman&quot;);//TODO
++                face_ptr face = font_manager_.get_face(sym.get_face_name());
+                 if (face)
+                 {
+                     int w = data-&gt;width();
+@@ -488,8 +488,7 @@
+             {
+                 Color const&amp; fill  = sym.get_fill();
+ 	
+-                face_ptr face = font_manager_.get_face(&quot;Bitstream Vera Sans Roman&quot;);//TODO
+-                //face_ptr face = font_manager_.get_face(&quot;Times New Roman Regular&quot;);//TODO
++                face_ptr face = font_manager_.get_face(sym.get_face_name());
+                 if (face)
+                 {
+                     text_renderer&lt;mapnik::Image32&gt; ren(pixmap_,face);
+
+Modified: trunk/src/load_map.cpp
+===================================================================
+--- trunk/src/load_map.cpp	2006-10-19 09:24:26 UTC (rev 352)
++++ trunk/src/load_map.cpp	2006-10-19 17:11:45 UTC (rev 353)
+@@ -131,13 +131,15 @@
+                             {
+                                 std::string name =  
+                                     sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.name&quot;);                      
++                                std::string face_name =  
++                                    sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.face_name&quot;);                      
+                                 unsigned size = 
+                                     sym.second.get&lt;unsigned&gt;(&quot;&lt;xmlattr&gt;.size&quot;,10);                      
+                                 std::string color_str = 
+                                     sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.fill&quot;,&quot;black&quot;);
+                                 Color c = color_factory::from_string(color_str.c_str());
+                                 
+-                                text_symbolizer text_symbol(name,size,c);
++                                text_symbolizer text_symbol(name,face_name, size,c);
+                                 
+                                 std::string placement_str = 
+                                     sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.placement&quot;,&quot;point&quot;);
+
+Modified: trunk/src/shield_symbolizer.cpp
+===================================================================
+--- trunk/src/shield_symbolizer.cpp	2006-10-19 09:24:26 UTC (rev 352)
++++ trunk/src/shield_symbolizer.cpp	2006-10-19 17:11:45 UTC (rev 353)
+@@ -44,12 +44,13 @@
+     
+     shield_symbolizer::shield_symbolizer(
+                           std::string const&amp; name,
++                          std::string const&amp; face_name,
+                           unsigned size,
+                           Color const&amp; fill, 
+                           std::string const&amp; file,
+                           std::string const&amp; type,
+                           unsigned width,unsigned height)
+-        : name_(name), size_(size), fill_(fill), symbol_(new ImageData32(width,height))
++        : name_(name), face_name_(face_name), size_(size), fill_(fill), symbol_(new ImageData32(width,height))
+     {
+         try 
+         {
+@@ -67,6 +68,7 @@
+     
+     shield_symbolizer::shield_symbolizer(shield_symbolizer const&amp; rhs)
+         : name_(rhs.name_),
++          face_name_(rhs.face_name_),
+           size_(rhs.size_),
+           fill_(rhs.fill_),
+           symbol_(rhs.symbol_),
+@@ -88,6 +90,11 @@
+       return name_;
+     }
+     
++    std::string const&amp; shield_symbolizer::get_face_name() const
++    {
++      return face_name_;
++    }
++    
+     void shield_symbolizer::set_allow_overlap(bool overlap)
+     {
+         overlap_ = overlap;
+
+Modified: trunk/src/text_symbolizer.cpp
+===================================================================
+--- trunk/src/text_symbolizer.cpp	2006-10-19 09:24:26 UTC (rev 352)
++++ trunk/src/text_symbolizer.cpp	2006-10-19 17:11:45 UTC (rev 353)
+@@ -26,8 +26,9 @@
+ 
+ namespace mapnik
+ {
+-    text_symbolizer::text_symbolizer(std::string const&amp; name,unsigned size,Color const&amp; fill)
++    text_symbolizer::text_symbolizer(std::string const&amp; name, std::string const&amp; face_name, unsigned size,Color const&amp; fill)
+ 	: name_(name),
++    face_name_(face_name),
+ 	  size_(size),
+ 	  fill_(fill),
+ 	  halo_fill_(Color(255,255,255)),
+@@ -38,6 +39,7 @@
+            
+     text_symbolizer::text_symbolizer(text_symbolizer const&amp; rhs)
+ 	: name_(rhs.name_),
++    face_name_(rhs.face_name_),
+ 	  size_(rhs.size_),
+ 	  fill_(rhs.fill_),
+ 	  halo_fill_(rhs.halo_fill_),
+@@ -51,6 +53,7 @@
+ 	if (this == &amp;other)
+ 	    return *this;
+ 	name_ = other.name_;
++  face_name_ = other.face_name_;
+ 	size_ = other.size_;
+ 	fill_ = other.fill_;
+ 	halo_fill_ = other.halo_fill_;
+@@ -65,6 +68,11 @@
+ 	return name_;
+     }
+     
++    std::string const&amp;  text_symbolizer::get_face_name() const
++    {
++	return face_name_;
++    }
++    
+     unsigned  text_symbolizer::get_text_size() const
+     {
+ 	return size_;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000237.html">[Mapnik-svn] r352 - in trunk: plugins/input/postgis src
+</A></li>
+	<LI>Next message: <A HREF="000239.html">[Mapnik-svn] r354 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#238">[ date ]</a>
+              <a href="thread.html#238">[ thread ]</a>
+              <a href="subject.html#238">[ subject ]</a>
+              <a href="author.html#238">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

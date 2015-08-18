@@ -1,0 +1,255 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r141 - in trunk: include plugins/input/shape
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-February/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r141%20-%20in%20trunk%3A%20include%20plugins/input/shape&In-Reply-To=%3C200602051231.k15CVVMC010940%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000026.html">
+   <LINK REL="Next"  HREF="000028.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r141 - in trunk: include plugins/input/shape</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r141%20-%20in%20trunk%3A%20include%20plugins/input/shape&In-Reply-To=%3C200602051231.k15CVVMC010940%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r141 - in trunk: include plugins/input/shape">pavlenko at berlios.de
+       </A><BR>
+    <I>Sun Feb  5 13:31:31 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000026.html">[Mapnik-svn] r140 - in trunk: bindings/python include src
+</A></li>
+        <LI>Next message: <A HREF="000028.html">[Mapnik-svn] r142 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#27">[ date ]</a>
+              <a href="thread.html#27">[ thread ]</a>
+              <a href="subject.html#27">[ subject ]</a>
+              <a href="author.html#27">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-02-05 13:31:24 +0100 (Sun, 05 Feb 2006)
+New Revision: 141
+
+Modified:
+   trunk/include/geometry.hpp
+   trunk/include/vertex_vector.hpp
+   trunk/plugins/input/shape/shape_io.cpp
+Log:
+added set_capacity method to geometry classes.
+(now we can use std::vector&lt;boost::tuple&lt;value_type,value_type,char&gt; &gt; 
+as an alternative vertex storage).
+ 
+
+
+Modified: trunk/include/geometry.hpp
+===================================================================
+--- trunk/include/geometry.hpp	2006-02-05 09:45:51 UTC (rev 140)
++++ trunk/include/geometry.hpp	2006-02-05 12:31:24 UTC (rev 141)
+@@ -62,6 +62,7 @@
+ 	virtual unsigned num_points() const = 0;
+ 	virtual unsigned vertex(double* x, double* y)=0;
+ 	virtual void rewind(unsigned )=0;
++	virtual void set_capacity(size_t size)=0;
+ 	virtual ~geometry() {}
+     };
+     
+@@ -120,6 +121,7 @@
+ 	{
+ 	    return false;
+ 	}
++	void set_capacity(size_t) {}
+ 	virtual ~point() {}
+     };
+ 
+@@ -216,6 +218,10 @@
+ 	{	    
+ 	    return false;
+ 	} 
++	void set_capacity(size_t size) 
++	{
++	    cont_.set_capacity(size);
++	}
+ 	virtual ~polygon() {}
+     };
+     
+@@ -332,12 +338,17 @@
+ 	{	    
+ 	    return false;
+ 	} 
++	
++	void set_capacity(size_t size) 
++	{
++	    cont_.set_capacity(size);
++	}
+ 	virtual ~line_string() {}
+     };
+ 
+     typedef point&lt;vertex2d&gt; point_impl;
+-    typedef line_string&lt;vertex2d,vertex_vector&gt; line_string_impl;
+-    typedef polygon&lt;vertex2d,vertex_vector&gt; polygon_impl;
++    typedef line_string&lt;vertex2d,vertex_vector2&gt; line_string_impl;
++    typedef polygon&lt;vertex2d,vertex_vector2&gt; polygon_impl;
+     
+     typedef geometry&lt;vertex2d&gt; geometry_type;
+     typedef boost::shared_ptr&lt;geometry_type&gt; geometry_ptr;
+
+Modified: trunk/include/vertex_vector.hpp
+===================================================================
+--- trunk/include/vertex_vector.hpp	2006-02-05 09:45:51 UTC (rev 140)
++++ trunk/include/vertex_vector.hpp	2006-02-05 12:31:24 UTC (rev 141)
+@@ -115,7 +115,10 @@
+ 	    ++vertex;
+ 	    t.forward_y(vertex);
+ 	}
+-	
++	void set_capacity(size_t)
++	{
++	    //do nothing
++	}
+     private:
+ 	void allocate_block(unsigned block)
+ 	{
+@@ -143,9 +146,8 @@
+     struct vertex_vector2 : boost::noncopyable
+     {
+ 	typedef typename T::type value_type;
+-	typedef boost::tuple&lt;value_type,value_type,char&gt; coord;
++	typedef boost::tuple&lt;value_type,value_type,char&gt; vertex_type;
+ 	vertex_vector2() {}
+-	
+ 	unsigned size() const 
+ 	{
+ 	    return cont_.size();
+@@ -153,27 +155,30 @@
+ 
+ 	void push_back (value_type x,value_type y,unsigned command)
+ 	{
+-	    cont_.push_back(coord(x,y,command));
++	    cont_.push_back(vertex_type(x,y,command));
+ 	}
+ 	unsigned get_vertex(unsigned pos,value_type* x,value_type* y) const
+ 	{
+ 	    if (pos &gt;= cont_.size()) return SEG_END;
+-	    coord const&amp; c = cont_[pos];
++	    vertex_type const&amp; c = cont_[pos];
+ 	    *x = boost::get&lt;0&gt;(c);
+ 	    *y = boost::get&lt;1&gt;(c);
+ 	    return boost::get&lt;2&gt;(c);
+ 	}
+-
++	
+ 	void transform_at(unsigned pos,const CoordTransform&amp; t)
+ 	{
+ 	    if (pos &gt;= cont_.size()) return;
+-	    coord &amp; c = cont_[pos];
++	    vertex_type &amp; c = cont_[pos];
+ 	    t.forward_x(&amp;boost::get&lt;0&gt;(c));
+ 	    t.forward_y(&amp;boost::get&lt;1&gt;(c));
+ 	}
+-	
++	void set_capacity(size_t size)
++	{
++	    cont_.reserve(size);
++	}
+     private:
+-	std::vector&lt;coord&gt; cont_;
++	std::vector&lt;vertex_type&gt; cont_;
+     };
+ }
+ 
+
+Modified: trunk/plugins/input/shape/shape_io.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape_io.cpp	2006-02-05 09:45:51 UTC (rev 140)
++++ trunk/plugins/input/shape/shape_io.cpp	2006-02-05 12:31:24 UTC (rev 141)
+@@ -92,9 +92,10 @@
+     int num_parts=record.read_ndr_integer();
+     int num_points=record.read_ndr_integer();
+     geometry_ptr line(new line_string_impl(-1));
+-    
++    line-&gt;set_capacity(num_points + num_parts);
+     if (num_parts == 1)
+     {
++	line-&gt;set_capacity(num_points + 1);
+ 	record.skip(4);
+ 	double x=record.read_double();
+ 	double y=record.read_double();
+@@ -145,7 +146,7 @@
+     int num_parts=record.read_ndr_integer();
+     int num_points=record.read_ndr_integer();
+     geometry_ptr line(new line_string_impl(-1));
+-    
++    line-&gt;set_capacity(num_points + num_parts);
+     if (num_parts == 1)
+     {
+ 	record.skip(4);
+@@ -207,7 +208,7 @@
+     int num_parts=record.read_ndr_integer();
+     int num_points=record.read_ndr_integer();
+     geometry_ptr line(new line_string_impl(-1));
+-    
++    line-&gt;set_capacity(num_points + num_parts);
+     if (num_parts == 1)
+     {
+ 	record.skip(4);
+@@ -277,7 +278,7 @@
+     int num_points=record.read_ndr_integer();
+     std::vector&lt;int&gt; parts(num_parts);
+     geometry_ptr poly(new polygon_impl(-1));
+-    
++    poly-&gt;set_capacity(num_points + num_parts);
+     for (int i=0;i&lt;num_parts;++i)
+     {
+         parts[i]=record.read_ndr_integer();
+@@ -317,7 +318,7 @@
+     int num_points=record.read_ndr_integer();
+     std::vector&lt;int&gt; parts(num_parts);
+     geometry_ptr poly(new polygon_impl(-1));
+-    
++    poly-&gt;set_capacity(num_points + num_parts);
+     for (int i=0;i&lt;num_parts;++i)
+     {
+         parts[i]=record.read_ndr_integer();
+@@ -365,7 +366,7 @@
+     int num_points=record.read_ndr_integer();
+     std::vector&lt;int&gt; parts(num_parts);
+     geometry_ptr poly(new polygon_impl(-1));
+-    
++    poly-&gt;set_capacity(num_points + num_parts);
+     for (int i=0;i&lt;num_parts;++i)
+     {
+         parts[i]=record.read_ndr_integer();
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000026.html">[Mapnik-svn] r140 - in trunk: bindings/python include src
+</A></li>
+	<LI>Next message: <A HREF="000028.html">[Mapnik-svn] r142 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#27">[ date ]</a>
+              <a href="thread.html#27">[ thread ]</a>
+              <a href="subject.html#27">[ subject ]</a>
+              <a href="author.html#27">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,231 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r269 - trunk/include
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-May/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r269%20-%20trunk/include&In-Reply-To=%3C200605241513.k4OFDqtY030238%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000153.html">
+   <LINK REL="Next"  HREF="000155.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r269 - trunk/include</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r269%20-%20trunk/include&In-Reply-To=%3C200605241513.k4OFDqtY030238%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r269 - trunk/include">pavlenko at berlios.de
+       </A><BR>
+    <I>Wed May 24 17:13:52 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000153.html">[Mapnik-svn] r268 - in trunk: include src
+</A></li>
+        <LI>Next message: <A HREF="000155.html">[Mapnik-svn] r270 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#154">[ date ]</a>
+              <a href="thread.html#154">[ thread ]</a>
+              <a href="subject.html#154">[ subject ]</a>
+              <a href="author.html#154">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-05-24 17:13:51 +0200 (Wed, 24 May 2006)
+New Revision: 269
+
+Modified:
+   trunk/include/color.hpp
+Log:
+implemented to_hex_color() method that returns 
+#RRGGBB color representation. 
+
+
+
+Modified: trunk/include/color.hpp
+===================================================================
+--- trunk/include/color.hpp	2006-05-23 17:23:20 UTC (rev 268)
++++ trunk/include/color.hpp	2006-05-24 15:13:51 UTC (rev 269)
+@@ -25,6 +25,7 @@
+ #ifndef COLOR_HPP
+ #define COLOR_HPP
+ 
++#include &lt;boost/format.hpp&gt;
+ #include &quot;config.hpp&quot;
+ #include &lt;sstream&gt;
+ 
+@@ -33,78 +34,84 @@
+     class MAPNIK_DECL Color
+     {
+     private:
+-	unsigned int rgba_;
++        unsigned int rgba_;
+     public:
+-	Color()
+-	    :rgba_(0xffffffff) {}
++        Color()
++            :rgba_(0xffffffff) {}
+ 
+-	Color(int red,int green,int blue,int alpha=0xff)
+-	    : rgba_((alpha&amp;0xff) &lt;&lt; 24 | (blue&amp;0xff) &lt;&lt; 16 | (green&amp;0xff) &lt;&lt; 8 | red&amp;0xff) {}
++        Color(int red,int green,int blue,int alpha=0xff)
++            : rgba_((alpha&amp;0xff) &lt;&lt; 24 | (blue&amp;0xff) &lt;&lt; 16 | (green&amp;0xff) &lt;&lt; 8 | red&amp;0xff) {}
+ 	
+-	explicit Color(int rgba)
+-	    : rgba_(rgba) {}
++        explicit Color(int rgba)
++            : rgba_(rgba) {}
+ 
+-	Color(const Color&amp; rhs)
+-	    : rgba_(rhs.rgba_) {}
++        Color(const Color&amp; rhs)
++            : rgba_(rhs.rgba_) {}
+ 
+-	Color&amp; operator=(const Color&amp; rhs)
+-	{
+-	    if (this==&amp;rhs) return *this;
+-	    rgba_=rhs.rgba_;
+-	    return *this;
+-	}
+-	inline unsigned int blue() const
+-	{
+-	    return (rgba_&gt;&gt;16)&amp;0xff;
+-	}
+-	inline unsigned int green() const
+-	{
+-	    return (rgba_&gt;&gt;8)&amp;0xff;
+-	}
+-	inline unsigned int red() const
+-	{
+-	    return rgba_&amp;0xff;
+-	}
++        Color&amp; operator=(const Color&amp; rhs)
++        {
++            if (this==&amp;rhs) return *this;
++            rgba_=rhs.rgba_;
++            return *this;
++        }
++        inline unsigned int blue() const
++        {
++            return (rgba_&gt;&gt;16)&amp;0xff;
++        }
++        inline unsigned int green() const
++        {
++            return (rgba_&gt;&gt;8)&amp;0xff;
++        }
++        inline unsigned int red() const
++        {
++            return rgba_&amp;0xff;
++        }
+ 	
+-	inline void set_red(unsigned int r)
+-	{
+-	    rgba_ = (rgba_ &amp; 0xffffff00) | (r&amp;0xff);
+-	}
++        inline void set_red(unsigned int r)
++        {
++            rgba_ = (rgba_ &amp; 0xffffff00) | (r&amp;0xff);
++        }
+ 	
+-	inline void set_green(unsigned int g)
+-	{
+-	    rgba_ = (rgba_ &amp; 0xffff00ff) | ((g&amp;0xff) &lt;&lt; 8);
+-	}
++        inline void set_green(unsigned int g)
++        {
++            rgba_ = (rgba_ &amp; 0xffff00ff) | ((g&amp;0xff) &lt;&lt; 8);
++        }
+ 	
+-	inline void set_blue(unsigned int b)
+-	{
+-	    rgba_ = (rgba_ &amp; 0xff00ffff) | ((b&amp;0xff) &lt;&lt; 16);
+-	}
++        inline void set_blue(unsigned int b)
++        {
++            rgba_ = (rgba_ &amp; 0xff00ffff) | ((b&amp;0xff) &lt;&lt; 16);
++        }
+ 
+-	inline unsigned int alpha() const
+-	{
+-	    return (rgba_&gt;&gt;24)&amp;0xff;
+-	}
++        inline unsigned int alpha() const
++        {
++            return (rgba_&gt;&gt;24)&amp;0xff;
++        }
+ 	
+-	inline unsigned int rgba() const
+-	{
+-	    return rgba_;
+-	}
+-	inline void set_bgr(unsigned bgr)
+-	{
+-	    rgba_ = (rgba_ &amp; 0xff000000) | (bgr &amp; 0xffffff);
+-	}
+-	inline bool operator==(Color const&amp; other) const
+-	{
+-	    return rgba_ == other.rgba_;
+-	}
++        inline unsigned int rgba() const
++        {
++            return rgba_;
++        }
++        inline void set_bgr(unsigned bgr)
++        {
++            rgba_ = (rgba_ &amp; 0xff000000) | (bgr &amp; 0xffffff);
++        }
++        inline bool operator==(Color const&amp; other) const
++        {
++            return rgba_ == other.rgba_;
++        }
+ 
+-	inline std::string to_string() const
++        inline std::string to_string() const
+         {
+-	    std::stringstream ss;
+-	    ss &lt;&lt; &quot;rgb (&quot; &lt;&lt; red() &lt;&lt; &quot;,&quot;  &lt;&lt; green() &lt;&lt; &quot;,&quot;  &lt;&lt; blue() &lt;&lt;&quot;)&quot;;
+-	    return ss.str();
+-        } 
++            std::stringstream ss;
++            ss &lt;&lt; &quot;rgb (&quot; &lt;&lt; red() &lt;&lt; &quot;,&quot;  &lt;&lt; green() &lt;&lt; &quot;,&quot;  &lt;&lt; blue() &lt;&lt;&quot;)&quot;;
++            return ss.str();
++        }
++        inline std::string to_hex_string() const
++        {
++            std::stringstream ss;
++            ss &lt;&lt; boost::format(&quot;#%1$02x%2$02x%3$02x&quot;) % red() % green() % blue();
++            return ss.str();
++        }
+     };    
+ }
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000153.html">[Mapnik-svn] r268 - in trunk: include src
+</A></li>
+	<LI>Next message: <A HREF="000155.html">[Mapnik-svn] r270 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#154">[ date ]</a>
+              <a href="thread.html#154">[ thread ]</a>
+              <a href="subject.html#154">[ subject ]</a>
+              <a href="author.html#154">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

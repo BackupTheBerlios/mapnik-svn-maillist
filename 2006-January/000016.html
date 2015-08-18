@@ -1,0 +1,206 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r129 - in trunk: include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-January/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r129%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200601281605.k0SG5pc5021158%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000015.html">
+   <LINK REL="Next"  HREF="000017.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r129 - in trunk: include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r129%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200601281605.k0SG5pc5021158%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r129 - in trunk: include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Sat Jan 28 17:05:51 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000015.html">[Mapnik-svn] r128 - trunk/include
+</A></li>
+        <LI>Next message: <A HREF="000017.html">[Mapnik-svn] r130 - tags
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#16">[ date ]</a>
+              <a href="thread.html#16">[ thread ]</a>
+              <a href="subject.html#16">[ subject ]</a>
+              <a href="author.html#16">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-01-28 17:05:51 +0100 (Sat, 28 Jan 2006)
+New Revision: 129
+
+Modified:
+   trunk/include/graphics.hpp
+   trunk/src/image_symbolizer.cpp
+   trunk/src/render.cpp
+Log:
+1.corrected set_rectangle and set_rectangle_alpha to use envelope intersection for proper clipping
+2. clean up render.cpp 
+
+
+
+Modified: trunk/include/graphics.hpp
+===================================================================
+--- trunk/include/graphics.hpp	2006-01-26 23:52:22 UTC (rev 128)
++++ trunk/include/graphics.hpp	2006-01-28 16:05:51 UTC (rev 129)
+@@ -27,6 +27,7 @@
+ #include &quot;color.hpp&quot;
+ #include &quot;gamma.hpp&quot;
+ #include &quot;image_data.hpp&quot;
++#include &quot;envelope.hpp&quot;
+ 
+ namespace mapnik
+ {
+@@ -62,9 +63,9 @@
+ 	void saveToFile(const std::string&amp; file,const std::string&amp; format=&quot;auto&quot;); 
+     private:
+ 
+-	inline bool checkBounds(unsigned x,unsigned y) const
++	inline bool checkBounds(unsigned x, unsigned y) const
+ 	{
+-	    return ( x &lt; width_ &amp;&amp; y &lt; height_);
++	    return (x &lt; width_ &amp;&amp; y &lt; height_);
+ 	}
+ 
+     public:
+@@ -114,39 +115,41 @@
+ 	    return height_;
+ 	}
+ 
+-	inline void Image32::set_rectangle(unsigned x0,unsigned y0,const ImageData32&amp; data)
++	inline void set_rectangle(int x0,int y0,ImageData32 const&amp; data)
+ 	{
+-	    if (checkBounds(x0,y0))
+-	    {
+-		unsigned w=std::min(data.width(),width_-x0);
+-		unsigned h=std::min(data.height(),height_-y0);
+-		
+-		for (unsigned y=0;y&lt;h;++y)
++	    Envelope&lt;int&gt; ext0(0,0,width_,height_);   
++	    Envelope&lt;int&gt; ext1(x0,y0,x0+data.width(),y0+data.height());
++	    
++	    if (ext0.intersects(ext1))
++	    {	
++		Envelope&lt;int&gt; box = ext0.intersect(ext1);
++		for (int y = box.miny(); y &lt; box.maxy(); ++y)
+ 		{
+-		    for (unsigned x=0;x&lt;w;++x)
++		    for (int x = box.minx(); x &lt; box.maxx(); ++x)
+ 		    {
+-			if ((data(x,y) &amp; 0xff000000)) 
++			if ((data(x-x0,y-y0) &amp; 0xff000000)) 
+ 			{
+-			    data_(x0+x,y0+y)=data(x,y);
++			    data_(x,y)=data(x-x0,y-y0);
+ 			}
+ 		    }
+ 		}   
+ 	    }
+ 	}
+ 	
+-	inline void set_rectangle_alpha(unsigned x0,unsigned y0,const ImageData32&amp; data)
++	inline void set_rectangle_alpha(int x0,int y0,const ImageData32&amp; data)
+ 	{
+-	    if (checkBounds(x0,y0))
+-	    {
+-		unsigned w=std::min(data.width(),width_-x0);
+-		unsigned h=std::min(data.height(),height_-y0);
++	    Envelope&lt;int&gt; ext0(0,0,width_,height_);   
++	    Envelope&lt;int&gt; ext1(x0,y0,x0 + data.width(),y0 + data.height());
+ 	    
+-		for (unsigned y=0;y&lt;h;++y)
++	    if (ext0.intersects(ext1))
++	    {	                		
++		Envelope&lt;int&gt; box = ext0.intersect(ext1);		
++		for (int y = box.miny(); y &lt; box.maxy(); ++y)
+ 		{
+-		    for (unsigned x=0;x&lt;w;++x)
++		    for (int x = box.minx(); x &lt; box.maxx(); ++x)
+ 		    {
+-			unsigned rgba0 = data_(x0+x,y0+y);
+-			unsigned rgba1 = data(x,y);
++			unsigned rgba0 = data_(x,y);
++			unsigned rgba1 = data(x-x0,y-y0);
+ 		    
+ 			unsigned a1 = (rgba1 &gt;&gt; 24) &amp; 0xff;
+ 			if (a1 == 0) continue;
+@@ -166,7 +169,7 @@
+ 			g0 = ((((g1 &lt;&lt; 8) - g0) * a1 + (g0 &lt;&lt; 8)) / a0);
+ 			b0 = ((((b1 &lt;&lt; 8) - b0) * a1 + (b0 &lt;&lt; 8)) / a0);
+ 			a0 = a0 &gt;&gt; 8;
+-			data_(x0+x,y0+y)= (a0 &lt;&lt; 24)| (b0 &lt;&lt; 16) |  (g0 &lt;&lt; 8) | (r0) ;
++			data_(x,y)= (a0 &lt;&lt; 24)| (b0 &lt;&lt; 16) |  (g0 &lt;&lt; 8) | (r0) ;
+ 		    }
+ 		}
+ 	    }
+
+Modified: trunk/src/image_symbolizer.cpp
+===================================================================
+--- trunk/src/image_symbolizer.cpp	2006-01-26 23:52:22 UTC (rev 128)
++++ trunk/src/image_symbolizer.cpp	2006-01-28 16:05:51 UTC (rev 129)
+@@ -53,8 +53,8 @@
+ 	    t.forward_y(&amp;y);
+ 	    int w=symbol_.width();
+ 	    int h=symbol_.height();    
+-	    int px=int(x - 0.5 * w);
+-	    int py=int(y - 0.5 * h);
++	    int px=int(ceil(x - 0.5 * w));
++	    int py=int(ceil(y - 0.5 * h));
+ 	    image.set_rectangle_alpha(px,py,symbol_);
+ 	}
+     }
+
+Modified: trunk/src/render.cpp
+===================================================================
+--- trunk/src/render.cpp	2006-01-26 23:52:22 UTC (rev 128)
++++ trunk/src/render.cpp	2006-01-28 16:05:51 UTC (rev 129)
+@@ -95,13 +95,7 @@
+ 		    feature_ptr feature;
+ 		    while ((feature = fs-&gt;next()))
+ 		    {		   
+-			bool do_else=true;
+-			//geometry_ptr&amp; geom=feature-&gt;get_geometry();
+-			//if (geom)
+-			
+-			    //geom-&gt;transform(t);//todo: transform once
+-			    //  coord_transform&lt;CoordTransform,geometry_type&gt; path(t,*geom);
+-			    
++			bool do_else=true;		    
+ 			std::vector&lt;rule_type*&gt;::const_iterator itr=if_rules.begin();
+ 			while (itr!=if_rules.end())
+ 			{
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000015.html">[Mapnik-svn] r128 - trunk/include
+</A></li>
+	<LI>Next message: <A HREF="000017.html">[Mapnik-svn] r130 - tags
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#16">[ date ]</a>
+              <a href="thread.html#16">[ thread ]</a>
+              <a href="subject.html#16">[ subject ]</a>
+              <a href="author.html#16">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,107 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r211 - trunk
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r211%20-%20trunk&In-Reply-To=%3C200603262236.k2QMawwe025346%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000095.html">
+   <LINK REL="Next"  HREF="000097.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r211 - trunk</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r211%20-%20trunk&In-Reply-To=%3C200603262236.k2QMawwe025346%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r211 - trunk">jdoyon at berlios.de
+       </A><BR>
+    <I>Mon Mar 27 00:36:58 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000095.html">[Mapnik-svn] r210 - in trunk/bindings/python: . pyprojection
+</A></li>
+        <LI>Next message: <A HREF="000097.html">[Mapnik-svn] r212 - trunk/bindings/python
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#96">[ date ]</a>
+              <a href="thread.html#96">[ thread ]</a>
+              <a href="subject.html#96">[ subject ]</a>
+              <a href="author.html#96">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-03-27 00:36:55 +0200 (Mon, 27 Mar 2006)
+New Revision: 211
+
+Modified:
+   trunk/SConstruct
+Log:
+Add support for building pyprojection.
+
+
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2006-03-26 22:35:37 UTC (rev 210)
++++ trunk/SConstruct	2006-03-26 22:36:55 UTC (rev 211)
+@@ -33,6 +33,8 @@
+ opts.Add(PathOption('TIFF_LIBS', 'Search path for libtiff library files', '/usr/lib'))
+ opts.Add(PathOption('PGSQL_INCLUDES', 'Search path for PostgreSQL include files', '/usr/include'))
+ opts.Add(PathOption('PGSQL_LIBS', 'Search path for PostgreSQL library files', '/usr/lib'))
++opts.Add(PathOption('PROJ_INCLUDES', 'Search path for PROJ.4 include files', '/usr/local/include'))
++opts.Add(PathOption('PROJ_LIBS', 'Search path for PROJ.4 include files', '/usr/local/lib'))
+ opts.Add(PathOption('PYTHON','Python executable', sys.executable))
+ opts.Add(ListOption('INPUT_PLUGINS','Input drivers to include','all',['postgis','shape','raster']))
+ opts.Add(ListOption('BINDINGS','Language bindings to build','all',['python']))
+@@ -64,7 +66,8 @@
+     ['tiff', 'tiff.h', True],
+     ['z', 'zlib.h', True],
+     ['jpeg', ['stdio.h', 'jpeglib.h'], True],
+-    ['pq', 'libpq-fe.h', False]
++    ['pq', 'libpq-fe.h', False],
++    ['proj', 'proj_api.h', False]
+ ]
+ 
+ BOOST_LIBSHEADERS = [
+@@ -141,6 +144,10 @@
+     SConscript('utils/shapeindex/SConscript')
+     env['LIBS'].remove('boost_program_options%s' % env['BOOST_APPEND'])
+ 
++if 'proj' in env['LIBS']:
++    SConscript('bindings/python/pyprojection/SConscript')
++    env['LIBS'].remove('proj')
++
+ # Build the input plug-ins
+ 
+ if 'postgis' in inputplugins and 'pq' in env['LIBS']:
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000095.html">[Mapnik-svn] r210 - in trunk/bindings/python: . pyprojection
+</A></li>
+	<LI>Next message: <A HREF="000097.html">[Mapnik-svn] r212 - trunk/bindings/python
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#96">[ date ]</a>
+              <a href="thread.html#96">[ thread ]</a>
+              <a href="subject.html#96">[ subject ]</a>
+              <a href="author.html#96">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

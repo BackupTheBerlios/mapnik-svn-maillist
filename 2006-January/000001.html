@@ -1,0 +1,210 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r114 - in trunk: include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-January/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r114%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200601011741.k01Hfuj7030160%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000000.html">
+   <LINK REL="Next"  HREF="000002.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r114 - in trunk: include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r114%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200601011741.k01Hfuj7030160%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r114 - in trunk: include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Sun Jan  1 18:41:56 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000000.html">[Mapnik-svn] r113 - trunk/include
+</A></li>
+        <LI>Next message: <A HREF="000002.html">[Mapnik-svn] r115 - tags
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1">[ date ]</a>
+              <a href="thread.html#1">[ thread ]</a>
+              <a href="subject.html#1">[ subject ]</a>
+              <a href="author.html#1">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-01-01 18:41:55 +0100 (Sun, 01 Jan 2006)
+New Revision: 114
+
+Modified:
+   trunk/include/graphics.hpp
+   trunk/include/image_symbolizer.hpp
+   trunk/src/graphics.cpp
+Log:
+added alpha blending for image copying
+
+
+
+Modified: trunk/include/graphics.hpp
+===================================================================
+--- trunk/include/graphics.hpp	2006-01-01 17:40:26 UTC (rev 113)
++++ trunk/include/graphics.hpp	2006-01-01 17:41:55 UTC (rev 114)
+@@ -44,8 +44,7 @@
+ 	~Image32();
+ 	static void setGamma(double gamma);
+ 	void setBackground(const Color&amp; background);
+-	const Color&amp; getBackground() const;
+-	void set_rectangle(unsigned  x,unsigned y,const ImageData32&amp; data);           
++	const Color&amp; getBackground() const;     
+ 	const ImageData32&amp; data() const;
+ 	inline ImageData32&amp; data() {
+ 	    return data_;
+@@ -92,7 +91,7 @@
+ 	    int g=gammaTable_.l2g[(gammaTable_.g2l[green]*alpha+gammaTable_.g2l[bgGreen]*(255-alpha))&gt;&gt;8];
+ 	    int b=gammaTable_.l2g[(gammaTable_.g2l[blue]*alpha+gammaTable_.g2l[bgBlue]*(255-alpha))&gt;&gt;8];
+ 	    
+-	    return 0xff&lt;&lt;24 | r&lt;&lt;16 | g&lt;&lt;8 | b;
++	    return 0xff &lt;&lt; 24 | r &lt;&lt; 16 | g &lt;&lt; 8 | b;
+ 	}
+ 
+ 	inline void blendPixel(int x,int y,unsigned int rgba,int t)
+@@ -114,6 +113,64 @@
+ 	{
+ 	    return height_;
+ 	}
++
++	inline void Image32::set_rectangle(unsigned x0,unsigned y0,const ImageData32&amp; data)
++	{
++	    if (checkBounds(x0,y0))
++	    {
++		unsigned w=std::min(data.width(),width_-x0);
++		unsigned h=std::min(data.height(),height_-y0);
++		
++		for (unsigned y=0;y&lt;h;++y)
++		{
++		    for (unsigned x=0;x&lt;w;++x)
++		    {
++			if ((data(x,y) &amp; 0xff000000)) 
++			{
++			    data_(x0+x,y0+y)=data(x,y);
++			}
++		    }
++		}   
++	    }
++	}
++	
++	inline void set_rectangle_alpha(unsigned x0,unsigned y0,const ImageData32&amp; data)
++	{
++	    if (checkBounds(x0,y0))
++	    {
++		unsigned w=std::min(data.width(),width_-x0);
++		unsigned h=std::min(data.height(),height_-y0);
++	    
++		for (unsigned y=0;y&lt;h;++y)
++		{
++		    for (unsigned x=0;x&lt;w;++x)
++		    {
++			unsigned rgba0 = data_(x0+x,y0+y);
++			unsigned rgba1 = data(x,y);
++		    
++			unsigned a1 = (rgba1 &gt;&gt; 24) &amp; 0xff;
++			if (a1 == 0) continue;
++			unsigned r1 = rgba1 &amp; 0xff;
++			unsigned g1 = (rgba1 &gt;&gt; 8 ) &amp; 0xff;
++			unsigned b1 = (rgba1 &gt;&gt; 16) &amp; 0xff;
++		    
++			unsigned a0 = (rgba0 &gt;&gt; 24) &amp; 0xff;
++			unsigned r0 = (rgba0 &amp; 0xff) * a0;
++			unsigned g0 = ((rgba0 &gt;&gt; 8 ) &amp; 0xff) * a0;
++			unsigned b0 = ((rgba0 &gt;&gt; 16) &amp; 0xff) * a0;
++		    
++		    
++			a0 = ((a1 + a0) &lt;&lt; 8) - a0*a1;
++		    
++			r0 = ((((r1 &lt;&lt; 8) - r0) * a1 + (r0 &lt;&lt; 8)) / a0);
++			g0 = ((((g1 &lt;&lt; 8) - g0) * a1 + (g0 &lt;&lt; 8)) / a0);
++			b0 = ((((b1 &lt;&lt; 8) - b0) * a1 + (b0 &lt;&lt; 8)) / a0);
++			a0 = a0 &gt;&gt; 8;
++			data_(x0+x,y0+y)= (a0 &lt;&lt; 24)| (b0 &lt;&lt; 16) |  (g0 &lt;&lt; 8) | (r0) ;
++		    }
++		}
++	    }
++	}
+     };
+ }
+ #endif //GRAPHICS_HPP
+
+Modified: trunk/include/image_symbolizer.hpp
+===================================================================
+--- trunk/include/image_symbolizer.hpp	2006-01-01 17:40:26 UTC (rev 113)
++++ trunk/include/image_symbolizer.hpp	2006-01-01 17:41:55 UTC (rev 114)
+@@ -63,7 +63,7 @@
+ 		geom.vertex(&amp;x,&amp;y);
+ 		int px=int(x - 0.5 * w);
+ 		int py=int(y - 0.5 * h);
+-		image.set_rectangle(px,py,symbol_);
++		image.set_rectangle_alpha(px,py,symbol_);
+ 	    }
+ 	}
+     };
+
+Modified: trunk/src/graphics.cpp
+===================================================================
+--- trunk/src/graphics.cpp	2006-01-01 17:40:26 UTC (rev 113)
++++ trunk/src/graphics.cpp	2006-01-01 17:41:55 UTC (rev 114)
+@@ -56,26 +56,7 @@
+     {
+         return background_;
+     }
+-
+-    void Image32::set_rectangle(unsigned x0,unsigned y0,const ImageData32&amp; data)
+-    {
+-	if (x0&gt;=width_ || y0&gt;=height_) return;
+-     
+-	unsigned w=std::min(data.width(),width_-x0);
+-        unsigned h=std::min(data.height(),height_-y0);
+-
+-        for (unsigned y=0;y&lt;h;++y)
+-        {
+-            for (unsigned x=0;x&lt;w;++x)
+-            {
+-		if ((data(x,y) &amp; 0xff000000)) 
+-		{
+-		    data_(x0+x,y0+y)=data(x,y);
+-		}
+-            }
+-        }
+-    }
+-
++    
+     void Image32::saveToFile(const std::string&amp; file,const std::string&amp; format) 
+     {
+ 	//TODO: image writer factory
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000000.html">[Mapnik-svn] r113 - trunk/include
+</A></li>
+	<LI>Next message: <A HREF="000002.html">[Mapnik-svn] r115 - tags
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1">[ date ]</a>
+              <a href="thread.html#1">[ thread ]</a>
+              <a href="subject.html#1">[ subject ]</a>
+              <a href="author.html#1">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,86 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r355 - trunk/include/mapnik
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r355%20-%20trunk/include/mapnik&In-Reply-To=%3C200610211217.k9LCHh60018708%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000239.html">
+   <LINK REL="Next"  HREF="000241.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r355 - trunk/include/mapnik</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r355%20-%20trunk/include/mapnik&In-Reply-To=%3C200610211217.k9LCHh60018708%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r355 - trunk/include/mapnik">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Sat Oct 21 14:17:43 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000239.html">[Mapnik-svn] r354 - trunk/src
+</A></li>
+        <LI>Next message: <A HREF="000241.html">[Mapnik-svn] r356 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#240">[ date ]</a>
+              <a href="thread.html#240">[ thread ]</a>
+              <a href="subject.html#240">[ subject ]</a>
+              <a href="author.html#240">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-21 14:17:41 +0200 (Sat, 21 Oct 2006)
+New Revision: 355
+
+Modified:
+   trunk/include/mapnik/placement_finder.hpp
+Log:
+removed extra qualifier (GCC &gt;= 4.1 reports as an error).
+
+
+
+Modified: trunk/include/mapnik/placement_finder.hpp
+===================================================================
+--- trunk/include/mapnik/placement_finder.hpp	2006-10-21 12:16:19 UTC (rev 354)
++++ trunk/include/mapnik/placement_finder.hpp	2006-10-21 12:17:41 UTC (rev 355)
+@@ -72,7 +72,7 @@
+     //helpers
+     std::pair&lt;double, double&gt; get_position_at_distance(double target_distance);
+     double get_total_distance();
+-    void placement::clear_envelopes();
++    void clear_envelopes();
+     
+     double total_distance_; //cache for distance
+   };
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000239.html">[Mapnik-svn] r354 - trunk/src
+</A></li>
+	<LI>Next message: <A HREF="000241.html">[Mapnik-svn] r356 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#240">[ date ]</a>
+              <a href="thread.html#240">[ thread ]</a>
+              <a href="subject.html#240">[ subject ]</a>
+              <a href="author.html#240">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

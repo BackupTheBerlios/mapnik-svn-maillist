@@ -1,0 +1,3487 @@
+From pavlenko at mail.berlios.de  Mon Feb  5 12:53:06 2007
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Mon, 5 Feb 2007 12:53:06 +0100
+Subject: [Mapnik-svn] r439 - trunk/bindings/python
+Message-ID: <200702051153.l15Br6XZ024757@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2007-02-05 12:53:00 +0100 (Mon, 05 Feb 2007)
+New Revision: 439
+
+Modified:
+   trunk/bindings/python/mapnik_text_symbolizer.cpp
+Log:
+fixed property name 
+
+
+
+Modified: trunk/bindings/python/mapnik_text_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_text_symbolizer.cpp	2007-01-29 22:29:06 UTC (rev 438)
++++ trunk/bindings/python/mapnik_text_symbolizer.cpp	2007-02-05 11:53:00 UTC (rev 439)
+@@ -68,7 +68,7 @@
+                       &text_symbolizer::get_avoid_edges,
+                       &text_symbolizer::set_avoid_edges)
+         
+-        .add_property("set_label_placement",
++        .add_property("label_placement",
+                       &text_symbolizer::get_label_placement,
+                       &text_symbolizer::set_label_placement,
+                       "Set/get the placement of the label")
+
+
+
+From pavlenko at mail.berlios.de  Tue Feb  6 15:27:33 2007
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Tue, 6 Feb 2007 15:27:33 +0100
+Subject: [Mapnik-svn] r440 - in trunk: demo/c++ demo/python include/mapnik
+	plugins/input/postgis plugins/input/raster plugins/input/shape src
+Message-ID: <200702061427.l16ERX8E013043@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2007-02-06 15:27:21 +0100 (Tue, 06 Feb 2007)
+New Revision: 440
+
+Modified:
+   trunk/demo/c++/rundemo.cpp
+   trunk/demo/python/rundemo.py
+   trunk/include/mapnik/agg_renderer.hpp
+   trunk/include/mapnik/feature_layer_desc.hpp
+   trunk/include/mapnik/geom_util.hpp
+   trunk/include/mapnik/image_util.hpp
+   trunk/include/mapnik/text_symbolizer.hpp
+   trunk/include/mapnik/unicode.hpp
+   trunk/plugins/input/postgis/connection.hpp
+   trunk/plugins/input/postgis/postgis.cpp
+   trunk/plugins/input/raster/raster_datasource.cpp
+   trunk/plugins/input/shape/shape.cpp
+   trunk/src/agg_renderer.cpp
+   trunk/src/memory_datasource.cpp
+Log:
+Added transcoder based on iconv. Internally we use UCS-2 at the moment.
+ * Postgis plug-in determines encoding by querying 'client_encoding' parameter (libpq). 
+ * Shapfiles (dbf!) don't store character encoding information. Users can apply 'encoding' parameter at datasource creation stage (defaults to Latin1 (ISO-8859-1))
+ * Raster plug-in utf-8   
+
+
+
+Modified: trunk/demo/c++/rundemo.cpp
+===================================================================
+--- trunk/demo/c++/rundemo.cpp	2007-02-05 11:53:00 UTC (rev 439)
++++ trunk/demo/c++/rundemo.cpp	2007-02-06 14:27:21 UTC (rev 440)
+@@ -43,7 +43,7 @@
+     
+     std::cout << " running demo ... \n";
+     datasource_cache::instance()->register_datasources(argv[1]); 
+-    freetype_engine::instance()->register_font("/usr/share/fonts/bitstream-vera/Vera.ttf");
++    freetype_engine::instance()->register_font("/opt/mapnik/lib64/mapnik/fonts//Vera.ttf");
+     
+     Map m(800,600);
+     m.setBackground(color_factory::from_string("white"));
+
+Modified: trunk/demo/python/rundemo.py
+===================================================================
+--- trunk/demo/python/rundemo.py	2007-02-05 11:53:00 UTC (rev 439)
++++ trunk/demo/python/rundemo.py	2007-02-06 14:27:21 UTC (rev 440)
+@@ -271,7 +271,7 @@
+ # Populated Places
+ 
+ popplaces_lyr = Layer('Populated Places')
+-popplaces_lyr.datasource = Shapefile(file='../data/popplaces')
++popplaces_lyr.datasource = Shapefile(file='../data/popplaces',encoding='latin1')
+ 
+ popplaces_style = Style()
+ popplaces_rule = Rule()
+
+Modified: trunk/include/mapnik/agg_renderer.hpp
+===================================================================
+--- trunk/include/mapnik/agg_renderer.hpp	2007-02-05 11:53:00 UTC (rev 439)
++++ trunk/include/mapnik/agg_renderer.hpp	2007-02-06 14:27:21 UTC (rev 440)
+@@ -27,13 +27,15 @@
+ 
+ // boost
+ #include <boost/utility.hpp>
++#include <boost/shared_ptr.hpp>
+ // mapnik
++#include <mapnik/config.hpp>
+ #include <mapnik/feature_style_processor.hpp>
+ #include <mapnik/font_engine_freetype.hpp>
+ #include <mapnik/label_collision_detector.hpp>
+ #include <mapnik/placement_finder.hpp>
+ #include <mapnik/map.hpp>
+-#include <mapnik/config.hpp>
++#include <mapnik/unicode.hpp>
+ 
+ namespace mapnik {
+     template <typename T>
+@@ -71,12 +73,12 @@
+                      Feature const& feature,
+                      proj_transform const& prj_trans);
+     private:
+-        T & pixmap_;
+-        CoordTransform t_;
+-        face_manager<freetype_engine> font_manager_;
+-//        label_collision_detector2 label_detector_;
+-        placement_finder finder_;
+-        label_collision_detector2 point_detector_; //Note: May want to merge this with placement_finder
++          T & pixmap_;
++          CoordTransform t_;
++          face_manager<freetype_engine> font_manager_;
++          placement_finder finder_;
++          label_collision_detector2 point_detector_; //Note: May want to merge this with placement_finder
++          boost::shared_ptr<transcoder> tr_;
+     };
+ }
+ 
+
+Modified: trunk/include/mapnik/feature_layer_desc.hpp
+===================================================================
+--- trunk/include/mapnik/feature_layer_desc.hpp	2007-02-05 11:53:00 UTC (rev 439)
++++ trunk/include/mapnik/feature_layer_desc.hpp	2007-02-06 14:27:21 UTC (rev 440)
+@@ -32,157 +32,157 @@
+ namespace mapnik
+ {
+     
+-    using std::string;
+-    using std::vector;
+-    using std::clog;
+-    using std::endl;
++   using std::string;
++   using std::vector;
++   using std::clog;
+     
+-    enum {
+-        Integer=1,
+-        Float  =2,
+-        Double =3,
+-        String =4,
+-        Geometry=5,
+-        Object=6 
+-    };
++   enum {
++      Integer=1,
++      Float  =2,
++      Double =3,
++      String =4,
++      Geometry=5,
++      Object=6 
++   };
+     
+-    class attribute_descriptor
+-    {
+-    public:
+-        attribute_descriptor(string const& name,unsigned type,
+-                             bool primary_key=false,
+-                             int size=-1,
+-                             int precision=-1)
++   class attribute_descriptor
++   {
++      public:
++         attribute_descriptor(string const& name,unsigned type,
++                              bool primary_key=false,
++                              int size=-1,
++                              int precision=-1)
+             : name_(name),
+               type_(type),
+               primary_key_(primary_key),
+               size_(size),
+               precision_(precision) {}
+ 	      
+-        attribute_descriptor(attribute_descriptor const& other)
++         attribute_descriptor(attribute_descriptor const& other)
+             : name_(other.name_),
+               type_(other.type_),
+               primary_key_(other.primary_key_),
+               size_(other.size_),
+               precision_(other.precision_) {}
+ 
+-        attribute_descriptor& operator=(attribute_descriptor const& other)
+-        {
++         attribute_descriptor& operator=(attribute_descriptor const& other)
++         {
+             if (this == &other)
+-                return *this;	    
++               return *this;	    
+             name_=other.name_;
+             type_=other.type_;
+             primary_key_=other.primary_key_;
+             size_=other.size_;
+             precision_=other.precision_;
+             return *this;
+-        }
+-        string const& get_name() const
+-        {
++         }
++         string const& get_name() const
++         {
+             return name_;
+-        }
+-        unsigned  get_type() const
+-        {
++         }
++         unsigned  get_type() const
++         {
+             return type_;
+-        }
+-        bool is_primary_key() const
+-        {
++         }
++         bool is_primary_key() const
++         {
+             return primary_key_;
+-        }
+-        int get_size() const
+-        {
++         }
++         int get_size() const
++         {
+             return size_;
+-        } 
++         } 
+ 	
+-        int get_precision() const
+-        {
++         int get_precision() const
++         {
+             return precision_;
+-        }
+-    private:
+-        string name_;
+-        int type_;
+-        bool primary_key_;
+-        int size_;
+-        int precision_;
+-    };
++         }
++      private:
++         string name_;
++         int type_;
++         bool primary_key_;
++         int size_;
++         int precision_;
++   };
+      
+-    template <typename charT,typename traits>
+-    inline std::basic_ostream<charT,traits>&
+-    operator << (std::basic_ostream<charT,traits>& out,
+-                 attribute_descriptor const& ad)
+-    {
+-        out << "name=" << ad.get_name() << endl;
+-        out << "type=" << ad.get_type() << endl;
+-        out << "size=" << ad.get_size() << endl;
+-        return out;
+-    }
++   template <typename charT,typename traits>
++   inline std::basic_ostream<charT,traits>&
++   operator << (std::basic_ostream<charT,traits>& out,
++                attribute_descriptor const& ad)
++   {
++      out << "name=" << ad.get_name() << "\n";
++      out << "type=" << ad.get_type() << "\n";
++      out << "size=" << ad.get_size() << "\n";
++      return out;
++   }
+ 
+-    class layer_descriptor 
+-    {
+-    public:
+-        layer_descriptor(string const& name,int srid=-1)
++   class layer_descriptor 
++   {
++      public:
++         layer_descriptor(string const& name,string const& encoding)
+             : name_(name),
+-              srid_(srid) {}
++              encoding_(encoding) {}
+ 
+-        layer_descriptor(layer_descriptor const& other)
++         layer_descriptor(layer_descriptor const& other)
+             : name_(other.name_),
+-              srid_(other.srid_),
++              encoding_(other.encoding_),
+               desc_ar_(other.desc_ar_) {}
+ 	
+-        void set_name(string const& name)
+-        {
++         void set_name(string const& name)
++         {
+             name_=name;
+-        }
+-        string const& get_name() const
+-        {
++         }
++         
++         string const& get_name() const
++         {
+             return name_;
+-        }
++         }
+ 	
+-        void set_srid(int srid) 
+-        {
+-            srid_=srid;
+-        }
++         void set_encoding(std::string const& encoding) 
++         {
++            encoding_=encoding;
++         }
+ 	
+-        int get_srid() const
+-        {
+-            return srid_;
+-        }
++         std::string const& get_encoding() const
++         {
++            return encoding_;
++         }
+ 
+-        void add_descriptor(attribute_descriptor const& desc)
+-        {
++         void add_descriptor(attribute_descriptor const& desc)
++         {
+             desc_ar_.push_back(desc);
+-        }
++         }
+ 	
+-        vector<attribute_descriptor> const& get_descriptors() const
+-        {
++         vector<attribute_descriptor> const& get_descriptors() const
++         {
+             return desc_ar_;
+-        }	
+-        vector<attribute_descriptor>& get_descriptors()
+-        {
++         }	
++         vector<attribute_descriptor>& get_descriptors()
++         {
+             return desc_ar_;
+-        }
+-    private:
+-        string name_;
+-        int srid_;
+-        vector<attribute_descriptor> desc_ar_;
+-    };
++         }
++      private:
++         string name_;
++         string encoding_;
++         vector<attribute_descriptor> desc_ar_;
++   };
+     
+-    template <typename charT,typename traits>
+-    inline std::basic_ostream<charT,traits>&
+-    operator << (std::basic_ostream<charT,traits>& out,
+-                 layer_descriptor const& ld)
+-    {
+-        out << "name=" << ld.get_name() << endl;
+-        out << "srid=" << ld.get_srid() << endl;
+-        vector<attribute_descriptor> const& desc_ar=ld.get_descriptors();
+-        vector<attribute_descriptor>::const_iterator pos=desc_ar.begin();
+-        while (pos != desc_ar.end())
+-        {
+-            out << *pos++ << endl;
++   template <typename charT,typename traits>
++   inline std::basic_ostream<charT,traits>&
++   operator << (std::basic_ostream<charT,traits>& out,
++                layer_descriptor const& ld)
++   {
++      out << "name=" << ld.get_name() << "\n";
++      out << "encoding=" << ld.get_encoding() << "\n";
++      vector<attribute_descriptor> const& desc_ar=ld.get_descriptors();
++      vector<attribute_descriptor>::const_iterator pos=desc_ar.begin();
++      while (pos != desc_ar.end())
++      {
++         out << *pos++ << "\n";
+ 	    
+-        }
+-        return out;
+-    }
++      }
++      return out;
++   }
+ }
+ 
+ #endif //FEATURE_LAYER_DESC_HPP
+
+Modified: trunk/include/mapnik/geom_util.hpp
+===================================================================
+--- trunk/include/mapnik/geom_util.hpp	2007-02-05 11:53:00 UTC (rev 439)
++++ trunk/include/mapnik/geom_util.hpp	2007-02-06 14:27:21 UTC (rev 440)
+@@ -53,7 +53,7 @@
+         } else if (q<0.0) result=false;
+         return result;
+     }
+-
++    
+     template <typename T,typename Image>
+     bool clip_line(T& x0,T& y0,T& x1,T& y1,Envelope<T> const& box)
+     {
+
+Modified: trunk/include/mapnik/image_util.hpp
+===================================================================
+--- trunk/include/mapnik/image_util.hpp	2007-02-05 11:53:00 UTC (rev 439)
++++ trunk/include/mapnik/image_util.hpp	2007-02-06 14:27:21 UTC (rev 440)
+@@ -37,9 +37,16 @@
+     void save_to_file(std::string const& filename,
+                       std::string const& type,
+                       T const& image);
+-    
+-    
+     template <typename T>
++    void save_as_png(std::string const& filename,
++		     T const& image);
++
++    template <typename T>
++    void save_as_jpeg(std::string const& filename,
++		      int quality,
++		      T const& image);
++
++    template <typename T>
+     double distance(T x0,T y0,T x1,T y1)
+     {
+         double dx = x1-x0;
+@@ -210,15 +217,16 @@
+             }
+         }
+     }
++
+ #ifdef _MSC_VER
+-    template MAPNIK_DECL void save_to_file<ImageData32>(std::string const&,
+-                                            std::string const& , 
+-                                            ImageData32 const&);
+-
+-    template MAPNIK_DECL void save_to_file<image_view<ImageData32> > (std::string const&,
+-                                                          std::string const& , 
+-                                                          image_view<ImageData32> const&);
+-#endif
++  template MAPNIK_DECL void save_to_file<ImageData32>(std::string const&,
++						      std::string const& ,
++						      ImageData32 const&);
++  template MAPNIK_DECL void save_to_file<image_view<ImageData32> > (std::string const&,
++								    std::string const& ,
++								    image_view<ImageData32> const&);
++#endif
++
+ }
+ 
+ #endif //IMAGE_UTIL_HPP
+
+Modified: trunk/include/mapnik/text_symbolizer.hpp
+===================================================================
+--- trunk/include/mapnik/text_symbolizer.hpp	2007-02-05 11:53:00 UTC (rev 439)
++++ trunk/include/mapnik/text_symbolizer.hpp	2007-02-06 14:27:21 UTC (rev 440)
+@@ -33,66 +33,66 @@
+ 
+ namespace mapnik
+ {
+-    enum label_placement_e {
+-        point_placement=1,
+-        line_placement=2
+-    };
++   enum label_placement_e {
++      point_placement=1,
++      line_placement=2
++   };
+         
+-    typedef boost::tuple<double,double> position;
++   typedef boost::tuple<double,double> position;
+     
+-    struct MAPNIK_DECL text_symbolizer
+-    {		
+-        text_symbolizer(std::string const& name,std::string const& face_name, 
+-                        unsigned size,Color const& fill);	
+-        text_symbolizer(text_symbolizer const& rhs);
+-        text_symbolizer& operator=(text_symbolizer const& rhs);
+-        std::string const& get_name() const;
+-        unsigned get_text_ratio() const; // target ratio for text bounding box in pixels
+-        void set_text_ratio(unsigned ratio);
+-        unsigned get_wrap_width() const; // width to wrap text at, or trigger ratio
+-        void set_wrap_width(unsigned ratio);
+-        unsigned get_label_spacing() const; // spacing between repeated labels on lines
+-        void set_label_spacing(unsigned spacing);
+-        unsigned get_label_position_tolerance() const; //distance the label can be moved on the line to fit, if 0 the default is used
+-        void set_label_position_tolerance(unsigned tolerance);
+-		bool get_force_odd_labels() const; // try render an odd amount of labels
+-		void set_force_odd_labels(bool force);
+-        double get_max_char_angle_delta() const; // maximum change in angle between adjacent characters
+-        void set_max_char_angle_delta(double angle);
+-        unsigned get_text_size() const;
+-        std::string const& get_face_name() const;
+-        Color const& get_fill() const;
+-        void set_halo_fill(Color const& fill);
+-        Color const& get_halo_fill() const;
+-        void set_halo_radius(unsigned radius);
+-        unsigned get_halo_radius() const;
+-        void set_label_placement(label_placement_e label_p);
+-        label_placement_e get_label_placement() const;
+-        void set_anchor(double x, double y);	
+-        position const& get_anchor() const;	
+-        void set_displacement(double x, double y);
+-        position const& get_displacement() const;
++   struct MAPNIK_DECL text_symbolizer
++   {		
++         text_symbolizer(std::string const& name,std::string const& face_name, 
++                         unsigned size,Color const& fill);	
++         text_symbolizer(text_symbolizer const& rhs);
++         text_symbolizer& operator=(text_symbolizer const& rhs);
++         std::string const& get_name() const;
++         unsigned get_text_ratio() const; // target ratio for text bounding box in pixels
++         void set_text_ratio(unsigned ratio);
++         unsigned get_wrap_width() const; // width to wrap text at, or trigger ratio
++         void set_wrap_width(unsigned ratio);
++         unsigned get_label_spacing() const; // spacing between repeated labels on lines
++         void set_label_spacing(unsigned spacing);
++         unsigned get_label_position_tolerance() const; //distance the label can be moved on the line to fit, if 0 the default is used
++         void set_label_position_tolerance(unsigned tolerance);
++         bool get_force_odd_labels() const; // try render an odd amount of labels
++         void set_force_odd_labels(bool force);
++         double get_max_char_angle_delta() const; // maximum change in angle between adjacent characters
++         void set_max_char_angle_delta(double angle);
++         unsigned get_text_size() const;
++         std::string const& get_face_name() const;
++         Color const& get_fill() const;
++         void set_halo_fill(Color const& fill);
++         Color const& get_halo_fill() const;
++         void set_halo_radius(unsigned radius);
++         unsigned get_halo_radius() const;
++         void set_label_placement(label_placement_e label_p);
++         label_placement_e get_label_placement() const;
++         void set_anchor(double x, double y);	
++         position const& get_anchor() const;	
++         void set_displacement(double x, double y);
++         position const& get_displacement() const;
+ 
+-        void set_avoid_edges(bool avoid);
+-        bool get_avoid_edges() const;
+-    private:
+-        std::string name_;
+-        std::string face_name_;
+-        unsigned size_;
+-        unsigned text_ratio_;
+-        unsigned wrap_width_;
+-        unsigned label_spacing_;
+-        unsigned label_position_tolerance_;
+-        bool force_odd_labels_;
+-        double max_char_angle_delta_;
+-        Color fill_;
+-        Color halo_fill_;
+-        unsigned halo_radius_;
+-        label_placement_e label_p_;
+-        position anchor_;
+-        position displacement_;
+-        bool avoid_edges_;
+-    };
++         void set_avoid_edges(bool avoid);
++         bool get_avoid_edges() const;
++      private:
++         std::string name_;
++         std::string face_name_;
++         unsigned size_;
++         unsigned text_ratio_;
++         unsigned wrap_width_;
++         unsigned label_spacing_;
++         unsigned label_position_tolerance_;
++         bool force_odd_labels_;
++         double max_char_angle_delta_;
++         Color fill_;
++         Color halo_fill_;
++         unsigned halo_radius_;
++         label_placement_e label_p_;
++         position anchor_;
++         position displacement_;
++         bool avoid_edges_;
++   };
+ }
+ 
+ #endif //TEXT_SYMBOLIZER_HPP
+
+Modified: trunk/include/mapnik/unicode.hpp
+===================================================================
+--- trunk/include/mapnik/unicode.hpp	2007-02-05 11:53:00 UTC (rev 439)
++++ trunk/include/mapnik/unicode.hpp	2007-02-06 14:27:21 UTC (rev 440)
+@@ -25,11 +25,14 @@
+ #define UNICODE_HPP
+ 
+ #include <string>
++#include <boost/utility.hpp>
+ 
+ #ifdef USE_FRIBIDI
+ #include <fribidi/fribidi.h>
+ #endif
+ 
++#include <iconv.h>
++
+ namespace mapnik {
+     
+ /*
+@@ -79,8 +82,8 @@
+         unsigned long code = 0;
+         int expect = 0;
+         std::string::const_iterator itr=text.begin();
+-        
+-        while ( itr != text.end())
++        std::string::const_iterator end=text.end();
++        while ( itr != end)
+         {
+             unsigned p = (*itr++) & 0xff;
+             if ( p >= 0xc0)
+@@ -128,6 +131,76 @@
+         
+         return out;
+     }
++   
++   inline std::wstring latin1_to_unicode(std::string const& text)
++   {
++      std::wstring out;
++      std::string::const_iterator itr=text.begin();
++      std::string::const_iterator end=text.end();
++      while ( itr != end)
++      {
++         unsigned p = (*itr++) & 0xff;     
++         out.push_back(wchar_t(p));
++      }      
++      return out;
++   }
++
++   class transcoder : private boost::noncopyable
++   {
++      public:
++         explicit transcoder (std::string const& encoding)
++         {
++            desc_ = iconv_open("UCS-2",encoding.c_str());
++         }
++         
++         std::wstring transcode(std::string const& input)
++         {
++            std::string buf(input.size() * 2,0);
++            size_t inleft = input.size();
++            char * in  = const_cast<char*>(input.data());
++            size_t outleft = buf.size();
++            char * out = const_cast<char*>(buf.data());
++            
++            iconv(desc_,&in,&inleft,&out,&outleft);
++            
++            std::string::const_iterator itr = buf.begin();
++            std::string::const_iterator end = buf.end();
++            wchar_t wch = 0;
++            bool state = false;
++            std::wstring unicode;
++            size_t num_char = buf.size() - outleft;
++            for ( ; itr != end; ++itr)
++            {
++               if (!state)
++               {
++                  wch = (*itr & 0xff);
++                  state = true;
++               }
++               else 
++               {
++                  wch |= *itr << 8 ;
++                  unicode.push_back(wchar_t(wch));
++                  state = false;
++               }
++               if (!num_char--) break;
++            }
++                     
++#ifdef USE_FRIBIDI
++            wchar_t *bidi_text = bidi_string(unicode.c_str());
++            unicode = bidi_text;
++            free(bidi_text);
++#endif
++            return unicode;
++         }
++         
++         ~transcoder()
++         {
++            iconv_close(desc_);
++         }
++
++   private:
++      iconv_t desc_;
++   };
+ }
+ 
+ #endif // UNICODE_HPP
+
+Modified: trunk/plugins/input/postgis/connection.hpp
+===================================================================
+--- trunk/plugins/input/postgis/connection.hpp	2007-02-05 11:53:00 UTC (rev 439)
++++ trunk/plugins/input/postgis/connection.hpp	2007-02-06 14:27:21 UTC (rev 440)
+@@ -38,63 +38,71 @@
+ 
+ class Connection
+ {
+-private:
+-    PGconn *conn_;
+-public:
+-    Connection(std::string const& uri, 
+-               std::string const& port,
+-               std::string const& dbname, 
+-               std::string const& username,
+-               std::string const& password)
+-    {
+-        std::string connStr="host="+uri;
+-        if (port.length()) connStr+=" port="+port;
+-        connStr+=" dbname="+dbname;
+-        connStr+=" user="+username;
+-        connStr+=" password="+password;
+-        connStr+=" connect_timeout=4"; // todo: set by client (param) 
++   private:
++      PGconn *conn_;
++   public:
++      Connection(std::string const& uri, 
++                 std::string const& port,
++                 std::string const& dbname, 
++                 std::string const& username,
++                 std::string const& password)
++      {
++         std::string connStr="host="+uri;
++         if (port.length()) connStr+=" port="+port;
++         connStr+=" dbname="+dbname;
++         connStr+=" user="+username;
++         connStr+=" password="+password;
++         connStr+=" connect_timeout=4"; // todo: set by client (param) 
+         
+-        conn_=PQconnectdb(connStr.c_str());
+-        if (PQstatus(conn_) == CONNECTION_BAD)
+-        {
++         conn_=PQconnectdb(connStr.c_str());
++         if (PQstatus(conn_) == CONNECTION_BAD)
++         {
+             std::clog << "connection to "<< connStr << " failed\n"
+                       << PQerrorMessage(conn_)<< std::endl;
+-        }
+-    }
++         }
++      }
+     
+-    bool execute(const std::string& sql) const
+-    {
+-        PGresult *result=PQexec(conn_,sql.c_str());
+-        bool ok=(result && PQresultStatus(result)==PGRES_COMMAND_OK);
+-        PQclear(result);
+-        return ok;
+-    }
+-    boost::shared_ptr<ResultSet> executeQuery(const std::string& sql,int type=0) const
+-    {
+-        PGresult *result=0;
+-        if (type==1)
+-        {
++      bool execute(const std::string& sql) const
++      {
++         PGresult *result=PQexec(conn_,sql.c_str());
++         bool ok=(result && PQresultStatus(result)==PGRES_COMMAND_OK);
++         PQclear(result);
++         return ok;
++      }
++      boost::shared_ptr<ResultSet> executeQuery(const std::string& sql,int type=0) const
++      {
++         PGresult *result=0;
++         if (type==1)
++         {
+             result=PQexecParams(conn_,sql.c_str(),0,0,0,0,0,1);
+             return boost::shared_ptr<ResultSet>(new ResultSet(result));
+-        }
+-        result=PQexec(conn_,sql.c_str());
+-        return boost::shared_ptr<ResultSet>(new ResultSet(result));
+-    }
+-    bool isOK() const
+-    {
+-        return (PQstatus(conn_)!=CONNECTION_BAD);
+-    }
+-    void close()
+-    {
+-        PQfinish(conn_);
+-    }
+-    ~Connection()
+-    {
+-        PQfinish(conn_);
++         }
++         result=PQexec(conn_,sql.c_str());
++         return boost::shared_ptr<ResultSet>(new ResultSet(result));
++      }
++      
++      std::string client_encoding() const
++      {
++         return PQparameterStatus(conn_,"client_encoding");
++      }
++      
++      bool isOK() const
++      {
++         return (PQstatus(conn_)!=CONNECTION_BAD);
++      }
++      
++      void close()
++      {
++         PQfinish(conn_);
++      }
++      
++      ~Connection()
++      {
++         PQfinish(conn_);
+ #ifdef MAPNIK_DEBUG
+-        std::clog << "close connection " << conn_ << "\n";
++         std::clog << "close connection " << conn_ << "\n";
+ #endif 
+-    }
++      }
+ };
+ 
+ #endif //CONNECTION_HPP
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2007-02-05 11:53:00 UTC (rev 439)
++++ trunk/plugins/input/postgis/postgis.cpp	2007-02-06 14:27:21 UTC (rev 440)
+@@ -33,7 +33,7 @@
+ 
+ DATASOURCE_PLUGIN(postgis_datasource)
+ 
+-const std::string postgis_datasource::GEOMETRY_COLUMNS="geometry_columns";
++   const std::string postgis_datasource::GEOMETRY_COLUMNS="geometry_columns";
+ const std::string postgis_datasource::SPATIAL_REF_SYS="spatial_ref_system";
+ 
+ using std::clog;
+@@ -44,267 +44,270 @@
+ using boost::shared_ptr;
+ 
+ postgis_datasource::postgis_datasource(parameters const& params)
+-    : datasource (params),
+-      table_(params.get("table")),
+-      type_(datasource::Vector),
+-      extent_initialized_(false),
+-      desc_(params.get("type")),
+-      creator_(params.get("host"),
+-               params.get("port"),
+-               params.get("dbname"),
+-               params.get("user"),
+-               params.get("password"))    
++   : datasource (params),
++     table_(params.get("table")),
++     type_(datasource::Vector),
++     extent_initialized_(false),
++     desc_(params.get("type"),"utf-8"),
++     creator_(params.get("host"),
++              params.get("port"),
++              params.get("dbname"),
++              params.get("user"),
++              params.get("password"))    
+ {   
+ 
+-    unsigned initial_size;
+-    unsigned max_size;
++   unsigned initial_size;
++   unsigned max_size;
+     
+-    try 
+-    {
+-        initial_size = boost::lexical_cast<unsigned>(params_.get("initial_size")); 
+-    }
+-    catch (bad_lexical_cast& )
+-    {
+-        initial_size = 1;
+-    }
++   try 
++   {
++      initial_size = boost::lexical_cast<unsigned>(params_.get("initial_size")); 
++   }
++   catch (bad_lexical_cast& )
++   {
++      initial_size = 1;
++   }
+     
+-    try 
+-    {
+-        max_size = boost::lexical_cast<unsigned>(params_.get("max_size")); 
+-    }
+-    catch (bad_lexical_cast&)
+-    {
+-        max_size = 10;
+-    }
++   try 
++   {
++      max_size = boost::lexical_cast<unsigned>(params_.get("max_size")); 
++   }
++   catch (bad_lexical_cast&)
++   {
++      max_size = 10;
++   }
+     
+-    ConnectionManager *mgr=ConnectionManager::instance();   
+-    mgr->registerPool(creator_, initial_size, max_size);
++   ConnectionManager *mgr=ConnectionManager::instance();   
++   mgr->registerPool(creator_, initial_size, max_size);
+     
+-    shared_ptr<Pool<Connection,ConnectionCreator> > pool=mgr->getPool(creator_.id());
+-    if (pool)
+-    {
+-        shared_ptr<Connection> conn = pool->borrowObject();
+-        if (conn && conn->isOK())
+-        {
+-            PoolGuard<shared_ptr<Connection>,shared_ptr<Pool<Connection,ConnectionCreator> > > guard(conn,pool);
+-            std::string table_name=table_from_sql(table_);
+-            std::ostringstream s;
+-            s << "select f_geometry_column,srid,type from ";
+-            s << GEOMETRY_COLUMNS <<" where f_table_name='" << table_name<<"'";
++   shared_ptr<Pool<Connection,ConnectionCreator> > pool=mgr->getPool(creator_.id());
++   if (pool)
++   {
++      shared_ptr<Connection> conn = pool->borrowObject();
++      if (conn && conn->isOK())
++      {
++         PoolGuard<shared_ptr<Connection>,
++            shared_ptr<Pool<Connection,ConnectionCreator> > > guard(conn,pool);
++           
++         //std::cout << "encoding = " << conn->client_encoding()<< "\n";
++         //desc_.set_encoding(conn->client_encoding());
++         
++         std::string table_name=table_from_sql(table_);
++         std::ostringstream s;
++         s << "select f_geometry_column,srid,type from ";
++         s << GEOMETRY_COLUMNS <<" where f_table_name='" << table_name<<"'";
+             
+-            shared_ptr<ResultSet> rs=conn->executeQuery(s.str());
+-            
+-            if (rs->next())
++         shared_ptr<ResultSet> rs=conn->executeQuery(s.str());
++         if (rs->next())
++         {
++            try 
+             {
+-                try 
+-                {
+-                    srid_ = lexical_cast<int>(rs->getValue("srid"));
+-                    desc_.set_srid(srid_);
+-                }
+-                catch (bad_lexical_cast &ex)
+-                {
+-                    clog << ex.what() << endl;
+-                }
+-                geometryColumn_=rs->getValue("f_geometry_column");
+-                std::string postgisType=rs->getValue("type");
++               srid_ = lexical_cast<int>(rs->getValue("srid"));
+             }
+-            rs->close();
++            catch (bad_lexical_cast &ex)
++            {
++               clog << ex.what() << endl;
++            }
++            geometryColumn_=rs->getValue("f_geometry_column");
++            std::string postgisType=rs->getValue("type");
++         }
++         rs->close();
+             
+-            // collect attribute desc
+-            s.str("");
+-            s << "select * from "<<table_<<" limit 1";
+-            rs=conn->executeQuery(s.str());
+-            if (rs->next())
++         // collect attribute desc
++         s.str("");
++         s << "select * from " << table_ << " limit 1";
++         rs=conn->executeQuery(s.str());
++         if (rs->next())
++         {
++            int count = rs->getNumFields();
++            for (int i=0;i<count;++i)
+             {
+-                int count = rs->getNumFields();
+-                for (int i=0;i<count;++i)
+-                {
+-                    std::string fld_name=rs->getFieldName(i);
+-                    int length = rs->getFieldLength(i);
++               std::string fld_name=rs->getFieldName(i);
++               int length = rs->getFieldLength(i);
+ 		    
+-                    int type_oid = rs->getTypeOID(i);
+-                    switch (type_oid)
+-                    {
+-                    case 21:    // int2
+-                    case 23:    // int4
+-                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Integer,false,length));
+-                        break;
+-                    case 700:   // float4 
+-                    case 701:   // float8
+-                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Double,false,length));
+-                    case 1042:  // bpchar
+-                    case 1043:  // varchar
+-                    case 25:    // text
+-                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::String));
+-                        break;
+-                    default: // shouldn't get here
++               int type_oid = rs->getTypeOID(i);
++               switch (type_oid)
++               {
++                  case 21:    // int2
++                  case 23:    // int4
++                     desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Integer,false,length));
++                     break;
++                  case 700:   // float4 
++                  case 701:   // float8
++                     desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Double,false,length));
++                  case 1042:  // bpchar
++                  case 1043:  // varchar
++                  case 25:    // text
++                     desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::String));
++                     break;
++                  default: // shouldn't get here
+ #ifdef MAPNIK_DEBUG
+-                        clog << "unknown type_oid="<<type_oid<<endl;
++                     clog << "unknown type_oid="<<type_oid<<endl;
+ #endif
+-                        break;
+-                    }	  
+-                }
++                     break;
++               }	  
+             }
+-        }
+-    }
++         }
++      }
++   }
+ }
+ 
+ std::string const postgis_datasource::name_="postgis";
+ 
+ std::string postgis_datasource::name()
+ {
+-    return name_;
++   return name_;
+ }
+ 
+ int postgis_datasource::type() const
+ {
+-    return type_;
++   return type_;
+ }
+ 
+ layer_descriptor postgis_datasource::get_descriptor() const
+ {
+-    return desc_;
++   return desc_;
+ }
+ 
+ std::string postgis_datasource::table_from_sql(const std::string& sql)
+ {
+-    std::string table_name(sql);
+-    std::transform(table_name.begin(),table_name.end(),table_name.begin(),tolower);
+-    std::string::size_type idx=table_name.rfind("from");
+-    if (idx!=std::string::npos)
+-    {
+-        idx=table_name.find_first_not_of(" ",idx+4);
+-        table_name=table_name.substr(idx);
+-        idx=table_name.find_first_of(" )");
+-        return table_name.substr(0,idx);
+-    }
+-    return table_name;
++   std::string table_name(sql);
++   std::transform(table_name.begin(),table_name.end(),table_name.begin(),tolower);
++   std::string::size_type idx=table_name.rfind("from");
++   if (idx!=std::string::npos)
++   {
++      idx=table_name.find_first_not_of(" ",idx+4);
++      table_name=table_name.substr(idx);
++      idx=table_name.find_first_of(" )");
++      return table_name.substr(0,idx);
++   }
++   return table_name;
+ }
+ 
+ featureset_ptr postgis_datasource::features(const query& q) const
+ {
+-    Envelope<double> const& box=q.get_bbox();
+-    ConnectionManager *mgr=ConnectionManager::instance();
+-    shared_ptr<Pool<Connection,ConnectionCreator> > pool=mgr->getPool(creator_.id());
+-    if (pool)
+-    {
+-        shared_ptr<Connection> conn = pool->borrowObject();
+-        if (conn && conn->isOK())
+-        {       
+-            PoolGuard<shared_ptr<Connection>,shared_ptr<Pool<Connection,ConnectionCreator> > > guard(conn,pool);
+-            std::ostringstream s;
++   Envelope<double> const& box=q.get_bbox();
++   ConnectionManager *mgr=ConnectionManager::instance();
++   shared_ptr<Pool<Connection,ConnectionCreator> > pool=mgr->getPool(creator_.id());
++   if (pool)
++   {
++      shared_ptr<Connection> conn = pool->borrowObject();
++      if (conn && conn->isOK())
++      {       
++         PoolGuard<shared_ptr<Connection>,shared_ptr<Pool<Connection,ConnectionCreator> > > guard(conn,pool);
++         std::ostringstream s;
+             
+-            s << "select asbinary("<<geometryColumn_<<") as geom";
+-            std::set<std::string> const& props=q.property_names();
+-            std::set<std::string>::const_iterator pos=props.begin();
+-            std::set<std::string>::const_iterator end=props.end();
+-            while (pos != end)
+-            {
+-                s <<",\""<<*pos<<"\"";
+-                ++pos;
+-            }	 
+-            s << " from " << table_<<" where "<<geometryColumn_<<" && setSRID('BOX3D(";
+-            s << std::setprecision(16);
+-            s << box.minx() << " " << box.miny() << ",";
+-            s << box.maxx() << " " << box.maxy() << ")'::box3d,"<<srid_<<")";
++         s << "select asbinary("<<geometryColumn_<<") as geom";
++         std::set<std::string> const& props=q.property_names();
++         std::set<std::string>::const_iterator pos=props.begin();
++         std::set<std::string>::const_iterator end=props.end();
++         while (pos != end)
++         {
++            s <<",\""<<*pos<<"\"";
++            ++pos;
++         }	 
++         s << " from " << table_<<" where "<<geometryColumn_<<" && setSRID('BOX3D(";
++         s << std::setprecision(16);
++         s << box.minx() << " " << box.miny() << ",";
++         s << box.maxx() << " " << box.maxy() << ")'::box3d,"<<srid_<<")";
+             
+ #ifdef MAPNIK_DEBUG
+-            std::clog << s.str() << "\n";
++         std::clog << s.str() << "\n";
+ #endif           
+-            shared_ptr<ResultSet> rs=conn->executeQuery(s.str(),1);
+-            return featureset_ptr(new postgis_featureset(rs,props.size()));
+-        }
+-    }
+-    return featureset_ptr();
++         shared_ptr<ResultSet> rs=conn->executeQuery(s.str(),1);
++         return featureset_ptr(new postgis_featureset(rs,props.size()));
++      }
++   }
++   return featureset_ptr();
+ }
+ 
+ featureset_ptr postgis_datasource::features_at_point(coord2d const& pt) const
+ {
+-    ConnectionManager *mgr=ConnectionManager::instance();
+-    shared_ptr<Pool<Connection,ConnectionCreator> > pool=mgr->getPool(creator_.id());
+-    if (pool)
+-    {
+-        shared_ptr<Connection> conn = pool->borrowObject();
+-        if (conn && conn->isOK())
+-        {       
+-            PoolGuard<shared_ptr<Connection>,shared_ptr<Pool<Connection,ConnectionCreator> > > guard(conn,pool);
+-            std::ostringstream s;
++   ConnectionManager *mgr=ConnectionManager::instance();
++   shared_ptr<Pool<Connection,ConnectionCreator> > pool=mgr->getPool(creator_.id());
++   if (pool)
++   {
++      shared_ptr<Connection> conn = pool->borrowObject();
++      if (conn && conn->isOK())
++      {       
++         PoolGuard<shared_ptr<Connection>,shared_ptr<Pool<Connection,ConnectionCreator> > > guard(conn,pool);
++         std::ostringstream s;
+             
+-            s << "select asbinary(" << geometryColumn_ << ") as geom";
++         s << "select asbinary(" << geometryColumn_ << ") as geom";
+             
+-            std::vector<attribute_descriptor>::const_iterator itr = desc_.get_descriptors().begin();
+-            std::vector<attribute_descriptor>::const_iterator end = desc_.get_descriptors().end();
+-            unsigned size=0;
+-            while (itr != end)
+-            {
+-                s <<",\""<< itr->get_name() << "\"";
+-                ++itr;
+-                ++size;
+-            }
++         std::vector<attribute_descriptor>::const_iterator itr = desc_.get_descriptors().begin();
++         std::vector<attribute_descriptor>::const_iterator end = desc_.get_descriptors().end();
++         unsigned size=0;
++         while (itr != end)
++         {
++            s <<",\""<< itr->get_name() << "\"";
++            ++itr;
++            ++size;
++         }
+             
+-            s << " from " << table_<<" where "<<geometryColumn_<<" && setSRID('BOX3D(";
+-            s << std::setprecision(16);
+-            s << pt.x << " " << pt.y << ",";
+-            s << pt.x << " " << pt.y << ")'::box3d,"<<srid_<<")";
++         s << " from " << table_<<" where "<<geometryColumn_<<" && setSRID('BOX3D(";
++         s << std::setprecision(16);
++         s << pt.x << " " << pt.y << ",";
++         s << pt.x << " " << pt.y << ")'::box3d,"<<srid_<<")";
+             
+ #ifdef MAPNIK_DEBUG
+-            std::clog << s.str() << "\n";
++         std::clog << s.str() << "\n";
+ #endif           
+-            shared_ptr<ResultSet> rs=conn->executeQuery(s.str(),1);
+-            return featureset_ptr(new postgis_featureset(rs, size));
+-        }
+-    }
+-    return featureset_ptr();
++         shared_ptr<ResultSet> rs=conn->executeQuery(s.str(),1);
++         return featureset_ptr(new postgis_featureset(rs, size));
++      }
++   }
++   return featureset_ptr();
+ }
+ 
+ Envelope<double> postgis_datasource::envelope() const
+ {
+-    if (extent_initialized_) return extent_;
++   if (extent_initialized_) return extent_;
+     
+-    ConnectionManager *mgr=ConnectionManager::instance();
+-    shared_ptr<Pool<Connection,ConnectionCreator> > pool=mgr->getPool(creator_.id());
+-    if (pool)
+-    {
+-        shared_ptr<Connection> conn = pool->borrowObject();
+-        if (conn && conn->isOK())
+-        {
+-            std::ostringstream s;
+-            std::string table_name = table_from_sql(table_);
+-            if (params_.get("estimate_extent") == "true")
++   ConnectionManager *mgr=ConnectionManager::instance();
++   shared_ptr<Pool<Connection,ConnectionCreator> > pool=mgr->getPool(creator_.id());
++   if (pool)
++   {
++      shared_ptr<Connection> conn = pool->borrowObject();
++      if (conn && conn->isOK())
++      {
++         std::ostringstream s;
++         std::string table_name = table_from_sql(table_);
++         if (params_.get("estimate_extent") == "true")
++         {
++            s << "select xmin(ext),ymin(ext),xmax(ext),ymax(ext)"
++              << " from (select estimated_extent('" 
++              << table_name <<"','" 
++              << geometryColumn_ << "') as ext) as tmp";
++         }
++         else 
++         {
++            s << "select xmin(ext),ymin(ext),xmax(ext),ymax(ext)"
++              << " from (select extent(" <<geometryColumn_<< ") as ext from " 
++              << table_name << ") as tmp";
++         }
++            
++         shared_ptr<ResultSet> rs=conn->executeQuery(s.str());
++         if (rs->next())
++         {
++            try 
+             {
+-                s << "select xmin(ext),ymin(ext),xmax(ext),ymax(ext)"
+-                  << " from (select estimated_extent('" 
+-                  << table_name <<"','" 
+-                  << geometryColumn_ << "') as ext) as tmp";
++               double lox=lexical_cast<double>(rs->getValue(0));
++               double loy=lexical_cast<double>(rs->getValue(1));
++               double hix=lexical_cast<double>(rs->getValue(2));
++               double hiy=lexical_cast<double>(rs->getValue(3));		    
++               extent_.init(lox,loy,hix,hiy);
++               extent_initialized_ = true;
+             }
+-            else 
++            catch (bad_lexical_cast &ex)
+             {
+-                s << "select xmin(ext),ymin(ext),xmax(ext),ymax(ext)"
+-                  << " from (select extent(" <<geometryColumn_<< ") as ext from " 
+-                  << table_name << ") as tmp";
++               clog << ex.what() << endl;
+             }
+-            
+-            shared_ptr<ResultSet> rs=conn->executeQuery(s.str());
+-            if (rs->next())
+-            {
+-                try 
+-                {
+-                    double lox=lexical_cast<double>(rs->getValue(0));
+-                    double loy=lexical_cast<double>(rs->getValue(1));
+-                    double hix=lexical_cast<double>(rs->getValue(2));
+-                    double hiy=lexical_cast<double>(rs->getValue(3));		    
+-                    extent_.init(lox,loy,hix,hiy);
+-                    extent_initialized_ = true;
+-                }
+-                catch (bad_lexical_cast &ex)
+-                {
+-                    clog << ex.what() << endl;
+-                }
+-            }
+-            rs->close();
+-        }
+-    }
+-    return extent_;
++         }
++         rs->close();
++      }
++   }
++   return extent_;
+ }
+ 
+ postgis_datasource::~postgis_datasource() {}
+
+Modified: trunk/plugins/input/raster/raster_datasource.cpp
+===================================================================
+--- trunk/plugins/input/raster/raster_datasource.cpp	2007-02-05 11:53:00 UTC (rev 439)
++++ trunk/plugins/input/raster/raster_datasource.cpp	2007-02-06 14:27:21 UTC (rev 440)
+@@ -39,7 +39,7 @@
+ 
+ raster_datasource::raster_datasource(const parameters& params)
+     : datasource (params),
+-      desc_(params.get("name"))
++      desc_(params.get("name"),"utf-8")
+ {
+     filename_=params.get("file");
+     format_=params.get("format");
+
+Modified: trunk/plugins/input/shape/shape.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape.cpp	2007-02-05 11:53:00 UTC (rev 439)
++++ trunk/plugins/input/shape/shape.cpp	2007-02-06 14:27:21 UTC (rev 440)
+@@ -34,56 +34,56 @@
+ 
+ DATASOURCE_PLUGIN(shape_datasource)
+ 
+-shape_datasource::shape_datasource(const parameters &params)
+-    : datasource (params) ,
+-      shape_name_(params.get("file")),
+-      type_(datasource::Vector),
+-      file_length_(0),
+-      indexed_(false),
+-      desc_(params.get("name"))
++   shape_datasource::shape_datasource(const parameters &params)
++      : datasource (params) ,
++        shape_name_(params.get("file")),
++        type_(datasource::Vector),
++        file_length_(0),
++        indexed_(false),
++        desc_(params.get("name"),"latin1")
+ {
+-    try
+-    {
+-        shape_io shape(shape_name_);
+-        init(shape);
+-        for (int i=0;i<shape.dbf().num_fields();++i)
+-        {
+-            field_descriptor const& fd=shape.dbf().descriptor(i);
+-            std::string fld_name=fd.name_;
+-            switch (fd.type_)
+-            {
++   try
++   {
++      shape_io shape(shape_name_);
++      init(shape);
++      for (int i=0;i<shape.dbf().num_fields();++i)
++      {
++         field_descriptor const& fd=shape.dbf().descriptor(i);
++         std::string fld_name=fd.name_;
++         switch (fd.type_)
++         {
+             case 'C':
+             case 'D':
+             case 'M':
+             case 'L':		
+-                desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::String));
+-                break;
++               desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::String));
++               break;
+             case 'N':
+             case 'F':
+-                {
+-                    if (fd.dec_>0)
+-                    {   
+-                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Double,false,8));
+-                    }
+-                    else
+-                    {
+-                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Integer,false,4));
+-                    }
+-                    break;
+-                }
++            {
++               if (fd.dec_>0)
++               {   
++                  desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Double,false,8));
++               }
++               else
++               {
++                  desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Integer,false,4));
++               }
++               break;
++            }
+             default:
+ #ifdef MAPNIK_DEBUG                
+-                std::clog << "unknown type "<<fd.type_<<"\n";
++               std::clog << "unknown type "<<fd.type_<<"\n";
+ #endif 
+-                break;
+-            }
+-        }
+-    }
+-    catch  (datasource_exception& ex)
+-    {
+-        std::clog<<ex.what()<<std::endl;
+-        throw;
+-    }
++               break;
++         }
++      }
++   }
++   catch  (datasource_exception& ex)
++   {
++      std::clog<<ex.what()<<std::endl;
++      throw;
++   }
+ }
+ 
+ 
+@@ -95,100 +95,100 @@
+ 
+ void  shape_datasource::init(shape_io& shape)
+ {
+-    //first read header from *.shp
+-    int file_code=shape.shp().read_xdr_integer();
+-    if (file_code!=9994)
+-    {
+-        //invalid
+-        throw datasource_exception("wrong file code");
+-    }
+-    shape.shp().skip(5*4);
+-    file_length_=shape.shp().read_xdr_integer();
+-    int version=shape.shp().read_ndr_integer();
+-    if (version!=1000)
+-    {
+-        //invalid version number
+-        throw datasource_exception("invalid version number");
+-    }
+-    int shape_type=shape.shp().read_ndr_integer();
+-    shape.shp().read_envelope(extent_);
+-    shape.shp().skip(4*8);
++   //first read header from *.shp
++   int file_code=shape.shp().read_xdr_integer();
++   if (file_code!=9994)
++   {
++      //invalid
++      throw datasource_exception("wrong file code");
++   }
++   shape.shp().skip(5*4);
++   file_length_=shape.shp().read_xdr_integer();
++   int version=shape.shp().read_ndr_integer();
++   if (version!=1000)
++   {
++      //invalid version number
++      throw datasource_exception("invalid version number");
++   }
++   int shape_type=shape.shp().read_ndr_integer();
++   shape.shp().read_envelope(extent_);
++   shape.shp().skip(4*8);
+ 
+-    // check if we have an index file around
+-    std::string index_name(shape_name_+".index");
+-    std::ifstream file(index_name.c_str(),std::ios::in | std::ios::binary);
+-    if (file)
+-    {
+-        indexed_=true;
+-        file.close();
+-    }
++   // check if we have an index file around
++   std::string index_name(shape_name_+".index");
++   std::ifstream file(index_name.c_str(),std::ios::in | std::ios::binary);
++   if (file)
++   {
++      indexed_=true;
++      file.close();
++   }
+ 
+ #ifdef MAPNIK_DEBUG
+-    std::clog << extent_ << std::endl;
+-    std::clog << "file_length=" << file_length_ << std::endl;
+-    std::clog << "shape_type=" << shape_type << std::endl;
++   std::clog << extent_ << std::endl;
++   std::clog << "file_length=" << file_length_ << std::endl;
++   std::clog << "shape_type=" << shape_type << std::endl;
+ #endif
+ 
+ }
+ 
+ int shape_datasource::type() const
+ {
+-    return type_;
++   return type_;
+ }
+ 
+ layer_descriptor shape_datasource::get_descriptor() const
+ {
+-    return desc_;
++   return desc_;
+ }
+ 
+ std::string shape_datasource::name()
+ {
+-    return name_;
++   return name_;
+ }
+ 
+ featureset_ptr shape_datasource::features(const query& q) const
+ {
+-    filter_in_box filter(q.get_bbox());
+-    if (indexed_)
+-    {
+-        return featureset_ptr
+-            (new shape_index_featureset<filter_in_box>(filter,shape_name_,q.property_names()));
+-    }
+-    else
+-    {
+-        return featureset_ptr
+-            (new shape_featureset<filter_in_box>(filter,shape_name_,q.property_names(),file_length_));
+-    }
++   filter_in_box filter(q.get_bbox());
++   if (indexed_)
++   {
++      return featureset_ptr
++         (new shape_index_featureset<filter_in_box>(filter,shape_name_,q.property_names()));
++   }
++   else
++   {
++      return featureset_ptr
++         (new shape_featureset<filter_in_box>(filter,shape_name_,q.property_names(),file_length_));
++   }
+ }
+ 
+ featureset_ptr shape_datasource::features_at_point(coord2d const& pt) const
+ {
+-    filter_at_point filter(pt);
+-    // collect all attribute names
+-    std::vector<attribute_descriptor> const& desc_vector = desc_.get_descriptors();
+-    std::vector<attribute_descriptor>::const_iterator itr = desc_vector.begin();
+-    std::vector<attribute_descriptor>::const_iterator end = desc_vector.end();
+-    std::set<std::string> names;
++   filter_at_point filter(pt);
++   // collect all attribute names
++   std::vector<attribute_descriptor> const& desc_vector = desc_.get_descriptors();
++   std::vector<attribute_descriptor>::const_iterator itr = desc_vector.begin();
++   std::vector<attribute_descriptor>::const_iterator end = desc_vector.end();
++   std::set<std::string> names;
+     
+-    while (itr != end)
+-    {    
+-        names.insert(itr->get_name());
+-        ++itr;
+-    }
++   while (itr != end)
++   {    
++      names.insert(itr->get_name());
++      ++itr;
++   }
+     
+-    if (indexed_)
+-    {
+-        return featureset_ptr
+-            (new shape_index_featureset<filter_at_point>(filter,shape_name_,names));
+-    }
+-    else
+-    {
+-        return featureset_ptr
+-            (new shape_featureset<filter_at_point>(filter,shape_name_,names,file_length_));
+-    }
++   if (indexed_)
++   {
++      return featureset_ptr
++         (new shape_index_featureset<filter_at_point>(filter,shape_name_,names));
++   }
++   else
++   {
++      return featureset_ptr
++         (new shape_featureset<filter_at_point>(filter,shape_name_,names,file_length_));
++   }
+ }
+ 
+ Envelope<double> shape_datasource::envelope() const
+ {
+-    return extent_;
++   return extent_;
+ }
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2007-02-05 11:53:00 UTC (rev 439)
++++ trunk/src/agg_renderer.cpp	2007-02-06 14:27:21 UTC (rev 440)
+@@ -63,489 +63,498 @@
+ 
+ namespace mapnik 
+ {
+-    class pattern_source : private boost::noncopyable
+-    {
+-    public:
+-        pattern_source(ImageData32 const& pattern)
++   class pattern_source : private boost::noncopyable
++   {
++      public:
++         pattern_source(ImageData32 const& pattern)
+             : pattern_(pattern) {}
+ 	
+-        unsigned int width() const
+-        {
++         unsigned int width() const
++         {
+             return pattern_.width();
+-        }
+-        unsigned int height() const
+-        {
++         }
++         unsigned int height() const
++         {
+             return pattern_.height();
+-        }
+-        agg::rgba8 pixel(int x, int y) const
+-        {
++         }
++         agg::rgba8 pixel(int x, int y) const
++         {
+             unsigned c = pattern_(x,y);
+             return agg::rgba8(c & 0xff, 
+                               (c >> 8) & 0xff, 
+                               (c >> 16) & 0xff,
+                               (c >> 24) & 0xff);
+-        }
+-    private:
+-        ImageData32 const& pattern_;
+-    };
++         }
++      private:
++         ImageData32 const& pattern_;
++   };
+ 
+-    template <typename T>
+-    agg_renderer<T>::agg_renderer(Map const& m, T & pixmap, unsigned offset_x, unsigned offset_y)
+-        : feature_style_processor<agg_renderer>(m),
+-          pixmap_(pixmap),
+-          t_(m.getWidth(),m.getHeight(),m.getCurrentExtent(),offset_x,offset_y),
+-          finder_(Envelope<double>(0 ,0, m.getWidth(), m.getHeight()), 64),
+-          point_detector_(Envelope<double>(-64 ,-64, m.getWidth() + 64 ,m.getHeight() + 64))
+-    {
+-        Color const& bg=m.getBackground();
+-        pixmap_.setBackground(bg);
++   template <typename T>
++   agg_renderer<T>::agg_renderer(Map const& m, T & pixmap, unsigned offset_x, unsigned offset_y)
++      : feature_style_processor<agg_renderer>(m),
++        pixmap_(pixmap),
++        t_(m.getWidth(),m.getHeight(),m.getCurrentExtent(),offset_x,offset_y),
++        finder_(Envelope<double>(0 ,0, m.getWidth(), m.getHeight()), 64),
++        point_detector_(Envelope<double>(-64 ,-64, m.getWidth() + 64 ,m.getHeight() + 64)),
++        tr_(new transcoder("utf-8"))
++   {
++      Color const& bg=m.getBackground();
++      pixmap_.setBackground(bg);
+ #ifdef MAPNIK_DEBUG
+-        std::clog << "scale=" << m.scale() << "\n";
++      std::clog << "scale=" << m.scale() << "\n";
+ #endif
+-    }
++   }
+     
+-    template <typename T>
+-    void agg_renderer<T>::start_map_processing(Map const& map)
+-    {
++   template <typename T>
++   void agg_renderer<T>::start_map_processing(Map const& map)
++   {
+ #ifdef MAPNIK_DEBUG
+-        std::clog << "start map processing bbox=" 
+-                  << map.getCurrentExtent() << "\n";
++      std::clog << "start map processing bbox=" 
++                << map.getCurrentExtent() << "\n";
+ #endif
+-    }
++   }
+ 
+-    template <typename T>
+-    void agg_renderer<T>::end_map_processing(Map const& )
+-    {
++   template <typename T>
++   void agg_renderer<T>::end_map_processing(Map const& )
++   {
+ #ifdef MAPNIK_DEBUG
+-        std::clog << "end map processing" << std::endl;
++      std::clog << "end map processing\n";
+ #endif
+-    }
++   }
+     
+-    template <typename T>
+-    void agg_renderer<T>::start_layer_processing(Layer const& lay)
+-    {
++   template <typename T>
++   void agg_renderer<T>::start_layer_processing(Layer const& lay)
++   {
+ #ifdef MAPNIK_DEBUG
+-        std::clog << "start layer processing : " << lay.name()  << std::endl;
+-        std::clog << "datasource = " << lay.datasource().get() << std::endl;
++      std::clog << "start layer processing : " << lay.name()  << "\n";
++      std::clog << "datasource = " << lay.datasource().get() << "\n";
+ #endif 
+-    }
++      datasource_ptr ds = lay.datasource();
++      if (ds)
++      {
++         layer_descriptor desc = ds->get_descriptor();
++         tr_ = boost::shared_ptr<transcoder>(new transcoder(desc.get_encoding()));
++      }
++   }
+     
+-    template <typename T>
+-    void agg_renderer<T>::end_layer_processing(Layer const&)
+-    {
++   template <typename T>
++   void agg_renderer<T>::end_layer_processing(Layer const&)
++   {
+ #ifdef MAPNIK_DEBUG
+-        std::clog << "end layer processing" << std::endl;
++      std::clog << "end layer processing\n";
+ #endif
+-    }
++   }
+     
+-    template <typename T>	
+-    void agg_renderer<T>::process(polygon_symbolizer const& sym,
+-                                  Feature const& feature,
+-                                  proj_transform const& prj_trans)
+-    {
+-        typedef  coord_transform2<CoordTransform,geometry_type> path_type;
+-        typedef agg::renderer_base<agg::pixfmt_rgba32> ren_base;    
+-        typedef agg::renderer_scanline_aa_solid<ren_base> renderer;
++   template <typename T>	
++   void agg_renderer<T>::process(polygon_symbolizer const& sym,
++                                 Feature const& feature,
++                                 proj_transform const& prj_trans)
++   {
++      typedef  coord_transform2<CoordTransform,geometry_type> path_type;
++      typedef agg::renderer_base<agg::pixfmt_rgba32> ren_base;    
++      typedef agg::renderer_scanline_aa_solid<ren_base> renderer;
+ 	    
+-        Color const& fill_  = sym.get_fill();
++      Color const& fill_  = sym.get_fill();
+ 	    
+-        geometry_ptr const& geom=feature.get_geometry();
+-        if (geom && geom->num_points() > 2) 
+-        {
+-            unsigned width = pixmap_.width();
+-            unsigned height = pixmap_.height();
+-            path_type path(t_,*geom,prj_trans);
+-            agg::row_accessor<agg::int8u> buf(pixmap_.raw_data(),width,height,width * 4);
+-            agg::pixfmt_rgba32 pixf(buf);
+-            ren_base renb(pixf);	    
++      geometry_ptr const& geom=feature.get_geometry();
++      if (geom && geom->num_points() > 2) 
++      {
++         unsigned width = pixmap_.width();
++         unsigned height = pixmap_.height();
++         path_type path(t_,*geom,prj_trans);
++         agg::row_accessor<agg::int8u> buf(pixmap_.raw_data(),width,height,width * 4);
++         agg::pixfmt_rgba32 pixf(buf);
++         ren_base renb(pixf);	    
+ 		
+-            unsigned r=fill_.red();
+-            unsigned g=fill_.green();
+-            unsigned b=fill_.blue();
+-            renderer ren(renb);
++         unsigned r=fill_.red();
++         unsigned g=fill_.green();
++         unsigned b=fill_.blue();
++         renderer ren(renb);
+             
+-            agg::rasterizer_scanline_aa<> ras;
+-            agg::scanline_u8 sl;
+-            ras.clip_box(0,0,width,height);
+-            ras.add_path(path);
+-            ren.color(agg::rgba8(r, g, b, int(255 * sym.get_opacity())));
+-            agg::render_scanlines(ras, sl, ren);
+-        }
+-    }
++         agg::rasterizer_scanline_aa<> ras;
++         agg::scanline_u8 sl;
++         ras.clip_box(0,0,width,height);
++         ras.add_path(path);
++         ren.color(agg::rgba8(r, g, b, int(255 * sym.get_opacity())));
++         agg::render_scanlines(ras, sl, ren);
++      }
++   }
+ 
+-    template <typename T>
+-    void agg_renderer<T>::process(line_symbolizer const& sym,
+-                                  Feature const& feature,
+-                                  proj_transform const& prj_trans)
+-    {   
+-        typedef agg::renderer_base<agg::pixfmt_rgba32> ren_base; 
+-        typedef coord_transform2<CoordTransform,geometry_type> path_type;
+-        typedef agg::renderer_outline_aa<ren_base> renderer_oaa;
+-        typedef agg::rasterizer_outline_aa<renderer_oaa> rasterizer_outline_aa;
+-        typedef agg::renderer_scanline_aa_solid<ren_base> renderer;
++   template <typename T>
++   void agg_renderer<T>::process(line_symbolizer const& sym,
++                                 Feature const& feature,
++                                 proj_transform const& prj_trans)
++   {   
++      typedef agg::renderer_base<agg::pixfmt_rgba32> ren_base; 
++      typedef coord_transform2<CoordTransform,geometry_type> path_type;
++      typedef agg::renderer_outline_aa<ren_base> renderer_oaa;
++      typedef agg::rasterizer_outline_aa<renderer_oaa> rasterizer_outline_aa;
++      typedef agg::renderer_scanline_aa_solid<ren_base> renderer;
+ 	    
+-        geometry_ptr const& geom=feature.get_geometry();
+-        if (geom && geom->num_points() > 1)
+-        {
+-            path_type path(t_,*geom,prj_trans);
+-            agg::row_accessor<agg::int8u> buf(pixmap_.raw_data(),
+-                                               pixmap_.width(),
+-                                               pixmap_.height(),
+-                                               pixmap_.width()*4);
+-            agg::pixfmt_rgba32 pixf(buf);
+-            ren_base renb(pixf);	    
++      geometry_ptr const& geom=feature.get_geometry();
++      if (geom && geom->num_points() > 1)
++      {
++         path_type path(t_,*geom,prj_trans);
++         agg::row_accessor<agg::int8u> buf(pixmap_.raw_data(),
++                                           pixmap_.width(),
++                                           pixmap_.height(),
++                                           pixmap_.width()*4);
++         agg::pixfmt_rgba32 pixf(buf);
++         ren_base renb(pixf);	    
+             
+-            mapnik::stroke const&  stroke_ = sym.get_stroke();
++         mapnik::stroke const&  stroke_ = sym.get_stroke();
+ 		
+-            Color const& col = stroke_.get_color();
+-            unsigned r=col.red();
+-            unsigned g=col.green();
+-            unsigned b=col.blue();	    
++         Color const& col = stroke_.get_color();
++         unsigned r=col.red();
++         unsigned g=col.green();
++         unsigned b=col.blue();	    
+ 		
+-            if (stroke_.has_dash())
++         if (stroke_.has_dash())
++         {
++            renderer ren(renb);	
++            agg::rasterizer_scanline_aa<> ras;
++            agg::scanline_u8 sl;
++            agg::conv_dash<path_type> dash(path);
++            dash_array const& d = stroke_.get_dash_array();
++            dash_array::const_iterator itr = d.begin();
++            dash_array::const_iterator end = d.end();
++            while (itr != end)
+             {
+-                renderer ren(renb);	
+-                agg::rasterizer_scanline_aa<> ras;
+-                agg::scanline_u8 sl;
+-                agg::conv_dash<path_type> dash(path);
+-                dash_array const& d = stroke_.get_dash_array();
+-                dash_array::const_iterator itr = d.begin();
+-                dash_array::const_iterator end = d.end();
+-                while (itr != end)
+-                {
+-                    dash.add_dash(itr->first, itr->second);
+-                    ++itr;
+-                }
+-                agg::conv_stroke<agg::conv_dash<path_type > > stroke(dash);
++               dash.add_dash(itr->first, itr->second);
++               ++itr;
++            }
++            agg::conv_stroke<agg::conv_dash<path_type > > stroke(dash);
+ 		    
+-                line_join_e join=stroke_.get_line_join();
+-                if ( join == MITER_JOIN)
+-                    stroke.generator().line_join(agg::miter_join);
+-                else if( join == MITER_REVERT_JOIN) 
+-                    stroke.generator().line_join(agg::miter_join);
+-                else if( join == ROUND_JOIN) 
+-                    stroke.generator().line_join(agg::round_join);
+-                else
+-                    stroke.generator().line_join(agg::bevel_join);
++            line_join_e join=stroke_.get_line_join();
++            if ( join == MITER_JOIN)
++               stroke.generator().line_join(agg::miter_join);
++            else if( join == MITER_REVERT_JOIN) 
++               stroke.generator().line_join(agg::miter_join);
++            else if( join == ROUND_JOIN) 
++               stroke.generator().line_join(agg::round_join);
++            else
++               stroke.generator().line_join(agg::bevel_join);
+ 		    
+-                line_cap_e cap=stroke_.get_line_cap();
+-                if (cap == BUTT_CAP)    
+-                    stroke.generator().line_cap(agg::butt_cap);
+-                else if (cap == SQUARE_CAP)
+-                    stroke.generator().line_cap(agg::square_cap);
+-                else 
+-                    stroke.generator().line_cap(agg::round_cap);
++            line_cap_e cap=stroke_.get_line_cap();
++            if (cap == BUTT_CAP)    
++               stroke.generator().line_cap(agg::butt_cap);
++            else if (cap == SQUARE_CAP)
++               stroke.generator().line_cap(agg::square_cap);
++            else 
++               stroke.generator().line_cap(agg::round_cap);
+ 		    
+-                stroke.generator().miter_limit(4.0);
+-                stroke.generator().width(stroke_.get_width());
++            stroke.generator().miter_limit(4.0);
++            stroke.generator().width(stroke_.get_width());
+ 		    
+-                ras.clip_box(0,0,pixmap_.width(),pixmap_.height());
+-                ras.add_path(stroke);
+-                ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
+-                agg::render_scanlines(ras, sl, ren);
+-            }
++            ras.clip_box(0,0,pixmap_.width(),pixmap_.height());
++            ras.add_path(stroke);
++            ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
++            agg::render_scanlines(ras, sl, ren);
++         }
+             
+-            //else if (stroke_.get_width() <= 1.0)
+-            //{
+-            //   agg::line_profile_aa prof;
+-            //   prof.width(stroke_.get_width());
+-            //   renderer_oaa ren_oaa(renb, prof);
+-            //   rasterizer_outline_aa ras_oaa(ren_oaa);
++         //else if (stroke_.get_width() <= 1.0)
++         //{
++         //   agg::line_profile_aa prof;
++         //   prof.width(stroke_.get_width());
++         //   renderer_oaa ren_oaa(renb, prof);
++         //   rasterizer_outline_aa ras_oaa(ren_oaa);
+                 
+-            //    ren_oaa.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
+-            //    ren_oaa.clip_box(0,0,pixmap_.width(),pixmap_.height());
+-            //    ras_oaa.add_path(path);		
+-            //    }
+-            else 
+-            {
+-                renderer ren(renb);	
+-                agg::rasterizer_scanline_aa<> ras;
+-                agg::scanline_p8 sl;
+-                agg::conv_stroke<path_type>  stroke(path);
++         //    ren_oaa.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
++         //    ren_oaa.clip_box(0,0,pixmap_.width(),pixmap_.height());
++         //    ras_oaa.add_path(path);		
++         //    }
++         else 
++         {
++            renderer ren(renb);	
++            agg::rasterizer_scanline_aa<> ras;
++            agg::scanline_p8 sl;
++            agg::conv_stroke<path_type>  stroke(path);
+ 		    
+-                line_join_e join=stroke_.get_line_join();
+-                if ( join == MITER_JOIN)
+-                    stroke.generator().line_join(agg::miter_join);
+-                else if( join == MITER_REVERT_JOIN) 
+-                    stroke.generator().line_join(agg::miter_join);
+-                else if( join == ROUND_JOIN) 
+-                    stroke.generator().line_join(agg::round_join);
+-                else
+-                    stroke.generator().line_join(agg::bevel_join);
++            line_join_e join=stroke_.get_line_join();
++            if ( join == MITER_JOIN)
++               stroke.generator().line_join(agg::miter_join);
++            else if( join == MITER_REVERT_JOIN) 
++               stroke.generator().line_join(agg::miter_join);
++            else if( join == ROUND_JOIN) 
++               stroke.generator().line_join(agg::round_join);
++            else
++               stroke.generator().line_join(agg::bevel_join);
+ 		    
+-                line_cap_e cap=stroke_.get_line_cap();
+-                if (cap == BUTT_CAP)    
+-                    stroke.generator().line_cap(agg::butt_cap);
+-                else if (cap == SQUARE_CAP)
+-                    stroke.generator().line_cap(agg::square_cap);
+-                else 
+-                    stroke.generator().line_cap(agg::round_cap);
++            line_cap_e cap=stroke_.get_line_cap();
++            if (cap == BUTT_CAP)    
++               stroke.generator().line_cap(agg::butt_cap);
++            else if (cap == SQUARE_CAP)
++               stroke.generator().line_cap(agg::square_cap);
++            else 
++               stroke.generator().line_cap(agg::round_cap);
+ 		
+-                stroke.generator().miter_limit(4.0);
+-                stroke.generator().width(stroke_.get_width());
++            stroke.generator().miter_limit(4.0);
++            stroke.generator().width(stroke_.get_width());
+ 		    
+-                ras.clip_box(0,0,pixmap_.width(),pixmap_.height());
+-                ras.add_path(stroke);
+-                ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
+-                agg::render_scanlines(ras, sl, ren);
+-            }
+-        }
+-    }
++            ras.clip_box(0,0,pixmap_.width(),pixmap_.height());
++            ras.add_path(stroke);
++            ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
++            agg::render_scanlines(ras, sl, ren);
++         }
++      }
++   }
+ 
+-    template <typename T>
+-    void agg_renderer<T>::process(point_symbolizer const& sym,
+-                                  Feature const& feature,
+-                                  proj_transform const& prj_trans)
+-    {
+-        geometry_ptr const& geom=feature.get_geometry();
+-        if (geom)
+-        {
+-            double x;
+-            double y;
+-            double z=0;
+-            boost::shared_ptr<ImageData32> const& data = sym.get_data();
+-            if ( data )
+-            {
+-                geom->label_position(&x,&y);
+-                prj_trans.backward(x,y,z);
+-                t_.forward(&x,&y);
+-                int w = data->width();
+-                int h = data->height();
+-                int px=int(floor(x - 0.5 * w));
+-                int py=int(floor(y - 0.5 * h));
++   template <typename T>
++   void agg_renderer<T>::process(point_symbolizer const& sym,
++                                 Feature const& feature,
++                                 proj_transform const& prj_trans)
++   {
++      geometry_ptr const& geom=feature.get_geometry();
++      if (geom)
++      {
++         double x;
++         double y;
++         double z=0;
++         boost::shared_ptr<ImageData32> const& data = sym.get_data();
++         if ( data )
++         {
++            geom->label_position(&x,&y);
++            prj_trans.backward(x,y,z);
++            t_.forward(&x,&y);
++            int w = data->width();
++            int h = data->height();
++            int px=int(floor(x - 0.5 * w));
++            int py=int(floor(y - 0.5 * h));
+                 
+-                if (sym.get_allow_overlap() || 
+-                    point_detector_.has_placement(Envelope<double>(floor(x - 0.5 * w),
+-                                                             floor(y - 0.5 * h),
+-                                                             ceil (x + 0.5 * w),
+-                                                             ceil (y + 0.5 * h))))
+-                {    
+-                    pixmap_.set_rectangle_alpha(px,py,*data);
+-                }
++            if (sym.get_allow_overlap() || 
++                point_detector_.has_placement(Envelope<double>(floor(x - 0.5 * w),
++                                                               floor(y - 0.5 * h),
++                                                               ceil (x + 0.5 * w),
++                                                               ceil (y + 0.5 * h))))
++            {    
++               pixmap_.set_rectangle_alpha(px,py,*data);
+             }
+-        }
+-    }
++         }
++      }
++   }
+     
+-    template <typename T>
+-    void  agg_renderer<T>::process(shield_symbolizer const& sym,
+-                                   Feature const& feature,
+-                                   proj_transform const& prj_trans)
+-    {
+-        geometry_ptr const& geom=feature.get_geometry();
+-        if (geom && geom->num_points() > 0)
+-        {
+-            std::wstring text = to_unicode(feature[sym.get_name()].to_string());
+-            boost::shared_ptr<ImageData32> const& data = sym.get_data();
+-            
+-            if (text.length() > 0 && data)
++   template <typename T>
++   void  agg_renderer<T>::process(shield_symbolizer const& sym,
++                                  Feature const& feature,
++                                  proj_transform const& prj_trans)
++   {
++      geometry_ptr const& geom=feature.get_geometry();
++      if (geom && geom->num_points() > 0)
++      {
++         //std::wstring text = to_unicode(feature[sym.get_name()].to_string());
++         std::string str = feature[sym.get_name()].to_string();
++         boost::shared_ptr<ImageData32> const& data = sym.get_data();
++           
++         if (str.length() > 0 && data)
++         {
++            std::wstring text = tr_->transcode(str);
++            face_ptr face = font_manager_.get_face(sym.get_face_name());
++            if (face)
+             {
+-                face_ptr face = font_manager_.get_face(sym.get_face_name());
+-                if (face)
+-                {
+-                    int w = data->width();
+-                    int h = data->height();
++               int w = data->width();
++               int h = data->height();
+ 
+-                    text_renderer<mapnik::Image32> ren(pixmap_,face);
+-                    ren.set_pixel_size(sym.get_text_size());
+-                    ren.set_fill(sym.get_fill());
++               text_renderer<mapnik::Image32> ren(pixmap_,face);
++               ren.set_pixel_size(sym.get_text_size());
++               ren.set_fill(sym.get_fill());
+ 
+-                    string_info info;
+-                    ren.get_string_info(text, &info);
++               string_info info;
++               ren.get_string_info(text, &info);
+                     
+-                    placement text_placement(&info, &t_, &prj_trans, geom, std::pair<double, double>(w, h) );
+-                    text_placement.avoid_edges = sym.get_avoid_edges();
++               placement text_placement(&info, &t_, &prj_trans, geom, std::pair<double, double>(w, h) );
++               text_placement.avoid_edges = sym.get_avoid_edges();
+                   
+-                    bool found = finder_.find_placements(&text_placement);
+-                    if (!found) {
+-                      return;
+-                    }
++               bool found = finder_.find_placements(&text_placement);
++               if (!found) {
++                  return;
++               }
+                     
+ 
+-                    for (unsigned int ii = 0; ii < text_placement.placements.size(); ++ ii)
+-                    {
+-                        double x = text_placement.placements[ii].starting_x;
+-                        double y = text_placement.placements[ii].starting_y;
++               for (unsigned int ii = 0; ii < text_placement.placements.size(); ++ ii)
++               {
++                  double x = text_placement.placements[ii].starting_x;
++                  double y = text_placement.placements[ii].starting_y;
+ 
+-                        int px=int(floor(x - 0.5 * w));
+-                        int py=int(floor(y - 0.5 * h));
++                  int px=int(floor(x - 0.5 * w));
++                  int py=int(floor(y - 0.5 * h));
+                         
+-                        pixmap_.set_rectangle_alpha(px,py,*data);
++                  pixmap_.set_rectangle_alpha(px,py,*data);
+                         
+-                        Envelope<double> dim = ren.prepare_glyphs(&text_placement.placements[ii].path);
++                  Envelope<double> dim = ren.prepare_glyphs(&text_placement.placements[ii].path);
+                         
+-                        ren.render(x,y);
+-                    }
+-                }
++                  ren.render(x,y);
++               }
+             }
+-        }
+-    }
++         }
++      }
++   }
+     
+-    template <typename T>
+-    void  agg_renderer<T>::process(line_pattern_symbolizer const& sym,
+-                                   Feature const& feature,
+-                                   proj_transform const& prj_trans)
+-    {
+-        typedef  coord_transform2<CoordTransform,geometry_type> path_type;
+-        typedef agg::line_image_pattern<agg::pattern_filter_bilinear_rgba8> pattern_type;
+-        typedef agg::renderer_base<agg::pixfmt_rgba32> renderer_base;
+-        typedef agg::renderer_outline_image<renderer_base, pattern_type> renderer_type;
+-        typedef agg::rasterizer_outline_aa<renderer_type> rasterizer_type;
++   template <typename T>
++   void  agg_renderer<T>::process(line_pattern_symbolizer const& sym,
++                                  Feature const& feature,
++                                  proj_transform const& prj_trans)
++   {
++      typedef  coord_transform2<CoordTransform,geometry_type> path_type;
++      typedef agg::line_image_pattern<agg::pattern_filter_bilinear_rgba8> pattern_type;
++      typedef agg::renderer_base<agg::pixfmt_rgba32> renderer_base;
++      typedef agg::renderer_outline_image<renderer_base, pattern_type> renderer_type;
++      typedef agg::rasterizer_outline_aa<renderer_type> rasterizer_type;
+ 
+-        geometry_ptr const& geom=feature.get_geometry();
+-        if (geom && geom->num_points() > 1)
+-        {
+-            unsigned width = pixmap_.width();
+-            unsigned height = pixmap_.height();
+-            ImageData32 const& pat = sym.get_pattern();
+-            path_type path(t_,*geom,prj_trans);
+-            agg::row_accessor<agg::int8u> buf(pixmap_.raw_data(), width, height,width*4);
+-            agg::pixfmt_rgba32 pixf(buf);
+-            renderer_base ren_base(pixf);  
+-            agg::pattern_filter_bilinear_rgba8 filter; 
+-            pattern_source source(pat);
+-            pattern_type pattern (filter,source);
+-            renderer_type ren(ren_base, pattern);
+-            ren.clip_box(0,0,width,height);
+-            rasterizer_type ras(ren);	    
+-            ras.add_path(path);    
+-        }
+-    }
++      geometry_ptr const& geom=feature.get_geometry();
++      if (geom && geom->num_points() > 1)
++      {
++         unsigned width = pixmap_.width();
++         unsigned height = pixmap_.height();
++         ImageData32 const& pat = sym.get_pattern();
++         path_type path(t_,*geom,prj_trans);
++         agg::row_accessor<agg::int8u> buf(pixmap_.raw_data(), width, height,width*4);
++         agg::pixfmt_rgba32 pixf(buf);
++         renderer_base ren_base(pixf);  
++         agg::pattern_filter_bilinear_rgba8 filter; 
++         pattern_source source(pat);
++         pattern_type pattern (filter,source);
++         renderer_type ren(ren_base, pattern);
++         ren.clip_box(0,0,width,height);
++         rasterizer_type ras(ren);	    
++         ras.add_path(path);    
++      }
++   }
+     
+-    template <typename T>
+-    void agg_renderer<T>::process(polygon_pattern_symbolizer const& sym,
+-                                  Feature const& feature,
+-                                  proj_transform const& prj_trans)
+-    {
+-        typedef coord_transform2<CoordTransform,geometry_type> path_type;
+-        typedef agg::renderer_base<agg::pixfmt_rgba32> ren_base; 
+-        typedef agg::wrap_mode_repeat wrap_x_type;
+-        typedef agg::wrap_mode_repeat wrap_y_type;
+-        typedef agg::image_accessor_wrap<agg::pixfmt_rgba32, 
+-            wrap_x_type,
+-            wrap_y_type> img_source_type;
++   template <typename T>
++   void agg_renderer<T>::process(polygon_pattern_symbolizer const& sym,
++                                 Feature const& feature,
++                                 proj_transform const& prj_trans)
++   {
++      typedef coord_transform2<CoordTransform,geometry_type> path_type;
++      typedef agg::renderer_base<agg::pixfmt_rgba32> ren_base; 
++      typedef agg::wrap_mode_repeat wrap_x_type;
++      typedef agg::wrap_mode_repeat wrap_y_type;
++      typedef agg::image_accessor_wrap<agg::pixfmt_rgba32, 
++         wrap_x_type,
++         wrap_y_type> img_source_type;
+ 	
+-        typedef agg::span_pattern_rgba<img_source_type> span_gen_type;
++      typedef agg::span_pattern_rgba<img_source_type> span_gen_type;
+ 	
+-        typedef agg::renderer_scanline_aa<ren_base, 
+-            agg::span_allocator<agg::rgba8>,
+-            span_gen_type> renderer_type;  
+-        geometry_ptr const& geom=feature.get_geometry();
+-        if (geom && geom->num_points() > 2)
+-        {
+-            ImageData32 const& pattern = sym.get_pattern();
++      typedef agg::renderer_scanline_aa<ren_base, 
++         agg::span_allocator<agg::rgba8>,
++         span_gen_type> renderer_type;  
++      geometry_ptr const& geom=feature.get_geometry();
++      if (geom && geom->num_points() > 2)
++      {
++         ImageData32 const& pattern = sym.get_pattern();
+ 	    
+-            unsigned width = pixmap_.width();
+-            unsigned height = pixmap_.height();
+-            path_type path(t_,*geom,prj_trans);
++         unsigned width = pixmap_.width();
++         unsigned height = pixmap_.height();
++         path_type path(t_,*geom,prj_trans);
+ 	    
+-            agg::row_accessor<agg::int8u> buf(pixmap_.raw_data(),width,height,width * 4);
+-            agg::pixfmt_rgba32 pixf(buf);
+-            ren_base renb(pixf);
++         agg::row_accessor<agg::int8u> buf(pixmap_.raw_data(),width,height,width * 4);
++         agg::pixfmt_rgba32 pixf(buf);
++         ren_base renb(pixf);
+ 	
+-            unsigned w=pattern.width();
+-            unsigned h=pattern.height();
+-            agg::row_accessor<agg::int8u> pattern_rbuf((agg::int8u*)pattern.getBytes(),w,h,w*4);  
++         unsigned w=pattern.width();
++         unsigned h=pattern.height();
++         agg::row_accessor<agg::int8u> pattern_rbuf((agg::int8u*)pattern.getBytes(),w,h,w*4);  
+ 	    
+-            double x0,y0;
+-            path.vertex(&x0,&y0);
+-            path.rewind(0);
++         double x0,y0;
++         path.vertex(&x0,&y0);
++         path.rewind(0);
+ 	
+-            unsigned offset_x = unsigned(width - x0);
+-            unsigned offset_y = unsigned(height - y0);
++         unsigned offset_x = unsigned(width - x0);
++         unsigned offset_y = unsigned(height - y0);
+             
+-            agg::span_allocator<agg::rgba8> sa;
+-            agg::pixfmt_rgba32 pixf_pattern(pattern_rbuf);
+-            img_source_type img_src(pixf_pattern);
+-            span_gen_type sg(img_src, offset_x, offset_y);
+-            renderer_type rp(renb,sa, sg);
++         agg::span_allocator<agg::rgba8> sa;
++         agg::pixfmt_rgba32 pixf_pattern(pattern_rbuf);
++         img_source_type img_src(pixf_pattern);
++         span_gen_type sg(img_src, offset_x, offset_y);
++         renderer_type rp(renb,sa, sg);
+             
+-            agg::rasterizer_scanline_aa<> ras;
+-            agg::scanline_u8 sl;
+-            ras.clip_box(0,0,width,height);
+-            ras.add_path(path);
+-            agg::render_scanlines(ras, sl, rp);   
+-        }
+-    }
++         agg::rasterizer_scanline_aa<> ras;
++         agg::scanline_u8 sl;
++         ras.clip_box(0,0,width,height);
++         ras.add_path(path);
++         agg::render_scanlines(ras, sl, rp);   
++      }
++   }
+ 
+-    template <typename T>
+-    void agg_renderer<T>::process(raster_symbolizer const&,
+-                                  Feature const& feature,
+-                                  proj_transform const& prj_trans)
+-    {
+-        // TODO -- at the moment raster_symbolizer is an empty class 
+-        // used for type dispatching, but we can have some fancy raster
+-        // processing in a future (filters??). Just copy raster into pixmap for now.
+-        raster_ptr const& raster=feature.get_raster();
+-        if (raster)
+-        {
+-            Envelope<double> ext=t_.forward(raster->ext_);
+-            ImageData32 target((int)(ext.width() + 0.5),(int)(ext.height() + 0.5));
+-            scale_image<ImageData32>(target,raster->data_);
+-            pixmap_.set_rectangle(int(ext.minx()),int(ext.miny()),target);
+-        }
+-    }
++   template <typename T>
++   void agg_renderer<T>::process(raster_symbolizer const&,
++                                 Feature const& feature,
++                                 proj_transform const& prj_trans)
++   {
++      // TODO -- at the moment raster_symbolizer is an empty class 
++      // used for type dispatching, but we can have some fancy raster
++      // processing in a future (filters??). Just copy raster into pixmap for now.
++      raster_ptr const& raster=feature.get_raster();
++      if (raster)
++      {
++         Envelope<double> ext=t_.forward(raster->ext_);
++         ImageData32 target((int)(ext.width() + 0.5),(int)(ext.height() + 0.5));
++         scale_image<ImageData32>(target,raster->data_);
++         pixmap_.set_rectangle(int(ext.minx()),int(ext.miny()),target);
++      }
++   }
+     
+-    template <typename T>
+-    void agg_renderer<T>::process(text_symbolizer const& sym,
+-                                  Feature const& feature,
+-                                  proj_transform const& prj_trans)
+-    {
+-        geometry_ptr const& geom=feature.get_geometry();
++   template <typename T>
++   void agg_renderer<T>::process(text_symbolizer const& sym,
++                                 Feature const& feature,
++                                 proj_transform const& prj_trans)
++   {
++      geometry_ptr const& geom=feature.get_geometry();
+        
+-        if (geom && geom->num_points() > 0)
+-        {
+-            std::wstring text = to_unicode(feature[sym.get_name()].to_string());
+-            if (text.length() > 0)
++      if (geom && geom->num_points() > 0)
++      {
++         std::string str = feature[sym.get_name()].to_string();
++         if ( str.length() > 0 )
++         {
++            std::wstring text = tr_->transcode(str);
++            Color const& fill  = sym.get_fill();
++            face_ptr face = font_manager_.get_face(sym.get_face_name());
++            if (face)
+             {
+-                Color const& fill  = sym.get_fill();
+-	
+-                face_ptr face = font_manager_.get_face(sym.get_face_name());
+-                if (face)
+-                {
+-                    text_renderer<mapnik::Image32> ren(pixmap_,face);
+-                    ren.set_pixel_size(sym.get_text_size());
+-                    ren.set_fill(fill);
+-                    ren.set_halo_fill(sym.get_halo_fill());
+-                    ren.set_halo_radius(sym.get_halo_radius());
++               text_renderer<mapnik::Image32> ren(pixmap_,face);
++               ren.set_pixel_size(sym.get_text_size());
++               ren.set_fill(fill);
++               ren.set_halo_fill(sym.get_halo_fill());
++               ren.set_halo_radius(sym.get_halo_radius());
+                     
+-                    string_info info;
++               string_info info;
+                     
+-                    ren.get_string_info(text, &info);
++               ren.get_string_info(text, &info);
+                     
+-                    placement text_placement(&info, &t_, &prj_trans, geom, sym.get_label_placement());
+-                    text_placement.text_ratio = sym.get_text_ratio();
+-                    text_placement.wrap_width = sym.get_wrap_width();
+-                    text_placement.label_spacing = sym.get_label_spacing();
+-                    text_placement.label_position_tolerance = sym.get_label_position_tolerance();
+-                    text_placement.force_odd_labels = sym.get_force_odd_labels();
+-                    text_placement.max_char_angle_delta = sym.get_max_char_angle_delta();
+-                    text_placement.avoid_edges = sym.get_avoid_edges();
++               placement text_placement(&info, &t_, &prj_trans, geom, sym.get_label_placement());
++               text_placement.text_ratio = sym.get_text_ratio();
++               text_placement.wrap_width = sym.get_wrap_width();
++               text_placement.label_spacing = sym.get_label_spacing();
++               text_placement.label_position_tolerance = sym.get_label_position_tolerance();
++               text_placement.force_odd_labels = sym.get_force_odd_labels();
++               text_placement.max_char_angle_delta = sym.get_max_char_angle_delta();
++               text_placement.avoid_edges = sym.get_avoid_edges();
+                   
+-                    bool found = finder_.find_placements(&text_placement);
+-                    if (!found) {
+-                      return;
+-                    }
++               bool found = finder_.find_placements(&text_placement);
++               if (!found) {
++                  return;
++               }
+                     
+-                    for (unsigned int ii = 0; ii < text_placement.placements.size(); ++ ii)
+-                    {
+-                        double x = text_placement.placements[ii].starting_x;
+-                        double y = text_placement.placements[ii].starting_y;
++               for (unsigned int ii = 0; ii < text_placement.placements.size(); ++ ii)
++               {
++                  double x = text_placement.placements[ii].starting_x;
++                  double y = text_placement.placements[ii].starting_y;
+                         
+-                        Envelope<double> dim = ren.prepare_glyphs(&text_placement.placements[ii].path);
++                  Envelope<double> dim = ren.prepare_glyphs(&text_placement.placements[ii].path);
+                         
+-                        Envelope<double> text_box(x + dim.minx() ,y - dim.maxy(), x + dim.maxx(),y - dim.miny());
++                  Envelope<double> text_box(x + dim.minx() ,y - dim.maxy(), x + dim.maxx(),y - dim.miny());
+ 		        
+-                        if (sym.get_halo_radius() > 0)
+-                        {
+-                            text_box.width(text_box.width() + sym.get_halo_radius()*2);
+-                            text_box.height(text_box.height() + sym.get_halo_radius()*2);
+-                        }
+-                        ren.render(x,y);
+-                    }
+-                }
+-            }  
+-        }
+-    }   
++                  if (sym.get_halo_radius() > 0)
++                  {
++                     text_box.width(text_box.width() + sym.get_halo_radius()*2);
++                     text_box.height(text_box.height() + sym.get_halo_radius()*2);
++                  }
++                  ren.render(x,y);
++               }
++            }
++         }  
++      }
++   }   
+     
+-    template class agg_renderer<Image32>;
++   template class agg_renderer<Image32>;
+ }
+
+Modified: trunk/src/memory_datasource.cpp
+===================================================================
+--- trunk/src/memory_datasource.cpp	2007-02-05 11:53:00 UTC (rev 439)
++++ trunk/src/memory_datasource.cpp	2007-02-06 14:27:21 UTC (rev 440)
+@@ -85,7 +85,7 @@
+     
+     layer_descriptor memory_datasource::get_descriptor() const
+     {
+-        return layer_descriptor("in-memory datasource");
++        return layer_descriptor("in-memory datasource","utf-8");
+     }
+     
+     size_t memory_datasource::size() const
+
+
+
+From pavlenko at mail.berlios.de  Tue Feb  6 16:29:07 2007
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Tue, 6 Feb 2007 16:29:07 +0100
+Subject: [Mapnik-svn] r441 - trunk/plugins/input/postgis
+Message-ID: <200702061529.l16FT70Y019963@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2007-02-06 16:29:04 +0100 (Tue, 06 Feb 2007)
+New Revision: 441
+
+Modified:
+   trunk/plugins/input/postgis/connection.hpp
+   trunk/plugins/input/postgis/connection_manager.hpp
+   trunk/plugins/input/postgis/postgis.cpp
+Log:
+host = '' , host = None and ommiting host all default to unix-domain socket in /tmp
+
+
+
+Modified: trunk/plugins/input/postgis/connection.hpp
+===================================================================
+--- trunk/plugins/input/postgis/connection.hpp	2007-02-06 14:27:21 UTC (rev 440)
++++ trunk/plugins/input/postgis/connection.hpp	2007-02-06 15:29:04 UTC (rev 441)
+@@ -41,19 +41,21 @@
+    private:
+       PGconn *conn_;
+    public:
+-      Connection(std::string const& uri, 
++      Connection(std::string const& host, 
+                  std::string const& port,
+                  std::string const& dbname, 
+                  std::string const& username,
+                  std::string const& password)
+       {
+-         std::string connStr="host="+uri;
+-         if (port.length()) connStr+=" port="+port;
++         
++         std::string connStr;
++         if (host.length()) connStr += "host="+host;
++         if (port.length()) connStr += " port="+port;
+          connStr+=" dbname="+dbname;
+          connStr+=" user="+username;
+          connStr+=" password="+password;
+          connStr+=" connect_timeout=4"; // todo: set by client (param) 
+-        
++         
+          conn_=PQconnectdb(connStr.c_str());
+          if (PQstatus(conn_) == CONNECTION_BAD)
+          {
+
+Modified: trunk/plugins/input/postgis/connection_manager.hpp
+===================================================================
+--- trunk/plugins/input/postgis/connection_manager.hpp	2007-02-06 14:27:21 UTC (rev 440)
++++ trunk/plugins/input/postgis/connection_manager.hpp	2007-02-06 15:29:04 UTC (rev 441)
+@@ -40,12 +40,12 @@
+ {
+ 
+ public:
+-    ConnectionCreator(string const& url,
++    ConnectionCreator(string const& host,
+                       string const& port,
+                       string const& dbname,
+                       string const& user,
+                       string const& pass)
+-        : url_(url),
++        : host_(host),
+           port_(port),
+           dbname_(dbname),
+           user_(user),
+@@ -53,18 +53,18 @@
+     
+     T* operator()() const
+     {
+-        return new T(url_,port_,dbname_,user_,pass_);
++        return new T(host_,port_,dbname_,user_,pass_);
+     }
+     
+     std::string id() const 
+     {
+-        return url_ + ":" 
++        return host_ + ":" 
+ 	  + dbname_ + ":" 
+ 	  + port_ +":" 
+ 	  + user_ ; 
+     }
+ private:
+-    string url_;
++    string host_;
+     string port_;
+     string dbname_;
+     string user_;
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2007-02-06 14:27:21 UTC (rev 440)
++++ trunk/plugins/input/postgis/postgis.cpp	2007-02-06 15:29:04 UTC (rev 441)
+@@ -33,7 +33,7 @@
+ 
+ DATASOURCE_PLUGIN(postgis_datasource)
+ 
+-   const std::string postgis_datasource::GEOMETRY_COLUMNS="geometry_columns";
++const std::string postgis_datasource::GEOMETRY_COLUMNS="geometry_columns";
+ const std::string postgis_datasource::SPATIAL_REF_SYS="spatial_ref_system";
+ 
+ using std::clog;
+
+
+
+From pavlenko at mail.berlios.de  Tue Feb  6 16:53:34 2007
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Tue, 6 Feb 2007 16:53:34 +0100
+Subject: [Mapnik-svn] r442 - trunk/include/mapnik
+Message-ID: <200702061553.l16FrYt6023106@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2007-02-06 16:53:32 +0100 (Tue, 06 Feb 2007)
+New Revision: 442
+
+Modified:
+   trunk/include/mapnik/feature_style_processor.hpp
+Log:
+Disabled timer print-outs by default. Use -DMAPNIK_DEBUG to enable.
+
+
+
+Modified: trunk/include/mapnik/feature_style_processor.hpp
+===================================================================
+--- trunk/include/mapnik/feature_style_processor.hpp	2007-02-06 15:29:04 UTC (rev 441)
++++ trunk/include/mapnik/feature_style_processor.hpp	2007-02-06 15:53:32 UTC (rev 442)
+@@ -41,197 +41,199 @@
+ 
+ namespace mapnik
+ {       
+-    template <typename Processor>
+-    class feature_style_processor 
+-    {
+-        struct symbol_dispatch : public boost::static_visitor<>
+-        {
+-            symbol_dispatch (Processor & output,
+-                             Feature const& f, 
+-                             proj_transform const& prj_trans)
+-                : output_(output),
+-                  f_(f),
+-                  prj_trans_(prj_trans)  {}
++   template <typename Processor>
++   class feature_style_processor 
++   {
++         struct symbol_dispatch : public boost::static_visitor<>
++         {
++               symbol_dispatch (Processor & output,
++                                Feature const& f, 
++                                proj_transform const& prj_trans)
++                  : output_(output),
++                    f_(f),
++                    prj_trans_(prj_trans)  {}
+             
+-            template <typename T>
+-            void operator () (T const& sym) const
+-            {
+-                output_.process(sym,f_,prj_trans_);
+-            }
++               template <typename T>
++               void operator () (T const& sym) const
++               {
++                  output_.process(sym,f_,prj_trans_);
++               }
+             
+-            Processor & output_;
+-            Feature const& f_;
+-            proj_transform const& prj_trans_;
+-        };
+-    public:
+-        feature_style_processor(Map const& m)
++               Processor & output_;
++               Feature const& f_;
++               proj_transform const& prj_trans_;
++         };
++      public:
++         feature_style_processor(Map const& m)
+             : m_(m) {}
+ 	
+-        void apply()
+-        {
+-            boost::progress_timer t(std::clog);            
++         void apply()
++         {
++#ifdef MAPNIK_DEBUG           
++            boost::progress_timer t(std::clog);  
++#endif          
+             Processor & p = static_cast<Processor&>(*this);
+             p.start_map_processing(m_);
+                        
+             try
+             {
+-                projection proj(m_.srs()); // map projection
+-                double scale_denom = scale_denominator(m_,proj.is_geographic());
++               projection proj(m_.srs()); // map projection
++               double scale_denom = scale_denominator(m_,proj.is_geographic());
+ #ifdef MAPNIK_DEBUG
+-                std::clog << "scale denominator = " << scale_denom << "\n";
++               std::clog << "scale denominator = " << scale_denom << "\n";
+ #endif
+-                std::vector<Layer>::const_iterator itr = m_.layers().begin();
+-                std::vector<Layer>::const_iterator end = m_.layers().end();
++               std::vector<Layer>::const_iterator itr = m_.layers().begin();
++               std::vector<Layer>::const_iterator end = m_.layers().end();
+             
+-                while (itr != end)
+-                {
+-                    if (itr->isVisible(scale_denom))
+-                    {
+-                        apply_to_layer(*itr, p, proj, scale_denom);
+-                    }
+-                    ++itr;
+-                }
++               while (itr != end)
++               {
++                  if (itr->isVisible(scale_denom))
++                  {
++                     apply_to_layer(*itr, p, proj, scale_denom);
++                  }
++                  ++itr;
++               }
+             }
+             catch (proj_init_error& ex)
+             {
+-                std::clog << ex.what() << "\n"; 
++               std::clog << ex.what() << "\n"; 
+             }
+ 
+             p.end_map_processing(m_);
+-        }	
+-    private:
+-        void apply_to_layer(Layer const& lay, Processor & p, 
+-                            projection const& proj0,double scale_denom)
+-        {
++         }	
++      private:
++         void apply_to_layer(Layer const& lay, Processor & p, 
++                             projection const& proj0,double scale_denom)
++         {
+             p.start_layer_processing(lay);
+             boost::shared_ptr<datasource> ds=lay.datasource();
+             if (ds)
+             {
+-                Envelope<double> const& ext=m_.getCurrentExtent();
++               Envelope<double> const& ext=m_.getCurrentExtent();
+               
+-                projection proj1(lay.srs());
+-                proj_transform prj_trans(proj0,proj1);
++               projection proj1(lay.srs());
++               proj_transform prj_trans(proj0,proj1);
+                 
+-                double x0 = ext.minx();
+-                double y0 = ext.miny();
+-                double z0 = 0.0;
+-                double x1 = ext.maxx();
+-                double y1 = ext.maxy();
+-                double z1 = 0.0;
+-                prj_trans.forward(x0,y0,z0);
+-                prj_trans.forward(x1,y1,z1);
+-                Envelope<double> bbox(x0,y0,x1,y1);
++               double x0 = ext.minx();
++               double y0 = ext.miny();
++               double z0 = 0.0;
++               double x1 = ext.maxx();
++               double y1 = ext.maxy();
++               double z1 = 0.0;
++               prj_trans.forward(x0,y0,z0);
++               prj_trans.forward(x1,y1,z1);
++               Envelope<double> bbox(x0,y0,x1,y1);
+ #ifdef MAPNIK_DEBUG
+-                std::clog << bbox << "\n";
++               std::clog << bbox << "\n";
+ #endif                
+-                std::vector<std::string> const& style_names = lay.styles();
+-                std::vector<std::string>::const_iterator stylesIter = style_names.begin();
+-                std::vector<std::string>::const_iterator stylesEnd = style_names.end();
++               std::vector<std::string> const& style_names = lay.styles();
++               std::vector<std::string>::const_iterator stylesIter = style_names.begin();
++               std::vector<std::string>::const_iterator stylesEnd = style_names.end();
+                 
+-                while (stylesIter != stylesEnd)
+-                {
+-                    std::set<std::string> names;
+-                    attribute_collector<Feature> collector(names);
+-                    std::vector<rule_type*> if_rules;
+-                    std::vector<rule_type*> else_rules;
++               while (stylesIter != stylesEnd)
++               {
++                  std::set<std::string> names;
++                  attribute_collector<Feature> collector(names);
++                  std::vector<rule_type*> if_rules;
++                  std::vector<rule_type*> else_rules;
+                     
+-                    bool active_rules=false;
++                  bool active_rules=false;
+                     
+-                    feature_type_style const& style=m_.find_style(*stylesIter++);
++                  feature_type_style const& style=m_.find_style(*stylesIter++);
+                         
+-                    query q(bbox); //BBOX query
++                  query q(bbox); //BBOX query
+ 
+-                    const std::vector<rule_type>& rules=style.get_rules();
+-                    std::vector<rule_type>::const_iterator ruleIter=rules.begin();
+-                    std::vector<rule_type>::const_iterator ruleEnd=rules.end();
++                  const std::vector<rule_type>& rules=style.get_rules();
++                  std::vector<rule_type>::const_iterator ruleIter=rules.begin();
++                  std::vector<rule_type>::const_iterator ruleEnd=rules.end();
+                                         
+-                    while (ruleIter!=ruleEnd)
+-                    {
+-                        if (ruleIter->active(scale_denom))
++                  while (ruleIter!=ruleEnd)
++                  {
++                     if (ruleIter->active(scale_denom))
++                     {
++                        active_rules=true;
++                        ruleIter->accept(collector);
++
++                        if (ruleIter->has_else_filter())
+                         {
+-                            active_rules=true;
+-                            ruleIter->accept(collector);
+-
+-                            if (ruleIter->has_else_filter())
+-                            {
+-                                else_rules.push_back(const_cast<rule_type*>(&(*ruleIter)));
+-                            }
+-                            else
+-                            {
+-                                if_rules.push_back(const_cast<rule_type*>(&(*ruleIter))); 		    
+-                            }
++                           else_rules.push_back(const_cast<rule_type*>(&(*ruleIter)));
+                         }
+-                        ++ruleIter;
+-                    }
+-                    std::set<std::string>::const_iterator namesIter=names.begin();
+-                    std::set<std::string>::const_iterator namesEnd =names.end();
++                        else
++                        {
++                           if_rules.push_back(const_cast<rule_type*>(&(*ruleIter))); 		    
++                        }
++                     }
++                     ++ruleIter;
++                  }
++                  std::set<std::string>::const_iterator namesIter=names.begin();
++                  std::set<std::string>::const_iterator namesEnd =names.end();
+                     
+-                    // push all property names
+-                    while (namesIter!=namesEnd)
+-                    {
+-                        q.add_property_name(*namesIter);
+-                        ++namesIter;
+-                    }
+-                    if (active_rules)
+-                    {
+-                        featureset_ptr fs=ds->features(q);
+-                        if (fs)
+-                        {   	    
+-                            feature_ptr feature;
+-                            while ((feature = fs->next()))
+-                            {		   
+-                                bool do_else=true;		    
+-                                std::vector<rule_type*>::const_iterator itr=if_rules.begin();
+-                                std::vector<rule_type*>::const_iterator end=if_rules.end();
+-                                while (itr != end)
+-                                {
+-                                    filter_ptr const& filter=(*itr)->get_filter();    
+-                                    if (filter->pass(*feature))
+-                                    {   
+-                                        do_else=false;
+-                                        const symbolizers& symbols = (*itr)->get_symbolizers();
+-                                        symbolizers::const_iterator symIter=symbols.begin();
+-                                        symbolizers::const_iterator symEnd =symbols.end();
+-                                        while (symIter != symEnd)
+-                                        {   
+-                                            boost::apply_visitor
+-                                                (symbol_dispatch(p,*feature,prj_trans),*symIter++);
+-                                        }
+-                                    }			    
+-                                    ++itr;
+-                                }
+-                                if (do_else)
+-                                {
+-                                    //else filter
+-                                    std::vector<rule_type*>::const_iterator itr=
+-                                        else_rules.begin();
+-                                    std::vector<rule_type*>::const_iterator end=
+-                                        else_rules.end();
+-                                    while (itr != end)
+-                                    {
+-                                        const symbolizers& symbols = (*itr)->get_symbolizers();
+-                                        symbolizers::const_iterator symIter= symbols.begin();
+-                                        symbolizers::const_iterator symEnd = symbols.end();
++                  // push all property names
++                  while (namesIter!=namesEnd)
++                  {
++                     q.add_property_name(*namesIter);
++                     ++namesIter;
++                  }
++                  if (active_rules)
++                  {
++                     featureset_ptr fs=ds->features(q);
++                     if (fs)
++                     {   	    
++                        feature_ptr feature;
++                        while ((feature = fs->next()))
++                        {		   
++                           bool do_else=true;		    
++                           std::vector<rule_type*>::const_iterator itr=if_rules.begin();
++                           std::vector<rule_type*>::const_iterator end=if_rules.end();
++                           while (itr != end)
++                           {
++                              filter_ptr const& filter=(*itr)->get_filter();    
++                              if (filter->pass(*feature))
++                              {   
++                                 do_else=false;
++                                 const symbolizers& symbols = (*itr)->get_symbolizers();
++                                 symbolizers::const_iterator symIter=symbols.begin();
++                                 symbolizers::const_iterator symEnd =symbols.end();
++                                 while (symIter != symEnd)
++                                 {   
++                                    boost::apply_visitor
++                                       (symbol_dispatch(p,*feature,prj_trans),*symIter++);
++                                 }
++                              }			    
++                              ++itr;
++                           }
++                           if (do_else)
++                           {
++                              //else filter
++                              std::vector<rule_type*>::const_iterator itr=
++                                 else_rules.begin();
++                              std::vector<rule_type*>::const_iterator end=
++                                 else_rules.end();
++                              while (itr != end)
++                              {
++                                 const symbolizers& symbols = (*itr)->get_symbolizers();
++                                 symbolizers::const_iterator symIter= symbols.begin();
++                                 symbolizers::const_iterator symEnd = symbols.end();
+                                         
+-                                        while (symIter!=symEnd)
+-                                        {
+-                                            boost::apply_visitor
+-                                                (symbol_dispatch(p,*feature,prj_trans),
+-                                                 *symIter++);
+-                                        }
+-                                        ++itr;
+-                                    }
+-                                }	  
+-                            }
++                                 while (symIter!=symEnd)
++                                 {
++                                    boost::apply_visitor
++                                       (symbol_dispatch(p,*feature,prj_trans),
++                                        *symIter++);
++                                 }
++                                 ++itr;
++                              }
++                           }	  
+                         }
+-                    }
+-                }
++                     }
++                  }
++               }
+                 
+             }
+             p.end_layer_processing(lay);
+-        }	
+-        Map const& m_;
+-    };
++         }	
++         Map const& m_;
++   };
+ }
+ 
+ #endif //FEATURE_STYLE_PROCESSOR_HPP
+
+
+
+From jdoyon at mail.berlios.de  Thu Feb  8 01:36:14 2007
+From: jdoyon at mail.berlios.de (jdoyon at BerliOS)
+Date: Thu, 8 Feb 2007 01:36:14 +0100
+Subject: [Mapnik-svn] r443 - trunk/utils/shapeindex
+Message-ID: <200702080036.l180aE2e023821@sheep.berlios.de>
+
+Author: jdoyon
+Date: 2007-02-08 01:36:14 +0100 (Thu, 08 Feb 2007)
+New Revision: 443
+
+Modified:
+   trunk/utils/shapeindex/shapeindex.cpp
+Log:
+- Fix a couple of namespace issues.
+
+Modified: trunk/utils/shapeindex/shapeindex.cpp
+===================================================================
+--- trunk/utils/shapeindex/shapeindex.cpp	2007-02-06 15:53:32 UTC (rev 442)
++++ trunk/utils/shapeindex/shapeindex.cpp	2007-02-08 00:36:14 UTC (rev 443)
+@@ -71,7 +71,7 @@
+ 	
+         if (vm.count("version"))
+         {
+-            clog<<"version 0.3.0" <<endl;
++            clog<<"version 0.3.0" <<std::endl;
+             return 1;
+         }
+ 
+@@ -96,7 +96,7 @@
+     }
+     catch (...)
+     {
+-        clog << "Exception of unknown type!"<<endl;
++        clog << "Exception of unknown type!"<<std::endl;
+         return -1;
+     }
+     
+
+
+
+From pavlenko at mail.berlios.de  Fri Feb  9 17:32:49 2007
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Fri, 9 Feb 2007 17:32:49 +0100
+Subject: [Mapnik-svn] r444 - in trunk: include/mapnik src
+Message-ID: <200702091632.l19GWn9w003106@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2007-02-09 17:32:44 +0100 (Fri, 09 Feb 2007)
+New Revision: 444
+
+Modified:
+   trunk/include/mapnik/placement_finder.hpp
+   trunk/src/agg_renderer.cpp
+   trunk/src/load_map.cpp
+   trunk/src/placement_finder.cpp
+   trunk/src/text_symbolizer.cpp
+Log:
+Restored support for the text displacement (point placement only at moment)
+
+
+
+Modified: trunk/include/mapnik/placement_finder.hpp
+===================================================================
+--- trunk/include/mapnik/placement_finder.hpp	2007-02-08 00:36:14 UTC (rev 443)
++++ trunk/include/mapnik/placement_finder.hpp	2007-02-09 16:32:44 UTC (rev 444)
+@@ -37,88 +37,98 @@
+ namespace mapnik
+ {
+ 
+-    struct placement_element
+-    {
+-        double starting_x;
+-        double starting_y;
++   struct placement_element
++   {
++         double starting_x;
++         double starting_y;
+     
+-        text_path path;
+-    };
++         text_path path;
++   };
+ 
+-  struct placement
+-  {
+-    typedef  coord_transform2<CoordTransform,geometry_type> path_type;
+-
+-    //For shields
+-    placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, std::pair<double, double> dimensions_);
++   struct placement
++   {
++         typedef  coord_transform2<CoordTransform,geometry_type> path_type;
++         
++         //For shields
++         placement(string_info *info_, 
++                   CoordTransform *ctrans_, 
++                   const proj_transform *proj_trans_, 
++                   geometry_ptr geom_, 
++                   std::pair<double, double> dimensions_);
+     
+-    //For text
+-    placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, label_placement_e placement_);
++         //For text
++         placement(string_info *info_, 
++                   CoordTransform *ctrans_, 
++                   const proj_transform *proj_trans_, 
++                   geometry_ptr geom_,
++                   position const& displacement,
++                   label_placement_e placement_);
++         
++         ~placement();
++        
++         unsigned path_size() const;
++         string_info *info;
+     
+-    ~placement();
++         CoordTransform *ctrans;
++         const proj_transform *proj_trans;
+ 
+-      unsigned path_size() const;
+-      string_info *info;
+-    
+-    CoordTransform *ctrans;
+-    const proj_transform *proj_trans;
++         geometry_ptr geom;
++         position displacement_;
++         label_placement_e label_placement;
++         std::pair<double, double> dimensions;
+ 
+-    geometry_ptr geom;
+-    label_placement_e label_placement;
+-    std::pair<double, double> dimensions;
+-
+-    bool has_dimensions;
++         bool has_dimensions;
+     
+-    path_type shape_path;
+-    std::queue< Envelope<double> > envelopes;
++         path_type shape_path;
++         std::queue< Envelope<double> > envelopes;
+     
+-    //output
+-    std::vector<placement_element> placements;
++         //output
++         std::vector<placement_element> placements;
+ 
+-    // caching output
+-    placement_element current_placement;
++         // caching output
++         placement_element current_placement;
+     
+-    //helpers
+-    std::pair<double, double> get_position_at_distance(double target_distance);
+-    double get_total_distance();
+-    void clear_envelopes();
++         //helpers
++         std::pair<double, double> get_position_at_distance(double target_distance);
++         double get_total_distance();
++         void clear_envelopes();
+     
+-    double total_distance_; //cache for distance
++         double total_distance_; //cache for distance
+     
+-    int wrap_width;
+-    int text_ratio;
++         int wrap_width;
++         int text_ratio;
+ 
+-    int label_spacing; // distance between repeated labels on a single geometry
+-    unsigned label_position_tolerance; //distance the label can be moved on the line to fit, if 0 the default is used
+-	bool force_odd_labels; //Always try render an odd amount of labels
++         int label_spacing; // distance between repeated labels on a single geometry
++         unsigned label_position_tolerance; //distance the label can be moved on the line to fit, if 0 the default is used
++         bool force_odd_labels; //Always try render an odd amount of labels
+ 
+-    double max_char_angle_delta;
++         double max_char_angle_delta;
+     
+-    bool avoid_edges;
+-  };
++         bool avoid_edges;
++   };
+ 
+ 
+   
+-  class placement_finder : boost::noncopyable
+-  {
+-  public:
+-    //E is the dimensions of the map, buffer is the buffer used for collission detection.
+-    placement_finder(Envelope<double> e, unsigned buffer);
++   class placement_finder : boost::noncopyable
++   {
++      public:
++         //e is the dimensions of the map, buffer is the buffer used for collission detection.
++         placement_finder(Envelope<double> e, unsigned buffer);
+   
+-    bool find_placements(placement *p);
++         bool find_placements(placement *p);
+     
+-  protected:
+-    bool find_placement_follow(placement *p);
+-    bool find_placement_horizontal(placement *p);
++      protected:
++         bool find_placement_follow(placement *p);
++         bool find_placement_horizontal(placement *p);
+ 
+-    bool build_path_follow(placement *p, double target_distance);
+-    bool build_path_horizontal(placement *p, double target_distance);
++         bool build_path_follow(placement *p, double target_distance);
++         bool build_path_horizontal(placement *p, double target_distance);
+ 
+-    void update_detector(placement *p);
++         void update_detector(placement *p);
+   
+-    Envelope<double> dimensions_;
+-    label_collision_detector3 detector_;
+-  };
++         Envelope<double> dimensions_;
++         label_collision_detector3 detector_;
++   };
+   
+ }
+ 
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2007-02-08 00:36:14 UTC (rev 443)
++++ trunk/src/agg_renderer.cpp	2007-02-09 16:32:44 UTC (rev 444)
+@@ -521,7 +521,10 @@
+                     
+                ren.get_string_info(text, &info);
+                     
+-               placement text_placement(&info, &t_, &prj_trans, geom, sym.get_label_placement());
++               placement text_placement(&info, &t_, &prj_trans, geom, 
++                                        sym.get_displacement(),
++                                        sym.get_label_placement());
++               
+                text_placement.text_ratio = sym.get_text_ratio();
+                text_placement.wrap_width = sym.get_wrap_width();
+                text_placement.label_spacing = sym.get_label_spacing();
+@@ -530,25 +533,22 @@
+                text_placement.max_char_angle_delta = sym.get_max_char_angle_delta();
+                text_placement.avoid_edges = sym.get_avoid_edges();
+                   
+-               bool found = finder_.find_placements(&text_placement);
+-               if (!found) {
+-                  return;
+-               }
++               if ( !finder_.find_placements(&text_placement)) return;
+                     
+                for (unsigned int ii = 0; ii < text_placement.placements.size(); ++ ii)
+                {
+                   double x = text_placement.placements[ii].starting_x;
+                   double y = text_placement.placements[ii].starting_y;
+-                        
++                  
+                   Envelope<double> dim = ren.prepare_glyphs(&text_placement.placements[ii].path);
+-                        
+-                  Envelope<double> text_box(x + dim.minx() ,y - dim.maxy(), x + dim.maxx(),y - dim.miny());
++                  
++                  //Envelope<double> text_box(x + dim.minx() ,y - dim.maxy(), x + dim.maxx(),y - dim.miny());
+ 		        
+-                  if (sym.get_halo_radius() > 0)
+-                  {
+-                     text_box.width(text_box.width() + sym.get_halo_radius()*2);
+-                     text_box.height(text_box.height() + sym.get_halo_radius()*2);
+-                  }
++                  //if (sym.get_halo_radius() > 0)
++                  //{
++                  //   text_box.width(text_box.width() + sym.get_halo_radius()*2);
++                  //   text_box.height(text_box.height() + sym.get_halo_radius()*2);
++                  //}
+                   ren.render(x,y);
+                }
+             }
+
+Modified: trunk/src/load_map.cpp
+===================================================================
+--- trunk/src/load_map.cpp	2007-02-08 00:36:14 UTC (rev 443)
++++ trunk/src/load_map.cpp	2007-02-09 16:32:44 UTC (rev 444)
+@@ -187,6 +187,12 @@
+                                 std::string placement_str = 
+                                     sym.second.get<std::string>("<xmlattr>.placement","point");
+                                 
++                                // displacement 
++                                
++                                int dx = sym.second.get<int>("<xmlattr>.dx",0);
++                                int dy = sym.second.get<int>("<xmlattr>.dy",0);
++                                text_symbol.set_displacement(dx,dy);
++                                
+                                 if (placement_str == "line")
+                                 {
+                                     text_symbol.set_label_placement(line_placement);
+@@ -400,10 +406,6 @@
+                                     }
+                                 }
+                                 rule.append(poly_sym);
+-                            }
+-                            else if ( sym.first == "TextSymbolizer")
+-                            {
+-                                std::cout << sym.first << "\n";
+                             } 
+                             else if ( sym.first == "RasterSymbolizer")
+                             {
+
+Modified: trunk/src/placement_finder.cpp
+===================================================================
+--- trunk/src/placement_finder.cpp	2007-02-08 00:36:14 UTC (rev 443)
++++ trunk/src/placement_finder.cpp	2007-02-09 16:32:44 UTC (rev 444)
+@@ -32,6 +32,7 @@
+ #include <boost/utility.hpp>
+ #include <boost/ptr_container/ptr_vector.hpp>
+ #include <boost/thread/mutex.hpp>
++#include <boost/tuple/tuple.hpp>
+ 
+ //mapnik
+ #include <mapnik/geometry.hpp>
+@@ -45,14 +46,53 @@
+ namespace mapnik
+ {
+     //For shields
+-    placement::placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, std::pair<double, double> dimensions_)
+-        : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(point_placement), dimensions(dimensions_), has_dimensions(true), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0), wrap_width(0), text_ratio(0), label_spacing(0), label_position_tolerance(0), force_odd_labels(false), max_char_angle_delta(0.0), avoid_edges(false)
++    placement::placement(string_info *info_, 
++                         CoordTransform *ctrans_, 
++                         const proj_transform *proj_trans_, 
++                         geometry_ptr geom_, 
++                         std::pair<double, double> dimensions_)
++        : info(info_), 
++          ctrans(ctrans_), 
++          proj_trans(proj_trans_), 
++          geom(geom_),
++          displacement_(0,0),
++          label_placement(point_placement), 
++          dimensions(dimensions_), 
++          has_dimensions(true), 
++          shape_path(*ctrans_, *geom_, *proj_trans_), 
++          total_distance_(-1.0), 
++          wrap_width(0), 
++          text_ratio(0), 
++          label_spacing(0), 
++          label_position_tolerance(0), 
++          force_odd_labels(false), 
++          max_char_angle_delta(0.0), avoid_edges(false)
+     {
+     }
+ 
+     //For text
+-    placement::placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, label_placement_e placement_)
+-        : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(placement_), has_dimensions(false), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0), wrap_width(0), text_ratio(0), label_spacing(0), label_position_tolerance(0), force_odd_labels(false), max_char_angle_delta(0.0), avoid_edges(false)
++    placement::placement(string_info *info_, 
++                         CoordTransform *ctrans_, 
++                         const proj_transform *proj_trans_, 
++                         geometry_ptr geom_,
++                         position const& displacement,
++                         label_placement_e placement_)
++       : info(info_), 
++         ctrans(ctrans_), 
++         proj_trans(proj_trans_), 
++         geom(geom_), 
++         displacement_(displacement),
++         label_placement(placement_), 
++         has_dimensions(false), 
++         shape_path(*ctrans_, *geom_, *proj_trans_), 
++         total_distance_(-1.0), 
++         wrap_width(0), 
++         text_ratio(0), 
++         label_spacing(0), 
++         label_position_tolerance(0), 
++         force_odd_labels(false), 
++         max_char_angle_delta(0.0), 
++         avoid_edges(false)
+     {
+     }
+   
+@@ -143,7 +183,8 @@
+   
+   
+     placement_finder::placement_finder(Envelope<double> e, unsigned buffer)
+-        : dimensions_(e), detector_(Envelope<double>(e.minx() - buffer, e.miny() - buffer, e.maxx() + buffer, e.maxy() + buffer))
++        : dimensions_(e), 
++          detector_(Envelope<double>(e.minx() - buffer, e.miny() - buffer, e.maxx() + buffer, e.maxy() + buffer))
+     {
+     }
+ 
+@@ -574,6 +615,9 @@
+             double z=0;  
+             p->proj_trans->backward(p->current_placement.starting_x, p->current_placement.starting_y, z);
+             p->ctrans->forward(&p->current_placement.starting_x, &p->current_placement.starting_y);
++            // apply displacement ( in pixels ) 
++            p->current_placement.starting_x += boost::tuples::get<0>(p->displacement_);
++            p->current_placement.starting_y += boost::tuples::get<1>(p->displacement_); 
+         }
+         
+         double line_height = 0;
+@@ -606,11 +650,17 @@
+                 Envelope<double> e;
+                 if (p->has_dimensions)
+                 {
+-                    e.init(p->current_placement.starting_x - (p->dimensions.first/2.0), p->current_placement.starting_y - (p->dimensions.second/2.0), p->current_placement.starting_x + (p->dimensions.first/2.0), p->current_placement.starting_y + (p->dimensions.second/2.0));
++                    e.init(p->current_placement.starting_x - (p->dimensions.first/2.0), 
++                           p->current_placement.starting_y - (p->dimensions.second/2.0), 
++                           p->current_placement.starting_x + (p->dimensions.first/2.0), 
++                           p->current_placement.starting_y + (p->dimensions.second/2.0));
+                 }
+                 else
+                 {
+-                    e.init(p->current_placement.starting_x + x, p->current_placement.starting_y - y, p->current_placement.starting_x + x + ci.width, p->current_placement.starting_y - y - ci.height);
++                    e.init(p->current_placement.starting_x + x, 
++                           p->current_placement.starting_y - y, 
++                           p->current_placement.starting_x + x + ci.width, 
++                           p->current_placement.starting_y - y - ci.height);
+                 }
+                 
+                 if (!detector_.has_placement(e))
+
+Modified: trunk/src/text_symbolizer.cpp
+===================================================================
+--- trunk/src/text_symbolizer.cpp	2007-02-08 00:36:14 UTC (rev 443)
++++ trunk/src/text_symbolizer.cpp	2007-02-09 16:32:44 UTC (rev 444)
+@@ -213,7 +213,7 @@
+         displacement_ = boost::make_tuple(x,y);
+     }
+     
+-    position const&  text_symbolizer::get_displacement() const
++    position const& text_symbolizer::get_displacement() const
+     {
+         return displacement_;
+     }
+
+
+
+From pavlenko at mail.berlios.de  Sat Feb 10 12:01:39 2007
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Sat, 10 Feb 2007 12:01:39 +0100
+Subject: [Mapnik-svn] r445 - trunk
+Message-ID: <200702101101.l1AB1dGI027917@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2007-02-10 12:01:37 +0100 (Sat, 10 Feb 2007)
+New Revision: 445
+
+Modified:
+   trunk/SConstruct
+Log:
+reverting to r432 ( to make it work on Debian based distros).
+
+/usr/lib/libboost_xxx.so -> libboost_xxx-gcc-mt-1_33_1.so
+
+
+
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2007-02-09 16:32:44 UTC (rev 444)
++++ trunk/SConstruct	2007-02-10 11:01:37 UTC (rev 445)
+@@ -107,7 +107,7 @@
+ 
+ BOOST_LIBSHEADERS = [
+     ['thread', 'boost/thread/mutex.hpp', True],
+-#    ['system', 'boost/system/system_error.hpp', True],
++    #['system', 'boost/system/system_error.hpp', True],
+     ['filesystem', 'boost/filesystem/operations.hpp', True],
+     ['regex', 'boost/regex.hpp', True],
+     ['program_options', 'boost/program_options.hpp', False]
+@@ -124,14 +124,12 @@
+ else: toolkit = env['CC']
+ 
+ for count, libinfo in enumerate(BOOST_LIBSHEADERS):
+-    if not conf.CheckLibWithHeader('boost_%s-%s-mt' % (libinfo[0], toolkit), libinfo[1], 'C++'):
+-        if not conf.CheckLibWithHeader('boost_%s-%s' % (libinfo[0], toolkit), libinfo[1], 'C++') and libinfo[2] and count == 0:
++    if not conf.CheckLibWithHeader('boost_%s%s' % (libinfo[0], env['BOOST_APPEND']), libinfo[1], 'C++'):
++        if not conf.CheckLibWithHeader('boost_%s-%s-mt' % (libinfo[0], toolkit), libinfo[1], 'C++') and libinfo[2] and count == 0:
+             print 'Could not find header or shared library for boost %s, exiting!' % libinfo[0]
+             Exit(1)
+         else:
+-            env['BOOST_APPEND'] = '-%s' % toolkit
+-    else:
+-    	env['BOOST_APPEND'] = '-%s-mt' % toolkit
++            env['BOOST_APPEND'] = '-%s-mt' % toolkit
+ 
+ Export('env')
+ 
+
+
+

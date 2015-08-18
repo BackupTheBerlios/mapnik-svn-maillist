@@ -1,0 +1,1031 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r164 - in trunk: bindings/python bindings/python/mapnik include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-February/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r164%20-%20in%20trunk%3A%20bindings/python%20bindings/python/mapnik%20include%20src&In-Reply-To=%3C200602251103.k1PB3Who013283%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000049.html">
+   <LINK REL="Next"  HREF="000051.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r164 - in trunk: bindings/python bindings/python/mapnik include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r164%20-%20in%20trunk%3A%20bindings/python%20bindings/python/mapnik%20include%20src&In-Reply-To=%3C200602251103.k1PB3Who013283%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r164 - in trunk: bindings/python bindings/python/mapnik include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Sat Feb 25 12:03:32 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000049.html">[Mapnik-svn] r163 - in trunk: include src
+</A></li>
+        <LI>Next message: <A HREF="000051.html">[Mapnik-svn] r165 - in trunk: . agg agg/include agg/src bindings bindings/python bindings/python/mapnik docs include plugins plugins/input plugins/input/postgis plugins/input/raster plugins/input/shape scons scons/scons-local-0.96.1 scons/scons-local-0.96.1/SCons scons/scons-local-0.96.1/SCons/Node scons/scons-local-0.96.1/SCons/Optik scons/scons-local-0.96.1/SCons/Options scons/scons-local-0.96.1/SCons/Platform scons/scons-local-0.96.1/SCons/Scanner scons/scons-local-0.96.1/SCons/Script scons/scons-local-0.96.1/SCons/Sig scons/scons-local-0.96.1/SCons/Tool src utils utils/shapeindex
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#50">[ date ]</a>
+              <a href="thread.html#50">[ thread ]</a>
+              <a href="subject.html#50">[ subject ]</a>
+              <a href="author.html#50">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-02-25 12:03:30 +0100 (Sat, 25 Feb 2006)
+New Revision: 164
+
+Added:
+   trunk/bindings/python/mapnik_line_pattern_symbolizer.cpp
+   trunk/bindings/python/mapnik_line_symbolizer.cpp
+   trunk/bindings/python/mapnik_point_symbolizer.cpp
+   trunk/bindings/python/mapnik_polygon_pattern_symbolizer.cpp
+   trunk/bindings/python/mapnik_polygon_symbolizer.cpp
+   trunk/bindings/python/mapnik_raster_symbolizer.cpp
+   trunk/bindings/python/mapnik_text_symbolizer.cpp
+   trunk/include/label_collision_detector.hpp
+Modified:
+   trunk/bindings/python/mapnik/__init__.py
+   trunk/bindings/python/mapnik_layer.cpp
+   trunk/bindings/python/mapnik_python.cpp
+   trunk/bindings/python/mapnik_rule.cpp
+   trunk/include/agg_renderer.hpp
+   trunk/include/feature_style_processor.hpp
+   trunk/include/font_engine_freetype.hpp
+   trunk/include/line_symbolizer.hpp
+   trunk/include/point_symbolizer.hpp
+   trunk/include/polygon_symbolizer.hpp
+   trunk/include/rule.hpp
+   trunk/include/text_symbolizer.hpp
+   trunk/src/agg_renderer.cpp
+Log:
+1.python bindings updated to reflect symbolizers changes
+2.added label collision detector ( TODO - proper impl!)
+
+
+
+Modified: trunk/bindings/python/mapnik/__init__.py
+===================================================================
+--- trunk/bindings/python/mapnik/__init__.py	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/bindings/python/mapnik/__init__.py	2006-02-25 11:03:30 UTC (rev 164)
+@@ -29,7 +29,7 @@
+ from paths import inputpluginspath
+ 
+ # The base Boost.Python class
+-BoostPythonMetaclass = coord.__class__
++BoostPythonMetaclass = Coord.__class__
+ 
+ class _injector(object):
+     class __metaclass__(BoostPythonMetaclass):
+@@ -40,23 +40,23 @@
+                         setattr(b,k,v)
+             return type.__init__(self, name, bases, dict)
+ 
+-class _coord(coord,_injector):
++class _Coord(Coord,_injector):
+     def __repr__(self):
+-        return 'coord(%s,%s)' % (self.x, self.y)
++        return 'Coord(%s,%s)' % (self.x, self.y)
+ 
+-class _envelope(envelope,_injector):
++class _Envelope(Envelope,_injector):
+     def __repr__(self):
+-        return 'envelope(%s,%s,%s,%s)' % \
++        return 'Envelope(%s,%s,%s,%s)' % \
+                (self.minx,self.miny,self.maxx,self.maxy)
+ 
+-class _color(color,_injector):
++class _Color(Color,_injector):
+     def __repr__(self):
+-        return 'color(%s,%s,%s,%s)' % \
++        return 'Color(%s,%s,%s,%s)' % \
+                (self.r,self.g,self.b,self.a)
+ 
+ #register datasources
+-from mapnik import datasource_cache
+-datasource_cache.instance().register_datasources('%s' % inputpluginspath)
++from mapnik import DatasourceCache
++DatasourceCache.instance().register_datasources('%s' % inputpluginspath)
+ #set dlopen flags back to the original
+ setdlopenflags(flags)
+ 
+
+Modified: trunk/bindings/python/mapnik_layer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_layer.cpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/bindings/python/mapnik_layer.cpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -103,7 +103,7 @@
+     class_&lt;std::vector&lt;std::string&gt; &gt;(&quot;Styles&quot;)
+     	.def(vector_indexing_suite&lt;std::vector&lt;std::string&gt;,true &gt;())
+     	;
+-    //class_&lt;Layer&gt;(&quot;layer&quot;,init&lt;const Parameters&amp;&gt;(&quot;Layer constructor&quot;))
++    
+     class_&lt;Layer&gt;(&quot;Layer&quot;,no_init)
+         .def(&quot;name&quot;,&amp;Layer::name,return_value_policy&lt;copy_const_reference&gt;())
+         .def(&quot;params&quot;,&amp;Layer::params,return_value_policy&lt;reference_existing_object&gt;())
+
+Added: trunk/bindings/python/mapnik_line_pattern_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_line_pattern_symbolizer.cpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/bindings/python/mapnik_line_pattern_symbolizer.cpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -0,0 +1,34 @@
++/* This file is part of python_mapnik (c++/python mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++#include &lt;boost/python.hpp&gt;
++#include &lt;mapnik.hpp&gt;
++
++using mapnik::line_pattern_symbolizer;
++
++void export_line_pattern_symbolizer()
++{
++    using namespace boost::python;
++    
++    class_&lt;line_pattern_symbolizer&gt;(&quot;LinePatternSymbolizer&quot;,
++				    init&lt;std::string const&amp;,
++				    std::string const&amp;,unsigned,unsigned&gt;(&quot;TODO&quot;))
++	;    
++}
+
+Added: trunk/bindings/python/mapnik_line_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_line_symbolizer.cpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/bindings/python/mapnik_line_symbolizer.cpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -0,0 +1,38 @@
++/* This file is part of python_mapnik (c++/python mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++#include &lt;boost/python.hpp&gt;
++#include &lt;mapnik.hpp&gt;
++
++using mapnik::line_symbolizer;
++using mapnik::stroke;
++using mapnik::Color;
++
++void export_line_symbolizer()
++{
++    using namespace boost::python;
++    
++    class_&lt;line_symbolizer&gt;(&quot;LineSymbolizer&quot;,init&lt;stroke const&amp;&gt;(&quot;TODO&quot;))
++	.def(init&lt;Color const&amp; ,float&gt;())
++	.add_property(&quot;stroke&quot;,make_function
++		      (&amp;line_symbolizer::get_stroke,return_value_policy&lt;reference_existing_object&gt;()),
++		      &amp;line_symbolizer::set_stroke)
++	;    
++}
+
+Added: trunk/bindings/python/mapnik_point_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_point_symbolizer.cpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/bindings/python/mapnik_point_symbolizer.cpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -0,0 +1,34 @@
++/* This file is part of python_mapnik (c++/python mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++#include &lt;boost/python.hpp&gt;
++#include &lt;mapnik.hpp&gt;
++
++using mapnik::point_symbolizer;
++
++void export_point_symbolizer()
++{
++    using namespace boost::python;
++    
++    class_&lt;point_symbolizer&gt;(&quot;PointSymbolizer&quot;,init&lt;std::string const&amp;,
++			     std::string const&amp;,unsigned,unsigned&gt;(&quot;TODO&quot;))
++	;
++    
++}
+
+Added: trunk/bindings/python/mapnik_polygon_pattern_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_polygon_pattern_symbolizer.cpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/bindings/python/mapnik_polygon_pattern_symbolizer.cpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -0,0 +1,35 @@
++/* This file is part of python_mapnik (c++/python mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++#include &lt;boost/python.hpp&gt;
++#include &lt;mapnik.hpp&gt;
++
++using mapnik::polygon_pattern_symbolizer;
++
++void export_polygon_pattern_symbolizer()
++{
++    using namespace boost::python;
++    
++    class_&lt;polygon_pattern_symbolizer&gt;(&quot;PolygonPatternSymbolizer&quot;,
++				       init&lt;std::string const&amp;,
++				       std::string const&amp;,
++				       unsigned,unsigned&gt;(&quot;TODO&quot;))
++	;    
++}
+
+Added: trunk/bindings/python/mapnik_polygon_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_polygon_symbolizer.cpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/bindings/python/mapnik_polygon_symbolizer.cpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -0,0 +1,39 @@
++/* This file is part of python_mapnik (c++/python mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++#include &lt;boost/python.hpp&gt;
++#include &lt;mapnik.hpp&gt;
++
++using mapnik::polygon_symbolizer;
++using mapnik::Color;
++
++void export_polygon_symbolizer()
++{
++    using namespace boost::python;
++    
++    class_&lt;polygon_symbolizer&gt;(&quot;PolygonSymbolizer&quot;,
++				    init&lt;Color const&amp;&gt;(&quot;TODO&quot;))
++	.add_property(&quot;fill&quot;,make_function
++		      (&amp;polygon_symbolizer::get_fill,
++		       return_value_policy&lt;reference_existing_object&gt;()),
++		      &amp;polygon_symbolizer::set_fill)
++	;    
++
++}
+
+Modified: trunk/bindings/python/mapnik_python.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_python.cpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/bindings/python/mapnik_python.cpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -38,50 +38,28 @@
+ void export_style();
+ void export_stroke();
+ void export_datasource_cache();
++void export_point_symbolizer();
++void export_line_symbolizer();
++void export_line_pattern_symbolizer();
++void export_polygon_symbolizer();
++void export_polygon_pattern_symbolizer();
++void export_raster_symbolizer();
++void export_text_symbolizer();
+ 
+ void render_to_file(const Map&amp; map,const std::string&amp; file,const std::string&amp; format)
+ {
+     Image32 image(map.getWidth(),map.getHeight());
+-    Renderer&lt;Image32&gt;::render(map,image);
++    agg_renderer&lt;Image32&gt; ren(map,image);
++    ren.apply();
+     image.saveToFile(file,format);
+ }
+ 
+ void render(const Map&amp; map,Image32&amp; image)
+ {
+-    Renderer&lt;Image32&gt;::render(map,image);    
++    agg_renderer&lt;Image32&gt; ren(map,image);
++    ren.apply();
+ }
+ 
+-
+-boost::shared_ptr&lt;symbolizer&gt; create_point_symbolizer(std::string const&amp; file,unsigned w,unsigned h)
+-{
+-    return boost::shared_ptr&lt;symbolizer&gt;(new image_symbolizer(file,&quot;png&quot;,w,h));
+-}
+-
+-boost::shared_ptr&lt;symbolizer&gt; create_line_symbolizer(const Color&amp; pen,float width)
+-{
+-    return boost::shared_ptr&lt;symbolizer&gt;(new line_symbolizer(pen,width));
+-} 
+-
+-boost::shared_ptr&lt;symbolizer&gt; create_line_symbolizer2(stroke const&amp; strk)
+-{
+-    return boost::shared_ptr&lt;symbolizer&gt;(new line_symbolizer(strk));
+-} 
+-
+-boost::shared_ptr&lt;symbolizer&gt; create_line_symbolizer3(std::string const&amp; file,unsigned w,unsigned h)
+-{
+-    return boost::shared_ptr&lt;symbolizer&gt;(new line_pattern_symbolizer(file,&quot;png&quot;,w,h));
+-} 
+-
+-boost::shared_ptr&lt;symbolizer&gt; create_polygon_symbolizer(const Color&amp; fill) 
+-{   
+-    return boost::shared_ptr&lt;symbolizer&gt;(new polygon_symbolizer(fill));
+-} 
+-
+-boost::shared_ptr&lt;symbolizer&gt; create_polygon_symbolizer2(std::string const&amp; file,unsigned w,unsigned h) 
+-{   
+-    return boost::shared_ptr&lt;symbolizer&gt;(new polygon_pattern_symbolizer(file,&quot;png&quot;,w,h));
+-} 
+-
+ BOOST_PYTHON_MODULE(_mapnik)
+ {
+     using namespace boost::python;
+@@ -91,12 +69,7 @@
+         .def(&quot;envelope&quot;,&amp;datasource::envelope,
+ 	     return_value_policy&lt;reference_existing_object&gt;())
+         ;
+-    
+-    class_&lt;symbolizer,boost::noncopyable&gt; (&quot;Symbolizer_&quot;,no_init) 
+-    	;
+-    class_&lt;boost::shared_ptr&lt;symbolizer&gt;,
+-	boost::noncopyable&gt;(&quot;Symbolizer&quot;,no_init)
+-	;
++        
+     export_parameters();
+     export_color(); 
+     export_envelope();   
+@@ -107,8 +80,14 @@
+     export_layer();
+     export_stroke();
+     export_datasource_cache();
+-    
+-    
++    export_point_symbolizer();
++    export_line_symbolizer();
++    export_line_pattern_symbolizer();
++    export_polygon_symbolizer();
++    export_polygon_pattern_symbolizer();
++    export_raster_symbolizer();
++    export_text_symbolizer();
++
+     class_&lt;coord&lt;double,2&gt; &gt;(&quot;Coord&quot;,init&lt;double,double&gt;())
+         .def_readwrite(&quot;x&quot;, &amp;coord&lt;double,2&gt;::x)
+         .def_readwrite(&quot;y&quot;, &amp;coord&lt;double,2&gt;::y)
+@@ -118,12 +97,5 @@
+   
+     def(&quot;render_to_file&quot;,&amp;render_to_file);
+     def(&quot;render&quot;,&amp;render);
+-    def(&quot;point_symbolizer&quot;,&amp;create_point_symbolizer);
+-    def(&quot;line_symbolizer&quot;,&amp;create_line_symbolizer);
+-    def(&quot;line_symbolizer&quot;,&amp;create_line_symbolizer2);
+-    def(&quot;line_symbolizer&quot;,&amp;create_line_symbolizer3);
+-    def(&quot;polygon_symbolizer&quot;,&amp;create_polygon_symbolizer);
+-    def(&quot;polygon_symbolizer&quot;,&amp;create_polygon_symbolizer2);
+-    register_ptr_to_python&lt;boost::shared_ptr&lt;symbolizer&gt; &gt;();
+     register_ptr_to_python&lt;filter_ptr&gt;();
+ }
+
+Added: trunk/bindings/python/mapnik_raster_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_raster_symbolizer.cpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/bindings/python/mapnik_raster_symbolizer.cpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -0,0 +1,33 @@
++/* This file is part of python_mapnik (c++/python mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++#include &lt;boost/python.hpp&gt;
++#include &lt;mapnik.hpp&gt;
++
++using mapnik::raster_symbolizer;
++
++void export_raster_symbolizer()
++{
++    using namespace boost::python;
++    
++    class_&lt;raster_symbolizer&gt;(&quot;RasterSymbolizer&quot;,
++				    init&lt;&gt;(&quot;TODO&quot;))
++	;    
++}
+
+Modified: trunk/bindings/python/mapnik_rule.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_rule.cpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/bindings/python/mapnik_rule.cpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -20,6 +20,7 @@
+ 
+ 
+ #include &lt;boost/python.hpp&gt;
++#include &lt;boost/python/implicit.hpp&gt;
+ #include &lt;boost/python/suite/indexing/vector_indexing_suite.hpp&gt;
+ #include &lt;mapnik.hpp&gt;
+ 
+@@ -27,17 +28,34 @@
+ using mapnik::filter;
+ using mapnik::filter_ptr;
+ using mapnik::Feature;
++
++using mapnik::point_symbolizer;
++using mapnik::line_symbolizer;
++using mapnik::line_pattern_symbolizer;
++using mapnik::polygon_symbolizer;
++using mapnik::polygon_pattern_symbolizer;
++using mapnik::raster_symbolizer;
++using mapnik::text_symbolizer;
++using mapnik::symbolizer;
+ using mapnik::symbolizers;
+ 
+ void export_rule()
+ {
+     using namespace boost::python;
++
++    implicitly_convertible&lt;point_symbolizer,symbolizer&gt;();
++    implicitly_convertible&lt;line_symbolizer,symbolizer&gt;();
++    implicitly_convertible&lt;line_pattern_symbolizer,symbolizer&gt;();
++    implicitly_convertible&lt;polygon_symbolizer,symbolizer&gt;();
++    implicitly_convertible&lt;polygon_pattern_symbolizer,symbolizer&gt;();
++    implicitly_convertible&lt;raster_symbolizer,symbolizer&gt;();
++    implicitly_convertible&lt;text_symbolizer,symbolizer&gt;();
+     
+     class_&lt;symbolizers&gt;(&quot;Symbolizers&quot;,init&lt;&gt;(&quot;TODO&quot;))
+-	.def(vector_indexing_suite&lt;symbolizers&gt;())
+-	;
++    	.def(vector_indexing_suite&lt;symbolizers&gt;())
++    	;
+     
+-    class_&lt;rule_type&gt;(&quot;Rule&quot;,init&lt;&gt;(&quot;default ctor&quot;))
++    class_&lt;rule_type&gt;(&quot;Rule&quot;,init&lt;&gt;(&quot;default constructor&quot;))
+ 	.def(init&lt;std::string const&amp;,
+ 	     boost::python::optional&lt;std::string const&amp;,double,double&gt; &gt;())
+ 	.add_property(&quot;name&quot;,make_function
+
+Added: trunk/bindings/python/mapnik_text_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_text_symbolizer.cpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/bindings/python/mapnik_text_symbolizer.cpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -0,0 +1,34 @@
++/* This file is part of python_mapnik (c++/python mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++#include &lt;boost/python.hpp&gt;
++#include &lt;mapnik.hpp&gt;
++
++using mapnik::text_symbolizer;
++using mapnik::Color;
++
++void export_text_symbolizer()
++{
++    using namespace boost::python;
++    
++    class_&lt;text_symbolizer&gt;(&quot;TextSymbolizer&quot;,
++			    init&lt;std::string const&amp;,Color const&amp;&gt;(&quot;TODO&quot;))
++	;
++}
+
+Modified: trunk/include/agg_renderer.hpp
+===================================================================
+--- trunk/include/agg_renderer.hpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/include/agg_renderer.hpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -24,6 +24,7 @@
+ #include &quot;feature_style_processor.hpp&quot;
+ #include &lt;boost/utility.hpp&gt;
+ #include &quot;font_engine_freetype.hpp&quot;
++#include &quot;label_collision_detector.hpp&quot;
+ 
+ namespace mapnik
+ {
+@@ -32,8 +33,8 @@
+ 			  private boost::noncopyable
+     {
+ 	agg_renderer(Map const&amp; m, T &amp; pixmap);
+-	void start_map_processing();
+-	void end_map_processing();
++	void start_map_processing(Map const&amp; map);
++	void end_map_processing(Map const&amp; map);
+ 	void start_layer_processing(Layer const&amp; lay);
+ 	void end_layer_processing(Layer const&amp; lay);
+ 	void process(point_symbolizer const&amp; sym,Feature const&amp; feature);	    	       
+@@ -47,6 +48,7 @@
+ 	T &amp; pixmap_;
+ 	CoordTransform t_;
+ 	face_manager&lt;freetype_engine&gt; font_manager_;
++	label_collision_detector detector_;
+     };
+ }
+ 
+
+Modified: trunk/include/feature_style_processor.hpp
+===================================================================
+--- trunk/include/feature_style_processor.hpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/include/feature_style_processor.hpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -60,7 +60,7 @@
+ 	    timer clock;
+ 	    Processor &amp; p = static_cast&lt;Processor&amp;&gt;(*this);
+ 
+-	    p.start_map_processing();
++	    p.start_map_processing(m_);
+ 	    
+ 	    std::vector&lt;Layer&gt;::const_iterator itr = m_.layers().begin();
+ 	    while (itr != m_.layers().end())
+@@ -73,7 +73,7 @@
+ 		++itr;
+ 	    }
+ 	    
+-	    p.end_map_processing();
++	    p.end_map_processing(m_);
+ 	    
+ 	    clock.stop();
+ 	    
+
+Modified: trunk/include/font_engine_freetype.hpp
+===================================================================
+--- trunk/include/font_engine_freetype.hpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/include/font_engine_freetype.hpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -219,7 +219,57 @@
+     private:
+ 	faces faces_;
+     };
+-
++        
++    inline std::wstring to_unicode(std::string const&amp; text)
++    {
++	std::wstring out;
++	unsigned long code = 0;
++	int expect = 0;
++	std::string::const_iterator itr=text.begin();
++	
++	while ( itr != text.end())
++	{
++	    unsigned p = (*itr++) &amp; 0xff;
++	    if ( p &gt;= 0xc0)
++	    {
++		if ( p &lt; 0xe0)      // U+0080 - U+07ff
++		{
++		    expect = 1;
++		    code = p &amp; 0x1f;
++		}
++		else if ( p &lt; 0xf0)  // U+0800 - U+ffff
++		{
++		    expect = 2;
++		    code = p &amp; 0x0f;
++		}
++		else if ( p  &lt; 0xf8) // U+1000 - U+10ffff
++		{
++		    expect = 3;
++		    code = p &amp; 0x07;
++		}
++		continue;
++	    }
++	    else if (p &gt;= 0x80)
++	    {
++		--expect;
++		if (expect &gt;= 0)
++		{
++		    code &lt;&lt;= 6;
++		    code += p &amp; 0x3f;
++		}
++		if (expect &gt; 0)
++		    continue;
++		expect = 0;
++	    }
++	    else 
++	    {
++		code = p;            // U+0000 - U+007f (ascii)
++	    }
++	    out.push_back(code);
++	}
++	return out;
++    }
++    
+     template &lt;typename T&gt;
+     struct text_renderer : private boost::noncopyable
+     {
+@@ -270,7 +320,7 @@
+ 	    FT_GlyphSlot slot = face-&gt;glyph;
+ 	    FT_UInt glyph_index;
+ 	    FT_Bool use_kerning;
+-	    FT_UInt previous;
++	    FT_UInt previous = 0;
+ 	
+ 	    unsigned height = pixmap_.height();
+ 	
+@@ -280,12 +330,10 @@
+ 	    pen.y = unsigned((height - y0) * 64);
+         
+ 	    use_kerning = FT_HAS_KERNING(face);
+-	
+-	    //unsigned count=1;
+-	
+-	    for (std::string::const_iterator i=text.begin();i!=text.end();++i)
++
++	    std::string::const_iterator i;
++	    for (i=text.begin();i!=text.end();++i)
+ 	    {
+-	    
+ 		matrix.xx = (FT_Fixed)( cos( angle_ ) * 0x10000L ); 
+ 		matrix.xy = (FT_Fixed)(-sin( angle_ ) * 0x10000L ); 
+ 		matrix.yx = (FT_Fixed)( sin( angle_ ) * 0x10000L ); 
+@@ -293,7 +341,7 @@
+ 	    	     
+ 		FT_Set_Transform (face,&amp;matrix,&amp;pen);
+ 	    
+-		glyph_index = FT_Get_Char_Index( face, *i );
++		glyph_index = FT_Get_Char_Index( face, unsigned(*i) &amp; 0xff );
+ 		if ( use_kerning &amp;&amp; previous &amp;&amp; glyph_index)
+ 		{
+ 		    FT_Vector delta;
+@@ -301,7 +349,6 @@
+ 				   FT_KERNING_DEFAULT,&amp;delta);
+ 		    pen.x += delta.x;
+ 		    pen.y += delta.y;
+-		    std::cout&lt;&lt; &quot;use kerning &quot;&lt;&lt; std::endl;
+ 		}
+ 	    
+ 		error = FT_Load_Glyph (face,glyph_index,FT_LOAD_DEFAULT); 
+@@ -337,8 +384,8 @@
+ 		previous = glyph_index;
+ 	    
+ 		//angle_ = sin ( 0.1 * count++);
+-	    
+ 	    }
++	    std::cout &lt;&lt; std::endl;
+ 	}
+     private:
+     
+
+Added: trunk/include/label_collision_detector.hpp
+===================================================================
+--- trunk/include/label_collision_detector.hpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/include/label_collision_detector.hpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -0,0 +1,56 @@
++/* This file is part of Mapnik (c++ mapping toolkit)
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++
++#if !defined LABEL_COLLISION_DETECTOR
++#define LABEL_COLLISION_DETECTOR
++
++#include &quot;envelope.hpp&quot;
++#include &lt;vector&gt;
++
++namespace mapnik
++{
++    //this needs to be tree structure 
++    //as a proof of a concept _only_ we use sequential scan 
++
++    struct label_collision_detector
++    {
++	typedef std::vector&lt;Envelope&lt;double&gt; &gt; label_placements;
++
++	bool allowed_to_render(Envelope&lt;double&gt; const&amp; box)
++	{
++	    label_placements::const_iterator itr=labels_.begin();
++	    for( ; itr !=labels_.end();++itr)
++	    {
++		if (itr-&gt;intersects(box))
++		{
++		    return false;
++		}
++	    }
++	    labels_.push_back(box);
++	    return true;
++	}
++    private:
++
++	label_placements labels_;
++    };
++}
++
++#endif 
+
+Modified: trunk/include/line_symbolizer.hpp
+===================================================================
+--- trunk/include/line_symbolizer.hpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/include/line_symbolizer.hpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -38,6 +38,11 @@
+ 	{
+ 	    return stroke_;
+ 	}
++	void set_stroke(stroke const&amp; stroke)
++	{
++	    stroke_ = stroke;
++	}
++
+     private:
+ 	stroke stroke_;
+     };
+
+Modified: trunk/include/point_symbolizer.hpp
+===================================================================
+--- trunk/include/point_symbolizer.hpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/include/point_symbolizer.hpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -27,8 +27,7 @@
+ namespace mapnik 
+ {   
+     struct point_symbolizer
+-    {
+-	
++    {	
+ 	point_symbolizer(std::string const&amp; file,
+ 			 std::string const&amp; type,
+ 			 unsigned width,unsigned height);
+
+Modified: trunk/include/polygon_symbolizer.hpp
+===================================================================
+--- trunk/include/polygon_symbolizer.hpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/include/polygon_symbolizer.hpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -34,6 +34,10 @@
+ 	{
+ 	    return fill_;
+ 	}
++	void set_fill(Color const&amp; fill)
++	{
++	    fill_ = fill;
++	}
+     private:
+ 	Color fill_;
+     };  
+
+Modified: trunk/include/rule.hpp
+===================================================================
+--- trunk/include/rule.hpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/include/rule.hpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -28,7 +28,6 @@
+ #include &quot;text_symbolizer.hpp&quot;
+ #include &quot;filter.hpp&quot;
+ #include &quot;filter_visitor.hpp&quot;
+-
+ #include &lt;boost/shared_ptr.hpp&gt;
+ #include &lt;boost/variant.hpp&gt;
+ #include &lt;string&gt;
+@@ -36,7 +35,46 @@
+ 
+ namespace mapnik
+ {
++    inline bool operator==(point_symbolizer const&amp; lhs,
++			   point_symbolizer const&amp; rhs)
++    {
++	return (&amp;lhs == &amp;rhs); 
++    }
++    inline bool operator==(line_symbolizer const&amp; lhs,
++			   line_symbolizer const&amp; rhs)
++    {
++	return (&amp;lhs == &amp;rhs); 
++    }
++    inline bool operator==(line_pattern_symbolizer const&amp; lhs,
++			   line_pattern_symbolizer const&amp; rhs)
++    {
++	return (&amp;lhs == &amp;rhs); 
++    }
++
++    inline bool operator==(polygon_symbolizer const&amp; lhs,
++			   polygon_symbolizer const&amp; rhs)
++    {
++	return (&amp;lhs == &amp;rhs); 
++    }
+     
++    inline bool operator==(polygon_pattern_symbolizer const&amp; lhs,
++			   polygon_pattern_symbolizer const&amp; rhs)
++    {
++	return (&amp;lhs == &amp;rhs); 
++    }
++    
++    inline bool operator==(raster_symbolizer const&amp; lhs,
++			   raster_symbolizer const&amp; rhs)
++    {
++	return (&amp;lhs == &amp;rhs); 
++    }
++    
++    inline bool operator==(text_symbolizer const&amp; lhs,
++			   text_symbolizer const&amp; rhs)
++    {
++	return (&amp;lhs == &amp;rhs); 
++    }
++    
+     typedef boost::variant&lt;point_symbolizer,
+ 			   line_symbolizer,
+ 			   line_pattern_symbolizer,
+@@ -45,6 +83,7 @@
+ 			   raster_symbolizer,
+ 			   text_symbolizer&gt; symbolizer;
+     
++        
+     typedef std::vector&lt;symbolizer&gt; symbolizers;    
+     template &lt;typename FeatureT&gt; class all_filter;
+ 
+
+Modified: trunk/include/text_symbolizer.hpp
+===================================================================
+--- trunk/include/text_symbolizer.hpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/include/text_symbolizer.hpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -21,10 +21,6 @@
+ #ifndef TEXT_SYMBOLIZER_HPP
+ #define TEXT_SYMBOLIZER_HPP
+ 
+-//#include &quot;symbolizer.hpp&quot;
+-//#include &quot;fill.hpp&quot;
+-//#include &quot;expression.hpp&quot;
+-
+ namespace mapnik
+ {
+     enum label_placement_e {
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-02-21 20:17:08 UTC (rev 163)
++++ trunk/src/agg_renderer.cpp	2006-02-25 11:03:30 UTC (rev 164)
+@@ -90,13 +90,13 @@
+     }
+     
+     template &lt;typename T&gt;
+-    void agg_renderer&lt;T&gt;::start_map_processing()
++    void agg_renderer&lt;T&gt;::start_map_processing(Map const&amp; map)
+     {
+-	std::cout &lt;&lt; &quot;start map processing&quot; &lt;&lt; std::endl;
++	std::cout &lt;&lt; &quot;start map processing bbox=&quot; &lt;&lt; map.getCurrentExtent() &lt;&lt;  std::endl;
+     }
+ 
+     template &lt;typename T&gt;
+-    void agg_renderer&lt;T&gt;::end_map_processing()
++    void agg_renderer&lt;T&gt;::end_map_processing(Map const&amp; )
+     {
+ 	std::cout &lt;&lt; &quot;end map processing&quot; &lt;&lt; std::endl;
+     }
+@@ -275,10 +275,16 @@
+ 	    t_.forward_x(&amp;x);
+ 	    t_.forward_y(&amp;y);
+ 	    int w=data.width();
+-	    int h=data.height();    
+-	    int px=int(ceil(x - 0.5 * w));
+-	    int py=int(ceil(y - 0.5 * h));
+-	    pixmap_.set_rectangle_alpha(px,py,data);
++	    int h=data.height();
++	    if (detector_.allowed_to_render(Envelope&lt;double&gt;(x - 0.5 * w,
++							     y - 0.5 * h,
++							     x + 0.5 * w,
++							     y + 0.5 * h)))
++	    {
++		int px=int(ceil(x - 0.5 * w));
++		int py=int(ceil(y - 0.5 * h));
++		pixmap_.set_rectangle_alpha(px,py,data);
++	    }
+ 	}
+     }
+     
+@@ -412,7 +418,7 @@
+ 		t_.forward_y(&amp;y);
+ 		
+ 		face_ptr face = font_manager_.get_face(&quot;Bitstream Vera Sans Roman&quot;);//TODO
+-		
++		//face_ptr face = font_manager_.get_face(&quot;Times New Roman Regular&quot;);//TODO
+ 		if (face)
+ 		{
+ 		    text_renderer&lt;mapnik::Image32&gt; ren(pixmap_,face);
+@@ -420,7 +426,7 @@
+ 		    ren.set_fill(fill);
+ 		    ren.set_halo_radius(1);
+ 		    ren.set_angle(angle);
+-		    ren.render(text,x,y);
++		    ren.render(text,x+6,y+6);
+ 		}
+ 	    }  
+ 	}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000049.html">[Mapnik-svn] r163 - in trunk: include src
+</A></li>
+	<LI>Next message: <A HREF="000051.html">[Mapnik-svn] r165 - in trunk: . agg agg/include agg/src bindings bindings/python bindings/python/mapnik docs include plugins plugins/input plugins/input/postgis plugins/input/raster plugins/input/shape scons scons/scons-local-0.96.1 scons/scons-local-0.96.1/SCons scons/scons-local-0.96.1/SCons/Node scons/scons-local-0.96.1/SCons/Optik scons/scons-local-0.96.1/SCons/Options scons/scons-local-0.96.1/SCons/Platform scons/scons-local-0.96.1/SCons/Scanner scons/scons-local-0.96.1/SCons/Script scons/scons-local-0.96.1/SCons/Sig scons/scons-local-0.96.1/SCons/Tool src utils utils/shapeindex
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#50">[ date ]</a>
+              <a href="thread.html#50">[ thread ]</a>
+              <a href="subject.html#50">[ subject ]</a>
+              <a href="author.html#50">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

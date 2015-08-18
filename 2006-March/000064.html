@@ -1,0 +1,353 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r178 - in trunk: include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r178%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200603101209.k2AC9LAG015191%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000063.html">
+   <LINK REL="Next"  HREF="000065.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r178 - in trunk: include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r178%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200603101209.k2AC9LAG015191%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r178 - in trunk: include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Fri Mar 10 13:09:21 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000063.html">[Mapnik-svn] r177 - trunk/src
+</A></li>
+        <LI>Next message: <A HREF="000065.html">[Mapnik-svn] r179 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#64">[ date ]</a>
+              <a href="thread.html#64">[ thread ]</a>
+              <a href="subject.html#64">[ subject ]</a>
+              <a href="author.html#64">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-10 13:08:55 +0100 (Fri, 10 Mar 2006)
+New Revision: 178
+
+Added:
+   trunk/src/text_symbolizer.cpp
+Modified:
+   trunk/include/line_symbolizer.hpp
+   trunk/include/text_symbolizer.hpp
+   trunk/src/SConscript
+Log:
+added anchor and displacement to text_symbolizer
+
+
+
+Modified: trunk/include/line_symbolizer.hpp
+===================================================================
+--- trunk/include/line_symbolizer.hpp	2006-03-08 23:03:19 UTC (rev 177)
++++ trunk/include/line_symbolizer.hpp	2006-03-10 12:08:55 UTC (rev 178)
+@@ -21,8 +21,6 @@
+ #ifndef LINE_SYMBOLIZER_HPP
+ #define LINE_SYMBOLIZER_HPP
+ 
+-
+-//#include &quot;symbolizer.hpp&quot;
+ #include &quot;stroke.hpp&quot;
+ 
+ namespace mapnik 
+
+Modified: trunk/include/text_symbolizer.hpp
+===================================================================
+--- trunk/include/text_symbolizer.hpp	2006-03-08 23:03:19 UTC (rev 177)
++++ trunk/include/text_symbolizer.hpp	2006-03-10 12:08:55 UTC (rev 178)
+@@ -21,6 +21,10 @@
+ #ifndef TEXT_SYMBOLIZER_HPP
+ #define TEXT_SYMBOLIZER_HPP
+ 
++#include &lt;string&gt;
++#include &lt;boost/tuple/tuple.hpp&gt;
++#include &quot;color.hpp&quot;
++
+ namespace mapnik
+ {
+     enum label_placement_e {
+@@ -28,73 +32,27 @@
+ 	line_placement=2
+     };
+         
++    typedef boost::tuple&lt;double,double&gt; position;
++    
+     struct text_symbolizer
+     {		
+-	text_symbolizer(std::string const&amp; name,unsigned size,Color const&amp; fill)
+-	    : name_(name),
+-	      size_(size),
+-	      fill_(fill),
+-	      halo_fill_(Color(255,255,255)),
+-	      halo_radius_(0),
+-	      label_p_(point_placement) {}
++	text_symbolizer(std::string const&amp; name,unsigned size,Color const&amp; fill);	
++	text_symbolizer(text_symbolizer const&amp; rhs);
++	text_symbolizer&amp; operator=(text_symbolizer const&amp; rhs);
++	std::string const&amp; get_name() const;
++	unsigned get_text_size() const;
++	Color const&amp; get_fill() const;
++	void set_halo_fill(Color const&amp; fill);
++	Color const&amp; get_halo_fill() const;
++	void set_halo_radius(unsigned radius);
++	unsigned get_halo_radius() const;
++	void set_label_placement(label_placement_e label_p);
++	label_placement_e get_label_placement() const;
++        void set_anchor(double x, double y);	
++	position const&amp; get_anchor() const;	
++	void set_displacement(double x, double y);
++	position const&amp; get_displacement() const;
+ 	
+-	text_symbolizer(text_symbolizer const&amp; rhs)
+-	    : name_(rhs.name_),
+-	      size_(rhs.size_),
+-	      fill_(rhs.fill_),
+-	      halo_fill_(rhs.halo_fill_),
+-	      halo_radius_(rhs.halo_radius_),
+-	      label_p_(rhs.label_p_) {}
+-	
+-	~text_symbolizer()
+-	{
+-	    //
+-	}
+-	std::string const&amp; get_name() const
+-	{
+-	    return name_;
+-	}
+-	
+-	unsigned get_text_size() const
+-	{
+-	    return size_;
+-	}
+-	
+-	Color const&amp; get_fill() const
+-	{
+-	    return fill_;
+-	}
+-	
+-	void set_halo_fill(Color const&amp; fill)
+-	{
+-	    halo_fill_ = fill;
+-	}
+-
+-	Color const&amp; get_halo_fill() const
+-	{
+-	    return halo_fill_;
+-	}
+-	
+-	void set_halo_radius(unsigned radius)
+-	{
+-	    halo_radius_ = radius;
+-	}
+-	
+-	unsigned get_halo_radius() const
+-	{
+-	    return halo_radius_;
+-	}
+-	
+-	void set_label_placement(label_placement_e label_p)
+-	{
+-	    label_p_ = label_p;
+-	}
+-	
+-	label_placement_e get_label_placement() const
+-	{
+-	    return label_p_;
+-	}
+-	
+     private:
+ 	std::string name_;
+ 	unsigned size_;
+@@ -102,6 +60,8 @@
+ 	Color halo_fill_;
+ 	unsigned halo_radius_;
+ 	label_placement_e label_p_;
++	position anchor_;
++	position displacement_;
+     };
+ }
+ 
+
+Modified: trunk/src/SConscript
+===================================================================
+--- trunk/src/SConscript	2006-03-08 23:03:19 UTC (rev 177)
++++ trunk/src/SConscript	2006-03-10 12:08:55 UTC (rev 178)
+@@ -48,10 +48,11 @@
+     point_symbolizer.cpp
+     polygon_pattern_symbolizer.cpp
+     line_pattern_symbolizer.cpp
++    text_symbolizer.cpp
+     font_engine_freetype.cpp
+     &quot;&quot;&quot;
+     )
+-#render.cpp
++
+ #line_symbolizer.cpp
+ #    line_pattern_symbolizer.cpp
+ #    polygon_symbolizer.cpp
+
+Added: trunk/src/text_symbolizer.cpp
+===================================================================
+--- trunk/src/text_symbolizer.cpp	2006-03-08 23:03:19 UTC (rev 177)
++++ trunk/src/text_symbolizer.cpp	2006-03-10 12:08:55 UTC (rev 178)
+@@ -0,0 +1,122 @@
++/* This file is part of Mapnik (c++ mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++#include &quot;text_symbolizer.hpp&quot;
++
++namespace mapnik
++{
++    text_symbolizer::text_symbolizer(std::string const&amp; name,unsigned size,Color const&amp; fill)
++	: name_(name),
++	  size_(size),
++	  fill_(fill),
++	  halo_fill_(Color(255,255,255)),
++	  halo_radius_(0),
++	  label_p_(point_placement),
++	  anchor_(0.0,0.5),
++	  displacement_(0.0,0.0)  {}
++           
++    text_symbolizer::text_symbolizer(text_symbolizer const&amp; rhs)
++	: name_(rhs.name_),
++	  size_(rhs.size_),
++	  fill_(rhs.fill_),
++	  halo_fill_(rhs.halo_fill_),
++	  halo_radius_(rhs.halo_radius_),
++	  label_p_(rhs.label_p_),
++	  anchor_(rhs.anchor_),
++	  displacement_(rhs.displacement_) {}
++
++    text_symbolizer&amp; text_symbolizer::operator=(text_symbolizer const&amp; other)
++    {
++	if (this == &amp;other)
++	    return *this;
++	name_ = other.name_;
++	size_ = other.size_;
++	fill_ = other.fill_;
++	halo_fill_ = other.halo_fill_;
++	label_p_ = other.label_p_;
++	anchor_ = other.anchor_;
++	displacement_ = other.displacement_; 
++	return *this;
++    } 
++
++    std::string const&amp;  text_symbolizer::get_name() const
++    {
++	return name_;
++    }
++    
++    unsigned  text_symbolizer::get_text_size() const
++    {
++	return size_;
++    }
++	
++    Color const&amp;  text_symbolizer::get_fill() const
++    {
++	return fill_;
++    }
++	
++    void  text_symbolizer::set_halo_fill(Color const&amp; fill)
++    {
++	halo_fill_ = fill;
++    }
++
++    Color const&amp;  text_symbolizer::get_halo_fill() const
++    {
++	return halo_fill_;
++    }
++	
++    void  text_symbolizer::set_halo_radius(unsigned radius)
++    {
++	halo_radius_ = radius;
++    }
++	
++    unsigned  text_symbolizer::get_halo_radius() const
++    {
++	return halo_radius_;
++    }
++	
++    void  text_symbolizer::set_label_placement(label_placement_e label_p)
++    {
++	label_p_ = label_p;
++    }
++	
++    label_placement_e  text_symbolizer::get_label_placement() const
++    {
++	return label_p_;
++    }
++
++    void  text_symbolizer::set_anchor(double x, double y)
++    {
++	anchor_ = boost::make_tuple(x,y);
++    }
++    
++    position const&amp; text_symbolizer::get_anchor () const
++    {
++	return anchor_;
++    }
++    void  text_symbolizer::set_displacement(double x, double y)
++    {
++	displacement_ = boost::make_tuple(x,y);
++    }
++    
++    position const&amp;  text_symbolizer::get_displacement() const
++    {
++	return displacement_;
++    }
++}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000063.html">[Mapnik-svn] r177 - trunk/src
+</A></li>
+	<LI>Next message: <A HREF="000065.html">[Mapnik-svn] r179 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#64">[ date ]</a>
+              <a href="thread.html#64">[ thread ]</a>
+              <a href="subject.html#64">[ subject ]</a>
+              <a href="author.html#64">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,120 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r174 - in trunk: . fonts
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r174%20-%20in%20trunk%3A%20.%20fonts&In-Reply-To=%3C200603030019.k230JVZP022740%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000059.html">
+   <LINK REL="Next"  HREF="000061.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r174 - in trunk: . fonts</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r174%20-%20in%20trunk%3A%20.%20fonts&In-Reply-To=%3C200603030019.k230JVZP022740%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r174 - in trunk: . fonts">jdoyon at berlios.de
+       </A><BR>
+    <I>Fri Mar  3 01:19:31 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000059.html">[Mapnik-svn] r173 - in trunk: . fonts fonts/ttf-bitstream-vera-1.10
+</A></li>
+        <LI>Next message: <A HREF="000061.html">[Mapnik-svn] r175 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#60">[ date ]</a>
+              <a href="thread.html#60">[ thread ]</a>
+              <a href="subject.html#60">[ subject ]</a>
+              <a href="author.html#60">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-03-03 01:18:08 +0100 (Fri, 03 Mar 2006)
+New Revision: 174
+
+Added:
+   trunk/fonts/SConscript
+Modified:
+   trunk/SConstruct
+Log:
+Fix the build process to install the included free ttf fonts.
+
+
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2006-03-03 00:10:10 UTC (rev 173)
++++ trunk/SConstruct	2006-03-03 00:18:08 UTC (rev 174)
+@@ -156,3 +156,7 @@
+ # Build the core library
+ 
+ SConscript('src/SConscript')
++
++# Install some free default fonts
++
++SConscript('fonts/SConscript')
+
+Added: trunk/fonts/SConscript
+===================================================================
+--- trunk/fonts/SConscript	2006-03-03 00:10:10 UTC (rev 173)
++++ trunk/fonts/SConscript	2006-03-03 00:18:08 UTC (rev 174)
+@@ -0,0 +1,27 @@
++#  This file is part of Mapnik (c++ mapping toolkit)
++#  Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
++#
++#  Mapnik is free software; you can redistribute it and/or
++#  modify it under the terms of the GNU General Public License
++#  as published by the Free Software Foundation; either version 2
++#  of the License, or any later version.
++# 
++#  This program is distributed in the hope that it will be useful,
++#  but WITHOUT ANY WARRANTY; without even the implied warranty of
++#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++#  GNU General Public License for more details.
++# 
++#  You should have received a copy of the GNU General Public License
++#  along with this program; if not, write to the Free Software
++#  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++# 
++# $Id$
++
++import glob
++
++Import('env')
++
++prefix = env['PREFIX']
++
++includes = glob.glob('*/*.ttf')
++env.Alias(target='install', source=env.Install(prefix+'/lib/mapnik/fonts', includes))
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000059.html">[Mapnik-svn] r173 - in trunk: . fonts fonts/ttf-bitstream-vera-1.10
+</A></li>
+	<LI>Next message: <A HREF="000061.html">[Mapnik-svn] r175 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#60">[ date ]</a>
+              <a href="thread.html#60">[ thread ]</a>
+              <a href="subject.html#60">[ subject ]</a>
+              <a href="author.html#60">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,1641 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r330 - in trunk: . agg bindings/python	bindings/python/mapnik demo/python include/mapnik src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r330%20-%20in%20trunk%3A%20.%20agg%20bindings/python%0A%09bindings/python/mapnik%20demo/python%20include/mapnik%20src&In-Reply-To=%3C200610161345.k9GDj1We016252%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000214.html">
+   <LINK REL="Next"  HREF="000216.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r330 - in trunk: . agg bindings/python	bindings/python/mapnik demo/python include/mapnik src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r330%20-%20in%20trunk%3A%20.%20agg%20bindings/python%0A%09bindings/python/mapnik%20demo/python%20include/mapnik%20src&In-Reply-To=%3C200610161345.k9GDj1We016252%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r330 - in trunk: . agg bindings/python	bindings/python/mapnik demo/python include/mapnik src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Mon Oct 16 15:45:01 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000214.html">[Mapnik-svn] r329 - trunk/include/mapnik
+</A></li>
+        <LI>Next message: <A HREF="000216.html">[Mapnik-svn] r331 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#215">[ date ]</a>
+              <a href="thread.html#215">[ thread ]</a>
+              <a href="subject.html#215">[ subject ]</a>
+              <a href="author.html#215">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-16 15:44:52 +0200 (Mon, 16 Oct 2006)
+New Revision: 330
+
+Added:
+   trunk/bindings/python/mapnik_coord.cpp
+   trunk/bindings/python/mapnik_datasource.cpp
+   trunk/bindings/python/mapnik_projection.cpp
+   trunk/include/mapnik/projection.hpp
+Modified:
+   trunk/SConstruct
+   trunk/agg/SConscript
+   trunk/bindings/python/mapnik/__init__.py
+   trunk/bindings/python/mapnik_envelope.cpp
+   trunk/bindings/python/mapnik_layer.cpp
+   trunk/bindings/python/mapnik_line_symbolizer.cpp
+   trunk/bindings/python/mapnik_map.cpp
+   trunk/bindings/python/mapnik_polygon_symbolizer.cpp
+   trunk/bindings/python/mapnik_python.cpp
+   trunk/bindings/python/mapnik_stroke.cpp
+   trunk/demo/python/rundemo.py
+   trunk/include/mapnik/agg_renderer.hpp
+   trunk/include/mapnik/ctrans.hpp
+   trunk/include/mapnik/feature_style_processor.hpp
+   trunk/include/mapnik/layer.hpp
+   trunk/include/mapnik/map.hpp
+   trunk/src/agg_renderer.cpp
+   trunk/src/layer.cpp
+   trunk/src/load_map.cpp
+   trunk/src/map.cpp
+Log:
+1.added projection transformation support based on proj4 (new dependency!!!)
+  Map and Layer objects both have a new parameter 'srs', initialized to &quot;+proj=latlong +datum=WGS84&quot; by default. 
+    
+  Basic usage (Python):
+    p = Projection(&quot;+proj=merc +datum=WGS84&quot;)
+    point = p.forward(Coord(-2,51))
+    ...        
+2.reflected arithmetic operators for Envelope/Coord into Python
+3.altered return policies for python objects
+4.modified build system to require proj4 lib and headers
+
+
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/SConstruct	2006-10-16 13:44:52 UTC (rev 330)
+@@ -45,7 +45,6 @@
+ opts.Add(PathOption('PYTHON','Python executable', sys.executable))
+ opts.Add(ListOption('INPUT_PLUGINS','Input drivers to include','all',['postgis','shape','raster']))
+ opts.Add(ListOption('BINDINGS','Language bindings to build','all',['python']))
+-
+ opts.Add('DEBUG', 'Compile a debug version of mapnik', '')
+ 
+ env = Environment(ENV=os.environ, options=opts)
+@@ -59,14 +58,24 @@
+ 
+ env['CPPPATH'] = ['#agg/include', '#include', '#']
+ 
+-for path in [env['BOOST_INCLUDES'], env['PNG_INCLUDES'], env['JPEG_INCLUDES'], env['TIFF_INCLUDES'], env['PGSQL_INCLUDES'], env['PROJ_INCLUDES']]:
++for path in [env['BOOST_INCLUDES'],
++             env['PNG_INCLUDES'],
++             env['JPEG_INCLUDES'],
++             env['TIFF_INCLUDES'],
++             env['PGSQL_INCLUDES'],
++             env['PROJ_INCLUDES']]:
+     if path not in env['CPPPATH']: env['CPPPATH'].append(path)
+ 
+ env['LIBPATH'] = ['#agg', '#src']
+ 
+-for path in [env['BOOST_LIBS'], env['PNG_LIBS'], env['JPEG_LIBS'], env['TIFF_LIBS'], env['PGSQL_LIBS'], env['PROJ_LIBS']]:
++for path in [env['BOOST_LIBS'],
++             env['PNG_LIBS'],
++             env['JPEG_LIBS'],
++             env['TIFF_LIBS'],
++             env['PGSQL_LIBS'],
++             env['PROJ_LIBS']]:
+     if path not in env['LIBPATH']: env['LIBPATH'].append(path)
+-
++    
+ env.ParseConfig(env['FREETYPE_CONFIG'] + ' --libs --cflags')
+ 
+ C_LIBSHEADERS = [
+@@ -76,8 +85,8 @@
+     ['tiff', 'tiff.h', True],
+     ['z', 'zlib.h', True],
+     ['jpeg', ['stdio.h', 'jpeglib.h'], True],
+-    ['pq', 'libpq-fe.h', False],
+-    ['proj', 'proj_api.h', False]
++    ['proj', 'proj_api.h', True],
++    ['pq', 'libpq-fe.h', False]
+ ]
+ 
+ BOOST_LIBSHEADERS = [
+@@ -130,10 +139,7 @@
+ 
+     SConscript('bindings/python/SConscript')
+ 
+-    if 'proj' in env['LIBS']:
+-        SConscript('bindings/python/pyprojection/SConscript')
+-        env['LIBS'].remove('proj')
+-
++    
+ env = conf.Finish()
+ 
+ # Setup the c++ args for our own codebase
+
+Modified: trunk/agg/SConscript
+===================================================================
+--- trunk/agg/SConscript	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/agg/SConscript	2006-10-16 13:44:52 UTC (rev 330)
+@@ -21,4 +21,4 @@
+ 
+ Import('env')
+ 
+-env.StaticLibrary('agg', glob.glob('./src/' + '*.cpp'), LIBS=[], CPPPATH='./include', CXXFLAGS='-O3 -fPIC ')
++env.StaticLibrary('agg', glob.glob('./src/' + '*.cpp'), LIBS=[], CPPPATH='./include', CXXFLAGS='-O3 -fPIC -DNDEBUG')
+
+Modified: trunk/bindings/python/mapnik/__init__.py
+===================================================================
+--- trunk/bindings/python/mapnik/__init__.py	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/bindings/python/mapnik/__init__.py	2006-10-16 13:44:52 UTC (rev 330)
+@@ -55,10 +55,16 @@
+         return 'Coord(%s,%s)' % (self.x, self.y)
+ 
+ class _Envelope(Envelope,_injector):
+-    def __repr__(self):
+-        return 'Envelope(%s,%s,%s,%s)' % \
+-               (self.minx,self.miny,self.maxx,self.maxy)
++  def __repr__(self):
++    return 'Envelope(%s,%s,%s,%s)' % \
++           (self.minx,self.miny,self.maxx,self.maxy)
+ 
++class _Projection(Projection,_injector):
++  def forward(self,pt):
++    return forward(pt,self)
++  def inverse(self,pt):
++    return inverse(pt,self)
++    
+ def Datasource (**keywords):
+     return CreateDatasource(keywords)
+ 
+
+Added: trunk/bindings/python/mapnik_coord.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_coord.cpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/bindings/python/mapnik_coord.cpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -0,0 +1,45 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko, Jean-Francois Doyon
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++//$Id$
++
++#include &lt;boost/python.hpp&gt;
++#include &lt;mapnik/coord.hpp&gt;
++
++void export_coord()
++{
++    using namespace boost::python;
++    using mapnik::coord;
++    class_&lt;coord&lt;double,2&gt; &gt;(&quot;Coord&quot;,init&lt;double,double&gt;())
++        .def_readwrite(&quot;x&quot;, &amp;coord&lt;double,2&gt;::x)
++        .def_readwrite(&quot;y&quot;, &amp;coord&lt;double,2&gt;::y)
++        .def(self == self) // __eq__
++        .def(self + self) // __add__
++        .def(self + float())
++        .def(float() + self)
++        .def(self - self) // __sub__
++        .def(self - float())
++        .def(self * float()) //__mult__
++        .def(float() * self) 
++        .def(self / float()) // __div__
++        ;
++    
++}
+
+Added: trunk/bindings/python/mapnik_datasource.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_datasource.cpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/bindings/python/mapnik_datasource.cpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -0,0 +1,68 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko, Jean-Francois Doyon
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++//$Id$
++
++#include &lt;boost/python.hpp&gt;
++#include &lt;mapnik/envelope.hpp&gt;
++#include &lt;mapnik/datasource.hpp&gt;
++#include &lt;mapnik/datasource_cache.hpp&gt;
++
++namespace  
++{
++    //user-friendly wrapper that uses Python dictionary
++    using namespace boost::python;
++    boost::shared_ptr&lt;mapnik::datasource&gt; create_datasource(const dict&amp; d)
++    {
++        mapnik::parameters params;
++        boost::python::list keys=d.keys();
++        for (int i=0; i&lt;len(keys); ++i)
++        {
++            std::string key = extract&lt;std::string&gt;(keys[i]);
++            object obj = d[key];
++            extract&lt;std::string&gt; ex(obj);
++            if (ex.check())
++            {
++                params[key] = ex();
++            }            
++        }
++        
++        return mapnik::datasource_cache::create(params);
++    }
++}
++
++void export_datasource()
++{
++    using namespace boost::python;
++    using mapnik::datasource;
++    
++    class_&lt;datasource,boost::shared_ptr&lt;datasource&gt;,
++        boost::noncopyable&gt;(&quot;Datasource&quot;,no_init)
++        .def(&quot;envelope&quot;,&amp;datasource::envelope,
++             return_value_policy&lt;copy_const_reference&gt;())
++        .def(&quot;features&quot;,&amp;datasource::features)
++        .def(&quot;params&quot;,&amp;datasource::params,return_value_policy&lt;copy_const_reference&gt;(), 
++             &quot;The configuration parameters of the data source. &quot;  
++             &quot;These vary depending on the type of data source.&quot;)
++        ;
++    
++    def(&quot;CreateDatasource&quot;,&amp;create_datasource);
++}
+
+Modified: trunk/bindings/python/mapnik_envelope.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_envelope.cpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/bindings/python/mapnik_envelope.cpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -85,7 +85,12 @@
+         .def(&quot;intersects&quot;,intersects_p1)
+         .def(&quot;intersects&quot;,intersects_p2)
+         .def(&quot;intersects&quot;,intersects_p3)
+-        .def(self == self)
++        .def(self == self) // __eq__
++        .def(self + self)  // __add__
++        .def(self - self)  // __sub__
++        .def(self * float()) // __mult__
++        .def(float() * self) 
++        .def(self / float()) // __div__
+         .def_pickle(envelope_pickle_suite())
+         ;
+ }
+
+Modified: trunk/bindings/python/mapnik_layer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_layer.cpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/bindings/python/mapnik_layer.cpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -37,22 +37,27 @@
+     	.def(vector_indexing_suite&lt;std::vector&lt;std::string&gt;,true &gt;())
+     	;
+     
+-    class_&lt;Layer&gt;(&quot;Layer&quot;,&quot;A map layer.&quot;, init&lt;std::string const&amp;&gt;())
++    class_&lt;Layer&gt;(&quot;Layer&quot;, &quot;A map layer.&quot;, init&lt;std::string const&amp;,optional&lt;std::string const&amp;&gt; &gt;())
+         .add_property(&quot;name&quot;, 
+-                      make_function(&amp;Layer::name, return_value_policy&lt;reference_existing_object&gt;()),
++                      make_function(&amp;Layer::name, return_value_policy&lt;copy_const_reference&gt;()),
+                       &amp;Layer::set_name,
+                       &quot;Get/Set the name of the layer.&quot;)
+         
+         .add_property(&quot;title&quot;,
+-                      make_function(&amp;Layer::title, return_value_policy&lt;reference_existing_object&gt;()),
++                      make_function(&amp;Layer::title, return_value_policy&lt;copy_const_reference&gt;()),
+                       &amp;Layer::set_title,
+                       &quot;Get/Set the title of the layer.&quot;)
+  
+         .add_property(&quot;abstract&quot;, 
+-                      make_function(&amp;Layer::abstract,return_value_policy&lt;reference_existing_object&gt;()),
++                      make_function(&amp;Layer::abstract,return_value_policy&lt;copy_const_reference&gt;()),
+                       &amp;Layer::set_abstract,
+                       &quot;Get/Set the abstract of the layer.&quot;)
+         
++        .add_property(&quot;src&quot;, 
++                      make_function(&amp;Layer::srs,return_value_policy&lt;copy_const_reference&gt;()),
++                      &amp;Layer::set_srs,
++                      &quot;Get/Set the SRS of the layer.&quot;)
++        
+         .add_property(&quot;minzoom&quot;,
+                       &amp;Layer::getMinZoom,
+                       &amp;Layer::setMinZoom)
+
+Modified: trunk/bindings/python/mapnik_line_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_line_symbolizer.cpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/bindings/python/mapnik_line_symbolizer.cpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -38,7 +38,7 @@
+         .def(init&lt;Color const&amp; ,float&gt;())
+         .add_property(&quot;stroke&quot;,make_function
+                       (&amp;line_symbolizer::get_stroke,
+-                       return_value_policy&lt;reference_existing_object&gt;()),
++                       return_value_policy&lt;copy_const_reference&gt;()),
+                       &amp;line_symbolizer::set_stroke)
+ 	;    
+ }
+
+Modified: trunk/bindings/python/mapnik_map.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_map.cpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/bindings/python/mapnik_map.cpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -40,7 +40,7 @@
+     static boost::python::tuple
+     getinitargs(const Map&amp; m)
+     {
+-        return boost::python::make_tuple(m.getWidth(),m.getHeight(),m.srid());
++        return boost::python::make_tuple(m.getWidth(),m.getHeight(),m.srs());
+     }
+ 
+     static  boost::python::tuple
+@@ -85,10 +85,11 @@
+     	.def(vector_indexing_suite&lt;std::vector&lt;Layer&gt; &gt;())
+     	;
+     
+-    class_&lt;Map&gt;(&quot;Map&quot;,&quot;The map object.&quot;,init&lt;int,int,boost::python::optional&lt;int&gt; &gt;())
++    class_&lt;Map&gt;(&quot;Map&quot;,&quot;The map object.&quot;,init&lt;int,int,optional&lt;std::string const&amp;&gt; &gt;())
+         .add_property(&quot;width&quot;,&amp;Map::getWidth,&quot;The width of the map image.&quot;)
+         .add_property(&quot;height&quot;,&amp;Map::getHeight,&quot;The height of the map image.&quot;)
+-        .add_property(&quot;srid&quot;,&amp;Map::srid)
++        .add_property(&quot;srs&quot;,make_function(&amp;Map::srs,return_value_policy&lt;copy_const_reference&gt;()),
++                      &amp;Map::set_srs,&quot;Spatial reference in proj4 format e.g. \&quot;+proj=latlong +datum=WGS84\&quot;&quot;)
+         .add_property(&quot;background&quot;,make_function
+                       (&amp;Map::getBackground,return_value_policy&lt;copy_const_reference&gt;()),
+                       &amp;Map::setBackground, &quot;The background color of the map.&quot;)
+@@ -102,6 +103,7 @@
+         .def(&quot;zoom_to_box&quot;,&amp;Map::zoomToBox, &quot;Set the geographical extent of the map.&quot;)
+         .def(&quot;pan&quot;,&amp;Map::pan)
+         .def(&quot;zoom&quot;,&amp;Map::zoom)
++        .def(&quot;zoom_all&quot;,&amp;Map::zoom_all)
+         .def(&quot;pan_and_zoom&quot;,&amp;Map::pan_and_zoom)
+         .def(&quot;append_style&quot;,&amp;Map::insert_style)
+         .def(&quot;remove_style&quot;,&amp;Map::remove_style)
+
+Modified: trunk/bindings/python/mapnik_polygon_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_polygon_symbolizer.cpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/bindings/python/mapnik_polygon_symbolizer.cpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -35,7 +35,7 @@
+         .def(init&lt;Color const&amp;&gt;(&quot;TODO&quot;))
+         .add_property(&quot;fill&quot;,make_function
+                       (&amp;polygon_symbolizer::get_fill,
+-                       return_value_policy&lt;reference_existing_object&gt;()),
++                       return_value_policy&lt;copy_const_reference&gt;()),
+                       &amp;polygon_symbolizer::set_fill)
+         .add_property(&quot;fill_opacity&quot;,
+                       &amp;polygon_symbolizer::get_opacity,
+
+Added: trunk/bindings/python/mapnik_projection.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_projection.cpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/bindings/python/mapnik_projection.cpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -0,0 +1,64 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko, Jean-Francois Doyon
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++//$Id$
++
++#include &lt;boost/python.hpp&gt;
++#include &lt;mapnik/coord.hpp&gt;
++#include &lt;mapnik/projection.hpp&gt;
++
++namespace {
++    mapnik::coord2d forward(mapnik::coord2d const&amp; pt, 
++                            mapnik::projection const&amp; prj)
++    {
++        double x = pt.x;
++        double y = pt.y;
++        prj.forward(x,y);
++        return mapnik::coord2d(x,y);
++    }
++    
++    mapnik::coord2d inverse(mapnik::coord2d const&amp; pt, 
++                            mapnik::projection const&amp; prj)
++    {
++        double x = pt.x;
++        double y = pt.y;
++        prj.inverse(x,y);
++        return mapnik::coord2d(x,y);
++    }
++    
++}
++
++void export_projection ()
++{
++    using namespace boost::python; 
++    using mapnik::projection;
++    
++    class_&lt;projection&gt;(&quot;Projection&quot;, init&lt;optional&lt;std::string const&amp;&gt; &gt;())
++        .def (&quot;forward&quot;,&amp;projection::forward)
++        .def (&quot;inverse&quot;,&amp;projection::inverse)
++        .def (&quot;params&quot;, make_function(&amp;projection::params,
++                                      return_value_policy&lt;copy_const_reference&gt;()))
++        ;
++    
++    def(&quot;forward&quot;,&amp;forward);
++    def(&quot;inverse&quot;,&amp;inverse);
++    
++}
+
+Modified: trunk/bindings/python/mapnik_python.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_python.cpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/bindings/python/mapnik_python.cpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -26,6 +26,7 @@
+ #include &lt;boost/python/detail/api_placeholder.hpp&gt;
+ 
+ void export_color();
++void export_coord();
+ void export_layer();
+ void export_parameters();
+ void export_envelope();
+@@ -37,6 +38,7 @@
+ void export_rule();
+ void export_style();
+ void export_stroke();
++void export_datasource();
+ void export_datasource_cache();
+ void export_point_symbolizer();
+ void export_line_symbolizer();
+@@ -46,6 +48,7 @@
+ void export_raster_symbolizer();
+ void export_text_symbolizer();
+ void export_font_engine();
++void export_projection();
+ 
+ #include &lt;mapnik/map.hpp&gt;
+ #include &lt;mapnik/agg_renderer.hpp&gt;
+@@ -70,28 +73,6 @@
+     ren.apply();
+ }
+ 
+-namespace  
+-{
+-    //user-friendly wrapper that uses Python dictionary
+-    using namespace boost::python;
+-    boost::shared_ptr&lt;mapnik::datasource&gt; create_datasource(const dict&amp; d)
+-    {
+-        mapnik::parameters params;
+-        boost::python::list keys=d.keys();
+-        for (int i=0; i&lt;len(keys); ++i)
+-        {
+-            std::string key = extract&lt;std::string&gt;(keys[i]);
+-            object obj = d[key];
+-            extract&lt;std::string&gt; ex(obj);
+-            if (ex.check())
+-            {
+-                params[key] = ex();
+-            }            
+-        }
+-        
+-        return mapnik::datasource_cache::create(params);
+-    }
+-}
+ 
+ BOOST_PYTHON_MODULE(_mapnik)
+ {
+@@ -109,18 +90,7 @@
+     class_&lt;Featureset,featureset_ptr,boost::noncopyable&gt;(&quot;FeatureSet&quot;,no_init)
+       ;
+     
+-    class_&lt;datasource,boost::shared_ptr&lt;datasource&gt;,
+-        boost::noncopyable&gt;(&quot;Datasource&quot;,no_init)
+-        .def(&quot;envelope&quot;,&amp;datasource::envelope,
+-             return_value_policy&lt;reference_existing_object&gt;())
+-        .def(&quot;features&quot;,&amp;datasource::features)
+-        .def(&quot;params&quot;,&amp;datasource::params,return_value_policy&lt;reference_existing_object&gt;(), 
+-             &quot;The configuration parameters of the data source. &quot;  
+-             &quot;These vary depending on the type of data source.&quot;)
+-        ;
+-    
+-    def(&quot;CreateDatasource&quot;,&amp;create_datasource);
+-    
++    export_datasource();
+     export_parameters();
+     export_color(); 
+     export_envelope();   
+@@ -139,12 +109,8 @@
+     export_raster_symbolizer();
+     export_text_symbolizer();
+     export_font_engine();
+-    
+-    class_&lt;coord&lt;double,2&gt; &gt;(&quot;Coord&quot;,init&lt;double,double&gt;())
+-        .def_readwrite(&quot;x&quot;, &amp;coord&lt;double,2&gt;::x)
+-        .def_readwrite(&quot;y&quot;, &amp;coord&lt;double,2&gt;::y)
+-        ;
+-    
++    export_projection();
++    export_coord();
+     export_map();
+     
+     def(&quot;render_to_file&quot;,&amp;render_to_file);
+
+Modified: trunk/bindings/python/mapnik_stroke.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_stroke.cpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/bindings/python/mapnik_stroke.cpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -45,7 +45,7 @@
+     class_&lt;stroke&gt;(&quot;Stroke&quot;,init&lt;&gt;())
+         .def(init&lt;Color,float&gt;())
+         .add_property(&quot;color&quot;,make_function
+-                      (&amp;stroke::get_color,return_value_policy&lt;reference_existing_object&gt;()),
++                      (&amp;stroke::get_color,return_value_policy&lt;copy_const_reference&gt;()),
+                       &amp;stroke::set_color)
+         .add_property(&quot;width&quot;,&amp;stroke::get_width,&amp;stroke::set_width) 
+         .add_property(&quot;opacity&quot;,&amp;stroke::get_opacity,&amp;stroke::set_opacity)
+
+Modified: trunk/demo/python/rundemo.py
+===================================================================
+--- trunk/demo/python/rundemo.py	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/demo/python/rundemo.py	2006-10-16 13:44:52 UTC (rev 330)
+@@ -30,7 +30,7 @@
+ # Instanciate a map, giving it a width and height. Remember: the word &quot;map&quot; is
+ # reserved in Python! :)
+ 
+-m = Map(800,600)
++m = Map(800,600,&quot;+proj=latlong&quot;)
+ 
+ # Set its background colour. More on colours later ...
+ 
+
+Modified: trunk/include/mapnik/agg_renderer.hpp
+===================================================================
+--- trunk/include/mapnik/agg_renderer.hpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/include/mapnik/agg_renderer.hpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -45,13 +45,27 @@
+         void end_map_processing(Map const&amp; map);
+         void start_layer_processing(Layer const&amp; lay);
+         void end_layer_processing(Layer const&amp; lay);
+-        void process(point_symbolizer const&amp; sym,Feature const&amp; feature);
+-        void process(line_symbolizer const&amp; sym,Feature const&amp; feature);
+-        void process(line_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
+-        void process(polygon_symbolizer const&amp; sym,Feature const&amp; feature);
+-        void process(polygon_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
+-        void process(raster_symbolizer const&amp; sym,Feature const&amp; feature);
+-        void process(text_symbolizer const&amp; sym,Feature const&amp; feature);
++        void process(point_symbolizer const&amp; sym,
++                     Feature const&amp; feature,
++                     proj_transform const&amp; prj_trans);
++        void process(line_symbolizer const&amp; sym,
++                     Feature const&amp; feature,
++                     proj_transform const&amp; prj_trans);
++        void process(line_pattern_symbolizer const&amp; sym,
++                     Feature const&amp; feature,
++                     proj_transform const&amp; prj_trans);
++        void process(polygon_symbolizer const&amp; sym,
++                     Feature const&amp; feature,
++                     proj_transform const&amp; prj_trans);
++        void process(polygon_pattern_symbolizer const&amp; sym,
++                     Feature const&amp; feature,
++                     proj_transform const&amp; prj_trans);
++        void process(raster_symbolizer const&amp; sym,
++                     Feature const&amp; feature,
++                     proj_transform const&amp; prj_trans);
++        void process(text_symbolizer const&amp; sym,
++                     Feature const&amp; feature,
++                     proj_transform const&amp; prj_trans);
+     private:
+         T &amp; pixmap_;
+         CoordTransform t_;
+
+Modified: trunk/include/mapnik/ctrans.hpp
+===================================================================
+--- trunk/include/mapnik/ctrans.hpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/include/mapnik/ctrans.hpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -27,6 +27,7 @@
+ 
+ #include &lt;mapnik/envelope.hpp&gt;
+ #include &lt;mapnik/coord_array.hpp&gt;
++#include &lt;mapnik/projection.hpp&gt;
+ 
+ namespace mapnik {
+     typedef coord_array&lt;coord2d&gt; CoordinateArray;
+@@ -53,7 +54,38 @@
+         Transform const&amp; t_;
+         Geometry&amp; geom_;
+     };
++
++    template &lt;typename Transform,typename Geometry&gt;
++    struct MAPNIK_DECL coord_transform2
++    {
++        coord_transform2(Transform const&amp; t, 
++                         Geometry&amp; geom, 
++                         proj_transform const&amp; prj_trans)
++            : t_(t), 
++              geom_(geom), 
++              prj_trans_(prj_trans)  {}
++        
++        unsigned  vertex(double * x , double  * y) const
++        {
++            unsigned command = geom_.vertex(x,y);
++            double z=0;
++            prj_trans_.backward(*x,*y,z);
++            t_.forward(x,y);
++            return command;
++        }
++        
++        void rewind (unsigned pos)
++        {
++            geom_.rewind(pos);
++        }
++        
++    private:
++        Transform const&amp; t_;
++        Geometry&amp; geom_;
++        proj_transform const&amp; prj_trans_;
++    };
+     
++
+     class CoordTransform
+     {
+     private:
+
+Modified: trunk/include/mapnik/feature_style_processor.hpp
+===================================================================
+--- trunk/include/mapnik/feature_style_processor.hpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/include/mapnik/feature_style_processor.hpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -36,6 +36,7 @@
+ #include &lt;mapnik/map.hpp&gt;
+ #include &lt;mapnik/attribute_collector.hpp&gt;
+ #include &lt;mapnik/utils.hpp&gt;
++#include &lt;mapnik/projection.hpp&gt;
+ 
+ namespace mapnik
+ {       
+@@ -44,17 +45,22 @@
+     {
+         struct symbol_dispatch : public boost::static_visitor&lt;&gt;
+         {
+-            symbol_dispatch (Processor &amp; output,Feature const&amp; f)
+-                : output_(output),f_(f) {}
+-	    
++            symbol_dispatch (Processor &amp; output,
++                             Feature const&amp; f, 
++                             proj_transform const&amp; prj_trans)
++                : output_(output),
++                  f_(f),
++                  prj_trans_(prj_trans)  {}
++            
+             template &lt;typename T&gt;
+             void operator () (T const&amp; sym) const
+             {
+-                output_.process(sym,f_);
++                output_.process(sym,f_,prj_trans_);
+             }
+-
++            
+             Processor &amp; output_;
+             Feature const&amp; f_;
++            proj_transform const&amp; prj_trans_;
+         };
+     public:
+         feature_style_processor(Map const&amp; m)
+@@ -63,52 +69,82 @@
+         void apply()
+         {
+             boost::progress_timer t;
++            
+             Processor &amp; p = static_cast&lt;Processor&amp;&gt;(*this);
+-
++            
+             p.start_map_processing(m_);
+-	    
++            
+             std::vector&lt;Layer&gt;::const_iterator itr = m_.layers().begin();
+             std::vector&lt;Layer&gt;::const_iterator end = m_.layers().end();
+-            while (itr != end)
++            
++            try
+             {
+-                if (itr-&gt;isVisible(m_.scale()) &amp;&amp; 
+-                    itr-&gt;envelope().intersects(m_.getCurrentExtent()))
+-                {    
+-                    apply_to_layer(*itr,p);
++                projection proj(m_.srs()); // map projection
++                
++                while (itr != end)
++                {
++                    if (itr-&gt;isVisible(m_.scale()))// &amp;&amp; 
++                        //itr-&gt;envelope().intersects(m_.getCurrentExtent())) TODO
++                    {    
++                        apply_to_layer(*itr, p, proj);
++                    }
++                    ++itr;
+                 }
+-                ++itr;
+             }
+-            
++            catch (proj_init_error&amp; ex)
++            {
++                std::clog &lt;&lt; ex.what() &lt;&lt; &quot;\n&quot;; 
++            }
++
+             p.end_map_processing(m_);
+         }	
+     private:
+-        void apply_to_layer(Layer const&amp; lay,Processor &amp; p)
++        void apply_to_layer(Layer const&amp; lay, Processor &amp; p, projection const&amp; proj0)
+         {
+             p.start_layer_processing(lay);
+             boost::shared_ptr&lt;datasource&gt; ds=lay.datasource();
+             if (ds)
+             {
+-                Envelope&lt;double&gt; const&amp; bbox=m_.getCurrentExtent();
++                Envelope&lt;double&gt; const&amp; ext=m_.getCurrentExtent();
++              
++                projection proj1(lay.srs());
++                proj_transform prj_trans(proj0,proj1);
++                
++                double x0 = ext.minx();
++                double y0 = ext.miny();
++                double z0 = 0.0;
++                double x1 = ext.maxx();
++                double y1 = ext.maxy();
++                double z1 = 0.0;
++                prj_trans.forward(x0,y0,z0);
++                prj_trans.forward(x1,y1,z1);
++                Envelope&lt;double&gt; bbox(x0,y0,x1,y1);
++                std::clog &lt;&lt; bbox &lt;&lt; &quot;\n&quot;;
++                
+                 double scale = m_.scale();
+-	
++                
+                 std::vector&lt;std::string&gt; const&amp; style_names = lay.styles();
+                 std::vector&lt;std::string&gt;::const_iterator stylesIter = style_names.begin();
+-                while (stylesIter != style_names.end())
++                std::vector&lt;std::string&gt;::const_iterator stylesEnd = style_names.end();
++                
++                while (stylesIter != stylesEnd)
+                 {
+                     std::set&lt;std::string&gt; names;
+                     attribute_collector&lt;Feature&gt; collector(names);
+                     std::vector&lt;rule_type*&gt; if_rules;
+                     std::vector&lt;rule_type*&gt; else_rules;
+-		
++                    
+                     bool active_rules=false;
+-		    
++                    
+                     feature_type_style const&amp; style=m_.find_style(*stylesIter++);
+-		    
++                        
++                    query q(bbox); //BBOX query
++
+                     const std::vector&lt;rule_type&gt;&amp; rules=style.get_rules();
+                     std::vector&lt;rule_type&gt;::const_iterator ruleIter=rules.begin();
+-		    
+-                    query q(bbox); //BBOX query
+-                    while (ruleIter!=rules.end())
++                    std::vector&lt;rule_type&gt;::const_iterator ruleEnd=rules.end();
++                                        
++                    while (ruleIter!=ruleEnd)
+                     {
+                         if (ruleIter-&gt;active(scale))
+                         {
+@@ -127,8 +163,10 @@
+                         ++ruleIter;
+                     }
+                     std::set&lt;std::string&gt;::const_iterator namesIter=names.begin();
++                    std::set&lt;std::string&gt;::const_iterator namesEnd =names.end();
++                    
+                     // push all property names
+-                    while (namesIter!=names.end())
++                    while (namesIter!=namesEnd)
+                     {
+                         q.add_property_name(*namesIter);
+                         ++namesIter;
+@@ -143,7 +181,8 @@
+                             {		   
+                                 bool do_else=true;		    
+                                 std::vector&lt;rule_type*&gt;::const_iterator itr=if_rules.begin();
+-                                while (itr!=if_rules.end())
++                                std::vector&lt;rule_type*&gt;::const_iterator end=if_rules.end();
++                                while (itr != end)
+                                 {
+                                     filter_ptr const&amp; filter=(*itr)-&gt;get_filter();    
+                                     if (filter-&gt;pass(*feature))
+@@ -151,10 +190,11 @@
+                                         do_else=false;
+                                         const symbolizers&amp; symbols = (*itr)-&gt;get_symbolizers();
+                                         symbolizers::const_iterator symIter=symbols.begin();
+-                                        while (symIter!=symbols.end())
++                                        symbolizers::const_iterator symEnd =symbols.end();
++                                        while (symIter != symEnd)
+                                         {   
+                                             boost::apply_visitor
+-                                                (symbol_dispatch(p,*feature),*symIter++);
++                                                (symbol_dispatch(p,*feature,prj_trans),*symIter++);
+                                         }
+                                     }			    
+                                     ++itr;
+@@ -164,14 +204,19 @@
+                                     //else filter
+                                     std::vector&lt;rule_type*&gt;::const_iterator itr=
+                                         else_rules.begin();
+-                                    while (itr != else_rules.end())
++                                    std::vector&lt;rule_type*&gt;::const_iterator end=
++                                        else_rules.end();
++                                    while (itr != end)
+                                     {
+                                         const symbolizers&amp; symbols = (*itr)-&gt;get_symbolizers();
+-                                        symbolizers::const_iterator symIter=symbols.begin();
+-                                        while (symIter!=symbols.end())
++                                        symbolizers::const_iterator symIter= symbols.begin();
++                                        symbolizers::const_iterator symEnd = symbols.end();
++                                        
++                                        while (symIter!=symEnd)
+                                         {
+                                             boost::apply_visitor
+-                                                (symbol_dispatch(p,*feature),*symIter++);
++                                                (symbol_dispatch(p,*feature,prj_trans),
++                                                 *symIter++);
+                                         }
+                                         ++itr;
+                                     }
+@@ -180,10 +225,10 @@
+                         }
+                     }
+                 }
++                
+             }
+             p.end_layer_processing(lay);
+-        }
+-	
++        }	
+         Map const&amp; m_;
+     };
+ }
+
+Modified: trunk/include/mapnik/layer.hpp
+===================================================================
+--- trunk/include/mapnik/layer.hpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/include/mapnik/layer.hpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -38,6 +38,8 @@
+         std::string name_;
+         std::string title_;
+         std::string abstract_;
++        std::string srs_;
++        
+         double minZoom_;
+         double maxZoom_;
+         bool active_;
+@@ -49,7 +51,7 @@
+         mutable std::vector&lt;boost::shared_ptr&lt;Feature&gt; &gt; selection_;
+         
+     public:
+-        explicit Layer(std::string const&amp; name);
++        explicit Layer(std::string const&amp; name, std::string const&amp; srs=&quot;+proj=latlong +datum=WGS84&quot;);
+         Layer(Layer const&amp; l);
+         Layer&amp; operator=(Layer const&amp; l);
+         bool operator==(Layer const&amp; other) const;
+@@ -59,6 +61,8 @@
+         const std::string&amp; title() const;
+         void set_abstract(std::string const&amp; abstract);
+         const std::string&amp; abstract() const;
++        void set_srs(std::string const&amp; srs);
++        std::string const&amp; srs() const;
+         void add_style(std::string const&amp; stylename);
+         std::vector&lt;std::string&gt; const&amp; styles() const;
+         void selection_style(const std::string&amp; name);
+
+Modified: trunk/include/mapnik/map.hpp
+===================================================================
+--- trunk/include/mapnik/map.hpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/include/mapnik/map.hpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -36,18 +36,17 @@
+         static const unsigned MAX_MAPSIZE=2048;
+         unsigned width_;
+         unsigned height_;
+-        int srid_;
++        std::string  srs_;
+         Color background_;
+         std::map&lt;std::string,feature_type_style&gt; styles_;
+         std::vector&lt;Layer&gt; layers_;
+         Envelope&lt;double&gt; currentExtent_;
+         
+     public:
+- 
+         typedef std::map&lt;std::string,feature_type_style&gt;::const_iterator style_iterator;
+         
+         Map();
+-        Map(int width,int height,int srid=-1);
++        Map(int width, int height, std::string const&amp; srs=&quot;+proj=latlong +datum=WGS84&quot;);
+         Map(const Map&amp; rhs);
+         Map&amp; operator=(const Map&amp; rhs);
+         style_iterator begin_styles() const;
+@@ -67,7 +66,8 @@
+         void setWidth(unsigned width);
+         void setHeight(unsigned height);
+         void resize(unsigned width,unsigned height);
+-        int srid() const;
++        std::string const&amp; srs() const;
++        void set_srs(std::string const&amp; srs);
+         void setBackground(const Color&amp; c);
+         const Color&amp; getBackground() const;
+         void zoom(double zoom);
+
+Added: trunk/include/mapnik/projection.hpp
+===================================================================
+--- trunk/include/mapnik/projection.hpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/include/mapnik/projection.hpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -0,0 +1,174 @@
++
++#ifndef PROJECTION_HPP
++#define PROJECTION_HPP
++
++#include &lt;string&gt;
++#include &lt;iostream&gt;
++#include &lt;stdexcept&gt;
++#include &lt;boost/utility.hpp&gt;
++
++#include &lt;mapnik/envelope.hpp&gt;
++#include &lt;proj_api.h&gt;
++
++namespace mapnik
++{   
++    class proj_init_error : public std::runtime_error
++    {
++    public:
++        proj_init_error(std::string const&amp; params)
++            : std::runtime_error(&quot;failed to initialize projection with:&quot; + params) {}
++    };
++    
++    class projection
++    {
++        friend class proj_transform;
++    public:
++        explicit projection(std::string params = &quot;+proj=latlong +ellps=WGS84&quot;)
++            : params_(params)
++        { 
++            init(); //
++        }
++        
++        projection(projection const&amp; rhs)
++            : params_(rhs.params_) 
++        {
++            init(); //
++        }
++        
++        projection&amp; operator=(projection const&amp; rhs) 
++        { 
++            projection tmp(rhs);
++            swap(tmp);
++            return *this;
++        }
++        
++        bool is_initialized() const
++        {
++            return proj_ ? true : false;
++        }
++        
++        std::string const&amp; params() const
++        {
++            return params_;
++        }
++        
++        void forward(double &amp; x, double &amp;y ) const
++        {
++            projUV p;
++            p.u = x * DEG_TO_RAD;
++            p.v = y * DEG_TO_RAD;
++            p = pj_fwd(p,proj_);
++            x = p.u;
++            y = p.v;
++        }
++        
++        void inverse(double &amp; x,double &amp; y) const
++        {
++            projUV p;
++            p.u = x;
++            p.v = y;
++            p = pj_inv(p,proj_);
++            x = RAD_TO_DEG * p.u;
++            y = RAD_TO_DEG * p.v;
++        }
++        
++        ~projection() 
++        {
++            if (proj_) pj_free(proj_);
++        }
++    private:
++        
++        void init()
++        {
++            proj_=pj_init_plus(params_.c_str());
++            if (!proj_) throw proj_init_error(params_);
++        }
++        
++        void swap (projection&amp; rhs)
++        {
++            std::swap(params_,rhs.params_);
++            init ();
++        } 
++        
++    private:
++        std::string params_;
++        projPJ proj_;
++    };
++    
++    class proj_transform : private boost::noncopyable
++    {
++    public:
++        proj_transform(projection const&amp; source, 
++                       projection const&amp; dest)
++            : source_(source),
++              dest_(dest) 
++        {
++            is_source_latlong_ = pj_is_latlong(source_.proj_);
++            is_dest_latlong_ = pj_is_latlong(dest_.proj_);
++        }
++        
++        bool forward (double &amp; x, double &amp; y , double &amp; z) const
++        {
++            if (is_source_latlong_)
++            {
++                x *= DEG_TO_RAD;
++                y *= DEG_TO_RAD;
++            }
++            
++            if (pj_transform( source_.proj_, dest_.proj_, 1, 
++                              0, &amp;x,&amp;y,&amp;z) != 0)
++            {
++                return false;
++            }
++            
++            if (is_dest_latlong_)
++            {
++                x *= RAD_TO_DEG;
++                y *= RAD_TO_DEG;
++            }
++            
++            return true;
++        } 
++        
++        bool forward (Envelope&lt;double&gt; &amp; ext) const
++        {
++            if (is_source_latlong_)
++            {
++                ext = ext.intersect(Envelope&lt;double&gt;(-180,-90,180,90));
++            }
++            // TODO
++            return true;
++        }
++        
++        bool backward (double &amp; x, double &amp; y , double &amp; z) const
++        {
++            if (is_dest_latlong_)
++            {
++                x *= DEG_TO_RAD;
++                y *= DEG_TO_RAD;
++            }
++            
++            if (pj_transform( dest_.proj_, source_.proj_, 1, 
++                              0, &amp;x,&amp;y,&amp;z) != 0)
++            {
++                return false;
++            }
++            
++            if (is_source_latlong_)
++            {
++                x *= RAD_TO_DEG;
++                y *= RAD_TO_DEG;
++            }
++            
++            return true;
++        } 
++        
++    private:
++        projection const&amp; source_;
++        projection const&amp; dest_;
++        bool is_source_latlong_;
++        bool is_dest_latlong_;
++    };
++}
++
++#endif //PROJECTION_HPP
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/src/agg_renderer.cpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -126,9 +126,11 @@
+     }
+     
+     template &lt;typename T&gt;	
+-    void agg_renderer&lt;T&gt;::process(polygon_symbolizer const&amp; sym,Feature const&amp; feature)
++    void agg_renderer&lt;T&gt;::process(polygon_symbolizer const&amp; sym,
++                                  Feature const&amp; feature,
++                                  proj_transform const&amp; prj_trans)
+     {
+-        typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
++        typedef  coord_transform2&lt;CoordTransform,geometry_type&gt; path_type;
+         typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base;    
+         typedef agg::renderer_scanline_aa_solid&lt;ren_base&gt; renderer;
+ 	    
+@@ -139,7 +141,7 @@
+         {
+             unsigned width = pixmap_.width();
+             unsigned height = pixmap_.height();
+-            path_type path(t_,*geom);
++            path_type path(t_,*geom,prj_trans);
+             agg::row_ptr_cache&lt;agg::int8u&gt; buf(pixmap_.raw_data(),width,height,width * 4);
+             agg::pixfmt_rgba32 pixf(buf);
+             ren_base renb(pixf);	    
+@@ -147,9 +149,8 @@
+             unsigned r=fill_.red();
+             unsigned g=fill_.green();
+             unsigned b=fill_.blue();
+-            //unsigned a=fill_.alpha();
+             renderer ren(renb);
+-		
++            
+             agg::rasterizer_scanline_aa&lt;&gt; ras;
+             agg::scanline_u8 sl;
+             ras.clip_box(0,0,width,height);
+@@ -160,10 +161,12 @@
+     }
+ 
+     template &lt;typename T&gt;
+-    void agg_renderer&lt;T&gt;::process(line_symbolizer const&amp; sym,Feature const&amp; feature)
++    void agg_renderer&lt;T&gt;::process(line_symbolizer const&amp; sym,
++                                  Feature const&amp; feature,
++                                  proj_transform const&amp; prj_trans)
+     {   
+         typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base; 
+-        typedef coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
++        typedef coord_transform2&lt;CoordTransform,geometry_type&gt; path_type;
+         typedef agg::renderer_outline_aa&lt;ren_base&gt; renderer_oaa;
+         typedef agg::rasterizer_outline_aa&lt;renderer_oaa&gt; rasterizer_outline_aa;
+         typedef agg::renderer_scanline_aa_solid&lt;ren_base&gt; renderer;
+@@ -171,7 +174,7 @@
+         geometry_ptr const&amp; geom=feature.get_geometry();
+         if (geom &amp;&amp; geom-&gt;num_points() &gt; 1)
+         {
+-            path_type path(t_,*geom);
++            path_type path(t_,*geom,prj_trans);
+             agg::row_ptr_cache&lt;agg::int8u&gt; buf(pixmap_.raw_data(),
+                                                pixmap_.width(),
+                                                pixmap_.height(),
+@@ -277,17 +280,21 @@
+     }
+ 
+     template &lt;typename T&gt;
+-    void agg_renderer&lt;T&gt;::process(point_symbolizer const&amp; sym,Feature const&amp; feature)
++    void agg_renderer&lt;T&gt;::process(point_symbolizer const&amp; sym,
++                                  Feature const&amp; feature,
++                                  proj_transform const&amp; prj_trans)
+     {
+         geometry_ptr const&amp; geom=feature.get_geometry();
+         if (geom)
+         {
+             double x;
+             double y;
++            double z=0;
+             boost::shared_ptr&lt;ImageData32&gt; const&amp; data = sym.get_data();
+             if ( data )
+             {
+                 geom-&gt;label_position(&amp;x,&amp;y);
++                prj_trans.backward(x,y,z);
+                 t_.forward(&amp;x,&amp;y);
+                 int w = data-&gt;width();
+                 int h = data-&gt;height();
+@@ -307,9 +314,11 @@
+     }
+     
+     template &lt;typename T&gt;
+-    void  agg_renderer&lt;T&gt;::process(line_pattern_symbolizer const&amp; sym,Feature const&amp; feature)
++    void  agg_renderer&lt;T&gt;::process(line_pattern_symbolizer const&amp; sym,
++                                   Feature const&amp; feature,
++                                   proj_transform const&amp; prj_trans)
+     {
+-        typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
++        typedef  coord_transform2&lt;CoordTransform,geometry_type&gt; path_type;
+         typedef agg::line_image_pattern&lt;agg::pattern_filter_bilinear_rgba8&gt; pattern_type;
+         typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; renderer_base;
+         typedef agg::renderer_outline_image&lt;renderer_base, pattern_type&gt; renderer_type;
+@@ -321,7 +330,7 @@
+             unsigned width = pixmap_.width();
+             unsigned height = pixmap_.height();
+             ImageData32 const&amp; pat = sym.get_pattern();
+-            path_type path(t_,*geom);
++            path_type path(t_,*geom,prj_trans);
+             agg::row_ptr_cache&lt;agg::int8u&gt; buf(pixmap_.raw_data(), width, height,width*4);
+             agg::pixfmt_rgba32 pixf(buf);
+             renderer_base ren_base(pixf);  
+@@ -336,9 +345,11 @@
+     }
+     
+     template &lt;typename T&gt;
+-    void agg_renderer&lt;T&gt;::process(polygon_pattern_symbolizer const&amp; sym,Feature const&amp; feature)
++    void agg_renderer&lt;T&gt;::process(polygon_pattern_symbolizer const&amp; sym,
++                                  Feature const&amp; feature,
++                                  proj_transform const&amp; prj_trans)
+     {
+-        typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
++        typedef  coord_transform2&lt;CoordTransform,geometry_type&gt; path_type;
+         typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base; 
+         typedef agg::wrap_mode_repeat wrap_x_type;
+         typedef agg::wrap_mode_repeat wrap_y_type;
+@@ -358,7 +369,7 @@
+ 	    
+             unsigned width = pixmap_.width();
+             unsigned height = pixmap_.height();
+-            path_type path(t_,*geom);
++            path_type path(t_,*geom,prj_trans);
+ 	    
+             agg::row_ptr_cache&lt;agg::int8u&gt; buf(pixmap_.raw_data(),width,height,width * 4);
+             agg::pixfmt_rgba32 pixf(buf);
+@@ -389,7 +400,9 @@
+     }
+ 
+     template &lt;typename T&gt;
+-    void agg_renderer&lt;T&gt;::process(raster_symbolizer const&amp; ,Feature const&amp; feature)
++    void agg_renderer&lt;T&gt;::process(raster_symbolizer const&amp;,
++                                  Feature const&amp; feature,
++                                  proj_transform const&amp; prj_trans)
+     {
+         // TODO -- at the moment raster_symbolizer is an empty class 
+         // used for type dispatching, but we can have some fancy raster
+@@ -405,9 +418,11 @@
+     }
+     
+     template &lt;typename T&gt;
+-    void agg_renderer&lt;T&gt;::process(text_symbolizer const&amp; sym ,Feature const&amp; feature)
++    void agg_renderer&lt;T&gt;::process(text_symbolizer const&amp; sym,
++                                  Feature const&amp; feature,
++                                  proj_transform const&amp; prj_trans)
+     {
+-        typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
++        typedef  coord_transform2&lt;CoordTransform,geometry_type&gt; path_type;
+         geometry_ptr const&amp; geom=feature.get_geometry();
+         if (geom)
+         {
+@@ -416,7 +431,7 @@
+                 geom-&gt;num_points() &gt; 1)
+             {
+ 	       
+-                path_type path(t_,*geom);
++                path_type path(t_,*geom,prj_trans);
+                 double x0,y0,x1,y1;
+                 path.vertex(&amp;x0,&amp;y0);
+                 path.vertex(&amp;x1,&amp;y1);
+
+Modified: trunk/src/layer.cpp
+===================================================================
+--- trunk/src/layer.cpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/src/layer.cpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -38,10 +38,11 @@
+ 
+ namespace mapnik
+ {   
+-    Layer::Layer(std::string const&amp; name)
++    Layer::Layer(std::string const&amp; name, std::string const&amp; srs)
+         : name_(name),
+           title_(&quot;&quot;),
+           abstract_(&quot;&quot;),
++          srs_(srs),
+           minZoom_(0),
+           maxZoom_(std::numeric_limits&lt;double&gt;::max()),
+           active_(true),
+@@ -53,6 +54,7 @@
+         : name_(rhs.name_),
+           title_(rhs.title_),
+           abstract_(rhs.abstract_),
++          srs_(rhs.srs_),
+           minZoom_(rhs.minZoom_),
+           maxZoom_(rhs.maxZoom_),
+           active_(rhs.active_),
+@@ -119,11 +121,21 @@
+         return abstract_;
+     }
+ 
++    void Layer::set_srs(std::string const&amp; srs)
++    {
++        srs_ = srs;
++    }
++    
++    std::string const&amp; Layer::srs() const
++    {
++        return srs_;
++    }
++    
+     void Layer::add_style(std::string const&amp; stylename)
+     {
+         styles_.push_back(stylename);
+     }
+-
++    
+     std::vector&lt;std::string&gt; const&amp; Layer::styles() const
+     {
+         return styles_;
+
+Modified: trunk/src/load_map.cpp
+===================================================================
+--- trunk/src/load_map.cpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/src/load_map.cpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -47,19 +47,24 @@
+     {
+         using boost::property_tree::ptree;
+         ptree pt;
+-        
+         read_xml(filename,pt);
+         
+         boost::optional&lt;std::string&gt; bgcolor = 
+             pt.get_optional&lt;std::string&gt;(&quot;Map.&lt;xmlattr&gt;.bgcolor&quot;);
+-        if ( bgcolor)
++        
++        if (bgcolor)
+         {
+             Color bg = color_factory::from_string(bgcolor-&gt;c_str());
+             map.setBackground(bg);
+         }
+         
++        std::string srs = pt.get&lt;std::string&gt;(&quot;Map.&lt;xmlattr&gt;.srs&quot;,
++                                           &quot;+proj=latlong +datum=WGS84&quot;);
++        map.set_srs(srs);
++        
+         ptree::const_iterator itr = pt.get_child(&quot;Map&quot;).begin();
+         ptree::const_iterator end = pt.get_child(&quot;Map&quot;).end();
++        
+         for (; itr != end; ++itr)
+         {
+             ptree::value_type const&amp; v = *itr;
+@@ -284,18 +289,19 @@
+             else if (v.first == &quot;Layer&quot;)
+             {
+                 
+-                std::string name = v.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.name&quot;,&quot;&quot;);
+-                Layer lyr(name);
++                std::string name = v.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.name&quot;,&quot;Unnamed&quot;);
++                std::string srs = v.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.srs&quot;,&quot;+proj=latlong +datum=WGS84&quot;);
+                 
++                Layer lyr(name, srs);
++                
+                 boost::optional&lt;std::string&gt; status = 
+-                    v.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.status&quot;);
++                    v.second.get_optional&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.status&quot;);
+                 
+                 if (status &amp;&amp; *status == &quot;off&quot;)
+                 {
+                     lyr.setActive(false);
+                 }
+                 
+-                
+                 ptree::const_iterator itr2 = v.second.begin();
+                 ptree::const_iterator end2 = v.second.end();
+                 
+
+Modified: trunk/src/map.cpp
+===================================================================
+--- trunk/src/map.cpp	2006-10-16 13:32:45 UTC (rev 329)
++++ trunk/src/map.cpp	2006-10-16 13:44:52 UTC (rev 330)
+@@ -24,6 +24,7 @@
+ 
+ #include &lt;mapnik/style.hpp&gt;
+ #include &lt;mapnik/datasource.hpp&gt;
++#include &lt;mapnik/projection.hpp&gt;
+ #include &lt;mapnik/layer.hpp&gt;
+ #include &lt;mapnik/map.hpp&gt;
+ 
+@@ -32,17 +33,18 @@
+     Map::Map()
+         : width_(400),
+           height_(400),
+-          srid_(-1) {}
+-    Map::Map(int width,int height,int srid)
++          srs_(&quot;+proj=latlong +datum=WGS84&quot;) {}
++    
++    Map::Map(int width,int height, std::string const&amp; srs)
+         : width_(width),
+           height_(height),
+-          srid_(srid),
++          srs_(srs),
+           background_(Color(255,255,255)) {}
+ 
+     Map::Map(const Map&amp; rhs)
+         : width_(rhs.width_),
+           height_(rhs.height_),
+-          srid_(rhs.srid_),
++          srs_(rhs.srs_),
+           background_(rhs.background_),
+           styles_(rhs.styles_),
+           layers_(rhs.layers_),
+@@ -53,12 +55,13 @@
+         if (this==&amp;rhs) return *this;
+         width_=rhs.width_;
+         height_=rhs.height_;
+-        srid_=rhs.srid_;
++        srs_=rhs.srs_;
+         background_=rhs.background_;
+         styles_=rhs.styles_;
+         layers_=rhs.layers_;
+         return *this;
+     }
++    
+     Map::style_iterator  Map::begin_styles() const
+     {
+         return styles_.begin();
+@@ -78,10 +81,9 @@
+         styles_.erase(name);
+     }
+     
+-    feature_type_style const&amp;  Map::find_style(std::string const&amp; name) const
++    feature_type_style const&amp; Map::find_style(std::string const&amp; name) const
+     {
+-        std::map&lt;std::string,feature_type_style&gt;::const_iterator itr
+-            = styles_.find(name);
++        std::map&lt;std::string,feature_type_style&gt;::const_iterator itr = styles_.find(name);
+         if (itr!=styles_.end()) 
+             return itr-&gt;second;
+         static feature_type_style default_style;
+@@ -118,7 +120,6 @@
+         return layers_[index];
+     }
+ 
+-
+     std::vector&lt;Layer&gt; const&amp; Map::layers() const
+     {
+         return layers_;
+@@ -151,6 +152,7 @@
+             fixAspectRatio();
+         }
+     }
++    
+     void Map::resize(unsigned width,unsigned height)
+     {
+         if (width &gt;= MIN_MAPSIZE &amp;&amp; width &lt;= MAX_MAPSIZE &amp;&amp;
+@@ -162,11 +164,16 @@
+         }
+     }
+ 
+-    int Map::srid() const
++    std::string const&amp;  Map::srs() const
+     {
+-        return srid_;
++        return srs_;
+     }
+-
++    
++    void Map::set_srs(std::string const&amp; srs)
++    {
++        srs_ = srs;
++    }
++    
+     void Map::setBackground(const Color&amp; c)
+     {
+         background_=c;
+@@ -176,7 +183,7 @@
+     {
+         return background_;
+     }
+-
++    
+     void Map::zoom(double factor)
+     {
+         coord2d center = currentExtent_.center();
+@@ -191,23 +198,50 @@
+     
+     void Map::zoom_all() 
+     {
+-        std::vector&lt;Layer&gt;::const_iterator itr = layers_.begin();
+-        Envelope&lt;double&gt; ext;
+-        bool first = true;
+-        while (itr != layers_.end())
++        try 
+         {
+-            if (first)
++            projection proj0(srs_);
++            Envelope&lt;double&gt; ext;
++            bool first = true;
++            std::vector&lt;Layer&gt;::const_iterator itr = layers_.begin();
++            std::vector&lt;Layer&gt;::const_iterator end = layers_.end();
++            while (itr != end)
+             {
+-                ext = itr-&gt;envelope();
+-                first = false;
++                std::string const&amp; layer_srs = itr-&gt;srs();
++                projection proj1(layer_srs);
++                proj_transform prj_trans(proj0,proj1);
++                
++                Envelope&lt;double&gt; layerExt = itr-&gt;envelope();
++                double x0 = layerExt.minx();
++                double y0 = layerExt.miny();
++                double z0 = 0.0;
++                double x1 = layerExt.maxx();
++                double y1 = layerExt.maxy();
++                double z1 = 0.0;
++                prj_trans.backward(x0,y0,z0);
++                prj_trans.backward(x1,y1,z1);
++                
++                Envelope&lt;double&gt; layerExt2(x0,y0,x1,y1);
++                std::clog &lt;&lt; &quot; layer1 - &gt; &quot; &lt;&lt; layerExt &lt;&lt; &quot;\n&quot;;
++                std::clog &lt;&lt; &quot; layer2 - &gt; &quot; &lt;&lt; layerExt2 &lt;&lt; &quot;\n&quot;;
++                
++                if (first)
++                {
++                    ext = layerExt2;
++                    first = false;
++                }
++                else 
++                {
++                    ext.expand_to_include(layerExt2);
++                }
++                ++itr;
+             }
+-            else 
+-            {
+-                ext.expand_to_include(itr-&gt;envelope());
+-            }
+-            ++itr;
++            zoomToBox(ext);
+         }
+-        zoomToBox(ext);
++        catch (proj_init_error &amp; ex)
++        {
++            std::clog &lt;&lt; ex.what() &lt;&lt; '\n';
++        }
+     }
+ 
+     void Map::zoomToBox(const Envelope&lt;double&gt; &amp;box)
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000214.html">[Mapnik-svn] r329 - trunk/include/mapnik
+</A></li>
+	<LI>Next message: <A HREF="000216.html">[Mapnik-svn] r331 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#215">[ date ]</a>
+              <a href="thread.html#215">[ thread ]</a>
+              <a href="subject.html#215">[ subject ]</a>
+              <a href="author.html#215">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

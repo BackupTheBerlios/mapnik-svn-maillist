@@ -1,0 +1,200 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r181 - trunk/utils/shapeindex
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r181%20-%20trunk/utils/shapeindex&In-Reply-To=%3C200603192154.k2JLseL9000408%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000066.html">
+   <LINK REL="Next"  HREF="000068.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r181 - trunk/utils/shapeindex</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r181%20-%20trunk/utils/shapeindex&In-Reply-To=%3C200603192154.k2JLseL9000408%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r181 - trunk/utils/shapeindex">pavlenko at berlios.de
+       </A><BR>
+    <I>Sun Mar 19 22:54:40 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000066.html">[Mapnik-svn] r180 - in trunk: include plugins/input/postgis plugins/input/raster plugins/input/shape src
+</A></li>
+        <LI>Next message: <A HREF="000068.html">[Mapnik-svn] r182 - in trunk/bindings/python: . mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#67">[ date ]</a>
+              <a href="thread.html#67">[ thread ]</a>
+              <a href="subject.html#67">[ subject ]</a>
+              <a href="author.html#67">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-19 22:54:40 +0100 (Sun, 19 Mar 2006)
+New Revision: 181
+
+Modified:
+   trunk/utils/shapeindex/quadtree.hpp
+   trunk/utils/shapeindex/shapeindex.cpp
+Log:
+replaced cerr and cout with clog ( redirected to cerr by default)
+
+
+
+Modified: trunk/utils/shapeindex/quadtree.hpp
+===================================================================
+--- trunk/utils/shapeindex/quadtree.hpp	2006-03-19 21:53:47 UTC (rev 180)
++++ trunk/utils/shapeindex/quadtree.hpp	2006-03-19 21:54:40 UTC (rev 181)
+@@ -230,14 +230,14 @@
+ 	    {
+ 		pad+=&quot; &quot;;
+ 	    }
+-	    std::cout&lt;&lt;pad&lt;&lt;&quot;node &quot;&lt;&lt;node&lt;&lt;&quot; extent:&quot;&lt;&lt;node-&gt;ext_&lt;&lt;std::endl;
+-	    std::cout&lt;&lt;pad;
++	    std::clog&lt;&lt;pad&lt;&lt;&quot;node &quot;&lt;&lt;node&lt;&lt;&quot; extent:&quot;&lt;&lt;node-&gt;ext_&lt;&lt;std::endl;
++	    std::clog&lt;&lt;pad;
+ 	    while(itr!=node-&gt;data_.end())
+ 	    {
+-		std::cout&lt;&lt;*itr&lt;&lt;&quot; &quot;;
++		std::clog&lt;&lt;*itr&lt;&lt;&quot; &quot;;
+ 		++itr;
+ 	    }
+-	    std::cout&lt;&lt;std::endl;
++	    std::clog&lt;&lt;std::endl;
+ 	    for (int i=0;i&lt;4;++i)
+ 	    {
+ 		print(node-&gt;children_[i],level+4);
+
+Modified: trunk/utils/shapeindex/shapeindex.cpp
+===================================================================
+--- trunk/utils/shapeindex/shapeindex.cpp	2006-03-19 21:53:47 UTC (rev 180)
++++ trunk/utils/shapeindex/shapeindex.cpp	2006-03-19 21:54:40 UTC (rev 181)
+@@ -67,13 +67,13 @@
+ 	
+ 	if (vm.count(&quot;version&quot;))
+ 	{
+-	    cout&lt;&lt;&quot;version 0.2.0a&quot; &lt;&lt;endl;
++	    clog&lt;&lt;&quot;version 0.2.0a&quot; &lt;&lt;endl;
+ 	    return 1;
+ 	}
+ 
+ 	if (vm.count(&quot;help&quot;)) 
+ 	{
+-	    cout &lt;&lt; desc &lt;&lt; &quot;\n&quot;;
++	    clog &lt;&lt; desc &lt;&lt; &quot;\n&quot;;
+ 	    return 1;
+ 	}
+ 	if (vm.count(&quot;depth&quot;))
+@@ -92,26 +92,26 @@
+     }
+     catch (...)
+     {
+-	cerr &lt;&lt; &quot;Exception of unknown type!&quot;&lt;&lt;endl;
++	clog &lt;&lt; &quot;Exception of unknown type!&quot;&lt;&lt;endl;
+ 	return -1;
+     }
+     
+-    std::cout&lt;&lt;&quot;max tree depth:&quot;&lt;&lt;depth&lt;&lt;std::endl;
+-    std::cout&lt;&lt;&quot;split ratio:&quot;&lt;&lt;ratio&lt;&lt;std::endl;
++    std::clog&lt;&lt;&quot;max tree depth:&quot;&lt;&lt;depth&lt;&lt;std::endl;
++    std::clog&lt;&lt;&quot;split ratio:&quot;&lt;&lt;ratio&lt;&lt;std::endl;
+   
+     vector&lt;string&gt;::const_iterator itr=shape_files.begin();
+     if (itr==shape_files.end())
+     {
+-	std::cout &lt;&lt; &quot;no shape files to index&quot;&lt;&lt;std::endl;
++	std::clog &lt;&lt; &quot;no shape files to index&quot;&lt;&lt;std::endl;
+ 	return 0;
+     }
+     while (itr != shape_files.end())
+     {
+-	std::cout&lt;&lt;&quot;processing &quot;&lt;&lt;*itr &lt;&lt; std::endl;
++	std::clog&lt;&lt;&quot;processing &quot;&lt;&lt;*itr &lt;&lt; std::endl;
+ 	shape_file shp;
+ 	std::string shapename(*itr++);
+ 	if (!shp.open(shapename+&quot;.shp&quot;)) {
+-	    std::cerr&lt;&lt;&quot;error : cannot open &quot;&lt;&lt; (shapename+&quot;.shp&quot;) &lt;&lt;&quot;\n&quot;;
++	    std::clog&lt;&lt;&quot;error : cannot open &quot;&lt;&lt; (shapename+&quot;.shp&quot;) &lt;&lt;&quot;\n&quot;;
+ 	    continue;
+ 	}
+ 
+@@ -125,10 +125,10 @@
+ 	shp.read_envelope(extent);
+ 	
+ 	
+-	std::cout&lt;&lt;&quot;length=&quot;&lt;&lt;file_length&lt;&lt;std::endl;
+-	std::cout&lt;&lt;&quot;version=&quot;&lt;&lt;version&lt;&lt;std::endl;
+-	std::cout&lt;&lt;&quot;type=&quot;&lt;&lt;shape_type&lt;&lt;std::endl;
+-	std::cout&lt;&lt;&quot;extent:&quot;&lt;&lt;extent&lt;&lt;std::endl;
++	std::clog&lt;&lt;&quot;length=&quot;&lt;&lt;file_length&lt;&lt;std::endl;
++	std::clog&lt;&lt;&quot;version=&quot;&lt;&lt;version&lt;&lt;std::endl;
++	std::clog&lt;&lt;&quot;type=&quot;&lt;&lt;shape_type&lt;&lt;std::endl;
++	std::clog&lt;&lt;&quot;extent:&quot;&lt;&lt;extent&lt;&lt;std::endl;
+ 	  
+ 	int pos=50;
+ 	shp.seek(pos*2);  
+@@ -169,7 +169,7 @@
+ 
+ 	    tree.insert(offset,item_ext);
+ 	    if (verbose) {
+-		std::cout&lt;&lt;&quot;record number &quot;&lt;&lt;record_number&lt;&lt;&quot; box=&quot;&lt;&lt;item_ext&lt;&lt;std::endl;
++		std::clog&lt;&lt;&quot;record number &quot;&lt;&lt;record_number&lt;&lt;&quot; box=&quot;&lt;&lt;item_ext&lt;&lt;std::endl;
+ 	    }
+ 
+ 	    pos+=4+content_length;
+@@ -181,20 +181,20 @@
+ 	} 
+ 	shp.close();
+   
+-	std::cout&lt;&lt;&quot; number shapes=&quot;&lt;&lt;count&lt;&lt;std::endl;  
++	std::clog&lt;&lt;&quot; number shapes=&quot;&lt;&lt;count&lt;&lt;std::endl;  
+     
+ 	std::fstream file((shapename+&quot;.index&quot;).c_str(),
+ 			  std::ios::in | std::ios::out | std::ios::trunc | std::ios::binary);
+ 	if (!file) {
+-	    std::cerr &lt;&lt; &quot;cannot open index file for writing file \&quot;&quot;
++	    std::clog &lt;&lt; &quot;cannot open index file for writing file \&quot;&quot;
+ 		      &lt;&lt;(shapename+&quot;.index&quot;)&lt;&lt;&quot;\&quot;&quot;&lt;&lt;std::endl;
+ 	} else {
+ 	    tree.trim();
+-	    std::cout&lt;&lt;&quot; number nodes=&quot;&lt;&lt;tree.count()&lt;&lt;std::endl;
++	    std::clog&lt;&lt;&quot; number nodes=&quot;&lt;&lt;tree.count()&lt;&lt;std::endl;
+ 	    tree.write(file);
+ 	    file.close();
+ 	}
+     }
+-    std::cout&lt;&lt;&quot;done!&quot;&lt;&lt;std::endl;
++    std::clog&lt;&lt;&quot;done!&quot;&lt;&lt;std::endl;
+     return 0;
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000066.html">[Mapnik-svn] r180 - in trunk: include plugins/input/postgis plugins/input/raster plugins/input/shape src
+</A></li>
+	<LI>Next message: <A HREF="000068.html">[Mapnik-svn] r182 - in trunk/bindings/python: . mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#67">[ date ]</a>
+              <a href="thread.html#67">[ thread ]</a>
+              <a href="subject.html#67">[ subject ]</a>
+              <a href="author.html#67">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

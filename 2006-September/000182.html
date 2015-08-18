@@ -1,0 +1,569 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r297 - in trunk: bindings/python include	plugins/input/raster plugins/input/shape src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-September/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r297%20-%20in%20trunk%3A%20bindings/python%20include%0A%09plugins/input/raster%20plugins/input/shape%20src&In-Reply-To=%3C200609121429.k8CETRAb025238%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000181.html">
+   <LINK REL="Next"  HREF="000183.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r297 - in trunk: bindings/python include	plugins/input/raster plugins/input/shape src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r297%20-%20in%20trunk%3A%20bindings/python%20include%0A%09plugins/input/raster%20plugins/input/shape%20src&In-Reply-To=%3C200609121429.k8CETRAb025238%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r297 - in trunk: bindings/python include	plugins/input/raster plugins/input/shape src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Tue Sep 12 16:29:27 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000181.html">[Mapnik-svn] r296 - in trunk: bindings/python include
+</A></li>
+        <LI>Next message: <A HREF="000183.html">[Mapnik-svn] r298 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#182">[ date ]</a>
+              <a href="thread.html#182">[ thread ]</a>
+              <a href="subject.html#182">[ subject ]</a>
+              <a href="author.html#182">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-09-12 16:29:22 +0200 (Tue, 12 Sep 2006)
+New Revision: 297
+
+Modified:
+   trunk/bindings/python/mapnik_query.cpp
+   trunk/include/agg_renderer.hpp
+   trunk/include/feature_style_processor.hpp
+   trunk/include/query.hpp
+   trunk/include/raster.hpp
+   trunk/plugins/input/raster/raster_featureset.cpp
+   trunk/plugins/input/raster/raster_featureset.hpp
+   trunk/plugins/input/shape/shape.cpp
+   trunk/src/agg_renderer.cpp
+Log:
+1.removed map width/height from query interface
+2.small cleanups
+
+
+
+Modified: trunk/bindings/python/mapnik_query.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_query.cpp	2006-09-11 09:48:27 UTC (rev 296)
++++ trunk/bindings/python/mapnik_query.cpp	2006-09-12 14:29:22 UTC (rev 297)
+@@ -27,7 +27,7 @@
+ void export_query()
+ {
+     using mapnik::query;
+-    
++    //class_&lt;query&gt;(&quot;Query&quot;,init&lt;
+ }
+ 
+ 
+
+Modified: trunk/include/agg_renderer.hpp
+===================================================================
+--- trunk/include/agg_renderer.hpp	2006-09-11 09:48:27 UTC (rev 296)
++++ trunk/include/agg_renderer.hpp	2006-09-12 14:29:22 UTC (rev 297)
+@@ -34,26 +34,26 @@
+ {
+     template &lt;typename T&gt;
+     class MAPNIK_DECL agg_renderer : public feature_style_processor&lt;agg_renderer&lt;T&gt; &gt;,
+-				     private boost::noncopyable
++                                     private boost::noncopyable
+     {
+     public:
+-	agg_renderer(Map const&amp; m, T &amp; pixmap);
+-	void start_map_processing(Map const&amp; map);
+-	void end_map_processing(Map const&amp; map);
+-	void start_layer_processing(Layer const&amp; lay);
+-	void end_layer_processing(Layer const&amp; lay);
+-	void process(point_symbolizer const&amp; sym,Feature const&amp; feature);
+-	void process(line_symbolizer const&amp; sym,Feature const&amp; feature);
+-	void process(line_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
+-	void process(polygon_symbolizer const&amp; sym,Feature const&amp; feature);
+-	void process(polygon_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
+-	void process(raster_symbolizer const&amp; sym,Feature const&amp; feature);
+-	void process(text_symbolizer const&amp; sym,Feature const&amp; feature);
++        agg_renderer(Map const&amp; m, T &amp; pixmap);
++        void start_map_processing(Map const&amp; map);
++        void end_map_processing(Map const&amp; map);
++        void start_layer_processing(Layer const&amp; lay);
++        void end_layer_processing(Layer const&amp; lay);
++        void process(point_symbolizer const&amp; sym,Feature const&amp; feature);
++        void process(line_symbolizer const&amp; sym,Feature const&amp; feature);
++        void process(line_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
++        void process(polygon_symbolizer const&amp; sym,Feature const&amp; feature);
++        void process(polygon_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
++        void process(raster_symbolizer const&amp; sym,Feature const&amp; feature);
++        void process(text_symbolizer const&amp; sym,Feature const&amp; feature);
+     private:
+-	T &amp; pixmap_;
+-	CoordTransform t_;
+-	face_manager&lt;freetype_engine&gt; font_manager_;
+-	label_collision_detector2 detector_;
++        T &amp; pixmap_;
++        CoordTransform t_;
++        face_manager&lt;freetype_engine&gt; font_manager_;
++        label_collision_detector2 detector_;
+     };
+ }
+ 
+
+Modified: trunk/include/feature_style_processor.hpp
+===================================================================
+--- trunk/include/feature_style_processor.hpp	2006-09-11 09:48:27 UTC (rev 296)
++++ trunk/include/feature_style_processor.hpp	2006-09-12 14:29:22 UTC (rev 297)
+@@ -103,7 +103,7 @@
+                     const std::vector&lt;rule_type&gt;&amp; rules=style.get_rules();
+                     std::vector&lt;rule_type&gt;::const_iterator ruleIter=rules.begin();
+ 		    
+-                    query q(bbox,m_.getWidth(),m_.getHeight());
++                    query q(bbox); //BBOX query
+                     while (ruleIter!=rules.end())
+                     {
+                         if (ruleIter-&gt;active(scale))
+
+Modified: trunk/include/query.hpp
+===================================================================
+--- trunk/include/query.hpp	2006-09-11 09:48:27 UTC (rev 296)
++++ trunk/include/query.hpp	2006-09-12 14:29:22 UTC (rev 297)
+@@ -36,96 +36,74 @@
+     class query 
+     {
+     private:
+-	Envelope&lt;double&gt; bbox_;
+-	unsigned width_;
+-	unsigned height_;
+-	filter&lt;Feature&gt;* filter_;
+-	std::set&lt;std::string&gt; names_;
++        Envelope&lt;double&gt; bbox_;
++        filter&lt;Feature&gt;* filter_;
++        std::set&lt;std::string&gt; names_;
+     public:
+-	query(unsigned width,unsigned height) 
+-	    : bbox_(std::numeric_limits&lt;double&gt;::min(),
+-		    std::numeric_limits&lt;double&gt;::min(),
+-		    std::numeric_limits&lt;double&gt;::max(),
+-		    std::numeric_limits&lt;double&gt;::max()),
+-	      width_(width),
+-	      height_(height),
+-	      filter_(new all_filter&lt;Feature&gt;)
+-	{}
++        query() 
++            : bbox_(std::numeric_limits&lt;double&gt;::min(),
++                    std::numeric_limits&lt;double&gt;::min(),
++                    std::numeric_limits&lt;double&gt;::max(),
++                    std::numeric_limits&lt;double&gt;::max()),
++              filter_(new all_filter&lt;Feature&gt;)
++        {}
++        
++        query(const Envelope&lt;double&gt;&amp; bbox)
++            : bbox_(bbox),
++              filter_(new all_filter&lt;Feature&gt;)
++        {}
+ 	
+-	query(const Envelope&lt;double&gt;&amp; bbox,unsigned width,unsigned height)
+-	    : bbox_(bbox),
+-	      width_(width),
+-	      height_(height),
+-	      filter_(new all_filter&lt;Feature&gt;)
+-	{}
++        query(const Envelope&lt;double&gt;&amp; bbox, const filter&lt;Feature&gt;&amp; f)
++            : bbox_(bbox),
++              filter_(f.clone())
++        {}
+ 	
+-	query(const Envelope&lt;double&gt;&amp; bbox,unsigned width,unsigned height,const filter&lt;Feature&gt;&amp; f)
+-	    : bbox_(bbox),
+-	      width_(width),
+-	      height_(height),
+-	      filter_(f.clone())
+-	{}
++        query(const query&amp; other)
++            : bbox_(other.bbox_),
++              filter_(other.filter_-&gt;clone())
++        {}
++        
++        query&amp; operator=(const query&amp; other)
++        {
++            filter&lt;Feature&gt;* tmp=other.filter_-&gt;clone();
++            delete filter_;
++            filter_=tmp;
++            bbox_=other.bbox_;
++            names_=other.names_;
++            return *this;
++        }
+ 	
+-	query(const query&amp; other)
+-	    : bbox_(other.bbox_),
+-	      width_(other.width_),
+-	      height_(other.height_),
+-	      filter_(other.filter_-&gt;clone())
+-	{}
++        const filter&lt;Feature&gt;* get_filter() const
++        {
++            return  filter_;
++        }
+ 	
+-	query&amp; operator=(const query&amp; other)
+-	{
+-	    filter&lt;Feature&gt;* tmp=other.filter_-&gt;clone();
+-	    delete filter_;
+-	    filter_=tmp;
+-	    bbox_=other.bbox_;
+-	    width_=other.width_;
+-	    height_=other.height_;
+-	    names_=other.names_;
+-	    return *this;
+-	}
+-	
+-	const filter&lt;Feature&gt;* get_filter() const
+-	{
+-	    return  filter_;
+-	}
+-	
+-	const Envelope&lt;double&gt;&amp; get_bbox() const
+-	{
+-	    return bbox_;
+-	}
++        const Envelope&lt;double&gt;&amp; get_bbox() const
++        {
++            return bbox_;
++        }
+ 
+-	unsigned get_width() const
+-	{
+-	    return width_;
+-	}
+-
+-	unsigned get_height() const
+-	{
+-	    return height_;
+-	}
+-
+-	void set_filter(const filter&lt;Feature&gt;&amp; f)
+-	{
+-	    filter&lt;Feature&gt;* tmp=f.clone();
+-	    delete filter_;
+-	    filter_=tmp;
+-	}
++        void set_filter(const filter&lt;Feature&gt;&amp; f)
++        {
++            filter&lt;Feature&gt;* tmp=f.clone();
++            delete filter_;
++            filter_=tmp;
++        }
+         
+-	void add_property_name(const std::string&amp; name)
+-	{
+-	    names_.insert(name);
+-	} 
++        void add_property_name(const std::string&amp; name)
++        {
++            names_.insert(name);
++        } 
+ 	
+-	const std::set&lt;std::string&gt;&amp; property_names() const
+-	{
+-	    return names_;
+-	}
++        const std::set&lt;std::string&gt;&amp; property_names() const
++        {
++            return names_;
++        }
+ 	
+-	~query() 
+-	{
+-	    delete filter_;
+-	}
++        ~query() 
++        {
++            delete filter_;
++        }
+     };
+ }
+ 
+
+Modified: trunk/include/raster.hpp
+===================================================================
+--- trunk/include/raster.hpp	2006-09-11 09:48:27 UTC (rev 296)
++++ trunk/include/raster.hpp	2006-09-12 14:29:22 UTC (rev 297)
+@@ -30,12 +30,10 @@
+ {
+     struct raster
+     {
+-        int x_;
+-        int y_;
++        Envelope&lt;double&gt; ext_;
+         ImageData32 data_;
+-	raster(int x,int y,ImageData32&amp; data)
+-	    : x_(x),
+-	      y_(y),
++	raster(Envelope&lt;double&gt; const ext,ImageData32&amp; data)
++	    : ext_(ext),
+ 	      data_(data) {}
+     };
+ }
+
+Modified: trunk/plugins/input/raster/raster_featureset.cpp
+===================================================================
+--- trunk/plugins/input/raster/raster_featureset.cpp	2006-09-11 09:48:27 UTC (rev 296)
++++ trunk/plugins/input/raster/raster_featureset.cpp	2006-09-12 14:29:22 UTC (rev 297)
+@@ -24,14 +24,13 @@
+ #include &quot;image_util.hpp&quot;
+ 
+ template &lt;typename LookupPolicy&gt;
+-raster_featureset&lt;LookupPolicy&gt;::raster_featureset(LookupPolicy const&amp; policy,query const&amp; q)
++raster_featureset&lt;LookupPolicy&gt;::raster_featureset(LookupPolicy const&amp; policy,
++                                                   query const&amp; q)
+     : policy_(policy),
+       id_(1),
+       extent_(q.get_bbox()),
+-      t_(q.get_width(),q.get_height(),extent_),
+       curIter_(policy_.query(extent_)),
+       endIter_(policy_.end()) 
+-
+ {}
+ 
+ template &lt;typename LookupPolicy&gt;
+@@ -42,13 +41,13 @@
+ {
+     if (curIter_!=endIter_)
+     {
+-	feature_ptr feature(new Feature(+id_));
++        feature_ptr feature(new Feature(+id_));
+         try
+         {
+-	    std::clog&lt;&lt;&quot;raster_featureset &quot;&lt;&lt;curIter_-&gt;format()&lt;&lt;&quot; &quot;&lt;&lt;curIter_-&gt;file()&lt;&lt;std::endl;
++            std::clog&lt;&lt;&quot;raster_featureset &quot;&lt;&lt;curIter_-&gt;format()&lt;&lt;&quot; &quot;&lt;&lt;curIter_-&gt;file()&lt;&lt;std::endl;
+             std::auto_ptr&lt;ImageReader&gt; reader(get_image_reader(curIter_-&gt;format(),curIter_-&gt;file()));
+-	    std::clog&lt;&lt;reader.get()&lt;&lt;std::endl;
+-	    if (reader.get())
++            std::clog&lt;&lt;reader.get()&lt;&lt;std::endl;
++            if (reader.get())
+             {
+                 int image_width=reader-&gt;width();
+                 int image_height=reader-&gt;height();
+@@ -58,14 +57,9 @@
+                     Envelope&lt;double&gt; intersect=extent_.intersect(curIter_-&gt;envelope());
+                     Envelope&lt;double&gt; ext=t.forward(intersect);
+                     
+-		    Envelope&lt;double&gt; image_ext=t_.forward(intersect);
+-                    
+-		    ImageData32 image((int)ext.width(),(int)ext.height());
++                    ImageData32 image((int)ext.width(),(int)ext.height());
+                     reader-&gt;read((int)ext.minx(),(int)ext.miny(),image);
+-                    
+-		    ImageData32 target((int)(image_ext.width()+0.5),(int)(image_ext.height()+0.5));
+-                    scale_image&lt;ImageData32&gt;(target,image);
+-		    feature-&gt;set_raster(raster_ptr(new raster(int(image_ext.minx()+0.5),int(image_ext.miny()+0.5),target)));
++                    feature-&gt;set_raster(raster_ptr(new raster(intersect,image)));
+                 }
+             }
+         }
+@@ -73,11 +67,9 @@
+         {
+         }
+         ++curIter_;
+-	return feature;
++        return feature;
+     }
+     return feature_ptr();
+ }
+ 
+-
+ template class raster_featureset&lt;single_file_policy&gt;;
+-//template raster_featureset&lt;os_name_policy&gt;;
+
+Modified: trunk/plugins/input/raster/raster_featureset.hpp
+===================================================================
+--- trunk/plugins/input/raster/raster_featureset.hpp	2006-09-11 09:48:27 UTC (rev 296)
++++ trunk/plugins/input/raster/raster_featureset.hpp	2006-09-12 14:29:22 UTC (rev 297)
+@@ -34,71 +34,66 @@
+ public:
+     class const_iterator
+     {
+-	enum {start,end};
+-	bool status_;
+-	const single_file_policy* p_;
++        enum {start,end};
++        bool status_;
++        const single_file_policy* p_;
+     public:
+-	explicit const_iterator(const single_file_policy* p)
+-	    :status_(start),
+-	     p_(p) {}
++        explicit const_iterator(const single_file_policy* p)
++            :status_(start),
++             p_(p) {}
+ 
+-	const_iterator()
+-	    :status_(end){}
++        const_iterator()
++            :status_(end){}
+ 
+-	const_iterator(const const_iterator&amp; other)
+-	    :status_(other.status_),
+-	     p_(other.p_) {}
++        const_iterator(const const_iterator&amp; other)
++            :status_(other.status_),
++             p_(other.p_) {}
+ 
+-	const_iterator&amp; operator++()
+-	{
+-	    status_=end;
+-	    return *this;
+-	}
++        const_iterator&amp; operator++()
++        {
++            status_=end;
++            return *this;
++        }
+ 
+-	const raster_info&amp; operator*() const
+-	{
+-	    return p_-&gt;info_;
+-	}
++        const raster_info&amp; operator*() const
++        {
++            return p_-&gt;info_;
++        }
+ 
+-	const raster_info* operator-&gt;() const
+-	{
+-	    return &amp;(p_-&gt;info_);
+-	}
++        const raster_info* operator-&gt;() const
++        {
++            return &amp;(p_-&gt;info_);
++        }
+ 
+-	bool operator!=(const const_iterator&amp; itr)
+-	{
+-	    return status_!=itr.status_;
+-	}
++        bool operator!=(const const_iterator&amp; itr)
++        {
++            return status_!=itr.status_;
++        }
+     };
+ 
+     explicit single_file_policy(const raster_info&amp; info)
+-	:info_(info) {}
++        :info_(info) {}
+ 
+     const_iterator begin()
+     {
+-	return const_iterator(this);
++        return const_iterator(this);
+     }
+ 
+     const_iterator query(const Envelope&lt;double&gt;&amp; box)
+     {
+-	if (box.intersects(info_.envelope()))
+-	{
+-	    return begin();
+-	}
+-	return end();
++        if (box.intersects(info_.envelope()))
++        {
++            return begin();
++        }
++        return end();
+     }
+ 
+     const_iterator end()
+     {
+-	return const_iterator();
++        return const_iterator();
+     }
+ };
+ 
+-class os_name_policy
+-{
+-    //TODO
+-};
+-
+ template &lt;typename LookupPolicy&gt;
+ class raster_featureset : public Featureset
+ {
+@@ -106,7 +101,6 @@
+     LookupPolicy policy_;
+     size_t id_;
+     Envelope&lt;double&gt; extent_;
+-    CoordTransform t_;
+     iterator_type curIter_;
+     iterator_type endIter_;
+ public:
+
+Modified: trunk/plugins/input/shape/shape.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape.cpp	2006-09-11 09:48:27 UTC (rev 296)
++++ trunk/plugins/input/shape/shape.cpp	2006-09-12 14:29:22 UTC (rev 297)
+@@ -124,7 +124,6 @@
+     std::clog &lt;&lt; &quot;shape_type=&quot; &lt;&lt; shape_type &lt;&lt; std::endl;
+ }
+ 
+-
+ int shape_datasource::type() const
+ {
+     return type_;
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-09-11 09:48:27 UTC (rev 296)
++++ trunk/src/agg_renderer.cpp	2006-09-12 14:29:22 UTC (rev 297)
+@@ -55,6 +55,7 @@
+ 
+ #include &lt;boost/utility.hpp&gt;
+ #include &lt;iostream&gt;
++#include &quot;image_util.hpp&quot;
+ 
+ namespace mapnik
+ {
+@@ -389,7 +390,10 @@
+         raster_ptr const&amp; raster=feature.get_raster();
+         if (raster)
+         {
+-            pixmap_.set_rectangle(raster-&gt;x_,raster-&gt;y_,raster-&gt;data_);
++            Envelope&lt;double&gt; ext=t_.forward(raster-&gt;ext_);
++            ImageData32 target((int)(ext.width() + 0.5),(int)(ext.height() + 0.5));
++            scale_image&lt;ImageData32&gt;(target,raster-&gt;data_);
++            pixmap_.set_rectangle(int(ext.minx()),int(ext.miny()),target);
+         }
+     }
+     
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000181.html">[Mapnik-svn] r296 - in trunk: bindings/python include
+</A></li>
+	<LI>Next message: <A HREF="000183.html">[Mapnik-svn] r298 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#182">[ date ]</a>
+              <a href="thread.html#182">[ thread ]</a>
+              <a href="subject.html#182">[ subject ]</a>
+              <a href="author.html#182">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

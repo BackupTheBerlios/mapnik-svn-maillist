@@ -1,0 +1,176 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r334 - in trunk/bindings/python: . mapnik	mapnik/ogcserver
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r334%20-%20in%20trunk/bindings/python%3A%20.%20mapnik%0A%09mapnik/ogcserver&In-Reply-To=%3C200610162134.k9GLYCj9011320%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000218.html">
+   <LINK REL="Next"  HREF="000220.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r334 - in trunk/bindings/python: . mapnik	mapnik/ogcserver</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r334%20-%20in%20trunk/bindings/python%3A%20.%20mapnik%0A%09mapnik/ogcserver&In-Reply-To=%3C200610162134.k9GLYCj9011320%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r334 - in trunk/bindings/python: . mapnik	mapnik/ogcserver">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Mon Oct 16 23:34:12 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000218.html">[Mapnik-svn] r333 - in trunk/plugins/input: postgis raster shape
+</A></li>
+        <LI>Next message: <A HREF="000220.html">[Mapnik-svn] r335 - trunk/bindings/python
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#219">[ date ]</a>
+              <a href="thread.html#219">[ thread ]</a>
+              <a href="subject.html#219">[ subject ]</a>
+              <a href="author.html#219">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-16 23:34:09 +0200 (Mon, 16 Oct 2006)
+New Revision: 334
+
+Modified:
+   trunk/bindings/python/mapnik/__init__.py
+   trunk/bindings/python/mapnik/ogcserver/common.py
+   trunk/bindings/python/mapnik_datasource.cpp
+Log:
+1.added Describe() to Datasource, return list of attributes/types.
+2.modified WMS to work with new Projection
+
+
+
+Modified: trunk/bindings/python/mapnik/__init__.py
+===================================================================
+--- trunk/bindings/python/mapnik/__init__.py	2006-10-16 21:30:58 UTC (rev 333)
++++ trunk/bindings/python/mapnik/__init__.py	2006-10-16 21:34:09 UTC (rev 334)
+@@ -64,11 +64,17 @@
+     return forward(pt,self)
+   def inverse(self,pt):
+     return inverse(pt,self)
+-    
++
++class _Datasource(Datasource,_injector):
++  def describe(self):
++    return Describe(self)
++
+ def Datasource (**keywords):
+     return CreateDatasource(keywords)
+ 
+ 
++
++
+ #register datasources
+ from mapnik import DatasourceCache
+ DatasourceCache.instance().register_datasources('%s' % inputpluginspath)
+
+Modified: trunk/bindings/python/mapnik/ogcserver/common.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/common.py	2006-10-16 21:30:58 UTC (rev 333)
++++ trunk/bindings/python/mapnik/ogcserver/common.py	2006-10-16 21:34:09 UTC (rev 334)
+@@ -255,12 +255,12 @@
+ 
+     def Inverse(self, x, y):
+         if not self.proj:
+-            self.proj = Projection(['init=%s' % str(self).lower()])
++            self.proj = Projection('init=%s' % str(self).lower())
+         return self.proj.Inverse(x, y)
+ 
+     def Forward(self, x, y):
+         if not self.proj:
+-            self.proj = Projection(['init=%s' % str(self).lower()])
++            self.proj = Projection('init=%s' % str(self).lower())
+         return self.proj.Forward(x, y)
+ 
+ class CRSFactory:
+@@ -379,4 +379,4 @@
+         fh = StringIO()
+         im.save(fh, PIL_TYPE_MAPPING[params['format']])
+         fh.seek(0)
+-        return Response(params['format'], fh.read())
+\ No newline at end of file
++        return Response(params['format'], fh.read())
+
+Modified: trunk/bindings/python/mapnik_datasource.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_datasource.cpp	2006-10-16 21:30:58 UTC (rev 333)
++++ trunk/bindings/python/mapnik_datasource.cpp	2006-10-16 21:34:09 UTC (rev 334)
+@@ -20,11 +20,15 @@
+  *
+  *****************************************************************************/
+ //$Id$
+-
++// stl
++#include &lt;sstream&gt;
++// boost
+ #include &lt;boost/python.hpp&gt;
++// mapnik
+ #include &lt;mapnik/envelope.hpp&gt;
+ #include &lt;mapnik/datasource.hpp&gt;
+ #include &lt;mapnik/datasource_cache.hpp&gt;
++#include &lt;mapnik/feature_layer_desc.hpp&gt;
+ 
+ namespace  
+ {
+@@ -47,6 +51,20 @@
+         
+         return mapnik::datasource_cache::create(params);
+     }
++    
++    std::string describe(boost::shared_ptr&lt;mapnik::datasource&gt; const&amp; ds)
++    {
++        std::stringstream ss;
++        if (ds)
++        {
++            ss &lt;&lt; ds-&gt;get_descriptor() &lt;&lt; &quot;\n&quot;;
++        }
++        else
++        {
++            ss &lt;&lt; &quot;Null\n&quot;;
++        }
++        return ss.str();
++    }
+ }
+ 
+ void export_datasource()
+@@ -64,5 +82,6 @@
+              &quot;These vary depending on the type of data source.&quot;)
+         ;
+     
++    def(&quot;Describe&quot;,&amp;describe);
+     def(&quot;CreateDatasource&quot;,&amp;create_datasource);
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000218.html">[Mapnik-svn] r333 - in trunk/plugins/input: postgis raster shape
+</A></li>
+	<LI>Next message: <A HREF="000220.html">[Mapnik-svn] r335 - trunk/bindings/python
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#219">[ date ]</a>
+              <a href="thread.html#219">[ thread ]</a>
+              <a href="subject.html#219">[ subject ]</a>
+              <a href="author.html#219">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

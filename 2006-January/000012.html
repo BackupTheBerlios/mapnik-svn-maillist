@@ -1,0 +1,212 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r125 - in trunk: include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-January/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r125%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200601261643.k0QGhBp3031067%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000011.html">
+   <LINK REL="Next"  HREF="000013.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r125 - in trunk: include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r125%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200601261643.k0QGhBp3031067%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r125 - in trunk: include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Thu Jan 26 17:43:11 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000011.html">[Mapnik-svn] r124 - trunk/include
+</A></li>
+        <LI>Next message: <A HREF="000013.html">[Mapnik-svn] r126 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#12">[ date ]</a>
+              <a href="thread.html#12">[ thread ]</a>
+              <a href="subject.html#12">[ subject ]</a>
+              <a href="author.html#12">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-01-26 17:43:10 +0100 (Thu, 26 Jan 2006)
+New Revision: 125
+
+Modified:
+   trunk/include/geometry.hpp
+   trunk/src/image_symbolizer.cpp
+Log:
+added label_position method for geometry objects (todo line_string)
+
+
+
+Modified: trunk/include/geometry.hpp
+===================================================================
+--- trunk/include/geometry.hpp	2006-01-26 16:41:15 UTC (rev 124)
++++ trunk/include/geometry.hpp	2006-01-26 16:43:10 UTC (rev 125)
+@@ -56,6 +56,7 @@
+ 	
+ 	virtual int type() const=0;
+ 	virtual bool hit_test(value_type x,value_type y) const=0;
++	virtual void label_position(double *x, double *y) const=0;
+ 	virtual void move_to(value_type x,value_type y)=0;
+ 	virtual void line_to(value_type x,value_type y)=0;
+ 	virtual void transform(const mapnik::CoordTransform&amp; t)=0;
+@@ -82,6 +83,11 @@
+ 	{
+ 	    return Point;
+ 	}
++	void label_position(double *x, double *y) const
++	{
++	    *x = pt_.x;
++	    *y = pt_.y;
++	}
+ 	
+ 	void move_to(value_type x,value_type y)
+ 	{
+@@ -139,6 +145,40 @@
+ 	    return Polygon;
+ 	}
+ 	
++	void label_position(double *x, double *y) const
++	{
++	    unsigned size = cont_.size();
++	    if (size &lt; 3) 
++	    {
++		cont_.get_vertex(0,x,y);
++		return;
++	    }
++	    
++	    value_type x0,y0,x1,y1;
++	    double ai;
++	    double atmp = 0;
++	    double xtmp = 0;
++	    double ytmp = 0;
++	    unsigned i,j;
++	    for (i = size-1,j = 0; j &lt; size; i = j, ++j)
++	    {
++		cont_.get_vertex(i,&amp;x0,&amp;y0);
++		cont_.get_vertex(j,&amp;x1,&amp;y1);
++		ai = x0 * y1 - x1 * y0;
++		atmp += ai;
++		xtmp += (x1 + x0) * ai;
++		ytmp += (y1 + y0) * ai;
++	    }	  
++	    if (atmp != 0)
++	    {
++		*x = xtmp/(3*atmp);
++		*y = ytmp /(3*atmp);
++		return;
++	    }
++	    *x=x0;
++	    *y=y0;	    	    
++	}
++
+ 	void line_to(value_type x,value_type y)
+ 	{
+ 	    cont_.push_back(x,y,SEG_LINETO);
+@@ -200,7 +240,10 @@
+ 	{
+ 	    return LineString;
+ 	}
+-	
++        void label_position(double *x, double *y) const
++	{
++	    cont_.get_vertex(0,x,y);
++	}
+ 	void line_to(value_type x,value_type y)
+ 	{
+ 	    cont_.push_back(x,y,SEG_LINETO);
+
+Modified: trunk/src/image_symbolizer.cpp
+===================================================================
+--- trunk/src/image_symbolizer.cpp	2006-01-26 16:41:15 UTC (rev 124)
++++ trunk/src/image_symbolizer.cpp	2006-01-26 16:43:10 UTC (rev 125)
+@@ -29,36 +29,33 @@
+ 			 unsigned width,unsigned height) 
+ 	    : symbolizer(),
+ 	      symbol_(width,height)
++    {
++	try 
+ 	{
+-	    try 
+-	    {
+-		std::auto_ptr&lt;ImageReader&gt; reader(get_image_reader(type,file));
+-		reader-&gt;read(0,0,symbol_);		
+-	    } 
+-	    catch (...) 
+-	    {
+-		std::cerr&lt;&lt;&quot;exception caught...&quot; &lt;&lt; std::endl;
+-	    }
++	    std::auto_ptr&lt;ImageReader&gt; reader(get_image_reader(type,file));
++	    reader-&gt;read(0,0,symbol_);		
++	} 
++	catch (...) 
++	{
++	    std::cerr&lt;&lt;&quot;exception caught...&quot; &lt;&lt; std::endl;
+ 	}
+-  
++    }
++    
+     void image_symbolizer::render(Feature const&amp; feat,CoordTransform const&amp; t,Image32&amp; image) const	
+     {
+-	typedef coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
+ 	geometry_ptr const&amp; geom=feat.get_geometry();
+ 	if (geom)
+ 	{
+-	    path_type path(t,*geom);
+-	    unsigned num_points=geom-&gt;num_points();
++	    double x;
++	    double y;
++	    geom-&gt;label_position(&amp;x,&amp;y);
++	    t.forward_x(&amp;x);
++	    t.forward_y(&amp;y);
+ 	    int w=symbol_.width();
+-	    int h=symbol_.height();
+-	    double x,y;
+-	    for(unsigned i=0;i&lt;num_points;++i)
+-	    {
+-		path.vertex(&amp;x,&amp;y);
+-		int px=int(x - 0.5 * w);
+-		int py=int(y - 0.5 * h);
+-		image.set_rectangle_alpha(px,py,symbol_);
+-	    }
++	    int h=symbol_.height();    
++	    int px=int(x - 0.5 * w);
++	    int py=int(y - 0.5 * h);
++	    image.set_rectangle_alpha(px,py,symbol_);
+ 	}
+     }
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000011.html">[Mapnik-svn] r124 - trunk/include
+</A></li>
+	<LI>Next message: <A HREF="000013.html">[Mapnik-svn] r126 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#12">[ date ]</a>
+              <a href="thread.html#12">[ thread ]</a>
+              <a href="subject.html#12">[ subject ]</a>
+              <a href="author.html#12">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

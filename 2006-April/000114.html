@@ -1,0 +1,163 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r229 - trunk/utils/ogcserver
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-April/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r229%20-%20trunk/utils/ogcserver&In-Reply-To=%3C200604110033.k3B0XZZA029388%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000113.html">
+   <LINK REL="Next"  HREF="000115.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r229 - trunk/utils/ogcserver</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r229%20-%20trunk/utils/ogcserver&In-Reply-To=%3C200604110033.k3B0XZZA029388%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r229 - trunk/utils/ogcserver">jdoyon at berlios.de
+       </A><BR>
+    <I>Tue Apr 11 02:33:35 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000113.html">[Mapnik-svn] r228 - in trunk: bindings/python/mapnik/ogcserver utils utils/ogcserver
+</A></li>
+        <LI>Next message: <A HREF="000115.html">[Mapnik-svn] r230 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#114">[ date ]</a>
+              <a href="thread.html#114">[ thread ]</a>
+              <a href="subject.html#114">[ subject ]</a>
+              <a href="author.html#114">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-04-11 02:33:24 +0200 (Tue, 11 Apr 2006)
+New Revision: 229
+
+Added:
+   trunk/utils/ogcserver/ogcserver
+Removed:
+   trunk/utils/ogcserver/ogcserver.cgi
+Modified:
+   trunk/utils/ogcserver/ogcserver.conf
+Log:
+A CGI/FastCGI compatible ogcserver executable written in python,
+as well as a sample config file.
+
+Copied: trunk/utils/ogcserver/ogcserver (from rev 228, trunk/utils/ogcserver/ogcserver.cgi)
+===================================================================
+--- trunk/utils/ogcserver/ogcserver.cgi	2006-04-10 06:19:27 UTC (rev 228)
++++ trunk/utils/ogcserver/ogcserver	2006-04-11 00:33:24 UTC (rev 229)
+@@ -0,0 +1,29 @@
++#!/usr/bin/python2.3
++#
++# This file is part of Mapnik (c++ mapping toolkit)
++#
++# Copyright (C) 2006 Jean-Francois Doyon
++#
++# Mapnik is free software; you can redistribute it and/or
++# modify it under the terms of the GNU Lesser General Public
++# License as published by the Free Software Foundation; either
++# version 2.1 of the License, or (at your option) any later version.
++#
++# This library is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++# Lesser General Public License for more details.
++#
++# You should have received a copy of the GNU Lesser General Public
++# License along with this library; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++#
++# $Id$
++
++from mapnik.ogcserver.cgiserver import Handler
++from jon import fcgi
++
++class OGCServerHandler(Handler):
++    configpath = '/etc/ogcserver.conf'
++
++fcgi.Server({fcgi.FCGI_RESPONDER: OGCServerHandler}).run()
+
+Deleted: trunk/utils/ogcserver/ogcserver.cgi
+===================================================================
+--- trunk/utils/ogcserver/ogcserver.cgi	2006-04-10 06:19:27 UTC (rev 228)
++++ trunk/utils/ogcserver/ogcserver.cgi	2006-04-11 00:33:24 UTC (rev 229)
+@@ -1,29 +0,0 @@
+-#!/usr/bin/python2.3
+-#
+-# This file is part of Mapnik (c++ mapping toolkit)
+-#
+-# Copyright (C) 2006 Jean-Francois Doyon
+-#
+-# Mapnik is free software; you can redistribute it and/or
+-# modify it under the terms of the GNU Lesser General Public
+-# License as published by the Free Software Foundation; either
+-# version 2.1 of the License, or (at your option) any later version.
+-#
+-# This library is distributed in the hope that it will be useful,
+-# but WITHOUT ANY WARRANTY; without even the implied warranty of
+-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-# Lesser General Public License for more details.
+-#
+-# You should have received a copy of the GNU Lesser General Public
+-# License along with this library; if not, write to the Free Software
+-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
+-# $Id$
+-
+-from mapnik.ogcserver.cgiserver import Handler
+-from jon import cgi
+-
+-class OGCServerHandler(Handler):
+-    configpath = '/etc/ogcserver.conf'
+-
+-cgi.CGIRequest(OGCServerHandler).process()
+
+Modified: trunk/utils/ogcserver/ogcserver.conf
+===================================================================
+--- trunk/utils/ogcserver/ogcserver.conf	2006-04-10 06:19:27 UTC (rev 228)
++++ trunk/utils/ogcserver/ogcserver.conf	2006-04-11 00:33:24 UTC (rev 229)
+@@ -1,11 +1,9 @@
+ # $Id$
+ 
+ [server]
+-mapfactorymodule=rundemo
+-mapfactoryclass=MapFactory
++module=rundemo
+ 
+ [service]
+-name=WMS
+ title=Test OGC Server
+ abstract=Blah Blah Blah
+ maxheight=1024
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000113.html">[Mapnik-svn] r228 - in trunk: bindings/python/mapnik/ogcserver utils utils/ogcserver
+</A></li>
+	<LI>Next message: <A HREF="000115.html">[Mapnik-svn] r230 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#114">[ date ]</a>
+              <a href="thread.html#114">[ thread ]</a>
+              <a href="subject.html#114">[ subject ]</a>
+              <a href="author.html#114">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

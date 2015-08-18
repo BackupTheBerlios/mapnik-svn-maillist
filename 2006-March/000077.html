@@ -1,0 +1,83 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r191 - trunk/plugins/input/shape
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r191%20-%20trunk/plugins/input/shape&In-Reply-To=%3C200603221457.k2MEvr8G027062%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000076.html">
+   <LINK REL="Next"  HREF="000078.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r191 - trunk/plugins/input/shape</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r191%20-%20trunk/plugins/input/shape&In-Reply-To=%3C200603221457.k2MEvr8G027062%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r191 - trunk/plugins/input/shape">pavlenko at berlios.de
+       </A><BR>
+    <I>Wed Mar 22 15:57:53 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000076.html">[Mapnik-svn] r190 - trunk/plugins/input/shape
+</A></li>
+        <LI>Next message: <A HREF="000078.html">[Mapnik-svn] r192 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#77">[ date ]</a>
+              <a href="thread.html#77">[ thread ]</a>
+              <a href="subject.html#77">[ subject ]</a>
+              <a href="author.html#77">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-22 15:57:50 +0100 (Wed, 22 Mar 2006)
+New Revision: 191
+
+Modified:
+   trunk/plugins/input/shape/dbffile.cpp
+Log:
+removed verbose output
+
+Modified: trunk/plugins/input/shape/dbffile.cpp
+===================================================================
+--- trunk/plugins/input/shape/dbffile.cpp	2006-03-22 14:52:32 UTC (rev 190)
++++ trunk/plugins/input/shape/dbffile.cpp	2006-03-22 14:57:50 UTC (rev 191)
+@@ -173,7 +173,6 @@
+             desc.index_=i;
+             file_.read(name,10);
+             desc.name_=boost::trim_left_copy(std::string(name));
+-            std::clog &lt;&lt; &quot;name=&quot; &lt;&lt; name &lt;&lt; std::endl;
+             skip(1);
+             desc.type_=file_.get();
+             skip(4);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000076.html">[Mapnik-svn] r190 - trunk/plugins/input/shape
+</A></li>
+	<LI>Next message: <A HREF="000078.html">[Mapnik-svn] r192 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#77">[ date ]</a>
+              <a href="thread.html#77">[ thread ]</a>
+              <a href="subject.html#77">[ subject ]</a>
+              <a href="author.html#77">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,164 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r271 - trunk/src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-May/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r271%20-%20trunk/src&In-Reply-To=%3C200605242215.k4OMF5Wj017328%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000155.html">
+   <LINK REL="Next"  HREF="000157.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r271 - trunk/src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r271%20-%20trunk/src&In-Reply-To=%3C200605242215.k4OMF5Wj017328%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r271 - trunk/src">pavlenko at berlios.de
+       </A><BR>
+    <I>Thu May 25 00:15:05 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000155.html">[Mapnik-svn] r270 - trunk/include
+</A></li>
+        <LI>Next message: <A HREF="000157.html">[Mapnik-svn] r272 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#156">[ date ]</a>
+              <a href="thread.html#156">[ thread ]</a>
+              <a href="subject.html#156">[ subject ]</a>
+              <a href="author.html#156">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-05-25 00:15:04 +0200 (Thu, 25 May 2006)
+New Revision: 271
+
+Modified:
+   trunk/src/layer.cpp
+Log:
+oops..layer.cpp got broken by mistake, reverting back.
+
+
+
+Modified: trunk/src/layer.cpp
+===================================================================
+--- trunk/src/layer.cpp	2006-05-24 15:17:16 UTC (rev 270)
++++ trunk/src/layer.cpp	2006-05-24 22:15:04 UTC (rev 271)
+@@ -37,6 +37,8 @@
+     Layer::Layer()
+         : params_(),
+           name_(&quot;unknown&quot;),
++          title_(&quot;&quot;),
++          abstract_(&quot;&quot;),
+           minZoom_(0),
+           maxZoom_(std::numeric_limits&lt;double&gt;::max()),
+           active_(true),
+@@ -47,6 +49,8 @@
+     Layer::Layer(const parameters&amp; params)
+         :params_(params),
+          name_(params_[&quot;name&quot;]),
++         title_(params_[&quot;title&quot;]),
++         abstract_(params_[&quot;abstract&quot;]),
+          minZoom_(0),
+          maxZoom_(std::numeric_limits&lt;double&gt;::max()),
+          active_(true),
+@@ -55,15 +59,17 @@
+     {}
+     
+     Layer::Layer(const Layer&amp; rhs)
+-        : params_(rhs.params_),
+-          name_(rhs.name_),
+-          minZoom_(rhs.minZoom_),
+-          maxZoom_(rhs.maxZoom_),
+-          active_(rhs.active_),
+-          selectable_(rhs.selectable_),
+-          styles_(rhs.styles_),
+-          selection_style_(rhs.selection_style_), 
+-          ds_(rhs.ds_)  {}
++        :params_(rhs.params_),
++         name_(rhs.name_),
++         title_(rhs.title_),
++         abstract_(rhs.abstract_),
++         minZoom_(rhs.minZoom_),
++         maxZoom_(rhs.maxZoom_),
++         active_(rhs.active_),
++         selectable_(rhs.selectable_),
++         ds_(rhs.ds_),
++         styles_(rhs.styles_),
++         selection_style_(rhs.selection_style_) {}
+     
+     Layer&amp; Layer::operator=(const Layer&amp; rhs)
+     {
+@@ -81,11 +87,13 @@
+     {
+         params_=rhs.params_;
+         name_=rhs.name_;
++        title_=rhs.title_;
++        abstract_=rhs.abstract_;
+         minZoom_=rhs.minZoom_;
+         maxZoom_=rhs.maxZoom_;
+         active_=rhs.active_;
+         selectable_=rhs.selectable_;
+-        ds_=rhs.ds_;
++        //ds_=rhs.ds_;
+         styles_=rhs.styles_;
+         selection_style_=rhs.selection_style_;
+     }
+@@ -107,6 +115,26 @@
+         return name_;
+     }
+ 
++    void Layer::set_title( std::string const&amp; title)
++    {
++        title_ = title;
++    }
++ 
++    string const&amp; Layer::title() const
++    {
++        return title_;
++    }
++
++    void Layer::set_abstract( std::string const&amp; abstract)
++    {
++        abstract_ = abstract;
++    }
++ 
++    string const&amp; Layer::abstract() const
++    {
++        return abstract_;
++    }
++
+     void Layer::add_style(std::string const&amp; stylename)
+     {
+         styles_.push_back(stylename);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000155.html">[Mapnik-svn] r270 - trunk/include
+</A></li>
+	<LI>Next message: <A HREF="000157.html">[Mapnik-svn] r272 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#156">[ date ]</a>
+              <a href="thread.html#156">[ thread ]</a>
+              <a href="subject.html#156">[ subject ]</a>
+              <a href="author.html#156">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

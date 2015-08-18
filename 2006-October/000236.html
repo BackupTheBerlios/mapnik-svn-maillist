@@ -1,0 +1,145 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r351 - trunk/include/mapnik
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r351%20-%20trunk/include/mapnik&In-Reply-To=%3C200610190846.k9J8kJ56001500%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000235.html">
+   <LINK REL="Next"  HREF="000237.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r351 - trunk/include/mapnik</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r351%20-%20trunk/include/mapnik&In-Reply-To=%3C200610190846.k9J8kJ56001500%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r351 - trunk/include/mapnik">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Thu Oct 19 10:46:19 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000235.html">[Mapnik-svn] r350 - in trunk: bindings/python/mapnik/ogcserver	docs/ogcserver
+</A></li>
+        <LI>Next message: <A HREF="000237.html">[Mapnik-svn] r352 - in trunk: plugins/input/postgis src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#236">[ date ]</a>
+              <a href="thread.html#236">[ thread ]</a>
+              <a href="subject.html#236">[ subject ]</a>
+              <a href="author.html#236">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-19 10:46:17 +0200 (Thu, 19 Oct 2006)
+New Revision: 351
+
+Modified:
+   trunk/include/mapnik/font_engine_freetype.hpp
+Log:
+call FT_Done_Glyph(image) in character_dimensions 
+
+
+
+Modified: trunk/include/mapnik/font_engine_freetype.hpp
+===================================================================
+--- trunk/include/mapnik/font_engine_freetype.hpp	2006-10-19 01:25:24 UTC (rev 350)
++++ trunk/include/mapnik/font_engine_freetype.hpp	2006-10-19 08:46:17 UTC (rev 351)
+@@ -28,9 +28,9 @@
+ // freetype2
+ extern &quot;C&quot;
+ {
+-  #include &lt;ft2build.h&gt;
+-  #include FT_FREETYPE_H
+-  #include FT_GLYPH_H
++#include &lt;ft2build.h&gt;
++#include FT_FREETYPE_H
++#include FT_GLYPH_H
+ }
+ 
+ // stl
+@@ -252,7 +252,7 @@
+             FT_Error  error;
+ 	    
+             FT_Face face = face_-&gt;get_face();
+-//            FT_GlyphSlot slot = face-&gt;glyph;
++            //            FT_GlyphSlot slot = face-&gt;glyph;
+ 	    
+             FT_BBox bbox;   
+             bbox.xMin = bbox.yMin = 32000; 
+@@ -310,7 +310,7 @@
+                 glyphs_.push_back(new glyph_t(image));
+             }
+ 	    
+-          return Envelope&lt;double&gt;(bbox.xMin, bbox.yMin, bbox.xMax, bbox.yMax);
++            return Envelope&lt;double&gt;(bbox.xMin, bbox.yMin, bbox.xMax, bbox.yMax);
+         }
+       
+         dimension_t character_dimensions(const unsigned c)
+@@ -346,7 +346,7 @@
+                 return dimension_t(0, 0);
+             
+             FT_Glyph_Get_CBox(image,ft_glyph_bbox_pixels, &amp;glyph_bbox); 
+-          
++            FT_Done_Glyph(image); 
+             return dimension_t(slot-&gt;advance.x &gt;&gt; 6, glyph_bbox.yMax - glyph_bbox.yMin);
+         }
+         
+@@ -357,12 +357,12 @@
+           
+             for (std::string::const_iterator i=text.begin();i!=text.end();++i)
+             {
+-              dimension_t char_dim = character_dimensions(*i);
++                dimension_t char_dim = character_dimensions(*i);
+               
+-              info-&gt;add_info(*i, char_dim.first, char_dim.second);
++                info-&gt;add_info(*i, char_dim.first, char_dim.second);
+               
+-              width += char_dim.first;
+-              height = char_dim.second &gt; height ? char_dim.second : height;
++                width += char_dim.first;
++                height = char_dim.second &gt; height ? char_dim.second : height;
+             }
+             
+             info-&gt;set_dimensions(width, height);
+@@ -460,8 +460,8 @@
+     
+         pixmap_type &amp; pixmap_;
+         face_ptr face_;
+-      mapnik::Color fill_;
+-      mapnik::Color halo_fill_;
++        mapnik::Color fill_;
++        mapnik::Color halo_fill_;
+         int halo_radius_;
+         glyphs_t glyphs_;
+     }; 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000235.html">[Mapnik-svn] r350 - in trunk: bindings/python/mapnik/ogcserver	docs/ogcserver
+</A></li>
+	<LI>Next message: <A HREF="000237.html">[Mapnik-svn] r352 - in trunk: plugins/input/postgis src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#236">[ date ]</a>
+              <a href="thread.html#236">[ thread ]</a>
+              <a href="subject.html#236">[ subject ]</a>
+              <a href="author.html#236">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

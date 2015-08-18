@@ -1,0 +1,273 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r198 - trunk/src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r198%20-%20trunk/src&In-Reply-To=%3C200603221553.k2MFrhfU026099%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000083.html">
+   <LINK REL="Next"  HREF="000085.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r198 - trunk/src</H1>
+    <B>pavlenko at berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r198%20-%20trunk/src&In-Reply-To=%3C200603221553.k2MFrhfU026099%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r198 - trunk/src">pavlenko at berlios.de
+       </A><BR>
+    <I>Wed Mar 22 16:53:43 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000083.html">[Mapnik-svn] r197 - trunk/include
+</A></li>
+        <LI>Next message: <A HREF="000085.html">[Mapnik-svn] r199 - trunk/plugins/input/shape
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#84">[ date ]</a>
+              <a href="thread.html#84">[ thread ]</a>
+              <a href="subject.html#84">[ subject ]</a>
+              <a href="author.html#84">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-22 16:53:38 +0100 (Wed, 22 Mar 2006)
+New Revision: 198
+
+Removed:
+   trunk/src/render.cpp
+Log:
+removed unused files
+
+Deleted: trunk/src/render.cpp
+===================================================================
+--- trunk/src/render.cpp	2006-03-22 15:52:29 UTC (rev 197)
++++ trunk/src/render.cpp	2006-03-22 15:53:38 UTC (rev 198)
+@@ -1,197 +0,0 @@
+-/* This file is part of Mapnik (c++ mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
+- *
+- * Mapnik is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version 2
+- * of the License, or any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+- */
+-
+-//$Id: render.cpp 44 2005-04-22 18:53:54Z pavlenko $
+-
+-#include &quot;render.hpp&quot;
+-#include &quot;image_util.hpp&quot;
+-#include &quot;utils.hpp&quot;
+-#include &quot;symbolizer.hpp&quot;
+-#include &quot;query.hpp&quot;
+-#include &quot;feature_layer_desc.hpp&quot;
+-#include &quot;attribute_collector.hpp&quot;
+-#include &quot;property_index.hpp&quot;
+-
+-#include &lt;algorithm&gt;
+-#include &lt;cmath&gt;
+-#include &lt;set&gt;
+-
+-namespace mapnik
+-{  
+-    
+-    template &lt;typename Image&gt;
+-    void Renderer&lt;Image&gt;::render_vector_layer(datasource_p const&amp; ds,Map const&amp; map,
+-					      std::vector&lt;std::string&gt; const&amp; namedStyles,
+-					      unsigned width,unsigned height,
+-					      const Envelope&lt;double&gt;&amp; bbox,Image&amp; image)
+-    {
+-	CoordTransform t(width,height,bbox);
+-	std::vector&lt;std::string&gt;::const_iterator stylesIter=namedStyles.begin();
+-	while (stylesIter!=namedStyles.end())
+-	{
+-	    std::set&lt;std::string&gt; names;
+-	    attribute_collector&lt;Feature&gt; collector(names);
+-	    property_index&lt;Feature&gt; indexer(names);
+-	    query q(bbox,width,height);
+-	    double scale = 1.0/t.scale();
+-	    std::vector&lt;rule_type*&gt; if_rules;
+-	    std::vector&lt;rule_type*&gt; else_rules;
+-	    
+-	    bool active_rules=false;
+-
+-	    feature_type_style const&amp; style=map.find_style(*stylesIter++);
+-	    
+-	    const std::vector&lt;rule_type&gt;&amp; rules=style.get_rules();
+-	    std::vector&lt;rule_type&gt;::const_iterator ruleIter=rules.begin();
+-	    
+-	    while (ruleIter!=rules.end())
+-	    {
+-		if (ruleIter-&gt;active(scale))
+-		{
+-		    active_rules=true;
+-		    filter_ptr&amp; filter=const_cast&lt;filter_ptr&amp;&gt;(ruleIter-&gt;get_filter());
+-		    filter-&gt;accept(collector);
+-		    filter-&gt;accept(indexer);
+-		    if (ruleIter-&gt;has_else_filter())
+-		    {
+-			else_rules.push_back(const_cast&lt;rule_type*&gt;(&amp;(*ruleIter)));
+-		    }
+-		    else
+-		    {
+-			if_rules.push_back(const_cast&lt;rule_type*&gt;(&amp;(*ruleIter))); 		    
+-		    }
+-		}
+-		++ruleIter;
+-	    }
+-	    
+-	    std::set&lt;std::string&gt;::const_iterator namesIter=names.begin();
+-	    // push all property names
+-	    while (namesIter!=names.end())
+-	    {
+-		q.add_property_name(*namesIter);
+-		++namesIter;
+-	    }
+-	    //only query datasource if there are active rules
+-	    if (active_rules)
+-	    {
+-		featureset_ptr fs=ds-&gt;features(q);
+-		if (fs)
+-		{   	    
+-		    feature_ptr feature;
+-		    while ((feature = fs-&gt;next()))
+-		    {		   
+-			bool do_else=true;		    
+-			std::vector&lt;rule_type*&gt;::const_iterator itr=if_rules.begin();
+-			while (itr!=if_rules.end())
+-			{
+-			    const filter_ptr&amp; filter=(*itr)-&gt;get_filter();    
+-			    if (filter-&gt;pass(*feature))
+-			    {   
+-				do_else=false;
+-				const symbolizers&amp; symbols = (*itr)-&gt;get_symbolizers();
+-				symbolizers::const_iterator symIter=symbols.begin();
+-				while (symIter!=symbols.end())
+-				{
+-				    (*symIter)-&gt;render(*feature,t,image);
+-				    ++symIter;
+-				}
+-			    }			    
+-			    ++itr;
+-			}
+-			if (do_else)
+-			{
+-			    //else filter
+-			    std::vector&lt;rule_type*&gt;::const_iterator itr=else_rules.begin();
+-			    while (itr != else_rules.end())
+-			    {
+-				const symbolizers&amp; symbols = (*itr)-&gt;get_symbolizers();
+-				symbolizers::const_iterator symIter=symbols.begin();
+-				while (symIter!=symbols.end())
+-				{
+-				    (*symIter)-&gt;render(*feature,t,image);
+-				    ++symIter;
+-				}
+-				++itr;
+-			    }
+-			}	  
+-		    }
+-		}
+-	    }
+-	}
+-    }
+-    
+-    template &lt;typename Image&gt;
+-    void Renderer&lt;Image&gt;::render_raster_layer(datasource_p const&amp; ds,
+-					      std::vector&lt;std::string&gt; const&amp; ,
+-					      unsigned width,unsigned height,
+-					      const Envelope&lt;double&gt;&amp; bbox,Image&amp; image)
+-    {	
+-	query q(bbox,width,height);
+-	featureset_ptr fs=ds-&gt;features(q);
+-	if (fs)
+-	{   	    
+-	    feature_ptr feature;
+-	    while ((feature = fs-&gt;next()))
+-	    {
+-		raster_ptr const&amp; raster=feature-&gt;get_raster();
+-		if (raster)
+-		{
+-		    image.set_rectangle(raster-&gt;x_,raster-&gt;y_,raster-&gt;data_);
+-		}
+-	    }
+-	}		   	
+-    }
+-
+-    template &lt;typename Image&gt;
+-    void Renderer&lt;Image&gt;::render(Map const&amp; map,Image&amp; image)
+-    {
+-        timer clock;
+-        //////////////////////////////////////////////////////
+-	Envelope&lt;double&gt; const&amp; extent=map.getCurrentExtent();
+-	std::clog&lt;&lt;&quot;BBOX:&quot;&lt;&lt;extent&lt;&lt;std::endl;
+-        double scale=map.scale();
+-        std::clog&lt;&lt;&quot; scale=&quot;&lt;&lt;scale&lt;&lt;std::endl;
+-        
+-	unsigned width=map.getWidth();
+-        unsigned height=map.getHeight();
+-        
+-        Color const&amp; background=map.getBackground();
+-        image.setBackground(background);
+-	
+-        for (size_t n=0;n&lt;map.layerCount();++n)
+-        {
+-            Layer const&amp; l=map.getLayer(n);
+-            if (l.isVisible(scale) &amp;&amp; l.envelope().intersects(extent))
+-	    {
+-		datasource_p const&amp; ds=l.datasource();
+-		if (!ds) continue;
+-                if (ds-&gt;type() == datasource::Vector)
+-		{
+-		    render_vector_layer(ds,map,l.styles(),width,height,extent,image);
+-		}
+-		else if (ds-&gt;type() == datasource::Raster)
+-		{
+-		    render_raster_layer(ds,l.styles(),width,height,extent,image);
+-		}
+-            }
+-        }        
+-        clock.stop();
+-    }
+-
+-    template class Renderer&lt;Image32&gt;;
+-}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000083.html">[Mapnik-svn] r197 - trunk/include
+</A></li>
+	<LI>Next message: <A HREF="000085.html">[Mapnik-svn] r199 - trunk/plugins/input/shape
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#84">[ date ]</a>
+              <a href="thread.html#84">[ thread ]</a>
+              <a href="subject.html#84">[ subject ]</a>
+              <a href="author.html#84">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

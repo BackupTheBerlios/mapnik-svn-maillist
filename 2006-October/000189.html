@@ -1,0 +1,1230 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r304 - in trunk: bindings/python demo/c++ demo/python	include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r304%20-%20in%20trunk%3A%20bindings/python%20demo/c%2B%2B%20demo/python%0A%09include%20src&In-Reply-To=%3C200610030844.k938iB3X019824%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000188.html">
+   <LINK REL="Next"  HREF="000190.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r304 - in trunk: bindings/python demo/c++ demo/python	include src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r304%20-%20in%20trunk%3A%20bindings/python%20demo/c%2B%2B%20demo/python%0A%09include%20src&In-Reply-To=%3C200610030844.k938iB3X019824%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r304 - in trunk: bindings/python demo/c++ demo/python	include src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Tue Oct  3 10:44:11 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000188.html">[Mapnik-svn] r303 - in trunk: include src
+</A></li>
+        <LI>Next message: <A HREF="000190.html">[Mapnik-svn] r305 - in trunk: . boost boost/property_tree	boost/property_tree/detail
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#189">[ date ]</a>
+              <a href="thread.html#189">[ thread ]</a>
+              <a href="subject.html#189">[ subject ]</a>
+              <a href="author.html#189">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-03 10:44:04 +0200 (Tue, 03 Oct 2006)
+New Revision: 304
+
+Added:
+   trunk/src/filter_factory.cpp
+Removed:
+   trunk/include/mapnik.hpp
+   trunk/src/mapnik.cpp
+Modified:
+   trunk/bindings/python/mapnik_datasource_cache.cpp
+   trunk/bindings/python/mapnik_envelope.cpp
+   trunk/bindings/python/mapnik_filter.cpp
+   trunk/bindings/python/mapnik_layer.cpp
+   trunk/bindings/python/mapnik_python.cpp
+   trunk/bindings/python/mapnik_style.cpp
+   trunk/demo/c++/rundemo.cpp
+   trunk/demo/python/rundemo.py
+   trunk/include/color_factory.hpp
+   trunk/include/filter_factory.hpp
+   trunk/include/filter_parser.hpp
+   trunk/include/layer.hpp
+   trunk/include/map.hpp
+   trunk/src/SConscript
+   trunk/src/datasource_cache.cpp
+   trunk/src/layer.cpp
+   trunk/src/map.cpp
+Log:
+1. datasource is now a property of Layer object.
+2. modified python/c++ demos to reflect the above.
+3. removed large 'blobby' mapnik.hpp (compilation times!!!)
+  
+
+
+Modified: trunk/bindings/python/mapnik_datasource_cache.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_datasource_cache.cpp	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/bindings/python/mapnik_datasource_cache.cpp	2006-10-03 08:44:04 UTC (rev 304)
+@@ -33,15 +33,15 @@
+     using namespace boost::python;
+     class_&lt;singleton&lt;datasource_cache,CreateStatic&gt;,boost::noncopyable&gt;(&quot;Singleton&quot;,no_init)
+         .def(&quot;instance&quot;,&amp;singleton&lt;datasource_cache,CreateStatic&gt;::instance,
+-	     return_value_policy&lt;reference_existing_object&gt;())
++             return_value_policy&lt;reference_existing_object&gt;())
+         .staticmethod(&quot;instance&quot;)
+         ;
+-
++    
+     class_&lt;datasource_cache,bases&lt;singleton&lt;datasource_cache,CreateStatic&gt; &gt;,
+         boost::noncopyable&gt;(&quot;DatasourceCache&quot;,no_init)
+         .def(&quot;create&quot;,&amp;datasource_cache::create)
+         .staticmethod(&quot;create&quot;)
+-	.def(&quot;register_datasources&quot;,&amp;datasource_cache::register_datasources)
+-	.staticmethod(&quot;register_datasources&quot;)
++        .def(&quot;register_datasources&quot;,&amp;datasource_cache::register_datasources)
++        .staticmethod(&quot;register_datasources&quot;)
+         ;
+ }
+
+Modified: trunk/bindings/python/mapnik_envelope.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_envelope.cpp	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/bindings/python/mapnik_envelope.cpp	2006-10-03 08:44:04 UTC (rev 304)
+@@ -60,29 +60,32 @@
+ void export_envelope()
+ {
+     using namespace boost::python;
+-    class_&lt;Envelope&lt;double&gt; &gt;(&quot;Envelope&quot;,&quot;A spacial envelope (i.e. bounding box) which also defines some basic operators.&quot;,init&lt;double,double,double,double&gt;())
++    class_&lt;Envelope&lt;double&gt; &gt;(&quot;Envelope&quot;,
++                              &quot;A spacial envelope (i.e. bounding box) &quot; 
++                              &quot;which also defines some basic operators.&quot; ,
++                              init&lt;double,double,double,double&gt;())
+         .def(init&lt;&gt;())
+-	.def(init&lt;const coord&lt;double,2&gt;&amp;, const coord&lt;double,2&gt;&amp;&gt;())
++        .def(init&lt;const coord&lt;double,2&gt;&amp;, const coord&lt;double,2&gt;&amp;&gt;())
+         .add_property(&quot;minx&quot;,&amp;Envelope&lt;double&gt;::minx, &quot;X coordinate for the lower left corner&quot;)
+         .add_property(&quot;miny&quot;,&amp;Envelope&lt;double&gt;::miny, &quot;Y coordinate for the lower left corner&quot;)
+         .add_property(&quot;maxx&quot;,&amp;Envelope&lt;double&gt;::maxx, &quot;X coordinate for the upper right corner&quot;)
+         .add_property(&quot;maxy&quot;,&amp;Envelope&lt;double&gt;::maxy, &quot;Y coordinate for the upper right corner&quot;)
+         .def(&quot;center&quot;,&amp;Envelope&lt;double&gt;::center)
+-	.def(&quot;center&quot;,&amp;Envelope&lt;double&gt;::re_center)
+-	.def(&quot;width&quot;,width_p1)
+-	.def(&quot;width&quot;,width_p2)
+-	.def(&quot;height&quot;,height_p1)
+-	.def(&quot;height&quot;,height_p2)
+-	.def(&quot;expand_to_include&quot;,expand_to_include_p1)
+-	.def(&quot;expand_to_include&quot;,expand_to_include_p2)
+-	.def(&quot;expand_to_include&quot;,expand_to_include_p3)
+-	.def(&quot;contains&quot;,contains_p1)
+-	.def(&quot;contains&quot;,contains_p2)
+-	.def(&quot;contains&quot;,contains_p3)
+-	.def(&quot;intersects&quot;,intersects_p1)
+-	.def(&quot;intersects&quot;,intersects_p2)
+-	.def(&quot;intersects&quot;,intersects_p3)
+-	.def(self == self)
++        .def(&quot;center&quot;,&amp;Envelope&lt;double&gt;::re_center)
++        .def(&quot;width&quot;,width_p1)
++        .def(&quot;width&quot;,width_p2)
++        .def(&quot;height&quot;,height_p1)
++        .def(&quot;height&quot;,height_p2)
++        .def(&quot;expand_to_include&quot;,expand_to_include_p1)
++        .def(&quot;expand_to_include&quot;,expand_to_include_p2)
++        .def(&quot;expand_to_include&quot;,expand_to_include_p3)
++        .def(&quot;contains&quot;,contains_p1)
++        .def(&quot;contains&quot;,contains_p2)
++        .def(&quot;contains&quot;,contains_p3)
++        .def(&quot;intersects&quot;,intersects_p1)
++        .def(&quot;intersects&quot;,intersects_p2)
++        .def(&quot;intersects&quot;,intersects_p3)
++        .def(self == self)
+         .def_pickle(envelope_pickle_suite())
+         ;
+ }
+
+Modified: trunk/bindings/python/mapnik_filter.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_filter.cpp	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/bindings/python/mapnik_filter.cpp	2006-10-03 08:44:04 UTC (rev 304)
+@@ -28,7 +28,6 @@
+ #include &lt;regex_filter.hpp&gt;
+ #include &lt;filter.hpp&gt;
+ #include &lt;filter_factory.hpp&gt;
+-#include &lt;mapnik.hpp&gt;
+ 
+ using mapnik::filter;
+ using mapnik::filter_ptr;
+
+Modified: trunk/bindings/python/mapnik_layer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_layer.cpp	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/bindings/python/mapnik_layer.cpp	2006-10-03 08:44:04 UTC (rev 304)
+@@ -30,76 +30,6 @@
+ using mapnik::Layer;
+ using mapnik::parameters;
+ 
+-struct layer_pickle_suite : boost::python::pickle_suite
+-{
+-    
+-    static boost::python::tuple
+-    getinitargs(const Layer&amp; l)
+-    {    
+-	using namespace boost::python;
+-        return boost::python::make_tuple(l.params());
+-    }
+-    static boost::python::tuple
+-    getstate(const Layer&amp; l)
+-    {
+-	using namespace boost::python;
+-	
+-	std::vector&lt;std::string&gt; const&amp; styles=l.styles();
+-	std::vector&lt;std::string&gt;::const_iterator itr=styles.begin();
+-	boost::python::list py_styles;
+-        
+-	while (itr!=styles.end())
+-	{
+-	    py_styles.append(*itr++);
+-	}
+-	
+-	return boost::python::make_tuple(l.getMinZoom(),
+-			  l.getMaxZoom(),
+-			  py_styles);
+-    }
+-
+-    static void
+-    setstate (Layer&amp; l, boost::python::tuple state)
+-    {
+-	using namespace boost::python;
+-	if (len(state) != 3)
+-	{
+-	    PyErr_SetObject(PyExc_ValueError,
+-			    (&quot;expected 3-item tuple in call to __setstate__; got %s&quot;
+-			     % state).ptr()
+-			    );
+-	    throw_error_already_set();
+-	}
+-
+-	l.setMinZoom(extract&lt;double&gt;(state[0]));
+-	l.setMaxZoom(extract&lt;double&gt;(state[1]));
+-
+-	boost::python::list styles=extract&lt;boost::python::list&gt;(state[2]);
+-	for (int i=0;i&lt;len(styles);++i)
+-	{
+-	    l.add_style(extract&lt;std::string&gt;(styles[i]));
+-	}
+-    }
+-};
+-
+-namespace  
+-{
+-    //user-friendly wrapper that uses Python dictionary
+-    using namespace boost::python;
+-    Layer create_layer(const dict&amp; d)
+-    {
+-	parameters params;
+-	boost::python::list keys=d.keys();
+-	for (int i=0;i&lt;len(keys);++i)
+-	{
+-	    std::string key=extract&lt;std::string&gt;(keys[i]);
+-            std::string value=extract&lt;std::string&gt;(d[key]);
+-	    params[key] = value;
+-	}
+-	return Layer(params);
+-    }
+-}
+-
+ void export_layer()
+ {
+     using namespace boost::python;
+@@ -107,17 +37,42 @@
+     	.def(vector_indexing_suite&lt;std::vector&lt;std::string&gt;,true &gt;())
+     	;
+     
+-    class_&lt;Layer&gt;(&quot;Layer&quot;,&quot;A map layer.&quot;,no_init)
+-        .def(&quot;name&quot;,&amp;Layer::name,return_value_policy&lt;copy_const_reference&gt;(), &quot;Return the name of the layer.&quot;)
+-        .def(&quot;title&quot;,&amp;Layer::title,return_value_policy&lt;copy_const_reference&gt;(), &quot;Return the title of the layer.&quot;)
+-        .def(&quot;abstract&quot;,&amp;Layer::abstract,return_value_policy&lt;copy_const_reference&gt;(), &quot;Return the abstract of the layer.&quot;)
+-        .def(&quot;params&quot;,&amp;Layer::params,return_value_policy&lt;reference_existing_object&gt;(), &quot;The configuration parameters of the layer.  These vary depending on the type of data source.&quot;)
+-        .def(&quot;envelope&quot;,&amp;Layer::envelope, &quot;Return the geographic envelope/bounding box of the data in the layer.&quot;)
+-	.add_property(&quot;minzoom&quot;,&amp;Layer::getMinZoom,&amp;Layer::setMinZoom)
+-	.add_property(&quot;maxzoom&quot;,&amp;Layer::getMaxZoom,&amp;Layer::setMaxZoom)
+-	.add_property(&quot;styles&quot;,make_function
+-		      (&amp;Layer::styles,return_value_policy&lt;reference_existing_object&gt;()))
+-        .def_pickle(layer_pickle_suite())
++    class_&lt;Layer&gt;(&quot;Layer&quot;,&quot;A map layer.&quot;, init&lt;std::string const&amp;&gt;())
++        .add_property(&quot;name&quot;, 
++                      make_function(&amp;Layer::name, return_value_policy&lt;reference_existing_object&gt;()),
++                      &amp;Layer::set_name,
++                      &quot;Get/Set the name of the layer.&quot;)
++        
++        .add_property(&quot;title&quot;,
++                      make_function(&amp;Layer::title, return_value_policy&lt;reference_existing_object&gt;()),
++                      &amp;Layer::set_title,
++                      &quot;Get/Set the title of the layer.&quot;)
++ 
++        .add_property(&quot;abstract&quot;, 
++                      make_function(&amp;Layer::abstract,return_value_policy&lt;reference_existing_object&gt;()),
++                      &amp;Layer::set_abstract,
++                      &quot;Get/Set the abstract of the layer.&quot;)
++        
++        .add_property(&quot;minzoom&quot;,
++                      &amp;Layer::getMinZoom,
++                      &amp;Layer::setMinZoom)
++        
++        .add_property(&quot;maxzoom&quot;,
++                      &amp;Layer::getMaxZoom,
++                      &amp;Layer::setMaxZoom)
++        
++        .add_property(&quot;styles&quot;,
++                      make_function(&amp;Layer::styles,
++                                    return_value_policy&lt;reference_existing_object&gt;()))
++
++        .add_property(&quot;datasource&quot;,
++                      &amp;Layer::datasource,
++                      &amp;Layer::set_datasource,
++                      &quot;The datasource attached to this layer&quot;)
++        
++        .def(&quot;envelope&quot;,&amp;Layer::envelope, 
++             &quot;Return the geographic envelope/bounding box &quot;
++             &quot;of the data in the layer.&quot;)
++        
+         ;
+-    def(&quot;CreateLayer&quot;,&amp;create_layer);
+ }
+
+Modified: trunk/bindings/python/mapnik_python.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_python.cpp	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/bindings/python/mapnik_python.cpp	2006-10-03 08:44:04 UTC (rev 304)
+@@ -25,8 +25,6 @@
+ #include &lt;boost/get_pointer.hpp&gt;
+ #include &lt;boost/python/detail/api_placeholder.hpp&gt;
+ 
+-//#include &lt;mapnik.hpp&gt;
+-
+ void export_color();
+ void export_layer();
+ void export_parameters();
+@@ -49,12 +47,10 @@
+ void export_text_symbolizer();
+ void export_font_engine();
+ 
+-//using namespace mapnik;
+ #include &lt;map.hpp&gt;
+ #include &lt;agg_renderer.hpp&gt;
+ #include &lt;graphics.hpp&gt;
+-//#include &lt;filter.hpp&gt;
+-//#include &lt;coord.hpp&gt;
++#include &lt;datasource_cache.hpp&gt;
+ 
+ void render_to_file(const mapnik::Map&amp; map,
+                     const std::string&amp; file,
+@@ -72,6 +68,25 @@
+     ren.apply();
+ }
+ 
++namespace  
++{
++    //user-friendly wrapper that uses Python dictionary
++    using namespace boost::python;
++    boost::shared_ptr&lt;mapnik::datasource&gt; create_datasource(const dict&amp; d)
++    {
++        mapnik::parameters params;
++        boost::python::list keys=d.keys();
++        for (int i=0; i&lt;len(keys); ++i)
++        {
++            std::string key=extract&lt;std::string&gt;(keys[i]);
++            std::string value=extract&lt;std::string&gt;(d[key]);
++            params[key] = value;
++        }
++        
++        return mapnik::datasource_cache::create(params);
++    }
++}
++
+ BOOST_PYTHON_MODULE(_mapnik)
+ {
+     using namespace boost::python;
+@@ -87,12 +102,17 @@
+       ;
+     
+     class_&lt;datasource,boost::shared_ptr&lt;datasource&gt;,
+-      boost::noncopyable&gt;(&quot;Datasource&quot;,no_init)
+-      .def(&quot;envelope&quot;,&amp;datasource::envelope,
+-	   return_value_policy&lt;reference_existing_object&gt;())
+-      .def(&quot;features&quot;,&amp;datasource::features)
+-      ;
++        boost::noncopyable&gt;(&quot;Datasource&quot;,no_init)
++        .def(&quot;envelope&quot;,&amp;datasource::envelope,
++             return_value_policy&lt;reference_existing_object&gt;())
++        .def(&quot;features&quot;,&amp;datasource::features)
++        .def(&quot;params&quot;,&amp;datasource::params,return_value_policy&lt;reference_existing_object&gt;(), 
++             &quot;The configuration parameters of the data source. &quot;  
++             &quot;These vary depending on the type of data source.&quot;)
++        ;
+     
++    def(&quot;CreateDatasource&quot;,&amp;create_datasource);
++    
+     export_parameters();
+     export_color(); 
+     export_envelope();   
+@@ -111,13 +131,14 @@
+     export_raster_symbolizer();
+     export_text_symbolizer();
+     export_font_engine();
++    
+     class_&lt;coord&lt;double,2&gt; &gt;(&quot;Coord&quot;,init&lt;double,double&gt;())
+         .def_readwrite(&quot;x&quot;, &amp;coord&lt;double,2&gt;::x)
+         .def_readwrite(&quot;y&quot;, &amp;coord&lt;double,2&gt;::y)
+         ;
+-
++    
+     export_map();
+-  
++    
+     def(&quot;render_to_file&quot;,&amp;render_to_file);
+     def(&quot;render&quot;,&amp;render);
+     register_ptr_to_python&lt;filter_ptr&gt;();
+
+Modified: trunk/bindings/python/mapnik_style.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_style.cpp	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/bindings/python/mapnik_style.cpp	2006-10-03 08:44:04 UTC (rev 304)
+@@ -34,13 +34,13 @@
+     using mapnik::rules;
+ 
+     class_&lt;rules&gt;(&quot;Rules&quot;,init&lt;&gt;(&quot;default ctor&quot;))
+-	.def(vector_indexing_suite&lt;rules&gt;())
+-	;
++        .def(vector_indexing_suite&lt;rules&gt;())
++        ;
+     class_&lt;feature_type_style&gt;(&quot;Style&quot;,init&lt;&gt;(&quot;default style constructor&quot;))
+-	.add_property(&quot;rules&quot;,make_function
+-		      (&amp;feature_type_style::get_rules,
+-               return_value_policy&lt;reference_existing_object&gt;()))
+-	;
++        .add_property(&quot;rules&quot;,make_function
++                      (&amp;feature_type_style::get_rules,
++                       return_value_policy&lt;reference_existing_object&gt;()))
++        ;
+     
+ }
+ 
+
+Modified: trunk/demo/c++/rundemo.cpp
+===================================================================
+--- trunk/demo/c++/rundemo.cpp	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/demo/c++/rundemo.cpp	2006-10-03 08:44:04 UTC (rev 304)
+@@ -1,5 +1,13 @@
+ 
+-#include &lt;mapnik.hpp&gt;
++#include &lt;map.hpp&gt;
++
++#include &lt;datasource_cache.hpp&gt;
++#include &lt;font_engine_freetype.hpp&gt;
++#include &lt;agg_renderer.hpp&gt;
++#include &lt;filter_factory.hpp&gt;
++#include &lt;color_factory.hpp&gt;
++#include &lt;image_util.hpp&gt;
++
+ #include &lt;iostream&gt;
+ 
+ using namespace mapnik;
+@@ -133,11 +141,11 @@
+     // Provincial  polygons
+     {
+         parameters p;
+-        p[&quot;name&quot;]=&quot;Provinces&quot;;
+         p[&quot;type&quot;]=&quot;shape&quot;;
+         p[&quot;file&quot;]=&quot;../data/boundaries&quot;;
+         
+-        Layer lyr(p); 
++        Layer lyr(&quot;Provinces&quot;); 
++        lyr.set_datasource(datasource_cache::instance()-&gt;create(p));
+         lyr.add_style(&quot;provinces&quot;);    
+         m.addLayer(lyr);
+     }
+@@ -145,21 +153,21 @@
+     // Drainage
+     {
+         parameters p;
+-        p[&quot;name&quot;]=&quot;Quebec Hydrography&quot;;
+         p[&quot;type&quot;]=&quot;shape&quot;;
+         p[&quot;file&quot;]=&quot;../data/qcdrainage&quot;;
+-        
+-        Layer lyr(p); 
++        Layer lyr(&quot;Quebec Hydrography&quot;);
++        lyr.set_datasource(datasource_cache::instance()-&gt;create(p));
+         lyr.add_style(&quot;drainage&quot;);    
+         m.addLayer(lyr);
+     }
++    
+     {
+         parameters p;
+-        p[&quot;name&quot;]=&quot;Ontario Hydrography&quot;;
+         p[&quot;type&quot;]=&quot;shape&quot;;
+         p[&quot;file&quot;]=&quot;../data/ontdrainage&quot;;
+         
+-        Layer lyr(p); 
++        Layer lyr(&quot;Ontario Hydrography&quot;); 
++        lyr.set_datasource(datasource_cache::instance()-&gt;create(p));
+         lyr.add_style(&quot;drainage&quot;);    
+         m.addLayer(lyr);
+     }
+@@ -167,11 +175,10 @@
+     // Provincial boundaries
+     {
+         parameters p;
+-        p[&quot;name&quot;]=&quot;Provincial borders&quot;;
+         p[&quot;type&quot;]=&quot;shape&quot;;
+         p[&quot;file&quot;]=&quot;../data/boundaries_l&quot;;
+-        
+-        Layer lyr(p); 
++        Layer lyr(&quot;Provincial borders&quot;); 
++        lyr.set_datasource(datasource_cache::instance()-&gt;create(p));
+         lyr.add_style(&quot;provlines&quot;);    
+         m.addLayer(lyr);
+     }
+@@ -179,29 +186,29 @@
+     // Roads
+     {
+         parameters p;
+-        p[&quot;name&quot;]=&quot;Roads&quot;;
+         p[&quot;type&quot;]=&quot;shape&quot;;
+-        p[&quot;file&quot;]=&quot;../data/roads&quot;;
+-        
+-        Layer lyr(p); 
++        p[&quot;file&quot;]=&quot;../data/roads&quot;;        
++        Layer lyr(&quot;Roads&quot;); 
++        lyr.set_datasource(datasource_cache::instance()-&gt;create(p));
+         lyr.add_style(&quot;smallroads&quot;);
+         lyr.add_style(&quot;road-border&quot;);
+         lyr.add_style(&quot;road-fill&quot;);
+         lyr.add_style(&quot;highway-border&quot;);
+         lyr.add_style(&quot;highway-fill&quot;);
++
+         m.addLayer(lyr);        
+     }
+     // popplaces
+     {
+         parameters p;
+-        p[&quot;name&quot;]=&quot;Populated Places&quot;;
+         p[&quot;type&quot;]=&quot;shape&quot;;
+         p[&quot;file&quot;]=&quot;../data/popplaces&quot;;
+-        
+-        Layer lyr(p); 
++        Layer lyr(&quot;Populated Places&quot;);
++        lyr.set_datasource(datasource_cache::instance()-&gt;create(p));
+         lyr.add_style(&quot;popplaces&quot;);    
+         m.addLayer(lyr);
+     }
++    
+     m.zoomToBox(Envelope&lt;double&gt;(1405120.04127408,-247003.813399447,1706357.31328276,-25098.593149577));
+     
+     Image32 buf(m.getWidth(),m.getHeight());
+
+Modified: trunk/demo/python/rundemo.py
+===================================================================
+--- trunk/demo/python/rundemo.py	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/demo/python/rundemo.py	2006-10-03 08:44:04 UTC (rev 304)
+@@ -55,7 +55,8 @@
+ #     password='mypassword'
+ #     table= TODO
+ 
+-provpoly_lyr = Layer(name='Provinces', type='shape', file='../data/boundaries')
++provpoly_lyr = Layer('Provinces')
++provpoly_lyr.datasource = Datasource(type='shape', file='../data/boundaries')
+ 
+ # We then define a style for the layer.  A layer can have one or many styles.
+ # Styles are named, so they can be shared across different layers.
+@@ -118,9 +119,11 @@
+ 
+ # A simple example ...
+ 
+-qcdrain_lyr = Layer(name='Quebec Hydrography', type='shape',
+-                    file='../data/qcdrainage')
++qcdrain_lyr = Layer('Quebec Hydrography')
+ 
++qcdrain_lyr.datasource = Datasource( type='shape',
++                                     file='../data/qcdrainage')
++
+ qcdrain_style = Style()
+ qcdrain_rule = Rule()
+ qcdrain_rule.filter = Filter('[HYC] = 8')
+@@ -135,15 +138,18 @@
+ # attributes, and same desired style), so we're going to
+ # re-use the style defined in the above layer for the next one.
+ 
+-ondrain_lyr = Layer(name='Ontario Hydrography', type='shape',
+-                    file='../data/ontdrainage')
++ondrain_lyr = Layer('Ontario Hydrography')
++ondrain_lyr.datasource = Datasource(type='shape',
++                                    file='../data/ontdrainage')
++
+ ondrain_lyr.styles.append('drainage')
+ m.layers.append(ondrain_lyr)
+ 
+ # Provincial boundaries
+ 
+-provlines_lyr = Layer(name='Provincial borders', type='shape',
+-                      file='../data/boundaries_l')
++provlines_lyr = Layer('Provincial borders')
++provlines_lyr.datasource = Datasource (type='shape',
++                                       file='../data/boundaries_l')
+ 
+ # Here we define a &quot;dash dot dot dash&quot; pattern for the provincial boundaries.
+ 
+@@ -165,7 +171,8 @@
+ 
+ # Roads 3 and 4 (The &quot;grey&quot; roads)
+ 
+-roads34_lyr = Layer(name='Roads', type='shape', file='../data/roads')
++roads34_lyr = Layer('Roads')
++roads34_lyr.datasource = Datasource(type='shape', file='../data/roads')
+ 
+ roads34_style = Style()
+ roads34_rule = Rule()
+@@ -195,7 +202,8 @@
+ 
+ # Roads 2 (The thin yellow ones)
+ 
+-roads2_lyr = Layer(name='Roads', type='shape', file='../data/roads')
++roads2_lyr = Layer('Roads')
++roads2_lyr.datasource = Datasource (type='shape', file='../data/roads')
+ 
+ roads2_style_1 = Style()
+ roads2_rule_1 = Rule()
+@@ -228,7 +236,8 @@
+ 
+ # Roads 1 (The big orange ones, the highways)
+ 
+-roads1_lyr = Layer(name='Roads', type='shape', file='../data/roads')
++roads1_lyr = Layer('Roads')
++roads1_lyr.datasource = Datasource(type='shape', file='../data/roads')
+ 
+ roads1_style_1 = Style()
+ roads1_rule_1 = Rule()
+@@ -260,8 +269,9 @@
+ 
+ # Populated Places
+ 
+-popplaces_lyr = Layer(name='Populated Places', type='shape',
+-                      file='../data/popplaces')
++popplaces_lyr = Layer('Populated Places')
++popplaces_lyr.datasource = Datasource (type='shape',
++                                       file='../data/popplaces')
+ 
+ popplaces_style = Style()
+ popplaces_rule = Rule()
+
+Modified: trunk/include/color_factory.hpp
+===================================================================
+--- trunk/include/color_factory.hpp	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/include/color_factory.hpp	2006-10-03 08:44:04 UTC (rev 304)
+@@ -25,6 +25,7 @@
+ #ifndef COLOR_FACTORY_HPP
+ #define COLOR_FACTORY_HPP
+ 
++#include &quot;config.hpp&quot;
+ #include &quot;css_color_parser.hpp&quot;
+ 
+ namespace mapnik
+@@ -33,19 +34,19 @@
+     class MAPNIK_DECL color_factory
+     {
+     public:
+-	static Color from_string(char const* css_color)
+-	{   
+-	    Color color;
+-	    actions&lt;Color&gt; a(color);
+-	    css_color_grammar&lt;actions&lt;Color&gt; &gt; grammar(a);
+-	    parse_info&lt;&gt; info = parse(css_color, grammar, space_p);
+-	    if (info.full) return color;
+-	    return Color(0,0,0);	
+-	}    
++        static Color from_string(char const* css_color)
++        {   
++            Color color;
++            actions&lt;Color&gt; a(color);
++            css_color_grammar&lt;actions&lt;Color&gt; &gt; grammar(a);
++            parse_info&lt;&gt; info = parse(css_color, grammar, space_p);
++            if (info.full) return color;
++            return Color(0,0,0);	
++        }    
+     private:
+-	color_factory();
+-	color_factory(color_factory const&amp;);
+-	color_factory&amp; operator=(color_factory const&amp;);
++        color_factory();
++        color_factory(color_factory const&amp;);
++        color_factory&amp; operator=(color_factory const&amp;);
+     };
+ }
+ 
+
+Modified: trunk/include/filter_factory.hpp
+===================================================================
+--- trunk/include/filter_factory.hpp	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/include/filter_factory.hpp	2006-10-03 08:44:04 UTC (rev 304)
+@@ -35,24 +35,26 @@
+     class MAPNIK_DECL filter_factory
+     {
+     public:
+-	static filter_ptr compile(string const&amp; str)
+-	{
+-	    stack&lt;shared_ptr&lt;filter&lt;FeatureT&gt; &gt; &gt; filters;
+-	    stack&lt;shared_ptr&lt;expression&lt;FeatureT&gt; &gt; &gt; exps;
+-	    filter_grammar&lt;FeatureT&gt; grammar(filters,exps);
+-	    char const *text = str.c_str();
+-	    parse_info&lt;&gt; info = parse(text,text+strlen(text),grammar,space_p);
+-	    if (info.full &amp;&amp; !filters.empty())
+-	    {
+-		return filters.top();	
+-	    }
+-	    else 
+-	    {
+-		clog &lt;&lt; &quot;failed at :&quot; &lt;&lt; info.stop &lt;&lt; &quot;\n&quot;;
+-		return filter_ptr(new none_filter&lt;FeatureT&gt;());
+-	    }  
+-	}
++        static filter_ptr compile(string const&amp; str)
++        {
++            stack&lt;shared_ptr&lt;filter&lt;FeatureT&gt; &gt; &gt; filters;
++            stack&lt;shared_ptr&lt;expression&lt;FeatureT&gt; &gt; &gt; exps;
++            filter_grammar&lt;FeatureT&gt; grammar(filters,exps);
++            char const *text = str.c_str();
++            parse_info&lt;&gt; info = parse(text,text+strlen(text),grammar,space_p);
++            if (info.full &amp;&amp; !filters.empty())
++            {
++                return filters.top();	
++            }
++            else 
++            {
++                clog &lt;&lt; &quot;failed at :&quot; &lt;&lt; info.stop &lt;&lt; &quot;\n&quot;;
++                return filter_ptr(new none_filter&lt;FeatureT&gt;());
++            }  
++        }
+     };
++
++    MAPNIK_DECL filter_ptr create_filter (std::string const&amp; wkt);
+ }
+ 
+ #endif //FILTER_FACTORY_HPP
+
+Modified: trunk/include/filter_parser.hpp
+===================================================================
+--- trunk/include/filter_parser.hpp	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/include/filter_parser.hpp	2006-10-03 08:44:04 UTC (rev 304)
+@@ -42,8 +42,8 @@
+ #include &quot;expression.hpp&quot;
+ #include &quot;filter.hpp&quot;
+ #include &quot;regex_filter.hpp&quot;
++#include &quot;logical.hpp&quot;
+ 
+-
+ using namespace boost::spirit;
+ using std::string;
+ using std::clog;
+
+Modified: trunk/include/layer.hpp
+===================================================================
+--- trunk/include/layer.hpp	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/include/layer.hpp	2006-10-03 08:44:04 UTC (rev 304)
+@@ -15,11 +15,10 @@
+  * Lesser General Public License for more details.
+  *
+  * You should have received a copy of the GNU Lesser General Public
+- * #include &lt;boost/serialization/serialization.hpp&gt;
+-License along with this library; if not, write to the Free Software
+-* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-*
+-*****************************************************************************/
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
+ //$Id: layer.hpp 39 2005-04-10 20:39:53Z pavlenko $
+ 
+ #ifndef LAYER_HPP
+@@ -34,7 +33,6 @@
+ {
+     class MAPNIK_DECL Layer
+     {
+-        parameters params_;
+         std::string name_;
+         std::string title_;
+         std::string abstract_;
+@@ -42,20 +40,18 @@
+         double maxZoom_;
+         bool active_;
+         bool selectable_;
+-	
++        
+         std::vector&lt;std::string&gt;  styles_;
+         std::string selection_style_;
+-
++        
+         mutable std::vector&lt;boost::shared_ptr&lt;Feature&gt; &gt; selection_;
+         mutable datasource_p ds_;
+         
+     public:
+-        Layer();
+-        explicit Layer(const parameters&amp; params);
++        explicit Layer(std::string const&amp; name);
+         Layer(Layer const&amp; l);
+         Layer&amp; operator=(Layer const&amp; l);
+         bool operator==(Layer const&amp; other) const;
+-        parameters const&amp; params() const;
+         void set_name(std::string const&amp; name);
+         const std::string&amp; name() const;
+         void set_title(std::string const&amp; title);
+@@ -79,9 +75,9 @@
+         std::vector&lt;boost::shared_ptr&lt;Feature&gt; &gt;&amp; selection() const;
+         void clear_selection() const;
+         void set_datasource(datasource_p const&amp; ds);
+-        datasource_p const&amp; datasource() const;
++        datasource_p datasource() const;
+         Envelope&lt;double&gt; envelope() const;
+-        virtual ~Layer();
++        ~Layer();
+     private:
+         void swap(const Layer&amp; other);
+     };
+
+Modified: trunk/include/map.hpp
+===================================================================
+--- trunk/include/map.hpp	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/include/map.hpp	2006-10-03 08:44:04 UTC (rev 304)
+@@ -43,9 +43,9 @@
+         Envelope&lt;double&gt; currentExtent_;
+         
+     public:
++ 
++        typedef std::map&lt;std::string,feature_type_style&gt;::const_iterator style_iterator;
+         
+-        typedef  std::map&lt;std::string,feature_type_style&gt;::const_iterator style_iterator;
+-        
+         Map();
+         Map(int width,int height,int srid=-1);
+         Map(const Map&amp; rhs);
+@@ -76,7 +76,7 @@
+         void pan_and_zoom(int x,int y,double zoom);
+         const Envelope&lt;double&gt;&amp; getCurrentExtent() const;
+         double scale() const;
+-        virtual ~Map();
++        ~Map();
+     private:
+         void fixAspectRatio();
+     };
+
+Deleted: trunk/include/mapnik.hpp
+===================================================================
+--- trunk/include/mapnik.hpp	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/include/mapnik.hpp	2006-10-03 08:44:04 UTC (rev 304)
+@@ -1,84 +0,0 @@
+-/*****************************************************************************
+- * 
+- * This file is part of Mapnik (c++ mapping toolkit)
+- *
+- * Copyright (C) 2006 Artem Pavlenko
+- *
+- * This library is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU Lesser General Public
+- * License as published by the Free Software Foundation; either
+- * version 2.1 of the License, or (at your option) any later version.
+- *
+- * This library is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+- * Lesser General Public License for more details.
+- *
+- * You should have received a copy of the GNU Lesser General Public
+- * License along with this library; if not, write to the Free Software
+- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+- *
+- *****************************************************************************/
+-
+-//$Id: mapnik.hpp 39 2005-04-10 20:39:53Z pavlenko $
+-
+-#ifndef MAPNIK_HPP
+-#define MAPNIK_HPP
+-
+-#include &lt;map&gt;
+-#include &lt;vector&gt;
+-#include &lt;cassert&gt;
+-
+-#include &quot;global.hpp&quot;
+-#include &quot;factory.hpp&quot;
+-#include &quot;filter.hpp&quot;
+-#include &quot;query.hpp&quot;
+-#include &quot;rule.hpp&quot;
+-#include &quot;spatial.hpp&quot;
+-#include &quot;logical.hpp&quot;
+-#include &quot;comparison.hpp&quot;
+-#include &quot;regex_filter.hpp&quot;
+-#include &quot;utils.hpp&quot;
+-#include &quot;geometry.hpp&quot;
+-#include &quot;geom_util.hpp&quot;
+-#include &quot;raster.hpp&quot;
+-#include &quot;feature.hpp&quot;
+-#include &quot;attribute.hpp&quot;
+-#include &quot;attribute_collector.hpp&quot;
+-#include &quot;graphics.hpp&quot;
+-#include &quot;image_reader.hpp&quot;
+-#include &quot;line_symbolizer.hpp&quot;
+-#include &quot;polygon_symbolizer.hpp&quot;
+-#include &quot;agg_renderer.hpp&quot;
+-#include &quot;polygon_pattern_symbolizer.hpp&quot;
+-#include &quot;line_pattern_symbolizer.hpp&quot;
+-#include &quot;point_symbolizer.hpp&quot;
+-#include &quot;raster_symbolizer.hpp&quot;
+-#include &quot;text_symbolizer.hpp&quot;
+-#include &quot;image_util.hpp&quot;
+-#include &quot;datasource.hpp&quot;
+-#include &quot;layer.hpp&quot;
+-#include &quot;datasource_cache.hpp&quot;
+-#include &quot;wkb.hpp&quot;
+-#include &quot;map.hpp&quot;
+-#include &quot;feature_type_style.hpp&quot;
+-#include &quot;feature_factory.hpp&quot;
+-#include &quot;math_expr.hpp&quot;
+-#include &quot;value.hpp&quot;
+-#include &quot;expression.hpp&quot;
+-#include &quot;filter_visitor.hpp&quot;
+-#include &quot;filter_parser.hpp&quot;
+-#include &quot;filter_factory.hpp&quot;
+-#include &quot;text_symbolizer.hpp&quot;
+-#include &quot;label_placement.hpp&quot;
+-#include &quot;feature_layer_desc.hpp&quot;
+-#include &quot;css_color_parser.hpp&quot;
+-#include &quot;color_factory.hpp&quot;
+-#include &quot;config.hpp&quot;
+-
+-namespace mapnik
+-{
+-    MAPNIK_DECL filter_ptr create_filter (std::string const&amp; wkt);
+-}
+-
+-#endif //MAPNIK_HPP
+
+Modified: trunk/src/SConscript
+===================================================================
+--- trunk/src/SConscript	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/src/SConscript	2006-10-03 08:44:04 UTC (rev 304)
+@@ -32,7 +32,6 @@
+ 
+ source = Split(
+     &quot;&quot;&quot;
+-    mapnik.cpp
+     datasource_cache.cpp
+     envelope.cpp
+     graphics.cpp
+
+Modified: trunk/src/datasource_cache.cpp
+===================================================================
+--- trunk/src/datasource_cache.cpp	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/src/datasource_cache.cpp	2006-10-03 08:44:04 UTC (rev 304)
+@@ -1,4 +1,4 @@
+- /*****************************************************************************
++/*****************************************************************************
+  * 
+  * This file is part of Mapnik (c++ mapping toolkit)
+  *
+@@ -75,26 +75,26 @@
+             }
+             std::clog&lt;&lt;&quot;datasource=&quot;&lt;&lt;ds&lt;&lt;&quot; type=&quot;&lt;&lt;type&lt;&lt;std::endl;
+         }
+-	catch (datasource_exception&amp; ex)
+-	{
+-	    std::clog&lt;&lt;ex.what()&lt;&lt;std::endl;
+-	}
++        catch (datasource_exception&amp; ex)
++        {
++            std::clog&lt;&lt;ex.what()&lt;&lt;std::endl;
++        }
+         catch (...)
+         {
+-            std::clog&lt;&lt;&quot;exception caught &quot;&lt;&lt;std::endl;
++            std::clog&lt;&lt;&quot; exception caught\n&quot;;
+         }
+         return ds;
+     }
+ 
+     bool datasource_cache::insert(const std::string&amp; type,const lt_dlhandle module)
+     {	      
+-	return plugins_.insert(make_pair(type,boost::shared_ptr&lt;PluginInfo&gt;(new PluginInfo(type,module)))).second;     
++        return plugins_.insert(make_pair(type,boost::shared_ptr&lt;PluginInfo&gt;(new PluginInfo(type,module)))).second;     
+     }
+ 
+     void datasource_cache::register_datasources(const std::string&amp; str)
+     {	
+         mutex::scoped_lock lock(mapnik::singleton&lt;mapnik::datasource_cache, 
+-            mapnik::CreateStatic&gt;::mutex_);
++                                mapnik::CreateStatic&gt;::mutex_);
+         filesystem::path path(str);
+         filesystem::directory_iterator end_itr;
+         if (exists(path))
+
+Added: trunk/src/filter_factory.cpp
+===================================================================
+--- trunk/src/filter_factory.cpp	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/src/filter_factory.cpp	2006-10-03 08:44:04 UTC (rev 304)
+@@ -0,0 +1,33 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++//$Id$
++
++#include &quot;filter_factory.hpp&quot;
++
++namespace mapnik
++{
++    filter_ptr create_filter (std::string const&amp; wkt)
++    {
++        filter_factory&lt;Feature&gt; factory;
++        return factory.compile(wkt);
++    }
++}
+
+Modified: trunk/src/layer.cpp
+===================================================================
+--- trunk/src/layer.cpp	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/src/layer.cpp	2006-10-03 08:44:04 UTC (rev 304)
+@@ -34,9 +34,8 @@
+ namespace mapnik
+ {
+     using namespace std;
+-    Layer::Layer()
+-        : params_(),
+-          name_(&quot;unknown&quot;),
++    Layer::Layer(std::string const&amp; name)
++        : name_(name),
+           title_(&quot;&quot;),
+           abstract_(&quot;&quot;),
+           minZoom_(0),
+@@ -45,31 +44,18 @@
+           selectable_(false),
+           selection_style_(&quot;default_selection&quot;)
+     {}
+-
+-    Layer::Layer(const parameters&amp; params)
+-        :params_(params),
+-         name_(params_[&quot;name&quot;]),
+-         title_(params_[&quot;title&quot;]),
+-         abstract_(params_[&quot;abstract&quot;]),
+-         minZoom_(0),
+-         maxZoom_(std::numeric_limits&lt;double&gt;::max()),
+-         active_(true),
+-         selectable_(false),
+-         selection_style_(&quot;default_selection&quot;)
+-    {}
+     
+     Layer::Layer(const Layer&amp; rhs)
+-        :params_(rhs.params_),
+-         name_(rhs.name_),
+-         title_(rhs.title_),
+-         abstract_(rhs.abstract_),
+-         minZoom_(rhs.minZoom_),
+-         maxZoom_(rhs.maxZoom_),
+-         active_(rhs.active_),
+-         selectable_(rhs.selectable_),
+-         ds_(rhs.ds_),
+-         styles_(rhs.styles_),
+-         selection_style_(rhs.selection_style_) {}
++        : name_(rhs.name_),
++          title_(rhs.title_),
++          abstract_(rhs.abstract_),
++          minZoom_(rhs.minZoom_),
++          maxZoom_(rhs.maxZoom_),
++          active_(rhs.active_),
++          selectable_(rhs.selectable_),
++          styles_(rhs.styles_),
++          ds_(rhs.ds_),
++          selection_style_(rhs.selection_style_) {}
+     
+     Layer&amp; Layer::operator=(const Layer&amp; rhs)
+     {
+@@ -85,7 +71,6 @@
+     
+     void Layer::swap(const Layer&amp; rhs)
+     {
+-        params_=rhs.params_;
+         name_=rhs.name_;
+         title_=rhs.title_;
+         abstract_=rhs.abstract_;
+@@ -93,17 +78,12 @@
+         maxZoom_=rhs.maxZoom_;
+         active_=rhs.active_;
+         selectable_=rhs.selectable_;
+-        ds_=rhs.ds_;
+         styles_=rhs.styles_;
++        ds_=rhs.ds_;
+         selection_style_=rhs.selection_style_;
+     }
+-
++    
+     Layer::~Layer() {}
+-
+-    parameters const&amp; Layer::params() const
+-    {
+-        return params_;
+-    }
+     
+     void Layer::set_name( std::string const&amp; name)
+     {
+@@ -124,7 +104,7 @@
+     {
+         return title_;
+     }
+-
++    
+     void Layer::set_abstract( std::string const&amp; abstract)
+     {
+         abstract_ = abstract;
+@@ -190,22 +170,11 @@
+         return selectable_;
+     }
+ 
+-    const datasource_p&amp; Layer::datasource() const
++    datasource_p Layer::datasource() const
+     {
+-        if (!ds_)
+-        {
+-            try
+-            {
+-                ds_=datasource_cache::instance()-&gt;create(params_);
+-            }
+-            catch (...)
+-            {
+-                std::clog &lt;&lt; &quot;exception caught : can not create datasource&quot; &lt;&lt; std::endl;  
+-            }
+-        }
+         return ds_;
+     }
+-    // TODO: !!!!
++    
+     void Layer::set_datasource(datasource_p const&amp; ds)
+     {
+         ds_ = ds;
+@@ -213,14 +182,10 @@
+     
+     Envelope&lt;double&gt; Layer::envelope() const
+     {
+-        datasource_p const&amp; ds = datasource();
+-        if (ds)
+-        {
+-            return ds-&gt;envelope();
+-        }
++        if (ds_) return ds_-&gt;envelope();
+     	return Envelope&lt;double&gt;();
+     }
+-
++    
+     void Layer::selection_style(const std::string&amp; name) 
+     {
+         selection_style_=name;
+
+Modified: trunk/src/map.cpp
+===================================================================
+--- trunk/src/map.cpp	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/src/map.cpp	2006-10-03 08:44:04 UTC (rev 304)
+@@ -251,6 +251,6 @@
+             return currentExtent_.width()/width_;
+         return currentExtent_.width();
+     }
+-
++    
+     Map::~Map() {}
+ }
+
+Deleted: trunk/src/mapnik.cpp
+===================================================================
+--- trunk/src/mapnik.cpp	2006-10-03 08:39:43 UTC (rev 303)
++++ trunk/src/mapnik.cpp	2006-10-03 08:44:04 UTC (rev 304)
+@@ -1,36 +0,0 @@
+-/*****************************************************************************
+- * 
+- * This file is part of Mapnik (c++ mapping toolkit)
+- *
+- * Copyright (C) 2006 Artem Pavlenko
+- *
+- * This library is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU Lesser General Public
+- * License as published by the Free Software Foundation; either
+- * version 2.1 of the License, or (at your option) any later version.
+- *
+- * This library is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+- * Lesser General Public License for more details.
+- *
+- * You should have received a copy of the GNU Lesser General Public
+- * License along with this library; if not, write to the Free Software
+- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+- *
+- *****************************************************************************/
+-
+-//$Id$
+-
+-#include &quot;mapnik.hpp&quot;
+-
+-namespace mapnik
+-{
+-    filter_ptr create_filter (std::string const&amp; wkt)
+-    {
+-        filter_factory&lt;Feature&gt; factory;
+-        return factory.compile(wkt);
+-    }
+-}
+-
+-
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000188.html">[Mapnik-svn] r303 - in trunk: include src
+</A></li>
+	<LI>Next message: <A HREF="000190.html">[Mapnik-svn] r305 - in trunk: . boost boost/property_tree	boost/property_tree/detail
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#189">[ date ]</a>
+              <a href="thread.html#189">[ thread ]</a>
+              <a href="subject.html#189">[ subject ]</a>
+              <a href="author.html#189">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

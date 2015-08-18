@@ -1,0 +1,87 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r344 - trunk/include/mapnik
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r344%20-%20trunk/include/mapnik&In-Reply-To=%3C200610181142.k9IBgwWp030457%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000228.html">
+   <LINK REL="Next"  HREF="000230.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r344 - trunk/include/mapnik</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r344%20-%20trunk/include/mapnik&In-Reply-To=%3C200610181142.k9IBgwWp030457%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r344 - trunk/include/mapnik">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Wed Oct 18 13:42:58 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000228.html">[Mapnik-svn] r343 - trunk/plugins/input/postgis
+</A></li>
+        <LI>Next message: <A HREF="000230.html">[Mapnik-svn] r345 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#229">[ date ]</a>
+              <a href="thread.html#229">[ thread ]</a>
+              <a href="subject.html#229">[ subject ]</a>
+              <a href="author.html#229">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-18 13:42:56 +0200 (Wed, 18 Oct 2006)
+New Revision: 344
+
+Modified:
+   trunk/include/mapnik/feature_style_processor.hpp
+Log:
+changed boost::progress_timer to output to std::clog (which defaults to std::cerr)
+
+
+
+
+Modified: trunk/include/mapnik/feature_style_processor.hpp
+===================================================================
+--- trunk/include/mapnik/feature_style_processor.hpp	2006-10-17 21:36:11 UTC (rev 343)
++++ trunk/include/mapnik/feature_style_processor.hpp	2006-10-18 11:42:56 UTC (rev 344)
+@@ -68,7 +68,7 @@
+ 	
+         void apply()
+         {
+-            boost::progress_timer t;
++            boost::progress_timer t(std::clog);
+             
+             Processor &amp; p = static_cast&lt;Processor&amp;&gt;(*this);
+             
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000228.html">[Mapnik-svn] r343 - trunk/plugins/input/postgis
+</A></li>
+	<LI>Next message: <A HREF="000230.html">[Mapnik-svn] r345 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#229">[ date ]</a>
+              <a href="thread.html#229">[ thread ]</a>
+              <a href="subject.html#229">[ subject ]</a>
+              <a href="author.html#229">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

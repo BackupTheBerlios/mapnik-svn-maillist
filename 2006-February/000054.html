@@ -1,0 +1,161 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r168 - in trunk: bindings/python bindings/python/mapnik include
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-February/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r168%20-%20in%20trunk%3A%20bindings/python%20bindings/python/mapnik%20include&In-Reply-To=%3C200602272157.k1RLvAGk029486%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000053.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r168 - in trunk: bindings/python bindings/python/mapnik include</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r168%20-%20in%20trunk%3A%20bindings/python%20bindings/python/mapnik%20include&In-Reply-To=%3C200602272157.k1RLvAGk029486%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r168 - in trunk: bindings/python bindings/python/mapnik include">pavlenko at berlios.de
+       </A><BR>
+    <I>Mon Feb 27 22:57:10 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000053.html">[Mapnik-svn] r167 - in trunk: bindings/python include src
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#54">[ date ]</a>
+              <a href="thread.html#54">[ thread ]</a>
+              <a href="subject.html#54">[ subject ]</a>
+              <a href="author.html#54">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-02-27 22:57:08 +0100 (Mon, 27 Feb 2006)
+New Revision: 168
+
+Modified:
+   trunk/bindings/python/mapnik/__init__.py
+   trunk/bindings/python/mapnik_color.cpp
+   trunk/include/color.hpp
+Log:
+1.added to_string method to Color
+2.added factory methods to python Color
+
+use factory methods 
+
+
+Modified: trunk/bindings/python/mapnik/__init__.py
+===================================================================
+--- trunk/bindings/python/mapnik/__init__.py	2006-02-27 21:25:25 UTC (rev 167)
++++ trunk/bindings/python/mapnik/__init__.py	2006-02-27 21:57:08 UTC (rev 168)
+@@ -49,11 +49,6 @@
+         return 'Envelope(%s,%s,%s,%s)' % \
+                (self.minx,self.miny,self.maxx,self.maxy)
+ 
+-class _Color(Color,_injector):
+-    def __repr__(self):
+-        return 'Color(%s,%s,%s,%s)' % \
+-               (self.r,self.g,self.b,self.a)
+-
+ #register datasources
+ from mapnik import DatasourceCache
+ DatasourceCache.instance().register_datasources('%s' % inputpluginspath)
+
+Modified: trunk/bindings/python/mapnik_color.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_color.cpp	2006-02-27 21:25:25 UTC (rev 167)
++++ trunk/bindings/python/mapnik_color.cpp	2006-02-27 21:57:08 UTC (rev 168)
+@@ -41,20 +41,31 @@
+     return color_factory::from_string(str);
+ }
+ 
++Color create_from_rgb(unsigned r, unsigned g,unsigned b)
++{
++    return Color(r,g,b);
++}
++
++Color create_from_rgba(unsigned r, unsigned g,unsigned b,unsigned a)
++{
++    return Color(r,g,b,a);
++}
++
+ void export_color () 
+ {
+     using namespace boost::python;
+     class_&lt;Color&gt;(&quot;Color&quot;,init&lt;&gt;())
+-        .def(init&lt;int,int,int,boost::python::optional&lt;int&gt; &gt;())
+         .add_property(&quot;r&quot;,&amp;Color::red,&amp;Color::set_red)
+         .add_property(&quot;g&quot;,&amp;Color::green,&amp;Color::set_green)
+         .add_property(&quot;b&quot;,&amp;Color::blue,&amp;Color::set_blue)
+ 	.add_property(&quot;a&quot;,&amp;Color::alpha)
+ 	.def(self == self)
+         .def_pickle(color_pickle_suite())
+-	.def(&quot;fromString&quot;,&amp;create_from_string)
+-	.staticmethod(&quot;fromString&quot;)	
+-        ;
+-    //def(&quot;Color&quot;,&amp;create_from_string);
++	.def(&quot;__str__&quot;,&amp;Color::to_string)
++	;
++    
++    def(&quot;Color&quot;,&amp;create_from_string);
++    def(&quot;Color&quot;,&amp;create_from_rgba);
++    def(&quot;Color&quot;,&amp;create_from_rgb);
+ }
+ 
+
+Modified: trunk/include/color.hpp
+===================================================================
+--- trunk/include/color.hpp	2006-02-27 21:25:25 UTC (rev 167)
++++ trunk/include/color.hpp	2006-02-27 21:57:08 UTC (rev 168)
+@@ -21,6 +21,8 @@
+ #ifndef COLOR_HPP
+ #define COLOR_HPP
+ 
++#include &lt;sstream&gt;
++
+ namespace mapnik {
+ 
+     class Color
+@@ -91,6 +93,13 @@
+ 	{
+ 	    return rgba_ == other.rgba_;
+ 	}
++
++	inline std::string to_string() const
++	{
++	    std::stringstream ss;
++	    ss &lt;&lt; &quot;rgb (&quot; &lt;&lt; red() &lt;&lt; &quot;,&quot;  &lt;&lt; green() &lt;&lt; &quot;,&quot;  &lt;&lt; blue() &lt;&lt;&quot;)&quot;;
++	    return ss.str();
++	} 
+     };    
+ }
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000053.html">[Mapnik-svn] r167 - in trunk: bindings/python include src
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#54">[ date ]</a>
+              <a href="thread.html#54">[ thread ]</a>
+              <a href="subject.html#54">[ subject ]</a>
+              <a href="author.html#54">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

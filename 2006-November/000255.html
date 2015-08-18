@@ -1,0 +1,84 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r370 - trunk/demo/c++
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-November/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r370%20-%20trunk/demo/c%2B%2B&In-Reply-To=%3C200611152122.kAFLMune014705%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000254.html">
+   <LINK REL="Next"  HREF="000256.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r370 - trunk/demo/c++</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r370%20-%20trunk/demo/c%2B%2B&In-Reply-To=%3C200611152122.kAFLMune014705%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r370 - trunk/demo/c++">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Wed Nov 15 22:22:56 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000254.html">[Mapnik-svn] r369 - trunk/include/mapnik
+</A></li>
+        <LI>Next message: <A HREF="000256.html">[Mapnik-svn] r371 - in trunk: include/mapnik src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#255">[ date ]</a>
+              <a href="thread.html#255">[ thread ]</a>
+              <a href="subject.html#255">[ subject ]</a>
+              <a href="author.html#255">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-11-15 22:22:54 +0100 (Wed, 15 Nov 2006)
+New Revision: 370
+
+Modified:
+   trunk/demo/c++/rundemo.cpp
+Log:
+updated to latest mapnik
+
+Modified: trunk/demo/c++/rundemo.cpp
+===================================================================
+--- trunk/demo/c++/rundemo.cpp	2006-11-13 10:13:14 UTC (rev 369)
++++ trunk/demo/c++/rundemo.cpp	2006-11-15 21:22:54 UTC (rev 370)
+@@ -150,7 +150,7 @@
+     
+     feature_type_style popplaces_style;
+     rule_type popplaces_rule;
+-    text_symbolizer popplaces_text_symbolizer(&quot;GEONAME&quot;,10,Color(0,0,0));
++    text_symbolizer popplaces_text_symbolizer(&quot;GEONAME&quot;,&quot;Bitstream Vera Sans Roman&quot;,10,Color(0,0,0));
+     popplaces_text_symbolizer.set_halo_fill(Color(255,255,200));
+     popplaces_text_symbolizer.set_halo_radius(1);
+     popplaces_rule.append(popplaces_text_symbolizer);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000254.html">[Mapnik-svn] r369 - trunk/include/mapnik
+</A></li>
+	<LI>Next message: <A HREF="000256.html">[Mapnik-svn] r371 - in trunk: include/mapnik src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#255">[ date ]</a>
+              <a href="thread.html#255">[ thread ]</a>
+              <a href="subject.html#255">[ subject ]</a>
+              <a href="author.html#255">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

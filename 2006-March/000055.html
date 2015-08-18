@@ -1,0 +1,102 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r169 - trunk/bindings/python
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r169%20-%20trunk/bindings/python&In-Reply-To=%3C200603010414.k214Eiwe022106%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="000056.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r169 - trunk/bindings/python</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r169%20-%20trunk/bindings/python&In-Reply-To=%3C200603010414.k214Eiwe022106%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r169 - trunk/bindings/python">jdoyon at berlios.de
+       </A><BR>
+    <I>Wed Mar  1 05:14:44 CET 2006</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="000056.html">[Mapnik-svn] r170 - in trunk/bindings/python: . mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#55">[ date ]</a>
+              <a href="thread.html#55">[ thread ]</a>
+              <a href="subject.html#55">[ subject ]</a>
+              <a href="author.html#55">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-03-01 05:14:41 +0100 (Wed, 01 Mar 2006)
+New Revision: 169
+
+Modified:
+   trunk/bindings/python/mapnik_layer.cpp
+Log:
+Changed the layer constructor to use a more pythonic:
+
+Layer(name, type, file)
+
+Please review and comment!
+
+
+
+Modified: trunk/bindings/python/mapnik_layer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_layer.cpp	2006-02-27 21:57:08 UTC (rev 168)
++++ trunk/bindings/python/mapnik_layer.cpp	2006-03-01 04:14:41 UTC (rev 169)
+@@ -81,18 +81,13 @@
+ 
+ namespace  
+ {
+-    //user-friendly wrapper that uses Python dictionary
+     using namespace boost::python;
+-    Layer create_layer(const dict&amp; d)
++    Layer create_layer(const char* name, const char* type, const char* file)
+     {
+ 	parameters params;
+-	boost::python::list keys=d.keys();
+-	for (int i=0;i&lt;len(keys);++i)
+-	{
+-	    std::string key=extract&lt;std::string&gt;(keys[i]);
+-            std::string value=extract&lt;std::string&gt;(d[key]);
+-	    params[key] = value;
+-	}
++	params[&quot;name&quot;] = name;
++        params[&quot;type&quot;] = type;
++        params[&quot;file&quot;] = file;
+ 	return Layer(params);
+     }
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="000056.html">[Mapnik-svn] r170 - in trunk/bindings/python: . mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#55">[ date ]</a>
+              <a href="thread.html#55">[ thread ]</a>
+              <a href="subject.html#55">[ subject ]</a>
+              <a href="author.html#55">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

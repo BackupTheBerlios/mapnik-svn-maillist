@@ -1,0 +1,299 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r377 - in trunk: include/mapnik src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-November/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r377%20-%20in%20trunk%3A%20include/mapnik%20src&In-Reply-To=%3C200611222201.kAMM1gB2001717%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000261.html">
+   <LINK REL="Next"  HREF="000263.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r377 - in trunk: include/mapnik src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r377%20-%20in%20trunk%3A%20include/mapnik%20src&In-Reply-To=%3C200611222201.kAMM1gB2001717%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r377 - in trunk: include/mapnik src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Wed Nov 22 23:01:42 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000261.html">[Mapnik-svn] r376 - in trunk: . include/mapnik	plugins/input/postgis plugins/input/raster	plugins/input/shape src utils/shapeindex
+</A></li>
+        <LI>Next message: <A HREF="000263.html">[Mapnik-svn] r378 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#262">[ date ]</a>
+              <a href="thread.html#262">[ thread ]</a>
+              <a href="subject.html#262">[ subject ]</a>
+              <a href="author.html#262">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-11-22 23:01:37 +0100 (Wed, 22 Nov 2006)
+New Revision: 377
+
+Added:
+   trunk/include/mapnik/unicode.hpp
+Modified:
+   trunk/include/mapnik/font_engine_freetype.hpp
+   trunk/src/agg_renderer.cpp
+Log:
+added basic support for unicode string
+
+
+
+Modified: trunk/include/mapnik/font_engine_freetype.hpp
+===================================================================
+--- trunk/include/mapnik/font_engine_freetype.hpp	2006-11-19 17:13:33 UTC (rev 376)
++++ trunk/include/mapnik/font_engine_freetype.hpp	2006-11-22 22:01:37 UTC (rev 377)
+@@ -153,56 +153,6 @@
+         faces faces_;
+     };
+         
+-    inline std::wstring to_unicode(std::string const&amp; text)
+-    {
+-        std::wstring out;
+-        unsigned long code = 0;
+-        int expect = 0;
+-        std::string::const_iterator itr=text.begin();
+-	
+-        while ( itr != text.end())
+-        {
+-            unsigned p = (*itr++) &amp; 0xff;
+-            if ( p &gt;= 0xc0)
+-            {
+-                if ( p &lt; 0xe0)      // U+0080 - U+07ff
+-                {
+-                    expect = 1;
+-                    code = p &amp; 0x1f;
+-                }
+-                else if ( p &lt; 0xf0)  // U+0800 - U+ffff
+-                {
+-                    expect = 2;
+-                    code = p &amp; 0x0f;
+-                }
+-                else if ( p  &lt; 0xf8) // U+1000 - U+10ffff
+-                {
+-                    expect = 3;
+-                    code = p &amp; 0x07;
+-                }
+-                continue;
+-            }
+-            else if (p &gt;= 0x80)
+-            {
+-                --expect;
+-                if (expect &gt;= 0)
+-                {
+-                    code &lt;&lt;= 6;
+-                    code += p &amp; 0x3f;
+-                }
+-                if (expect &gt; 0)
+-                    continue;
+-                expect = 0;
+-            }
+-            else 
+-            {
+-                code = p;            // U+0000 - U+007f (ascii)
+-            }
+-            out.push_back(wchar_t(code));
+-        }
+-        return out;
+-    }
+-    
+     template &lt;typename T&gt;
+     struct text_renderer : private boost::noncopyable
+     {
+@@ -282,7 +232,7 @@
+ 		
+                 FT_Set_Transform (face,&amp;matrix,&amp;pen);
+ 		
+-                FT_UInt glyph_index = FT_Get_Char_Index( face, unsigned(c) &amp; 0xff );
++                FT_UInt glyph_index = FT_Get_Char_Index( face, unsigned(c));
+ 		
+                 error = FT_Load_Glyph (face,glyph_index, FT_LOAD_NO_HINTING); 
+                 if ( error )
+@@ -339,7 +289,7 @@
+                     
+             FT_Set_Transform (face,&amp;matrix,&amp;pen);
+             
+-            FT_UInt glyph_index = FT_Get_Char_Index( face, c &amp; 0xff );
++            FT_UInt glyph_index = FT_Get_Char_Index( face, c);
+             
+             error = FT_Load_Glyph (face,glyph_index,FT_LOAD_NO_HINTING); 
+             if ( error )
+@@ -354,12 +304,12 @@
+             return dimension_t(slot-&gt;advance.x &gt;&gt; 6, glyph_bbox.yMax - glyph_bbox.yMin);
+         }
+         
+-        void get_string_info(std::string const&amp; text, string_info *info)
++        void get_string_info(std::wstring const&amp; text, string_info *info)
+         {
+             unsigned width = 0;
+             unsigned height = 0;
+           
+-            for (std::string::const_iterator i=text.begin();i!=text.end();++i)
++            for (std::wstring::const_iterator i=text.begin();i!=text.end();++i)
+             {
+                 dimension_t char_dim = character_dimensions(*i);
+               
+
+Added: trunk/include/mapnik/unicode.hpp
+===================================================================
+--- trunk/include/mapnik/unicode.hpp	2006-11-19 17:13:33 UTC (rev 376)
++++ trunk/include/mapnik/unicode.hpp	2006-11-22 22:01:37 UTC (rev 377)
+@@ -0,0 +1,82 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++//$Id$
++#ifndef UNICODE_HPP
++#define UNICODE_HPP
++
++#include &lt;string&gt;
++
++namespace mapnik {
++    
++    inline std::wstring to_unicode(std::string const&amp; text)
++    {
++        std::wstring out;
++        unsigned long code = 0;
++        int expect = 0;
++        std::string::const_iterator itr=text.begin();
++        
++        while ( itr != text.end())
++        {
++            unsigned p = (*itr++) &amp; 0xff;
++            if ( p &gt;= 0xc0)
++            {
++                if ( p &lt; 0xe0)      // U+0080 - U+07ff
++                {
++                    expect = 1;
++                    code = p &amp; 0x1f;
++                }
++                else if ( p &lt; 0xf0)  // U+0800 - U+ffff
++                {
++                    expect = 2;
++                    code = p &amp; 0x0f;
++                }
++                else if ( p  &lt; 0xf8) // U+1000 - U+10ffff
++                {
++                    expect = 3;
++                    code = p &amp; 0x07;
++                }
++                continue;
++            }
++            else if (p &gt;= 0x80)
++            {
++                --expect;
++                if (expect &gt;= 0)
++                {
++                    code &lt;&lt;= 6;
++                    code += p &amp; 0x3f;
++                }
++                if (expect &gt; 0)
++                    continue;
++                expect = 0;
++            }
++            else 
++            {
++                code = p;            // U+0000 - U+007f (ascii)
++            }
++            out.push_back(wchar_t(code));
++        }
++        return out;
++    }
++}
++
++#endif // UNICODE_HPP
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-11-19 17:13:33 UTC (rev 376)
++++ trunk/src/agg_renderer.cpp	2006-11-22 22:01:37 UTC (rev 377)
+@@ -59,7 +59,7 @@
+ // mapnik
+ #include &lt;mapnik/image_util.hpp&gt;
+ #include &lt;mapnik/agg_renderer.hpp&gt;
+-
++#include &lt;mapnik/unicode.hpp&gt;
+ #include &lt;mapnik/placement_finder.hpp&gt;
+ 
+ namespace mapnik 
+@@ -336,7 +336,7 @@
+         geometry_ptr const&amp; geom=feature.get_geometry();
+         if (geom)
+         {
+-            std::string text = feature[sym.get_name()].to_string();
++            std::wstring text = to_unicode(feature[sym.get_name()].to_string());
+             boost::trim(text);
+             boost::shared_ptr&lt;ImageData32&gt; const&amp; data = sym.get_data();
+             
+@@ -354,7 +354,7 @@
+ 
+                     string_info info;
+                     ren.get_string_info(text, &amp;info);
+-                 
++                    
+                     placement text_placement(&amp;info, &amp;t_, &amp;prj_trans, geom, std::pair&lt;double, double&gt;(w, h) );
+                     text_placement.avoid_edges = sym.get_avoid_edges();
+                   
+@@ -497,7 +497,7 @@
+        
+         if (geom)
+         {
+-            std::string text = feature[sym.get_name()].to_string();
++            std::wstring text = to_unicode(feature[sym.get_name()].to_string());
+             boost::trim(text);
+             if (text.length() &gt; 0)
+             {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000261.html">[Mapnik-svn] r376 - in trunk: . include/mapnik	plugins/input/postgis plugins/input/raster	plugins/input/shape src utils/shapeindex
+</A></li>
+	<LI>Next message: <A HREF="000263.html">[Mapnik-svn] r378 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#262">[ date ]</a>
+              <a href="thread.html#262">[ thread ]</a>
+              <a href="subject.html#262">[ subject ]</a>
+              <a href="author.html#262">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

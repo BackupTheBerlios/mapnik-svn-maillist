@@ -1,0 +1,100 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r220 - in trunk: bindings/python src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r220%20-%20in%20trunk%3A%20bindings/python%20src&In-Reply-To=%3C200603310855.k2V8tZl5021149%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000104.html">
+   <LINK REL="Next"  HREF="000106.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r220 - in trunk: bindings/python src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r220%20-%20in%20trunk%3A%20bindings/python%20src&In-Reply-To=%3C200603310855.k2V8tZl5021149%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r220 - in trunk: bindings/python src">pavlenko at berlios.de
+       </A><BR>
+    <I>Fri Mar 31 10:55:35 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000104.html">[Mapnik-svn] r219 - trunk/plugins/input/postgis
+</A></li>
+        <LI>Next message: <A HREF="000106.html">[Mapnik-svn] r221 - tags
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#105">[ date ]</a>
+              <a href="thread.html#105">[ thread ]</a>
+              <a href="subject.html#105">[ subject ]</a>
+              <a href="author.html#105">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-31 10:55:35 +0200 (Fri, 31 Mar 2006)
+New Revision: 220
+
+Modified:
+   trunk/bindings/python/mapnik_image.cpp
+   trunk/src/wkb.cpp
+Log:
+small optimization
+ 
+
+
+Modified: trunk/bindings/python/mapnik_image.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_image.cpp	2006-03-31 08:54:20 UTC (rev 219)
++++ trunk/bindings/python/mapnik_image.cpp	2006-03-31 08:55:35 UTC (rev 220)
+@@ -41,7 +41,6 @@
+     class_&lt;Image32&gt;(&quot;Image&quot;,&quot;This class represents a 32 bit image.&quot;,init&lt;int,int&gt;())
+ 	.def(&quot;width&quot;,&amp;Image32::width)
+ 	.def(&quot;height&quot;,&amp;Image32::height)
+-	;
+-    
++	;    
+     def(&quot;rawdata&quot;,&amp;rawdata);
+ }
+
+Modified: trunk/src/wkb.cpp
+===================================================================
+--- trunk/src/wkb.cpp	2006-03-31 08:54:20 UTC (rev 219)
++++ trunk/src/wkb.cpp	2006-03-31 08:55:35 UTC (rev 220)
+@@ -197,6 +197,7 @@
+ 	    int num_points=read_integer();
+ 	    CoordinateArray ar(num_points);
+ 	    read_coords(ar);
++	    line-&gt;set_capacity(num_points);
+ 	    line-&gt;move_to(ar[0].x,ar[0].y);
+ 	    for (int i=1;i&lt;num_points;++i)
+ 	    {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000104.html">[Mapnik-svn] r219 - trunk/plugins/input/postgis
+</A></li>
+	<LI>Next message: <A HREF="000106.html">[Mapnik-svn] r221 - tags
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#105">[ date ]</a>
+              <a href="thread.html#105">[ thread ]</a>
+              <a href="subject.html#105">[ subject ]</a>
+              <a href="author.html#105">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,692 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r257 - trunk/include
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-May/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r257%20-%20trunk/include&In-Reply-To=%3C200605191612.k4JGC0B8004542%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000141.html">
+   <LINK REL="Next"  HREF="000143.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r257 - trunk/include</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r257%20-%20trunk/include&In-Reply-To=%3C200605191612.k4JGC0B8004542%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r257 - trunk/include">pavlenko at berlios.de
+       </A><BR>
+    <I>Fri May 19 18:12:00 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000141.html">[Mapnik-svn] r256 - trunk/src
+</A></li>
+        <LI>Next message: <A HREF="000143.html">[Mapnik-svn] r258 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#142">[ date ]</a>
+              <a href="thread.html#142">[ thread ]</a>
+              <a href="subject.html#142">[ subject ]</a>
+              <a href="author.html#142">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-05-19 18:11:59 +0200 (Fri, 19 May 2006)
+New Revision: 257
+
+Modified:
+   trunk/include/fill.hpp
+   trunk/include/map.hpp
+   trunk/include/polygon_symbolizer.hpp
+   trunk/include/rule.hpp
+   trunk/include/utils.hpp
+Log:
+1.added default ctor in polygon_symbolizer (grey fill - RGB (128,128,128)
+2.replaced tabs 
+
+
+
+Modified: trunk/include/fill.hpp
+===================================================================
+--- trunk/include/fill.hpp	2006-05-19 16:09:32 UTC (rev 256)
++++ trunk/include/fill.hpp	2006-05-19 16:11:59 UTC (rev 257)
+@@ -20,7 +20,6 @@
+  *
+  *****************************************************************************/
+ 
+-
+ //$Id$
+ 
+ #ifndef FILL_HPP
+@@ -30,7 +29,7 @@
+ {
+     class fill 
+     {
+-	
++        
+     };
+ }
+ 
+
+Modified: trunk/include/map.hpp
+===================================================================
+--- trunk/include/map.hpp	2006-05-19 16:09:32 UTC (rev 256)
++++ trunk/include/map.hpp	2006-05-19 16:11:59 UTC (rev 257)
+@@ -34,57 +34,57 @@
+ 
+     class MAPNIK_DECL Map
+     {
+-	friend class boost::serialization::access;
+-	template &lt;typename Archive&gt;
+-	void serialize(Archive &amp; ar, const unsigned int /*version*/)
+-	{
+-	    ar  &amp; boost::serialization::make_nvp(&quot;width&quot;,width_) 
+-		&amp; boost::serialization::make_nvp(&quot;height&quot;,height_) 
+-		&amp; boost::serialization::make_nvp(&quot;srid&quot;,srid_)
+-		&amp; boost::serialization::make_nvp(&quot;layers&quot;,layers_);
+-	}
++        friend class boost::serialization::access;
++        template &lt;typename Archive&gt;
++        void serialize(Archive &amp; ar, const unsigned int /*version*/)
++        {
++            ar  &amp; boost::serialization::make_nvp(&quot;width&quot;,width_) 
++                &amp; boost::serialization::make_nvp(&quot;height&quot;,height_) 
++                &amp; boost::serialization::make_nvp(&quot;srid&quot;,srid_)
++                &amp; boost::serialization::make_nvp(&quot;layers&quot;,layers_);
++        }
+ 	
+-	static const unsigned MIN_MAPSIZE=16;
+-	static const unsigned MAX_MAPSIZE=1024;
+-	unsigned width_;
+-	unsigned height_;
+-	int srid_;
+-	Color background_;
+-	std::map&lt;std::string,feature_type_style&gt; styles_;
+-	std::vector&lt;Layer&gt; layers_;
+-	Envelope&lt;double&gt; currentExtent_;
++        static const unsigned MIN_MAPSIZE=16;
++        static const unsigned MAX_MAPSIZE=2048;
++        unsigned width_;
++        unsigned height_;
++        int srid_;
++        Color background_;
++        std::map&lt;std::string,feature_type_style&gt; styles_;
++        std::vector&lt;Layer&gt; layers_;
++        Envelope&lt;double&gt; currentExtent_;
++        
+     public:
+-	Map();
+-	Map(int width,int height,int srid=-1);
+-	Map(const Map&amp; rhs);
+-	Map&amp; operator=(const Map&amp; rhs);
+-
+-	bool insert_style(std::string const&amp; name,feature_type_style const&amp; style);
+-	void remove_style(const std::string&amp; name);
+-	feature_type_style const&amp; find_style(std::string const&amp; name) const;
+-	size_t layerCount() const;
+-	void addLayer(const Layer&amp; l);
+-	const Layer&amp; getLayer(size_t index) const;
+-	Layer&amp; getLayer(size_t index);
+-	void removeLayer(size_t index);
+-	std::vector&lt;Layer&gt; const&amp; layers() const;
+-	unsigned getWidth() const;
+-	unsigned getHeight() const;
+-	void setWidth(unsigned width);
+-	void setHeight(unsigned height);
+-	void resize(unsigned width,unsigned height);
+-	int srid() const;
+-	void setBackground(const Color&amp; c);
+-	const Color&amp; getBackground() const;
+-	void zoom(double zoom);
+-	void zoomToBox(const Envelope&lt;double&gt;&amp; box);
+-	void pan(int x,int y);
+-	void pan_and_zoom(int x,int y,double zoom);
+-	const Envelope&lt;double&gt;&amp; getCurrentExtent() const;
+-	double scale() const;
+-	virtual ~Map();
++        Map();
++        Map(int width,int height,int srid=-1);
++        Map(const Map&amp; rhs);
++        Map&amp; operator=(const Map&amp; rhs);        
++        bool insert_style(std::string const&amp; name,feature_type_style const&amp; style);
++        void remove_style(const std::string&amp; name);
++        feature_type_style const&amp; find_style(std::string const&amp; name) const;
++        size_t layerCount() const;
++        void addLayer(const Layer&amp; l);
++        const Layer&amp; getLayer(size_t index) const;
++        Layer&amp; getLayer(size_t index);
++        void removeLayer(size_t index);
++        std::vector&lt;Layer&gt; const&amp; layers() const;
++        unsigned getWidth() const;
++        unsigned getHeight() const;
++        void setWidth(unsigned width);
++        void setHeight(unsigned height);
++        void resize(unsigned width,unsigned height);
++        int srid() const;
++        void setBackground(const Color&amp; c);
++        const Color&amp; getBackground() const;
++        void zoom(double zoom);
++        void zoomToBox(const Envelope&lt;double&gt;&amp; box);
++        void pan(int x,int y);
++        void pan_and_zoom(int x,int y,double zoom);
++        const Envelope&lt;double&gt;&amp; getCurrentExtent() const;
++        double scale() const;
++        virtual ~Map();
+     private:
+-	void fixAspectRatio();
++        void fixAspectRatio();
+     };
+ }
+ 
+
+Modified: trunk/include/polygon_symbolizer.hpp
+===================================================================
+--- trunk/include/polygon_symbolizer.hpp	2006-05-19 16:09:32 UTC (rev 256)
++++ trunk/include/polygon_symbolizer.hpp	2006-05-19 16:11:59 UTC (rev 257)
+@@ -31,18 +31,21 @@
+ {
+     struct MAPNIK_DECL polygon_symbolizer
+     {
+-	polygon_symbolizer(Color const&amp; fill)
+-	    : fill_(fill) {}
+-	Color const&amp; get_fill() const
+-	{
+-	    return fill_;
+-	}
+-	void set_fill(Color const&amp; fill)
+-	{
+-	    fill_ = fill;
+-	}
++        explicit polygon_symbolizer() 
++            : fill_(Color(128,128,128) {}
++
++        polygon_symbolizer(Color const&amp; fill)
++            : fill_(fill) {}
++        Color const&amp; get_fill() const
++        {
++            return fill_;
++        }
++        void set_fill(Color const&amp; fill)
++        {
++            fill_ = fill;
++        }
+     private:
+-	Color fill_;
++        Color fill_;
+     };  
+ }
+ 
+
+Modified: trunk/include/rule.hpp
+===================================================================
+--- trunk/include/rule.hpp	2006-05-19 16:09:32 UTC (rev 256)
++++ trunk/include/rule.hpp	2006-05-19 16:11:59 UTC (rev 257)
+@@ -40,52 +40,52 @@
+ namespace mapnik
+ {
+     inline bool operator==(point_symbolizer const&amp; lhs,
+-			   point_symbolizer const&amp; rhs)
++                           point_symbolizer const&amp; rhs)
+     {
+-	return (&amp;lhs == &amp;rhs); 
++        return (&amp;lhs == &amp;rhs); 
+     }
+     inline bool operator==(line_symbolizer const&amp; lhs,
+-			   line_symbolizer const&amp; rhs)
++                           line_symbolizer const&amp; rhs)
+     {
+-	return (&amp;lhs == &amp;rhs); 
++        return (&amp;lhs == &amp;rhs); 
+     }
+     inline bool operator==(line_pattern_symbolizer const&amp; lhs,
+-			   line_pattern_symbolizer const&amp; rhs)
++                           line_pattern_symbolizer const&amp; rhs)
+     {
+-	return (&amp;lhs == &amp;rhs); 
++        return (&amp;lhs == &amp;rhs); 
+     }
+ 
+     inline bool operator==(polygon_symbolizer const&amp; lhs,
+-			   polygon_symbolizer const&amp; rhs)
++                           polygon_symbolizer const&amp; rhs)
+     {
+-	return (&amp;lhs == &amp;rhs); 
++        return (&amp;lhs == &amp;rhs); 
+     }
+     
+     inline bool operator==(polygon_pattern_symbolizer const&amp; lhs,
+-			   polygon_pattern_symbolizer const&amp; rhs)
++                           polygon_pattern_symbolizer const&amp; rhs)
+     {
+-	return (&amp;lhs == &amp;rhs); 
++        return (&amp;lhs == &amp;rhs); 
+     }
+     
+     inline bool operator==(raster_symbolizer const&amp; lhs,
+-			   raster_symbolizer const&amp; rhs)
++                           raster_symbolizer const&amp; rhs)
+     {
+-	return (&amp;lhs == &amp;rhs); 
++        return (&amp;lhs == &amp;rhs); 
+     }
+     
+     inline bool operator==(text_symbolizer const&amp; lhs,
+-			   text_symbolizer const&amp; rhs)
++                           text_symbolizer const&amp; rhs)
+     {
+-	return (&amp;lhs == &amp;rhs); 
++        return (&amp;lhs == &amp;rhs); 
+     }
+     
+     typedef boost::variant&lt;point_symbolizer,
+-			   line_symbolizer,
+-			   line_pattern_symbolizer,
+-			   polygon_symbolizer,
+-			   polygon_pattern_symbolizer,
+-			   raster_symbolizer,
+-			   text_symbolizer&gt; symbolizer;
++                           line_symbolizer,
++                           line_pattern_symbolizer,
++                           polygon_symbolizer,
++                           polygon_pattern_symbolizer,
++                           raster_symbolizer,
++                           text_symbolizer&gt; symbolizer;
+     
+         
+     typedef std::vector&lt;symbolizer&gt; symbolizers;    
+@@ -94,183 +94,183 @@
+     template &lt;typename FeatureT,template &lt;typename&gt; class Filter&gt;
+     class rule
+     {
+-	typedef Filter&lt;FeatureT&gt; filter_type;
+-	typedef boost::shared_ptr&lt;filter_type&gt; filter_ptr;
++        typedef Filter&lt;FeatureT&gt; filter_type;
++        typedef boost::shared_ptr&lt;filter_type&gt; filter_ptr;
+     private:
+ 
+-	std::string name_;
+-	std::string title_;
+-	std::string abstract_;
+-	double min_scale_;
+-	double max_scale_;
++        std::string name_;
++        std::string title_;
++        std::string abstract_;
++        double min_scale_;
++        double max_scale_;
+         symbolizers syms_;
+-	filter_ptr filter_;
+-	bool else_filter_;
++        filter_ptr filter_;
++        bool else_filter_;
+     public:
+-	rule()
+-	    : name_(),
+-	      title_(),
+-	      abstract_(),
+-	      min_scale_(0),
+-	      max_scale_(std::numeric_limits&lt;double&gt;::infinity()),
+-	      syms_(),
+-	      filter_(new all_filter&lt;FeatureT&gt;),
+-	      else_filter_(false) {}
++        rule()
++            : name_(),
++              title_(),
++              abstract_(),
++              min_scale_(0),
++              max_scale_(std::numeric_limits&lt;double&gt;::infinity()),
++              syms_(),
++              filter_(new all_filter&lt;FeatureT&gt;),
++              else_filter_(false) {}
+                 
+-	rule(const std::string&amp; name,
+-	     const std::string&amp; title=&quot;&quot;,
+-	     double min_scale_denominator=0,
+-	     double max_scale_denominator=std::numeric_limits&lt;double&gt;::infinity())
+-	    : name_(name),
+-	      title_(title),
+-	      min_scale_(min_scale_denominator),
+-	      max_scale_(max_scale_denominator),
+-	      syms_(),
+-	      filter_(new all_filter&lt;FeatureT&gt;),
+-	      else_filter_(false) {}
++        rule(const std::string&amp; name,
++             const std::string&amp; title=&quot;&quot;,
++             double min_scale_denominator=0,
++             double max_scale_denominator=std::numeric_limits&lt;double&gt;::infinity())
++            : name_(name),
++              title_(title),
++              min_scale_(min_scale_denominator),
++              max_scale_(max_scale_denominator),
++              syms_(),
++              filter_(new all_filter&lt;FeatureT&gt;),
++              else_filter_(false) {}
+ 	    
+-	rule(const rule&amp; rhs)    
+-	    : name_(rhs.name_),
+-	      title_(rhs.title_),
+-	      abstract_(rhs.abstract_),
+-	      min_scale_(rhs.min_scale_),
+-	      max_scale_(rhs.max_scale_),
+-	      syms_(rhs.syms_),
+-	      filter_(rhs.filter_),
+-	      else_filter_(rhs.else_filter_) {}
++        rule(const rule&amp; rhs)    
++            : name_(rhs.name_),
++              title_(rhs.title_),
++              abstract_(rhs.abstract_),
++              min_scale_(rhs.min_scale_),
++              max_scale_(rhs.max_scale_),
++              syms_(rhs.syms_),
++              filter_(rhs.filter_),
++              else_filter_(rhs.else_filter_) {}
+ 	
+         rule&amp; operator=(rule const&amp; rhs) 
+-	{
+-	    rule tmp(rhs);
+-	    swap(tmp);
+-	    return *this;
+-	}
+-	bool operator==(rule const&amp; other)
+-	{
+-	    return  (this == &amp;other); 
+-	}
++        {
++            rule tmp(rhs);
++            swap(tmp);
++            return *this;
++        }
++        bool operator==(rule const&amp; other)
++        {
++            return  (this == &amp;other); 
++        }
+ 	
+-	void set_max_scale(double scale)
+-	{
+-	    max_scale_=scale;
+-	}
++        void set_max_scale(double scale)
++        {
++            max_scale_=scale;
++        }
+ 
+-	double get_min_scale() const
+-	{
+-	    return min_scale_;
+-	}
++        double get_min_scale() const
++        {
++            return min_scale_;
++        }
+ 
+-	double get_max_scale() const
+-	{
+-	    return max_scale_;
+-	}
++        double get_max_scale() const
++        {
++            return max_scale_;
++        }
+ 
+-	void set_min_scale(double scale)
+-	{
+-	    min_scale_=scale;
+-	}
++        void set_min_scale(double scale)
++        {
++            min_scale_=scale;
++        }
+ 
+-	void set_name(std::string const&amp; name)
+-	{
+-	    name_=name;
+-	}
++        void set_name(std::string const&amp; name)
++        {
++            name_=name;
++        }
+ 	
+-	std::string const&amp; get_name() const
+-	{
+-	    return name_;
+-	}
++        std::string const&amp; get_name() const
++        {
++            return name_;
++        }
+ 	
+-	std::string const&amp; get_title() const
+-	{
+-	    return  title_;
+-	}
++        std::string const&amp; get_title() const
++        {
++            return  title_;
++        }
+ 
+-	void set_title(std::string const&amp; title)
+-	{
+-	    title_=title;
+-	}
++        void set_title(std::string const&amp; title)
++        {
++            title_=title;
++        }
+   
+-	void set_abstract(std::string const&amp; abstract)
+-	{
+-	    abstract_=abstract;
+-	}
++        void set_abstract(std::string const&amp; abstract)
++        {
++            abstract_=abstract;
++        }
+ 	
+-	std::string const&amp; get_abstract() const
+-	{
+-	    return abstract_;
+-	}
++        std::string const&amp; get_abstract() const
++        {
++            return abstract_;
++        }
+ 		
+-	void append(const symbolizer&amp; sym)
+-	{
+-	    syms_.push_back(sym);
+-	}
++        void append(const symbolizer&amp; sym)
++        {
++            syms_.push_back(sym);
++        }
+ 	
+-	void remove_at(size_t index)
+-	{
+-	    if (index &lt; syms_.size())
+-	    {
+-		syms_.erase(syms_.begin()+index);
+-	    }
+-	}
++        void remove_at(size_t index)
++        {
++            if (index &lt; syms_.size())
++            {
++                syms_.erase(syms_.begin()+index);
++            }
++        }
+ 	
+-	const symbolizers&amp; get_symbolizers() const
+-	{
+-	    return syms_;
+-	}
++        const symbolizers&amp; get_symbolizers() const
++        {
++            return syms_;
++        }
+ 	
+-	symbolizers::const_iterator begin()
+-	{
+-	    return syms_.begin();
+-	}
++        symbolizers::const_iterator begin()
++        {
++            return syms_.begin();
++        }
+ 	
+-	symbolizers::const_iterator end()
+-	{
+-	    return syms_.end();
+-	}
++        symbolizers::const_iterator end()
++        {
++            return syms_.end();
++        }
+ 	
+-	void set_filter(const filter_ptr&amp; filter)
+-	{
+-	    filter_=filter;
+-	}
++        void set_filter(const filter_ptr&amp; filter)
++        {
++            filter_=filter;
++        }
+ 
+-	filter_ptr const&amp; get_filter() const
+-	{
+-	    return filter_;
+-	}
++        filter_ptr const&amp; get_filter() const
++        {
++            return filter_;
++        }
+ 	
+-	void set_else(bool else_filter)
+-	{
+-	    else_filter_=else_filter;
+-	}
++        void set_else(bool else_filter)
++        {
++            else_filter_=else_filter;
++        }
+      
+-	bool has_else_filter() const
+-	{
+-	    return else_filter_;
+-	}
++        bool has_else_filter() const
++        {
++            return else_filter_;
++        }
+         
+-	bool active(double scale) const
+-	{
+-	    return ( scale &gt; min_scale_ &amp;&amp; scale &lt; max_scale_ );
+-	}
++        bool active(double scale) const
++        {
++            return ( scale &gt; min_scale_ &amp;&amp; scale &lt; max_scale_ );
++        }
+ 
+-	void accept(filter_visitor&lt;FeatureT&gt;&amp; v) const
+-	{
+-	    v.visit(*this);
+-	}
++        void accept(filter_visitor&lt;FeatureT&gt;&amp; v) const
++        {
++            v.visit(*this);
++        }
+ 	
+     private:
+ 	
+-	void swap(rule&amp; rhs) throw()
+-	{
+-	    name_=rhs.name_;
+-	    title_=rhs.title_;
+-	    abstract_=rhs.abstract_;
+-	    min_scale_=rhs.min_scale_;
+-	    max_scale_=rhs.max_scale_;
+-	    syms_=rhs.syms_;
+-	    filter_=rhs.filter_;
+-	    else_filter_=rhs.else_filter_;
+-	}
++        void swap(rule&amp; rhs) throw()
++        {
++            name_=rhs.name_;
++            title_=rhs.title_;
++            abstract_=rhs.abstract_;
++            min_scale_=rhs.min_scale_;
++            max_scale_=rhs.max_scale_;
++            syms_=rhs.syms_;
++            filter_=rhs.filter_;
++            else_filter_=rhs.else_filter_;
++        }
+     };
+ 
+     typedef rule&lt;Feature,filter&gt; rule_type;
+
+Modified: trunk/include/utils.hpp
+===================================================================
+--- trunk/include/utils.hpp	2006-05-19 16:09:32 UTC (rev 256)
++++ trunk/include/utils.hpp	2006-05-19 16:11:59 UTC (rev 257)
+@@ -201,21 +201,21 @@
+     template &lt;typename T&gt;
+     inline std::string toString(const T&amp; x)
+     {
+-	std::ostringstream o;
+-	if (!(o &lt;&lt; x))
+-	    throw BadConversion(std::string(&quot;toString(&quot;)
+-				+ typeid(x).name() + &quot;)&quot;);
+-	return o.str();
++        std::ostringstream o;
++        if (!(o &lt;&lt; x))
++            throw BadConversion(std::string(&quot;toString(&quot;)
++                                + typeid(x).name() + &quot;)&quot;);
++        return o.str();
+     }
+     
+     template&lt;typename T&gt;
+     inline void fromString(const std::string&amp; s, T&amp; x,
+-			   bool failIfLeftoverChars = true)
++                           bool failIfLeftoverChars = true)
+     {
+-	std::istringstream i(s);
+-	char c;
+-	if (!(i &gt;&gt; x) || (failIfLeftoverChars &amp;&amp; i.get(c)))
+-	    throw BadConversion(&quot;fromString(&quot;+s+&quot;)&quot;);
++        std::istringstream i(s);
++        char c;
++        if (!(i &gt;&gt; x) || (failIfLeftoverChars &amp;&amp; i.get(c)))
++            throw BadConversion(&quot;fromString(&quot;+s+&quot;)&quot;);
+     }
+     
+     //inline bool space (char c)
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000141.html">[Mapnik-svn] r256 - trunk/src
+</A></li>
+	<LI>Next message: <A HREF="000143.html">[Mapnik-svn] r258 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#142">[ date ]</a>
+              <a href="thread.html#142">[ thread ]</a>
+              <a href="subject.html#142">[ subject ]</a>
+              <a href="author.html#142">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

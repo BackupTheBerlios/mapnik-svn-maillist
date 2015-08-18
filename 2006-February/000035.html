@@ -1,0 +1,144 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r149 - in trunk: . bindings/python utils/shapeindex
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-February/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r149%20-%20in%20trunk%3A%20.%20bindings/python%20utils/shapeindex&In-Reply-To=%3C200602060108.k1618kbk008458%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000034.html">
+   <LINK REL="Next"  HREF="000036.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r149 - in trunk: . bindings/python utils/shapeindex</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r149%20-%20in%20trunk%3A%20.%20bindings/python%20utils/shapeindex&In-Reply-To=%3C200602060108.k1618kbk008458%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r149 - in trunk: . bindings/python utils/shapeindex">jdoyon at berlios.de
+       </A><BR>
+    <I>Mon Feb  6 02:08:46 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000034.html">[Mapnik-svn] r148 - trunk
+</A></li>
+        <LI>Next message: <A HREF="000036.html">[Mapnik-svn] r150 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#35">[ date ]</a>
+              <a href="thread.html#35">[ thread ]</a>
+              <a href="subject.html#35">[ subject ]</a>
+              <a href="author.html#35">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-02-06 02:08:32 +0100 (Mon, 06 Feb 2006)
+New Revision: 149
+
+Modified:
+   trunk/SConstruct
+   trunk/bindings/python/SConscript
+   trunk/utils/shapeindex/SConscript
+Log:
+Reworked the way the tail end of the boost libs (i.e. -gcc-mt) is handled.
+
+This will eventually help with mroe platforms, and to link with debug libraries.
+
+
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2006-02-05 22:36:33 UTC (rev 148)
++++ trunk/SConstruct	2006-02-06 01:08:32 UTC (rev 149)
+@@ -83,11 +83,15 @@
+         print 'Could not find header or shared library for %s, exiting!' % libinfo[0]
+         Exit(1)
+ 
++env['BOOST_APPEND'] = ''
++
+ for libinfo in BOOST_LIBSHEADERS:
+-    if not conf.CheckLibWithHeader('boost_%s' % libinfo[0], libinfo[1], 'C++'):
++    if not conf.CheckLibWithHeader('boost_%s%s' % (libinfo[0], env['BOOST_APPEND']), libinfo[1], 'C++'):
+         if not conf.CheckLibWithHeader('boost_%s-%s-mt' % (libinfo[0], env['CC']), libinfo[1], 'C++') and libinfo[2]:
+             print 'Could not find header or shared library for boost %s, exiting!' % libinfo[0]
+             Exit(1)
++        else:
++            env['BOOST_APPEND'] = '-%s-mt' % env['CC']
+ 
+ Export('env')
+ 
+@@ -136,8 +140,9 @@
+ 
+ # Build shapeindex and remove its dependency from the LIBS
+ 
+-if 'boost_program_options' in env['LIBS'] or 'boost_program_options-gcc-mt' in env['LIBS']:
++if 'boost_program_options%s' % env['BOOST_APPEND'] in env['LIBS']:
+     SConscript('utils/shapeindex/SConscript')
++    env['LIBS'].remove('boost_program_options%s' % env['BOOST_APPEND'])
+ 
+ # Build the input plug-ins
+ 
+
+Modified: trunk/bindings/python/SConscript
+===================================================================
+--- trunk/bindings/python/SConscript	2006-02-05 22:36:33 UTC (rev 148)
++++ trunk/bindings/python/SConscript	2006-02-06 01:08:32 UTC (rev 149)
+@@ -23,7 +23,7 @@
+ 
+ prefix = env['PYTHON_PREFIX'] + '/lib/python' + env['PYTHON_VERSION'] + '/site-packages/'
+ 
+-libraries = ['mapnik', 'boost_python-gcc-mt']
++libraries = ['mapnik', 'boost_python%s' % env['BOOST_APPEND']]
+ headers = [env['PYTHON_PREFIX'] + '/include/python' + env['PYTHON_VERSION']] + env['CPPPATH']
+ 
+ _mapnik = env.SharedLibrary('_mapnik', glob.glob('*.cpp'), LIBS=libraries, SHLIBPREFIX='', CPPPATH=headers)
+
+Modified: trunk/utils/shapeindex/SConscript
+===================================================================
+--- trunk/utils/shapeindex/SConscript	2006-02-05 22:36:33 UTC (rev 148)
++++ trunk/utils/shapeindex/SConscript	2006-02-06 01:08:32 UTC (rev 149)
+@@ -33,14 +33,7 @@
+ 
+ headers = ['#plugins/input/shape'] + env['CPPPATH']
+ 
+-if 'boost_program_options-gcc-mt' in env['LIBS']:
+-    libraries = 'boost_program_options-gcc-mt'
+-    env['LIBS'].remove('boost_program_options-gcc-mt')
+-else:
+-    libraries = 'boost_program_options'
+-    env['LIBS'].remove('boost_program_options')
++shapeindex = env.Program('shapeindex', source, CPPPATH=headers, LIBS='boost_program_options%s' % env['BOOST_APPEND'])
+ 
+-shapeindex = env.Program('shapeindex', source, CPPPATH=headers, LIBS=libraries)
+-
+ env.Install(prefix + '/bin', shapeindex)
+ env.Alias('install', prefix + '/bin')
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000034.html">[Mapnik-svn] r148 - trunk
+</A></li>
+	<LI>Next message: <A HREF="000036.html">[Mapnik-svn] r150 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#35">[ date ]</a>
+              <a href="thread.html#35">[ thread ]</a>
+              <a href="subject.html#35">[ subject ]</a>
+              <a href="author.html#35">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

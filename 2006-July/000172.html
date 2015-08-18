@@ -1,0 +1,837 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r287 - in trunk: include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-July/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r287%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200607242009.k6OK98ex023817%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000171.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r287 - in trunk: include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r287%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200607242009.k6OK98ex023817%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r287 - in trunk: include src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Mon Jul 24 22:09:08 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000171.html">[Mapnik-svn] r286 - in trunk/plugins/input: postgis shape
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#172">[ date ]</a>
+              <a href="thread.html#172">[ thread ]</a>
+              <a href="subject.html#172">[ subject ]</a>
+              <a href="author.html#172">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-07-24 22:08:32 +0200 (Mon, 24 Jul 2006)
+New Revision: 287
+
+Modified:
+   trunk/include/coord.hpp
+   trunk/include/factory.hpp
+   trunk/include/feature_style_processor.hpp
+   trunk/include/filter_expression.hpp
+   trunk/include/image_util.hpp
+   trunk/include/label_placement.hpp
+   trunk/include/quad_tree.hpp
+   trunk/src/image_reader.cpp
+Log:
+formatting mostly
+
+Modified: trunk/include/coord.hpp
+===================================================================
+--- trunk/include/coord.hpp	2006-07-24 20:06:09 UTC (rev 286)
++++ trunk/include/coord.hpp	2006-07-24 20:08:32 UTC (rev 287)
+@@ -32,68 +32,68 @@
+ {   
+     template &lt;typename T,int dim&gt;
+     struct coord {
+-	typedef T type;
++        typedef T type;
+     };
+     
+     template &lt;typename T&gt;
+     struct coord&lt;T,2&gt; 
+     {
+-	typedef T type;
+-	T x;
+-	T y;
++        typedef T type;
++        T x;
++        T y;
+     public:
+-	coord()
+-	    : x(),y() {}
+-	coord(T x,T y)
+-	    : x(x),y(y) {}
+-	template &lt;typename T2&gt;
+-	coord (const coord&lt;T2,2&gt;&amp; rhs)
+-	    : x(type(rhs.x)),
+-	      y(type(rhs.y)) {}
++        coord()
++            : x(),y() {}
++        coord(T x,T y)
++            : x(x),y(y) {}
++        template &lt;typename T2&gt;
++        coord (const coord&lt;T2,2&gt;&amp; rhs)
++            : x(type(rhs.x)),
++              y(type(rhs.y)) {}
+ 
+-	template &lt;typename T2&gt;
+-	coord&lt;T,2&gt;&amp; operator=(const coord&lt;T2,2&gt;&amp; rhs)
+-	{
+-	    if ((void*)this==(void*)&amp;rhs)
+-	    {
+-		return *this;
+-	    }
+-	    x=type(rhs.x);
+-	    y=type(rhs.y);
+-	    return *this;
+-	}
++        template &lt;typename T2&gt;
++        coord&lt;T,2&gt;&amp; operator=(const coord&lt;T2,2&gt;&amp; rhs)
++        {
++            if ((void*)this==(void*)&amp;rhs)
++            {
++                return *this;
++            }
++            x=type(rhs.x);
++            y=type(rhs.y);
++            return *this;
++        }
+     };
+ 
+     template &lt;typename T&gt;
+     struct coord&lt;T,3&gt; 
+     {
+-	typedef T type;
+-	T x;
+-	T y;
+-	T z;
++        typedef T type;
++        T x;
++        T y;
++        T z;
+     public:
+-	coord()
+-	    : x(),y(),z() {}
+-	coord(T x,T y,T z)
+-	    : x(x),y(y),z(z) {}
+-	template &lt;typename T2&gt;
+-	coord (const coord&lt;T2,3&gt;&amp; rhs)
+-	    : x(type(rhs.x)),
+-	      y(type(rhs.y)),
+-	      z(type(rhs.z)) {}
++        coord()
++            : x(),y(),z() {}
++        coord(T x,T y,T z)
++            : x(x),y(y),z(z) {}
++        template &lt;typename T2&gt;
++        coord (const coord&lt;T2,3&gt;&amp; rhs)
++            : x(type(rhs.x)),
++              y(type(rhs.y)),
++              z(type(rhs.z)) {}
+ 
+-	template &lt;typename T2&gt;
+-	coord&lt;T,3&gt;&amp; operator=(const coord&lt;T2,3&gt;&amp; rhs)
+-	{
+-	    if ((void*)this==(void*)&amp;rhs)
+-	    {
+-		return *this;
+-	    }
+-	    x=type(rhs.x);
+-	    y=type(rhs.y);
+-	    z=type(rhs.z);
+-	    return *this;
+-	}
++        template &lt;typename T2&gt;
++        coord&lt;T,3&gt;&amp; operator=(const coord&lt;T2,3&gt;&amp; rhs)
++        {
++            if ((void*)this==(void*)&amp;rhs)
++            {
++                return *this;
++            }
++            x=type(rhs.x);
++            y=type(rhs.y);
++            z=type(rhs.z);
++            return *this;
++        }
+     };
+ 
+     typedef coord&lt;double,2&gt; coord2d;
+@@ -103,12 +103,12 @@
+     template &lt;typename charT,typename traits,typename T ,int dim&gt;
+     inline std::basic_ostream&lt;charT,traits&gt;&amp;
+     operator &lt;&lt; (std::basic_ostream&lt;charT,traits&gt;&amp; out,
+-    		 const coord&lt;T,dim&gt;&amp; c);
++                 const coord&lt;T,dim&gt;&amp; c);
+     
+     template &lt;typename charT,typename traits,typename T&gt;
+     inline std::basic_ostream&lt;charT,traits&gt;&amp;
+     operator &lt;&lt; (std::basic_ostream&lt;charT,traits&gt;&amp; out,
+-		 const coord&lt;T,2&gt;&amp; c)
++                 const coord&lt;T,2&gt;&amp; c)
+     {
+         std::basic_ostringstream&lt;charT,traits&gt; s;
+         s.copyfmt(out);
+@@ -121,7 +121,7 @@
+     template &lt;typename charT,typename traits,typename T&gt;
+     inline std::basic_ostream&lt;charT,traits&gt;&amp;
+     operator &lt;&lt; (std::basic_ostream&lt;charT,traits&gt;&amp; out,
+-		 const coord&lt;T,3&gt;&amp; c)
++                 const coord&lt;T,3&gt;&amp; c)
+     {
+         std::basic_ostringstream&lt;charT,traits&gt; s;
+         s.copyfmt(out);
+
+Modified: trunk/include/factory.hpp
+===================================================================
+--- trunk/include/factory.hpp	2006-07-24 20:06:09 UTC (rev 286)
++++ trunk/include/factory.hpp	2006-07-24 20:08:32 UTC (rev 287)
+@@ -32,21 +32,21 @@
+ namespace mapnik
+ {
+     template &lt;typename key_type,
+-	      typename product_type&gt;
++              typename product_type&gt;
+     class default_factory_error
+     {
+     public:
+-	struct factory_exception : public std::exception
+-	{
+-	    const char* what() const throw()
+-	    {
+-		return &quot;uknown object type&quot;;
+-	    }
+-	};
+-	static product_type* on_unknown_type(const key_type&amp;)
+-	{
+-	    return 0;
+-	}
++        struct factory_exception : public std::exception
++        {
++            const char* what() const throw()
++            {
++                return &quot;uknown object type&quot;;
++            }
++        };
++        static product_type* on_unknown_type(const key_type&amp;)
++        {
++            return 0;
++        }
+     };
+ 
+     template
+@@ -55,34 +55,34 @@
+         typename key_type,
+         typename product_creator=product_type* (*)(),
+         template &lt;typename,typename&gt; class factory_error_policy=default_factory_error
+-    &gt;
++        &gt;
+     class factory : public singleton&lt;factory &lt;product_type,key_type,product_creator,factory_error_policy&gt; &gt;,
+-					     factory_error_policy &lt;key_type,product_type&gt;
++        factory_error_policy &lt;key_type,product_type&gt;
+     {
+     private:
+-	typedef std::map&lt;key_type,product_creator&gt; product_map;
+-	product_map map_;
++        typedef std::map&lt;key_type,product_creator&gt; product_map;
++        product_map map_;
+     public:
+ 
+-	bool register_product(const key_type&amp; key,product_creator creator)
+-	{
+-	    return map_.insert(typename product_map::value_type(key,creator)).second;
+-	}
++        bool register_product(const key_type&amp; key,product_creator creator)
++        {
++            return map_.insert(typename product_map::value_type(key,creator)).second;
++        }
+ 
+-	bool unregister_product(const key_type&amp; key)
+-	{
+-	    return map_.erase(key)==1;
+-	}
++        bool unregister_product(const key_type&amp; key)
++        {
++            return map_.erase(key)==1;
++        }
+ 
+-	product_type* create_object(const key_type&amp; key,const std::string&amp; file)
+-	{
+-	    typename product_map::const_iterator pos=map_.find(key);
+-	    if (pos!=map_.end())
+-	    {
+-		return (pos-&gt;second)(file);
+-	    }
+-	    return on_unknown_type(key);
+-	}
++        product_type* create_object(const key_type&amp; key,const std::string&amp; file)
++        {
++            typename product_map::const_iterator pos=map_.find(key);
++            if (pos!=map_.end())
++            {
++                return (pos-&gt;second)(file);
++            }
++            return on_unknown_type(key);
++        }
+     };
+ }
+ #endif                                            //FACTORY_HPP
+
+Modified: trunk/include/feature_style_processor.hpp
+===================================================================
+--- trunk/include/feature_style_processor.hpp	2006-07-24 20:06:09 UTC (rev 286)
++++ trunk/include/feature_style_processor.hpp	2006-07-24 20:08:32 UTC (rev 287)
+@@ -27,7 +27,7 @@
+ 
+ #include &lt;vector&gt;
+ #include &lt;iostream&gt;
+-
++#include &lt;boost/progress.hpp&gt;
+ #include &quot;envelope.hpp&quot;
+ #include &quot;datasource.hpp&quot;
+ #include &quot;layer.hpp&quot;
+@@ -36,8 +36,7 @@
+ #include &quot;utils.hpp&quot;
+ 
+ namespace mapnik
+-{    
+-    
++{       
+     template &lt;typename Processor&gt;
+     class feature_style_processor 
+     {
+@@ -61,7 +60,7 @@
+ 	
+         void apply()
+         {
+-            timer clock;
++            boost::progress_timer t;
+             Processor &amp; p = static_cast&lt;Processor&amp;&gt;(*this);
+ 
+             p.start_map_processing(m_);
+@@ -76,11 +75,7 @@
+                 }
+                 ++itr;
+             }
+-	    
+             p.end_map_processing(m_);
+-	    
+-            clock.stop();
+-	    
+         }	
+     private:
+         void apply_to_layer(Layer const&amp; lay,Processor &amp; p)
+
+Modified: trunk/include/filter_expression.hpp
+===================================================================
+--- trunk/include/filter_expression.hpp	2006-07-24 20:06:09 UTC (rev 286)
++++ trunk/include/filter_expression.hpp	2006-07-24 20:08:32 UTC (rev 287)
+@@ -35,30 +35,30 @@
+     class filter_to_string : public filter_visitor&lt;FeatureT&gt;
+     {
+     private:
+-	std::string text_;
++        std::string text_;
+     public:
+-	filter_to_string() {}
+-	void visit(filter&lt;FeatureT&gt;&amp; /*filter*/) 
+-	{ 
+-	    //not interested
+-	}
+-	void visit(expression&lt;FeatureT&gt;&amp; exp)
+-	{
+-	    property&lt;FeatureT&gt;* pf;
+-	    if ((pf = dynamic_cast&lt;property&lt;FeatureT&gt;*&gt;(&amp;exp)))
+-	    {
+-		names_.insert(pf-&gt;name());
+-	    }
+-	}
+-	std::string const&amp; text() const
+-	{
+-	    return text_;
+-	}
++        filter_to_string() {}
++        void visit(filter&lt;FeatureT&gt;&amp; /*filter*/) 
++        { 
++            //not interested
++        }
++        void visit(expression&lt;FeatureT&gt;&amp; exp)
++        {
++            property&lt;FeatureT&gt;* pf;
++            if ((pf = dynamic_cast&lt;property&lt;FeatureT&gt;*&gt;(&amp;exp)))
++            {
++                names_.insert(pf-&gt;name());
++            }
++        }
++        std::string const&amp; text() const
++        {
++            return text_;
++        }
+ 	
+-	virtual ~filter_to_string() {}
++        virtual ~filter_to_string() {}
+     private:
+-	filter_to_string(filter_to_string const&amp;);
+-	filter_to_string&amp; operator=(filter_to_string const&amp;);
++        filter_to_string(filter_to_string const&amp;);
++        filter_to_string&amp; operator=(filter_to_string const&amp;);
+     };
+ }
+ 
+
+Modified: trunk/include/image_util.hpp
+===================================================================
+--- trunk/include/image_util.hpp	2006-07-24 20:06:09 UTC (rev 286)
++++ trunk/include/image_util.hpp	2006-07-24 20:08:32 UTC (rev 287)
+@@ -30,10 +30,10 @@
+     class MAPNIK_DECL ImageUtils
+     {
+     public:
+-	static void save_to_file(const std::string&amp; filename,const std::string&amp; type,const Image32&amp; image);
++        static void save_to_file(const std::string&amp; filename,const std::string&amp; type,const Image32&amp; image);
+     private:
+-	static void save_as_png(const std::string&amp; filename,const Image32&amp; image);
+-	static void save_as_jpeg(const std::string&amp; filename,int quality, const Image32&amp; image);
++        static void save_as_png(const std::string&amp; filename,const Image32&amp; image);
++        static void save_as_jpeg(const std::string&amp; filename,int quality, const Image32&amp; image);
+     };
+ 
+     template &lt;typename T&gt;
+@@ -121,7 +121,7 @@
+     namespace
+     {
+         template &lt;typename Image&gt;
+-	inline void scale_up(Image&amp; target,const Image&amp; source,unsigned scale)
++        inline void scale_up(Image&amp; target,const Image&amp; source,unsigned scale)
+         {
+             int source_width=source.width();
+             int source_height=source.height();
+
+Modified: trunk/include/label_placement.hpp
+===================================================================
+--- trunk/include/label_placement.hpp	2006-07-24 20:06:09 UTC (rev 286)
++++ trunk/include/label_placement.hpp	2006-07-24 20:08:32 UTC (rev 287)
+@@ -28,25 +28,25 @@
+ {
+     struct point_
+     {
+-	double x;
+-	double y;
+-	point_()
+-	    : x(0),y(0) {}
+-	point_(double x_,double y_)
+-	    : x(x_),y(y_) {}	
++        double x;
++        double y;
++        point_()
++            : x(0),y(0) {}
++        point_(double x_,double y_)
++            : x(x_),y(y_) {}	
+     };
+-
++    
+     class label_placement
+     {
+     private:
+-	point_ anchor_;
+-	point_ displacement_;
+-	double rotation_;
++        point_ anchor_;
++        point_ displacement_;
++        double rotation_;
+     public:
+-	label_placement() 
+-	    : anchor_(),
+-	      displacement_(),
+-	      rotation_(0.0) {}
++        label_placement() 
++            : anchor_(),
++              displacement_(),
++              rotation_(0.0) {}
+ 	
+     };
+ }
+
+Modified: trunk/include/quad_tree.hpp
+===================================================================
+--- trunk/include/quad_tree.hpp	2006-07-24 20:06:09 UTC (rev 286)
++++ trunk/include/quad_tree.hpp	2006-07-24 20:08:32 UTC (rev 287)
+@@ -35,174 +35,174 @@
+     template &lt;typename T&gt;
+     class quad_tree : boost::noncopyable
+     {
+-	struct node
+-	{
+-	    typedef T value_t;
+-	    typedef std::vector&lt;T&gt; cont_t;
+-	    typedef typename cont_t::iterator iterator;
+-	    typedef typename cont_t::const_iterator const_iterator;
+-	    Envelope&lt;double&gt; extent_;
+-	    cont_t cont_;
+-	    node * children_[4];
++        struct node
++        {
++            typedef T value_t;
++            typedef std::vector&lt;T&gt; cont_t;
++            typedef typename cont_t::iterator iterator;
++            typedef typename cont_t::const_iterator const_iterator;
++            Envelope&lt;double&gt; extent_;
++            cont_t cont_;
++            node * children_[4];
+ 
+-	    explicit node(Envelope&lt;double&gt; const&amp; ext)
+-		: extent_(ext)
+-	    {
+-		std::memset(children_,0,4*sizeof(node*));
+-	    }
++            explicit node(Envelope&lt;double&gt; const&amp; ext)
++                : extent_(ext)
++            {
++                std::memset(children_,0,4*sizeof(node*));
++            }
+    
+-	    Envelope&lt;double&gt; const&amp; extent() const
+-	    {
+-		return extent_;
+-	    }
++            Envelope&lt;double&gt; const&amp; extent() const
++            {
++                return extent_;
++            }
+ 	    
+-	    iterator begin() 
+-	    {
+-		return cont_.begin();
+-	    }
++            iterator begin() 
++            {
++                return cont_.begin();
++            }
+ 	    
+-	    const_iterator begin() const 
+-	    {
+-		return cont_.begin();
+-	    }
++            const_iterator begin() const 
++            {
++                return cont_.begin();
++            }
+ 	    
+-	    iterator end() 
+-	    {
+-		return cont_.end();
+-	    }
++            iterator end() 
++            {
++                return cont_.end();
++            }
+ 	    
+-	    const_iterator end() const 
+-	    {
+-		return cont_.end();
+-	    }
+-	    ~node () {}
+-	};
++            const_iterator end() const 
++            {
++                return cont_.end();
++            }
++            ~node () {}
++        };
+ 	
+-	typedef boost::ptr_vector&lt;node&gt; nodes_t;	
+-	typedef typename node::cont_t cont_t;
+-	typedef typename cont_t::iterator node_data_iterator;
++        typedef boost::ptr_vector&lt;node&gt; nodes_t;	
++        typedef typename node::cont_t cont_t;
++        typedef typename cont_t::iterator node_data_iterator;
+ 	
+-	nodes_t nodes_;
+-	node * root_;	
+-	const double ratio_; 
++        nodes_t nodes_;
++        node * root_;	
++        const double ratio_; 
+ 	
+     public:
+-	typedef typename nodes_t::iterator iterator;
+-	typedef typename nodes_t::const_iterator const_iterator;
+-	typedef typename boost::ptr_vector&lt;T,boost::view_clone_allocator&gt; result_t;	
+-	typedef typename result_t::iterator query_iterator;
++        typedef typename nodes_t::iterator iterator;
++        typedef typename nodes_t::const_iterator const_iterator;
++        typedef typename boost::ptr_vector&lt;T,boost::view_clone_allocator&gt; result_t;	
++        typedef typename result_t::iterator query_iterator;
+    
+-	result_t query_result_;
++        result_t query_result_;
+ 	
+-	explicit quad_tree(Envelope&lt;double&gt; const&amp; ext,double ratio=0.55) 
+-	    : ratio_(ratio)
+-	{
+-	    nodes_.push_back(new node(ext));
+-	    root_ = &amp;nodes_[0];
+-	}
++        explicit quad_tree(Envelope&lt;double&gt; const&amp; ext,double ratio=0.55) 
++            : ratio_(ratio)
++        {
++            nodes_.push_back(new node(ext));
++            root_ = &amp;nodes_[0];
++        }
+ 		
+-	void insert(T data, Envelope&lt;double&gt; const&amp; box)
+-	{
+-	    do_insert_data(data,box,root_);
+-	}
++        void insert(T data, Envelope&lt;double&gt; const&amp; box)
++        {
++            do_insert_data(data,box,root_);
++        }
+         
+-	query_iterator query_in_box(Envelope&lt;double&gt; const&amp; box)
+-	{
+-	    query_result_.clear();
+-	    query_node(box,query_result_,root_);
+-	    return query_result_.begin();
+-	}
++        query_iterator query_in_box(Envelope&lt;double&gt; const&amp; box)
++        {
++            query_result_.clear();
++            query_node(box,query_result_,root_);
++            return query_result_.begin();
++        }
+ 	
+-	query_iterator query_end()
+-	{
+-	    return query_result_.end();
+-	}
++        query_iterator query_end()
++        {
++            return query_result_.end();
++        }
+ 
+-	iterator begin()
+-	{
+-	    return nodes_.begin();
+-	}
++        iterator begin()
++        {
++            return nodes_.begin();
++        }
+ 	
+-	const_iterator begin() const
+-	{
+-	    return nodes_.begin();
+-	}
++        const_iterator begin() const
++        {
++            return nodes_.begin();
++        }
+ 
+-	iterator end()
+-	{
+-	    return  nodes_.end();
+-	}
++        iterator end()
++        {
++            return  nodes_.end();
++        }
+ 	
+-	const_iterator end() const
+-	{
+-	    return  nodes_.end();
+-	}
++        const_iterator end() const
++        {
++            return  nodes_.end();
++        }
+ 	
+     private:
+         
+-	void query_node(Envelope&lt;double&gt; const&amp; box, result_t &amp; result, node * node_) const
+-	{
+-	    if (node_)
+-	    {
+-		Envelope&lt;double&gt; const&amp; node_extent = node_-&gt;extent();
+-		if (box.intersects(node_extent))
+-		{
+-		    node_data_iterator i=node_-&gt;begin();
+-		    node_data_iterator end=node_-&gt;end();
+-		    while ( i!=end)
+-		    {
+-			result.push_back(&amp;(*i));
+-			++i;
+-		    }
+-		    for (int k = 0; k &lt; 4; ++k)
+-		    {
+-		        query_node(box,result,node_-&gt;children_[k]);
+-		    }
+-		}
+-	    }
+-	}
++        void query_node(Envelope&lt;double&gt; const&amp; box, result_t &amp; result, node * node_) const
++        {
++            if (node_)
++            {
++                Envelope&lt;double&gt; const&amp; node_extent = node_-&gt;extent();
++                if (box.intersects(node_extent))
++                {
++                    node_data_iterator i=node_-&gt;begin();
++                    node_data_iterator end=node_-&gt;end();
++                    while ( i!=end)
++                    {
++                        result.push_back(&amp;(*i));
++                        ++i;
++                    }
++                    for (int k = 0; k &lt; 4; ++k)
++                    {
++                        query_node(box,result,node_-&gt;children_[k]);
++                    }
++                }
++            }
++        }
+ 	
+-	void do_insert_data(T data, Envelope&lt;double&gt; const&amp; box, node * n)
+-	{
+-	    if (n)
+-	    {
+-		Envelope&lt;double&gt; const&amp; node_extent = n-&gt;extent();
+-		Envelope&lt;double&gt; ext[4];
+-		split_box(node_extent,ext);		
+-		for (int i=0;i&lt;4;++i)
+-		{
+-		    if (ext[i].contains(box))
+-		    {
+-			if (!n-&gt;children_[i])
+-			{
+-			    nodes_.push_back(new node(ext[i]));
+-			    n-&gt;children_[i]=&amp;nodes_.back();
+-			}
+-			do_insert_data(data,box,n-&gt;children_[i]);
+-			return;
+-		    }
+-		}
+-		n-&gt;cont_.push_back(data);
+-	    }
+-	}
++        void do_insert_data(T data, Envelope&lt;double&gt; const&amp; box, node * n)
++        {
++            if (n)
++            {
++                Envelope&lt;double&gt; const&amp; node_extent = n-&gt;extent();
++                Envelope&lt;double&gt; ext[4];
++                split_box(node_extent,ext);		
++                for (int i=0;i&lt;4;++i)
++                {
++                    if (ext[i].contains(box))
++                    {
++                        if (!n-&gt;children_[i])
++                        {
++                            nodes_.push_back(new node(ext[i]));
++                            n-&gt;children_[i]=&amp;nodes_.back();
++                        }
++                        do_insert_data(data,box,n-&gt;children_[i]);
++                        return;
++                    }
++                }
++                n-&gt;cont_.push_back(data);
++            }
++        }
+ 	
+-	void split_box(Envelope&lt;double&gt; const&amp; node_extent,Envelope&lt;double&gt; * ext)
+-	{
+-	    coord2d c=node_extent.center();
++        void split_box(Envelope&lt;double&gt; const&amp; node_extent,Envelope&lt;double&gt; * ext)
++        {
++            coord2d c=node_extent.center();
+ 
+-	    double width=node_extent.width();
+-	    double height=node_extent.height();
++            double width=node_extent.width();
++            double height=node_extent.height();
+ 	    
+-	    double lox=node_extent.minx();
+-	    double loy=node_extent.miny();
+-	    double hix=node_extent.maxx();
+-	    double hiy=node_extent.maxy();
++            double lox=node_extent.minx();
++            double loy=node_extent.miny();
++            double hix=node_extent.maxx();
++            double hiy=node_extent.maxy();
+ 	    
+-	    ext[0]=Envelope&lt;double&gt;(lox,loy,lox + width * ratio_,loy + height * ratio_);
+-	    ext[1]=Envelope&lt;double&gt;(hix - width * ratio_,loy,hix,loy + height * ratio_);
+-	    ext[2]=Envelope&lt;double&gt;(lox,hiy - height*ratio_,lox + width * ratio_,hiy);
+-	    ext[3]=Envelope&lt;double&gt;(hix - width * ratio_,hiy - height*ratio_,hix,hiy);
+-	}
++            ext[0]=Envelope&lt;double&gt;(lox,loy,lox + width * ratio_,loy + height * ratio_);
++            ext[1]=Envelope&lt;double&gt;(hix - width * ratio_,loy,hix,loy + height * ratio_);
++            ext[2]=Envelope&lt;double&gt;(lox,hiy - height*ratio_,lox + width * ratio_,hiy);
++            ext[3]=Envelope&lt;double&gt;(hix - width * ratio_,hiy - height*ratio_,hix,hiy);
++        }
+     };    
+ } 
+ 
+
+Modified: trunk/src/image_reader.cpp
+===================================================================
+--- trunk/src/image_reader.cpp	2006-07-24 20:06:09 UTC (rev 286)
++++ trunk/src/image_reader.cpp	2006-07-24 20:08:32 UTC (rev 287)
+@@ -28,16 +28,16 @@
+ namespace mapnik
+ {  
+     typedef factory&lt;ImageReader,std::string, 
+-		    ImageReader* (*)(const std::string&amp;)&gt;  ImageReaderFactory;
++                    ImageReader* (*)(const std::string&amp;)&gt;  ImageReaderFactory;
+     
+     
+     bool register_image_reader(const std::string&amp; type,ImageReader* (* fun)(const std::string&amp;))
+     {
+-	return ImageReaderFactory::instance()-&gt;register_product(type,fun);
++        return ImageReaderFactory::instance()-&gt;register_product(type,fun);
+     }
+     
+     ImageReader* get_image_reader(const std::string&amp; type,const std::string&amp; file) 
+     {
+-	return ImageReaderFactory::instance()-&gt;create_object(type,file);
++        return ImageReaderFactory::instance()-&gt;create_object(type,file);
+     }
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000171.html">[Mapnik-svn] r286 - in trunk/plugins/input: postgis shape
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#172">[ date ]</a>
+              <a href="thread.html#172">[ thread ]</a>
+              <a href="subject.html#172">[ subject ]</a>
+              <a href="author.html#172">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

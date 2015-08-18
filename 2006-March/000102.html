@@ -1,0 +1,103 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r217 - in trunk: include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r217%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200603281539.k2SFdf1M025687%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000101.html">
+   <LINK REL="Next"  HREF="000103.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r217 - in trunk: include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r217%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200603281539.k2SFdf1M025687%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r217 - in trunk: include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Tue Mar 28 17:39:41 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000101.html">[Mapnik-svn] r216 - in trunk: plugins/input/shape utils/shapeindex
+</A></li>
+        <LI>Next message: <A HREF="000103.html">[Mapnik-svn] r218 - trunk/bindings/python
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#102">[ date ]</a>
+              <a href="thread.html#102">[ thread ]</a>
+              <a href="subject.html#102">[ subject ]</a>
+              <a href="author.html#102">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-28 17:39:38 +0200 (Tue, 28 Mar 2006)
+New Revision: 217
+
+Modified:
+   trunk/include/map.hpp
+   trunk/src/map.cpp
+Log:
+added non-const getLayer
+
+Modified: trunk/include/map.hpp
+===================================================================
+--- trunk/include/map.hpp	2006-03-28 10:09:24 UTC (rev 216)
++++ trunk/include/map.hpp	2006-03-28 15:39:38 UTC (rev 217)
+@@ -62,6 +62,7 @@
+ 	size_t layerCount() const;
+ 	void addLayer(const Layer&amp; l);
+ 	const Layer&amp; getLayer(size_t index) const;
++	Layer&amp; getLayer(size_t index);
+ 	void removeLayer(size_t index);
+ 	std::vector&lt;Layer&gt; const&amp; layers() const;
+ 	unsigned getWidth() const;
+
+Modified: trunk/src/map.cpp
+===================================================================
+--- trunk/src/map.cpp	2006-03-28 10:09:24 UTC (rev 216)
++++ trunk/src/map.cpp	2006-03-28 15:39:38 UTC (rev 217)
+@@ -93,6 +93,13 @@
+     {
+         return layers_[index];
+     }
++
++    Layer&amp; Map::getLayer(size_t index)
++    {
++        return layers_[index];
++    }
++
++
+     std::vector&lt;Layer&gt; const&amp; Map::layers() const
+     {
+ 	return layers_;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000101.html">[Mapnik-svn] r216 - in trunk: plugins/input/shape utils/shapeindex
+</A></li>
+	<LI>Next message: <A HREF="000103.html">[Mapnik-svn] r218 - trunk/bindings/python
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#102">[ date ]</a>
+              <a href="thread.html#102">[ thread ]</a>
+              <a href="subject.html#102">[ subject ]</a>
+              <a href="author.html#102">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

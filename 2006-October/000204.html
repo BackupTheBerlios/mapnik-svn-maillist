@@ -1,0 +1,213 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r319 - trunk/plugins/input/postgis
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r319%20-%20trunk/plugins/input/postgis&In-Reply-To=%3C200610090945.k999jkMx008907%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000203.html">
+   <LINK REL="Next"  HREF="000205.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r319 - trunk/plugins/input/postgis</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r319%20-%20trunk/plugins/input/postgis&In-Reply-To=%3C200610090945.k999jkMx008907%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r319 - trunk/plugins/input/postgis">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Mon Oct  9 11:45:46 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000203.html">[Mapnik-svn] r318 - trunk/include/mapnik
+</A></li>
+        <LI>Next message: <A HREF="000205.html">[Mapnik-svn] r320 - in trunk: include/mapnik src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#204">[ date ]</a>
+              <a href="thread.html#204">[ thread ]</a>
+              <a href="subject.html#204">[ subject ]</a>
+              <a href="author.html#204">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-09 11:45:45 +0200 (Mon, 09 Oct 2006)
+New Revision: 319
+
+Modified:
+   trunk/plugins/input/postgis/postgis.cpp
+   trunk/plugins/input/postgis/postgisfs.cpp
+Log:
+don't rely on feature id column name. 
+ 
+
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2006-10-09 09:43:43 UTC (rev 318)
++++ trunk/plugins/input/postgis/postgis.cpp	2006-10-09 09:45:45 UTC (rev 319)
+@@ -193,8 +193,8 @@
+         {       
+             PoolGuard&lt;shared_ptr&lt;Connection&gt;,shared_ptr&lt;Pool&lt;Connection,ConnectionCreator&gt; &gt; &gt; guard(conn,pool);
+             std::ostringstream s;
+-            // can we rely on 'gid' name???
+-            s &lt;&lt; &quot;select ogc_fid,asbinary(&quot;&lt;&lt;geometryColumn_&lt;&lt;&quot;) as geom&quot;;
++            
++            s &lt;&lt; &quot;select asbinary(&quot;&lt;&lt;geometryColumn_&lt;&lt;&quot;) as geom&quot;;
+             std::set&lt;std::string&gt; const&amp; props=q.property_names();
+             std::set&lt;std::string&gt;::const_iterator pos=props.begin();
+             while (pos!=props.end())
+
+Modified: trunk/plugins/input/postgis/postgisfs.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgisfs.cpp	2006-10-09 09:43:43 UTC (rev 318)
++++ trunk/plugins/input/postgis/postgisfs.cpp	2006-10-09 09:45:45 UTC (rev 319)
+@@ -32,7 +32,7 @@
+ using std::string;
+ 
+ postgis_featureset::postgis_featureset(boost::shared_ptr&lt;ResultSet&gt; const&amp; rs,
+-				     unsigned num_attrs=0)
++                                       unsigned num_attrs=0)
+     : rs_(rs),
+       num_attrs_(num_attrs),
+       totalGeomSize_(0),
+@@ -42,66 +42,63 @@
+ {
+     if (rs_-&gt;next())
+     { 
+-	const char* buf = rs_-&gt;getValue(0);
+-        int id = int4net(buf);
+-	feature_ptr feature(new Feature(id));
+-        int size=rs_-&gt;getFieldLength(1);
+-        const char *data=rs_-&gt;getValue(1);
++        feature_ptr feature(new Feature(count_));
++        int size=rs_-&gt;getFieldLength(0);
++        const char *data=rs_-&gt;getValue(0);
+         geometry_ptr geom=geometry_utils::from_wkb(data,size,-1);
+-	totalGeomSize_+=size;
++        totalGeomSize_+=size;
+ 	     
+         if (geom)
+         {
+             feature-&gt;set_geometry(geom);
+-	    unsigned start=2;
+-	    for (unsigned pos=0;pos&lt;num_attrs_;++pos)
+-	    {
+-		std::string name = rs_-&gt;getFieldName(start + pos);
+-		const char* buf=rs_-&gt;getValue(start + pos);
+-		//int field_size = rs_-&gt;getFieldLength(start + pos);
+-		int oid = rs_-&gt;getTypeOID(start + pos);
++            
++            for (unsigned pos=1;pos&lt;num_attrs_;++pos)
++            {
++                std::string name = rs_-&gt;getFieldName(pos);
++                const char* buf=rs_-&gt;getValue(pos);
++                int oid = rs_-&gt;getTypeOID(pos);
+ 		
+-		if (oid==23) //int4
+-		{
+-		    int val = int4net(buf);
+-		    boost::put(*feature,name,val);
+-		}
+-		else if (oid==21) //int2
+-		{
+-		    int val = int2net(buf);
+-		    boost::put(*feature,name,val);
+-		}
+-		else if (oid == 700) // float4
+-		{
+-		    float val;
+-		    float4net(val,buf);
+-		    boost::put(*feature,name,val);
+-		}
+-		else if (oid == 701) // float8
+-		{
+-		    double val;
+-		    float8net(val,buf);
+-		    boost::put(*feature,name,val);
+-		}
+-		else if (oid==1042 || oid==1043) //bpchar or varchar
+-		{
+-		    boost::put(*feature,name,buf);
+-		}
+-		else 
+-		{
+-		    boost::put(*feature,name,0);
+-		}
+-	    }
++                if (oid==23) //int4
++                {
++                    int val = int4net(buf);
++                    boost::put(*feature,name,val);
++                }
++                else if (oid==21) //int2
++                {
++                    int val = int2net(buf);
++                    boost::put(*feature,name,val);
++                }
++                else if (oid == 700) // float4
++                {
++                    float val;
++                    float4net(val,buf);
++                    boost::put(*feature,name,val);
++                }
++                else if (oid == 701) // float8
++                {
++                    double val;
++                    float8net(val,buf);
++                    boost::put(*feature,name,val);
++                }
++                else if (oid==1042 || oid==1043) //bpchar or varchar
++                {
++                    boost::put(*feature,name,buf);
++                }
++                else 
++                {
++                    boost::put(*feature,name,0);
++                }
++            }
+             ++count_;
+         }
+-	return feature;
++        return feature;
+     }
+     else
+     {
+         rs_-&gt;close();
+         std::clog &lt;&lt; &quot;totalGeomSize=&quot;&lt;&lt;totalGeomSize_&lt;&lt;&quot; bytes&quot;&lt;&lt;std::endl;
+         std::clog &lt;&lt; &quot;count=&quot;&lt;&lt;count_&lt;&lt;std::endl;
+-	return feature_ptr();
++        return feature_ptr();
+     }
+ }
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000203.html">[Mapnik-svn] r318 - trunk/include/mapnik
+</A></li>
+	<LI>Next message: <A HREF="000205.html">[Mapnik-svn] r320 - in trunk: include/mapnik src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#204">[ date ]</a>
+              <a href="thread.html#204">[ thread ]</a>
+              <a href="subject.html#204">[ subject ]</a>
+              <a href="author.html#204">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

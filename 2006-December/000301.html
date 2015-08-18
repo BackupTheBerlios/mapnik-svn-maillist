@@ -1,0 +1,86 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r416 - trunk/include/mapnik
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-December/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r416%20-%20trunk/include/mapnik&In-Reply-To=%3C200612171210.kBHCAWLN028489%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000300.html">
+   <LINK REL="Next"  HREF="000302.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r416 - trunk/include/mapnik</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r416%20-%20trunk/include/mapnik&In-Reply-To=%3C200612171210.kBHCAWLN028489%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r416 - trunk/include/mapnik">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Sun Dec 17 13:10:32 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000300.html">[Mapnik-svn] r415 - trunk/bindings/python
+</A></li>
+        <LI>Next message: <A HREF="000302.html">[Mapnik-svn] r417 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#301">[ date ]</a>
+              <a href="thread.html#301">[ thread ]</a>
+              <a href="subject.html#301">[ subject ]</a>
+              <a href="author.html#301">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-12-17 13:10:28 +0100 (Sun, 17 Dec 2006)
+New Revision: 416
+
+Modified:
+   trunk/include/mapnik/css_color_parser.hpp
+Log:
+added 'transparent' named colour = Color(0,0,0,0) (from Luiz Vital)
+TODO: support transparency for any background colour.
+ 
+
+
+Modified: trunk/include/mapnik/css_color_parser.hpp
+===================================================================
+--- trunk/include/mapnik/css_color_parser.hpp	2006-12-17 12:08:11 UTC (rev 415)
++++ trunk/include/mapnik/css_color_parser.hpp	2006-12-17 12:10:28 UTC (rev 416)
+@@ -183,6 +183,7 @@
+                 (&quot;whitesmoke&quot;, ColorT(245, 245, 245))
+                 (&quot;yellow&quot;, ColorT(255, 255, 0))
+                 (&quot;yellowgreen&quot;, ColorT(154, 205, 50))
++                (&quot;transparent&quot;, ColorT(0, 0, 0, 0))
+                 ;
+         }
+     };
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000300.html">[Mapnik-svn] r415 - trunk/bindings/python
+</A></li>
+	<LI>Next message: <A HREF="000302.html">[Mapnik-svn] r417 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#301">[ date ]</a>
+              <a href="thread.html#301">[ thread ]</a>
+              <a href="subject.html#301">[ subject ]</a>
+              <a href="author.html#301">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

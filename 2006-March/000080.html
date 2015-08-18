@@ -1,0 +1,1263 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r194 - in trunk: include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r194%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200603221549.k2MFnhdc015123%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000079.html">
+   <LINK REL="Next"  HREF="000081.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r194 - in trunk: include src</H1>
+    <B>pavlenko at berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r194%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200603221549.k2MFnhdc015123%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r194 - in trunk: include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Wed Mar 22 16:49:43 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000079.html">[Mapnik-svn] r193 - trunk/include
+</A></li>
+        <LI>Next message: <A HREF="000081.html">[Mapnik-svn] r195 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#80">[ date ]</a>
+              <a href="thread.html#80">[ thread ]</a>
+              <a href="subject.html#80">[ subject ]</a>
+              <a href="author.html#80">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-22 16:48:54 +0100 (Wed, 22 Mar 2006)
+New Revision: 194
+
+Removed:
+   trunk/include/render.hpp
+   trunk/include/scanline.hpp
+   trunk/src/line_aa.cpp
+   trunk/src/line_symbolizer.cpp
+   trunk/src/polygon_symbolizer.cpp
+   trunk/src/scanline.cpp
+   trunk/src/scanline_aa.cpp
+Log:
+removed unused files
+
+Deleted: trunk/include/render.hpp
+===================================================================
+--- trunk/include/render.hpp	2006-03-22 15:46:58 UTC (rev 193)
++++ trunk/include/render.hpp	2006-03-22 15:48:54 UTC (rev 194)
+@@ -1,52 +0,0 @@
+-/* This file is part of Mapnik (c++ mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
+- *
+- * Mapnik is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version 2
+- * of the License, or any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+- */
+-
+-//$Id: render.hpp 39 2005-04-10 20:39:53Z pavlenko $
+-
+-#ifndef RENDER_HPP
+-#define RENDER_HPP
+-
+-#include &lt;stack&gt;
+-#include &quot;envelope.hpp&quot;
+-#include &quot;graphics.hpp&quot;
+-#include &quot;datasource.hpp&quot;
+-#include &quot;layer.hpp&quot;
+-#include &quot;map.hpp&quot;
+-
+-namespace mapnik
+-{
+-    template &lt;typename Image&gt; class Renderer
+-    {
+-    public:
+-	static void render(const Map&amp; map,Image&amp; image);
+-    private:
+-	Renderer();
+-	static void render_vector_layer(datasource_p const&amp; ds,Map const&amp; map,
+-					std::vector&lt;std::string&gt; const&amp; , 
+-					unsigned width,
+-					unsigned height,
+-					const Envelope&lt;double&gt;&amp; bbox,Image&amp; image);
+-	static void render_raster_layer(datasource_p const&amp; ds,
+-					std::vector&lt;std::string&gt; const&amp; namedStyles,
+-					unsigned width,
+-					unsigned height,
+-					const Envelope&lt;double&gt;&amp; bbox,Image&amp; image);
+-    };
+-}
+-
+-#endif //RENDER_HPP
+
+Deleted: trunk/include/scanline.hpp
+===================================================================
+--- trunk/include/scanline.hpp	2006-03-22 15:46:58 UTC (rev 193)
++++ trunk/include/scanline.hpp	2006-03-22 15:48:54 UTC (rev 194)
+@@ -1,44 +0,0 @@
+-/* This file is part of Mapnik (c++ mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
+- *
+- * Mapnik is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version 2
+- * of the License, or any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+- */
+-
+-//$Id: scanline.hpp 39 2005-04-10 20:39:53Z pavlenko $
+-
+-#ifndef SCANLINE_HPP
+-#define SCANLINE_HPP
+-
+-#include &quot;geometry.hpp&quot;
+-
+-namespace mapnik
+-{
+-    template &lt;typename PixBuffer&gt; class ScanlineRasterizer
+-    {
+-    private:
+-	PixBuffer* pixbuf_;
+-    public:
+-	ScanlineRasterizer(PixBuffer&amp; pixbuf)
+-	    :pixbuf_(&amp;pixbuf) {}
+-	
+-	template &lt;typename Transform&gt;
+-	void render(const geometry_type&amp; geom,const Color&amp; c);
+-    private:
+-	ScanlineRasterizer(const ScanlineRasterizer&amp;);
+-	ScanlineRasterizer&amp; operator=(const ScanlineRasterizer&amp;);
+-	void render_hline(int x0,int x1,int y,unsigned int rgba);
+-    };
+-}
+-#endif                                            //SCANLINE_HPP
+
+Deleted: trunk/src/line_aa.cpp
+===================================================================
+--- trunk/src/line_aa.cpp	2006-03-22 15:46:58 UTC (rev 193)
++++ trunk/src/line_aa.cpp	2006-03-22 15:48:54 UTC (rev 194)
+@@ -1,146 +0,0 @@
+-/* This file is part of Mapnik (c++ mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
+- *
+- * Mapnik is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version 2
+- * of the License, or any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+- */
+-
+-//$Id: line_aa.cpp 29 2005-04-01 14:30:11Z pavlenko $
+-
+-#include &quot;line_aa.hpp&quot;
+-#include &quot;geom_util.hpp&quot;
+-
+-namespace mapnik
+-{
+-    using std::swap;
+-
+-    template &lt;typename PixBuffer&gt;
+-    template &lt;typename Transform&gt;
+-    void LineRasterizerAA&lt;PixBuffer&gt;::render(const geometry_type&amp; path,const Color&amp; c)
+-    {
+-        unsigned rgba=c.rgba();
+-        typename geometry_type::path_iterator&lt;Transform&gt; itr=path.template begin&lt;Transform&gt;();
+-         
+-	int x0 = 0 ,y0 = 0;
+-        while (itr!=path.template end&lt;Transform&gt;())
+-        {
+-            int x1=itr-&gt;x;
+-            int y1=itr-&gt;y;
+-            if (itr-&gt;cmd==SEG_LINETO || itr-&gt;cmd==SEG_CLOSE)
+-            {
+-                if (!(x0==x1 &amp;&amp; y0==y1))
+-                {
+-                    render_line(x0,y0,x1,y1,rgba);
+-                }
+-	    }
+-            x0=x1;
+-            y0=y1;
+-            ++itr;
+-        }
+-    }
+-
+-    template &lt;typename PixBuffer&gt;
+-    inline void LineRasterizerAA&lt;PixBuffer&gt;::render_line(int x0,int y0,int x1,int y1,unsigned rgba)
+-    {
+-        if (!clip_line(x0,y0,x1,y1,pixbuf_)) return;
+-        if(y0&gt;y1)
+-        {
+-            swap(y0,y1);
+-            swap(x0,x1);
+-        }
+-        pixbuf_-&gt;setPixel(x0,y0,rgba);
+-        pixbuf_-&gt;setPixel(x1,y1,rgba);
+-        int dx=x1-x0;
+-        int dy=y1-y0;
+-        int xDir;
+-        if(dx&gt;=0) xDir=1;
+-        else
+-        {
+-            xDir=-1;
+-            dx=-dx;
+-        }
+-        if(dx==0)                                 // vertical line
+-        {
+-            for(int y=y0;y&lt;y1;y++)
+-            {
+-                pixbuf_-&gt;setPixel(x0,y,rgba);
+-            }
+-            return;
+-        }
+-        if(dy==0)                                 // horizontal line
+-        {
+-            if (x0&gt;x1) swap(x0,x1);
+-            for(int x=x0;x&lt;x1;++x)
+-            {
+-                pixbuf_-&gt;setPixel(x,y0,rgba);
+-            }
+-            return;
+-        }
+-        if(dx==dy)                                // diagonal line.
+-        {
+-            for(int x=x0,y=y0;y&lt;y1;y++,x+=xDir)
+-            {
+-                pixbuf_-&gt;setPixel(x,y,rgba);
+-            }
+-            return;
+-        }
+-        // line is not horizontal, diagonal, or vertical: use Wu Antialiasing:
+-        int error_acc=0;
+-        int t;
+-        if(dy&gt;dx)                                 // y-major line
+-        {
+-            int error_adj=(dx&lt;&lt;16)/dy;
+-            if(xDir&lt;0)
+-            {
+-                while(--dy)
+-                {
+-                    error_acc+=error_adj;
+-                    ++y0;
+-                    x1=x0-(error_acc&gt;&gt;16);
+-                    t=(error_acc&gt;&gt;8)&amp;255;
+-                    pixbuf_-&gt;blendPixel(x1  , y0, rgba,~t&amp;255);
+-                    pixbuf_-&gt;blendPixel(x1-1, y0, rgba,t);
+-                }
+-            }
+-            else
+-            {
+-                while(--dy)
+-                {
+-                    error_acc+=error_adj;
+-                    ++y0;
+-                    x1=x0+(error_acc&gt;&gt;16);
+-                    t=(error_acc&gt;&gt;8)&amp;255;
+-                    pixbuf_-&gt;blendPixel(x1     , y0, rgba,~t&amp;255);
+-                    pixbuf_-&gt;blendPixel(x1+xDir, y0, rgba,t);
+-                }
+-            }
+-        }                                         // x-major line
+-        else
+-        {
+-            int error_adj=(dy&lt;&lt;16)/dx;
+-            while(--dx)
+-            {
+-                error_acc+=error_adj;
+-                x0+=xDir;
+-                y1=y0+(error_acc&gt;&gt;16);
+-                t=(error_acc&gt;&gt;8)&amp;255;
+-                pixbuf_-&gt;blendPixel(x0, y1  , rgba,~t&amp;255);
+-                pixbuf_-&gt;blendPixel(x0, y1+1, rgba,t);
+-            }
+-        }
+-    }
+-
+-    template class LineRasterizerAA&lt;Image32&gt;;
+-    template void LineRasterizerAA&lt;Image32&gt;::render&lt;SHIFT0&gt;(const geometry_type&amp;,const Color&amp;);
+-}
+
+Deleted: trunk/src/line_symbolizer.cpp
+===================================================================
+--- trunk/src/line_symbolizer.cpp	2006-03-22 15:46:58 UTC (rev 193)
++++ trunk/src/line_symbolizer.cpp	2006-03-22 15:48:54 UTC (rev 194)
+@@ -1,167 +0,0 @@
+-/* This file is part of Mapnik (c++ mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
+- *
+- * Mapnik is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version 2
+- * of the License, or any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+- */
+-
+-//$Id$
+-
+-#include &quot;line_symbolizer.hpp&quot;
+-
+-#include &quot;agg_basics.h&quot;
+-#include &quot;agg_rendering_buffer.h&quot;
+-#include &quot;agg_rasterizer_scanline_aa.h&quot;
+-#include &quot;agg_conv_stroke.h&quot;
+-#include &quot;agg_conv_dash.h&quot;
+-#include &quot;agg_conv_contour.h&quot;
+-#include &quot;agg_vcgen_stroke.h&quot;
+-#include &quot;agg_conv_adaptor_vcgen.h&quot;
+-#include &quot;agg_conv_smooth_poly1.h&quot;
+-#include &quot;agg_conv_marker.h&quot;
+-#include &quot;agg_arrowhead.h&quot;
+-#include &quot;agg_vcgen_markers_term.h&quot;
+-#include &quot;agg_scanline_p.h&quot;
+-#include &quot;agg_scanline_u.h&quot;
+-#include &quot;agg_renderer_scanline.h&quot;
+-#include &quot;agg_pixfmt_rgba.h&quot;
+-#include &quot;agg_path_storage.h&quot;
+-#include &quot;agg_renderer_outline_aa.h&quot;
+-#include &quot;agg_rasterizer_outline_aa.h&quot;
+-#include &quot;agg_rasterizer_outline.h&quot;
+-#include &quot;agg_renderer_outline_image.h&quot;
+-
+-namespace mapnik
+-{
+-    line_symbolizer::line_symbolizer(stroke const&amp; stroke)
+-	: symbolizer(),
+-	  stroke_(stroke) {}
+-    
+-    line_symbolizer::line_symbolizer(const Color&amp; pen,float width)
+-	    : symbolizer(),
+-	      stroke_(pen,width) {}
+-	
+-    void line_symbolizer::render(Feature const&amp; feat, CoordTransform const&amp; t,Image32&amp; image) const 
+-    {
+-	typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base; 
+-	typedef coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
+-	typedef agg::renderer_outline_aa&lt;ren_base&gt; renderer_oaa;
+-	typedef agg::rasterizer_outline_aa&lt;renderer_oaa&gt; rasterizer_outline_aa;
+-	typedef agg::renderer_scanline_aa_solid&lt;ren_base&gt; renderer;
+-	
+-	geometry_ptr const&amp; geom=feat.get_geometry();
+-	if (geom &amp;&amp; geom-&gt;num_points() &gt; 1)
+-	{
+-	    path_type path(t,*geom);
+-	    agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(),image.width(),image.height(),
+-					       image.width()*4);
+-	    agg::pixfmt_rgba32 pixf(buf);
+-	    ren_base renb(pixf);	    
+-	
+-	    Color const&amp; col = stroke_.get_color();
+-	    unsigned r=col.red();
+-	    unsigned g=col.green();
+-	    unsigned b=col.blue();	    
+-             
+-	    if (stroke_.has_dash())
+-	    {
+-		renderer ren(renb);	
+-		agg::rasterizer_scanline_aa&lt;&gt; ras;
+-		agg::scanline_u8 sl;
+-		agg::conv_dash&lt;path_type&gt; dash(path);
+-		dash_array const&amp; d = stroke_.get_dash_array();
+-		dash_array::const_iterator itr = d.begin();
+-		dash_array::const_iterator end = d.end();
+-		while (itr != end)
+-		{
+-		    dash.add_dash(itr-&gt;first, itr-&gt;second);
+-		    ++itr;
+-		}
+-		agg::conv_stroke&lt;agg::conv_dash&lt;path_type &gt; &gt; stroke(dash);
+-		    
+-		line_join_e join=stroke_.get_line_join();
+-		if ( join == MITER_JOIN)
+-		    stroke.generator().line_join(agg::miter_join);
+-		else if( join == MITER_REVERT_JOIN) 
+-		    stroke.generator().line_join(agg::miter_join);
+-		else if( join == ROUND_JOIN) 
+-		    stroke.generator().line_join(agg::round_join);
+-		else
+-		    stroke.generator().line_join(agg::bevel_join);
+-		    
+-		line_cap_e cap=stroke_.get_line_cap();
+-		if (cap == BUTT_CAP)    
+-		    stroke.generator().line_cap(agg::butt_cap);
+-		else if (cap == SQUARE_CAP)
+-		    stroke.generator().line_cap(agg::square_cap);
+-		else 
+-		    stroke.generator().line_cap(agg::round_cap);
+-		    
+-		stroke.generator().miter_limit(4.0);
+-		stroke.generator().width(stroke_.get_width());
+-		    
+-		ras.clip_box(0,0,image.width(),image.height());
+-		ras.add_path(stroke);
+-		ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
+-		agg::render_scanlines(ras, sl, ren);
+-	    }
+-	    else if (0)//(stroke_.get_width() &lt;= 1.0)
+-	    {
+-		//faster but clipping doesn't work 
+-		agg::line_profile_aa prof;
+-		prof.width(stroke_.get_width());
+-		renderer_oaa ren_oaa(renb, prof);
+-		rasterizer_outline_aa ras_oaa(ren_oaa);
+-		
+-		ren_oaa.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
+-		ren_oaa.clip_box(0,0,image.width(),image.height());
+-		ras_oaa.add_path(path);		
+-		
+-	    }
+-	    else 
+-	    {
+-		renderer ren(renb);	
+-		agg::rasterizer_scanline_aa&lt;&gt; ras;
+-		agg::scanline_p8 sl;
+-		agg::conv_stroke&lt;path_type&gt;  stroke(path);
+-		
+-		line_join_e join=stroke_.get_line_join();
+-		if ( join == MITER_JOIN)
+-		    stroke.generator().line_join(agg::miter_join);
+-		else if( join == MITER_REVERT_JOIN) 
+-		    stroke.generator().line_join(agg::miter_join);
+-		else if( join == ROUND_JOIN) 
+-		    stroke.generator().line_join(agg::round_join);
+-		else
+-		    stroke.generator().line_join(agg::bevel_join);
+-		    
+-		line_cap_e cap=stroke_.get_line_cap();
+-		if (cap == BUTT_CAP)    
+-		    stroke.generator().line_cap(agg::butt_cap);
+-		else if (cap == SQUARE_CAP)
+-		    stroke.generator().line_cap(agg::square_cap);
+-		else 
+-		    stroke.generator().line_cap(agg::round_cap);
+-		
+-		stroke.generator().miter_limit(4.0);
+-		stroke.generator().width(stroke_.get_width());
+-		
+-		ras.clip_box(0,0,image.width(),image.height());
+-		ras.add_path(stroke);
+-		ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
+-		agg::render_scanlines(ras, sl, ren);
+-	    }
+-	}
+-    }
+-}
+
+Deleted: trunk/src/polygon_symbolizer.cpp
+===================================================================
+--- trunk/src/polygon_symbolizer.cpp	2006-03-22 15:46:58 UTC (rev 193)
++++ trunk/src/polygon_symbolizer.cpp	2006-03-22 15:48:54 UTC (rev 194)
+@@ -1,71 +0,0 @@
+-/* This file is part of Mapnik (c++ mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
+- *
+- * Mapnik is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version 2
+- * of the License, or any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+- */
+-
+-//$Id$
+-
+-#include &quot;polygon_symbolizer.hpp&quot;
+-
+-#include &quot;agg_basics.h&quot;
+-#include &quot;agg_rendering_buffer.h&quot;
+-#include &quot;agg_rasterizer_scanline_aa.h&quot;
+-#include &quot;agg_scanline_p.h&quot;
+-#include &quot;agg_scanline_u.h&quot;
+-#include &quot;agg_renderer_scanline.h&quot;
+-#include &quot;agg_pixfmt_rgba.h&quot;
+-#include &quot;agg_path_storage.h&quot;
+-#include &quot;agg_span_allocator.h&quot;
+-#include &quot;agg_span_pattern_rgba.h&quot;
+-#include &quot;agg_image_accessors.h&quot;
+-
+-namespace mapnik
+-{
+-    polygon_symbolizer::polygon_symbolizer(const Color&amp; fill)
+-	: symbolizer(),
+-	  fill_(fill) {}
+-    
+- 
+-    void  polygon_symbolizer::render(Feature const&amp; feat,CoordTransform const&amp; t,Image32&amp; image) const
+-    {
+-	typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
+-	typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base;    
+-	typedef agg::renderer_scanline_aa_solid&lt;ren_base&gt; renderer;
+-
+-	geometry_ptr const&amp; geom=feat.get_geometry();
+-	if (geom &amp;&amp; geom-&gt;num_points() &gt; 2) 
+-	{
+-	    path_type path(t,*geom);
+-	    agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(),image.width(),image.height(),
+-					       image.width()*4);
+-	    agg::pixfmt_rgba32 pixf(buf);
+-	    ren_base renb(pixf);	    
+-	    
+-	    unsigned r=fill_.red();
+-	    unsigned g=fill_.green();
+-	    unsigned b=fill_.blue();
+-	    unsigned a=fill_.alpha();
+-	    renderer ren(renb);
+-	    
+-	    agg::rasterizer_scanline_aa&lt;&gt; ras;
+-	    agg::scanline_u8 sl;
+-	    ras.clip_box(0,0,image.width(),image.height());
+-	    ras.add_path(path);
+-	    ren.color(agg::rgba8(r, g, b, a));
+-	    agg::render_scanlines(ras, sl, ren);
+-	}
+-    }
+-}
+
+Deleted: trunk/src/scanline.cpp
+===================================================================
+--- trunk/src/scanline.cpp	2006-03-22 15:46:58 UTC (rev 193)
++++ trunk/src/scanline.cpp	2006-03-22 15:48:54 UTC (rev 194)
+@@ -1,46 +0,0 @@
+-/* This file is part of Mapnik (c++ mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
+- *
+- * Mapnik is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version 2
+- * of the License, or any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+- */
+-
+-//$Id: scanline.cpp 17 2005-03-08 23:58:43Z pavlenko $
+-
+-#include &lt;vector&gt;
+-#include &quot;memory.hpp&quot;
+-#include &quot;graphics.hpp&quot;
+-#include &quot;scanline.hpp&quot;
+-
+-namespace mapnik
+-{
+-
+-    template &lt;typename PixBuffer&gt;
+-    template &lt;typename Transform&gt;
+-    void ScanlineRasterizer&lt;PixBuffer&gt;::render(const geometry_type&amp; geom,const Color&amp; c)
+-    {
+-	// ????
+-    }
+-
+-    template &lt;typename PixBuffer&gt;
+-    inline void ScanlineRasterizer&lt;PixBuffer&gt;::render_hline(int x0,int x1,int y,unsigned int rgba)
+-    {
+-        int x;
+-        if (x0&lt;0) x0=0;
+-        if (x1&gt; (int)pixbuf_-&gt;width()-1) x1=pixbuf_-&gt;width()-1;
+-        for(x=x0;x&lt;=x1;x++) pixbuf_-&gt;setPixel(x,y,rgba);
+-    }
+-
+-    template class ScanlineRasterizer&lt;Image32&gt;;
+-}
+
+Deleted: trunk/src/scanline_aa.cpp
+===================================================================
+--- trunk/src/scanline_aa.cpp	2006-03-22 15:46:58 UTC (rev 193)
++++ trunk/src/scanline_aa.cpp	2006-03-22 15:48:54 UTC (rev 194)
+@@ -1,619 +0,0 @@
+-/* This file is part of Mapnik (c++ mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
+- *
+- * Mapnik is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version 2
+- * of the License, or any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+- */
+-
+-//  Credits:
+-//  I gratefully acknowledge the inspiring work of Maxim Shemanarev (McSeem), 
+-//  author of Anti-Grain Geometry (<A HREF="http://www.antigrain.com">http://www.antigrain.com</A>), and also the developers 
+-//  of the FreeType library (<A HREF="http://www.freetype.org">http://www.freetype.org</A>). I have slightly modified the polygon 
+-//  rasterizing algorithm to work with my library, but render_line and 
+-//  render_hline remain intact. 
+-
+-//$Id: scanline_aa.cpp 29 2005-04-01 14:30:11Z pavlenko $
+-
+-#include &quot;scanline_aa.hpp&quot;
+-
+-namespace mapnik
+-{
+-
+-    inline void cell_aa::set_cover(int c, int a)
+-    {
+-        cover = c;
+-        area = a;
+-    }
+-    inline void cell_aa::add_cover(int c, int a)
+-    {
+-        cover += c;
+-        area += a;
+-    }
+-    inline void cell_aa::set_coord(int cx, int cy)
+-    {
+-        x = short(cx);
+-        y = short(cy);
+-        packed_coord = (cy &lt;&lt; 16) + cx;
+-    }
+-    inline void cell_aa::set(int cx, int cy, int c, int a)
+-    {
+-        x = short(cx);
+-        y = short(cy);
+-        packed_coord = (cy &lt;&lt; 16) + cx;
+-        cover = c;
+-        area = a;
+-    }
+-
+-    outline_aa::~outline_aa()
+-    {
+-        delete [] m_sorted_cells;
+-        if(m_num_blocks)
+-        {
+-            cell_aa** ptr = m_cells + m_num_blocks - 1;
+-            while(m_num_blocks--)
+-            {
+-                delete [] *ptr;
+-                ptr--;
+-            }
+-            delete [] m_cells;
+-        }
+-    }
+-
+-    outline_aa::outline_aa() :
+-	m_num_blocks(0),
+-        m_max_blocks(0),
+-        m_cur_block(0),
+-        m_num_cells(0),
+-        m_cells(0),
+-        m_cur_cell_ptr(0),
+-        m_sorted_cells(0),
+-        m_sorted_size(0),
+-        m_cur_x(0),
+-        m_cur_y(0),
+-        m_min_x(0x7FFFFFFF),
+-        m_min_y(0x7FFFFFFF),
+-        m_max_x(-0x7FFFFFFF),
+-        m_max_y(-0x7FFFFFFF),
+-        m_sorted(false)
+-    {
+-        m_cur_cell.set(0x7FFF, 0x7FFF, 0, 0);
+-    }
+-
+-    void outline_aa::reset()
+-    {
+-        m_num_cells = 0;
+-        m_cur_block = 0;
+-        m_cur_cell.set(0x7FFF, 0x7FFF, 0, 0);
+-        m_sorted = false;
+-        m_min_x =  0x7FFFFFFF;
+-        m_min_y =  0x7FFFFFFF;
+-        m_max_x = -0x7FFFFFFF;
+-        m_max_y = -0x7FFFFFFF;
+-    }
+-
+-    void outline_aa::allocate_block()
+-    {
+-        if(m_cur_block &gt;= m_num_blocks)
+-        {
+-            if(m_num_blocks &gt;= m_max_blocks)
+-            {
+-                cell_aa** new_cells = new cell_aa* [m_max_blocks + cell_block_pool];
+-                if(m_cells)
+-                {
+-                    memcpy(new_cells, m_cells, m_max_blocks * sizeof(cell_aa*));
+-                    delete [] m_cells;
+-                }
+-                m_cells = new_cells;
+-                m_max_blocks += cell_block_pool;
+-            }
+-            m_cells[m_num_blocks++] = new cell_aa [unsigned(cell_block_size)];
+-        }
+-        m_cur_cell_ptr = m_cells[m_cur_block++];
+-    }
+-
+-    inline void outline_aa::add_cur_cell()
+-    {
+-        if(m_cur_cell.area | m_cur_cell.cover)
+-        {
+-            if((m_num_cells &amp; cell_block_mask) == 0)
+-            {
+-                if(m_num_blocks &gt;= cell_block_limit) return;
+-                allocate_block();
+-            }
+-            *m_cur_cell_ptr++ = m_cur_cell;
+-            ++m_num_cells;
+-            if(m_cur_cell.x &lt; m_min_x) m_min_x = m_cur_cell.x;
+-            if(m_cur_cell.x &gt; m_max_x) m_max_x = m_cur_cell.x;
+-        }
+-    }
+-
+-    inline void outline_aa::set_cur_cell(int x, int y)
+-    {
+-        if(m_cur_cell.packed_coord != (y &lt;&lt; 16) + x)
+-        {
+-            add_cur_cell();
+-            m_cur_cell.set(x, y, 0, 0);
+-        }
+-    }
+-
+-    inline void outline_aa::render_hline(int ey, int x1, int y1, int x2, int y2)
+-    {
+-        int ex1 = x1 &gt;&gt; poly_base_shift;
+-        int ex2 = x2 &gt;&gt; poly_base_shift;
+-        int fx1 = x1 &amp; poly_base_mask;
+-        int fx2 = x2 &amp; poly_base_mask;
+-
+-        int delta, p, first, dx;
+-        int incr, lift, mod, rem;
+-
+- 
+-        if(y1 == y2)
+-        {
+-            set_cur_cell(ex2, ey);
+-            return;
+-        }
+-
+- 
+-        if(ex1 == ex2)
+-        {
+-            delta = y2 - y1;
+-            m_cur_cell.add_cover(delta, (fx1 + fx2) * delta);
+-            return;
+-        }
+-        p = (poly_base_size - fx1) * (y2 - y1);
+-        first = poly_base_size;
+-        incr  = 1;
+-
+-        dx = x2 - x1;
+-
+-        if(dx &lt; 0)
+-        {
+-            p     = fx1 * (y2 - y1);
+-            first = 0;
+-            incr  = -1;
+-            dx    = -dx;
+-        }
+-
+-        delta = p / dx;
+-        mod   = p % dx;
+-
+-        if(mod &lt; 0)
+-        {
+-            delta--;
+-            mod += dx;
+-        }
+-
+-        m_cur_cell.add_cover(delta, (fx1 + first) * delta);
+-
+-        ex1 += incr;
+-        set_cur_cell(ex1, ey);
+-        y1  += delta;
+-
+-        if(ex1 != ex2)
+-        {
+-            p     = poly_base_size * (y2 - y1 + delta);
+-            lift  = p / dx;
+-            rem   = p % dx;
+-
+-            if (rem &lt; 0)
+-            {
+-                lift--;
+-                rem += dx;
+-            }
+-
+-            mod -= dx;
+-
+-            while (ex1 != ex2)
+-            {
+-                delta = lift;
+-                mod  += rem;
+-                if(mod &gt;= 0)
+-                {
+-                    mod -= dx;
+-                    delta++;
+-                }
+-
+-                m_cur_cell.add_cover(delta, (poly_base_size) * delta);
+-                y1  += delta;
+-                ex1 += incr;
+-                set_cur_cell(ex1, ey);
+-            }
+-        }
+-        delta = y2 - y1;
+-        m_cur_cell.add_cover(delta, (fx2 + poly_base_size - first) * delta);
+-    }
+-
+-    void outline_aa::render_line(int x1, int y1, int x2, int y2)
+-    {
+-        int ey1 = y1 &gt;&gt; poly_base_shift;
+-        int ey2 = y2 &gt;&gt; poly_base_shift;
+-        int fy1 = y1 &amp; poly_base_mask;
+-        int fy2 = y2 &amp; poly_base_mask;
+-
+-        int dx, dy, x_from, x_to;
+-        int p, rem, mod, lift, delta, first, incr;
+-
+-        dx = x2 - x1;
+-        dy = y2 - y1;
+-
+-  
+-        if(ey1 == ey2)
+-        {
+-            render_hline(ey1, x1, fy1, x2, fy2);
+-            return;
+-        }
+-        incr  = 1;
+-        if(dx == 0)
+-        {
+-            int ex = x1 &gt;&gt; poly_base_shift;
+-            int two_fx = (x1 - (ex &lt;&lt; poly_base_shift)) &lt;&lt; 1;
+-            int area;
+-
+-            first = poly_base_size;
+-            if(dy &lt; 0)
+-            {
+-                first = 0;
+-                incr  = -1;
+-            }
+-
+-            x_from = x1;
+-
+-            delta = first - fy1;
+-            m_cur_cell.add_cover(delta, two_fx * delta);
+-
+-            ey1 += incr;
+-            set_cur_cell(ex, ey1);
+-
+-            delta = first + first - poly_base_size;
+-            area = two_fx * delta;
+-            while(ey1 != ey2)
+-            {
+-
+-                m_cur_cell.set_cover(delta, area);
+-                ey1 += incr;
+-                set_cur_cell(ex, ey1);
+-            }
+-
+-            delta = fy2 - poly_base_size + first;
+-            m_cur_cell.add_cover(delta, two_fx * delta);
+-            return;
+-        }
+-
+-        p = (poly_base_size - fy1) * dx;
+-
+-        first = poly_base_size;
+-
+-        if(dy &lt; 0)
+-        {
+-            p     = fy1 * dx;
+-            first = 0;
+-            incr  = -1;
+-            dy    = -dy;
+-        }
+-
+-        delta = p / dy;
+-        mod   = p % dy;
+-
+-        if(mod &lt; 0)
+-        {
+-            delta--;
+-            mod += dy;
+-        }
+-
+-        x_from = x1 + delta;
+-        render_hline(ey1, x1, fy1, x_from, first);
+-
+-        ey1 += incr;
+-        set_cur_cell(x_from &gt;&gt; poly_base_shift, ey1);
+-
+-        if(ey1 != ey2)
+-        {
+-            p     = poly_base_size * dx;
+-            lift  = p / dy;
+-            rem   = p % dy;
+-
+-            if(rem &lt; 0)
+-            {
+-                lift--;
+-                rem += dy;
+-            }
+-            mod -= dy;
+-
+-            while(ey1 != ey2)
+-            {
+-                delta = lift;
+-                mod  += rem;
+-                if (mod &gt;= 0)
+-                {
+-                    mod -= dy;
+-                    delta++;
+-                }
+-
+-                x_to = x_from + delta;
+-                render_hline(ey1, x_from, poly_base_size - first, x_to, first);
+-                x_from = x_to;
+-
+-                ey1 += incr;
+-                set_cur_cell(x_from &gt;&gt; poly_base_shift, ey1);
+-            }
+-        }
+-        render_hline(ey1, x_from, poly_base_size - first, x2, fy2);
+-    }
+-
+-    void outline_aa::move_to(int x, int y)
+-    {
+-        if ( m_sorted ) reset();
+-        set_cur_cell(x &gt;&gt; poly_base_shift, y &gt;&gt; poly_base_shift);
+-        m_cur_x = x;
+-        m_cur_y = y;
+-    }
+-
+-    void outline_aa::line_to(int x, int y)
+-    {
+-        render_line(m_cur_x, m_cur_y, x, y);
+-        m_cur_x = x;
+-        m_cur_y = y;
+-        m_sorted = false;
+-    }
+-
+-    enum
+-    {
+-	qsort_threshold = 9
+-    };
+-
+-    template &lt;class T&gt; static inline void swap_cells(T* a, T* b)
+-    {
+-        T temp = *a;
+-        *a = *b;
+-        *b = temp;
+-    }
+-
+-    template &lt;class T&gt; static inline bool less_than(T* a, T* b)
+-    {
+-        return (*a)-&gt;packed_coord &lt; (*b)-&gt;packed_coord;
+-    }
+-
+-    void outline_aa::qsort_cells(cell_aa** start, unsigned num)
+-    {
+-        cell_aa**  stack[80];
+-        cell_aa*** top;
+-        cell_aa**  limit;
+-        cell_aa**  base;
+-
+-        limit = start + num;
+-        base  = start;
+-        top   = stack;
+-
+-        for (;;)
+-        {
+-            int len = int(limit - base);
+-
+-            cell_aa** i;
+-            cell_aa** j;
+-            cell_aa** pivot;
+-
+-            if(len &gt; qsort_threshold)
+-            { 
+-                pivot = base + len / 2;
+-                swap_cells(base, pivot);
+-
+-                i = base + 1;
+-                j = limit - 1;
+-
+-                if(less_than(j, i))
+-                {
+-                    swap_cells(i, j);
+-                }
+-
+-                if(less_than(base, i))
+-                {
+-                    swap_cells(base, i);
+-                }
+-
+-                if(less_than(j, base))
+-                {
+-                    swap_cells(base, j);
+-                }
+-
+-                for(;;)
+-                {
+-                    do i++; while( less_than(i, base) );
+-                    do j--; while( less_than(base, j) );
+-
+-                    if ( i &gt; j )
+-                    {
+-                        break;
+-                    }
+-
+-                    swap_cells(i, j);
+-                }
+-
+-                swap_cells(base, j);
+-
+-                if(j - base &gt; limit - i)
+-                {
+-                    top[0] = base;
+-                    top[1] = j;
+-                    base   = i;
+-                }
+-                else
+-                {
+-                    top[0] = i;
+-                    top[1] = limit;
+-                    limit  = j;
+-                }
+-                top += 2;
+-            }
+-            else
+-            {
+-
+-                j = base;
+-                i = j + 1;
+-
+-                for(; i &lt; limit; j = i, i++)
+-                {
+-                    for(; less_than(j + 1, j); j--)
+-                    {
+-                        swap_cells(j + 1, j);
+-                        if (j == base)
+-                        {
+-                            break;
+-                        }
+-                    }
+-                }
+-                if(top &gt; stack)
+-                {
+-                    top  -= 2;
+-                    base  = top[0];
+-                    limit = top[1];
+-                }
+-                else
+-                {
+-                    break;
+-                }
+-            }
+-        }
+-    }
+-
+-    void outline_aa::sort_cells()
+-    {
+-        if(m_num_cells == 0) return;
+-        if(m_num_cells &gt; m_sorted_size)
+-        {
+-            delete [] m_sorted_cells;
+-            m_sorted_size = m_num_cells;
+-            m_sorted_cells = new cell_aa* [m_num_cells + 1];
+-        }
+-
+-        cell_aa** sorted_ptr = m_sorted_cells;
+-        cell_aa** block_ptr = m_cells;
+-        cell_aa*  cell_ptr;
+-
+-        unsigned nb = m_num_cells &gt;&gt; cell_block_shift;
+-        unsigned i;
+-
+-        while(nb--)
+-        {
+-            cell_ptr = *block_ptr++;
+-            i = cell_block_size;
+-            while(i--)
+-            {
+-                *sorted_ptr++ = cell_ptr++;
+-            }
+-        }
+-
+-        cell_ptr = *block_ptr++;
+-        i = m_num_cells &amp; cell_block_mask;
+-        while(i--)
+-        {
+-            *sorted_ptr++ = cell_ptr++;
+-        }
+-        m_sorted_cells[m_num_cells] = 0;
+-        qsort_cells(m_sorted_cells, m_num_cells);
+-        m_min_y = m_sorted_cells[0]-&gt;y;
+-        m_max_y = m_sorted_cells[m_num_cells - 1]-&gt;y;
+-    }
+-
+-    const cell_aa* const* outline_aa::cells()
+-    {
+-        if(!m_sorted)
+-        {
+-            add_cur_cell();
+-            sort_cells();
+-            m_sorted = true;
+-        }
+-        return m_sorted_cells;
+-    }   
+-
+-    template &lt;typename PixBuffer&gt;
+-    template &lt;typename Transform&gt;
+-    void ScanlineRasterizerAA&lt;PixBuffer&gt;::render(const geometry_type&amp; geom,const Color&amp; c)
+-    {
+-        reset();
+-        unsigned rgba=c.rgba();
+-        clip_box(0,0,pixbuf_-&gt;width(),pixbuf_-&gt;height());
+-        geometry_type::path_iterator&lt;Transform&gt; itr=geom.template begin&lt;Transform&gt;();
+-        while(itr!=geom.template end&lt;Transform&gt;())
+-        {
+-            if (itr-&gt;cmd == SEG_MOVETO)
+-            {
+-                move_to(itr-&gt;x,itr-&gt;y);
+-            }
+-            else if (itr-&gt;cmd == SEG_LINETO)
+-            {
+-                line_to(itr-&gt;x,itr-&gt;y);
+-            }
+-            ++itr;
+-        }
+-
+-        if(rewind_scanlines())
+-        {
+-            scanline_u8 sl;
+-            sl.reset(min_x(),max_x());
+-            while(sweep_scanline(sl))
+-            {
+-                int y = sl.y();
+-                unsigned num_spans = sl.num_spans();
+-                typename scanline_u8::const_iterator span = sl.begin();
+-                do
+-                {
+-                    int x = span-&gt;x;
+-                    if(span-&gt;len&gt;0)
+-                    {
+-                        blend_hline(x,span-&gt;len,y,span-&gt;covers,rgba);
+-                    }
+-                    ++span;
+-                } while(--num_spans);
+-            }
+-        }
+-    }
+-    template &lt;typename PixBuffer&gt;
+-    inline void ScanlineRasterizerAA&lt;PixBuffer&gt;::blend_hline(int x0,int len,int y,const unsigned char* covers,
+-							     unsigned rgba)
+-    {
+-        if (y&lt;0) return;
+-        if (y&gt;(int)pixbuf_-&gt;height()-1) return;
+-  
+-        if(x0&lt;0)
+-        {
+-            len -= 0 - x0;
+-            if(len &lt;= 0) return;
+-            covers += 0 - x0;
+-            x0 = 0;
+-        }
+-        if(x0 + len &gt; (int)pixbuf_-&gt;width())
+-        {
+-            len = pixbuf_-&gt;width() - x0 + 1;
+-            if(len &lt;= 0) return;
+-        }
+-        for(int x=x0;x&lt;x0+len;x++)
+-        {
+-            int alpha = int(*covers++);
+-            pixbuf_-&gt;blendPixel(x,y,rgba,alpha);
+-        }
+-    }
+-    
+-    template &lt;typename PixBuffer&gt;
+-    inline void ScanlineRasterizerAA&lt;PixBuffer&gt;::render_hline(int x0,int x1,int y,unsigned rgba)
+-    {
+-        if (y &lt; 0) return;
+-        if (y &gt; (int)pixbuf_-&gt;height() - 1) return;
+-        if (x0 &lt; 0) x0 = 0;
+-        if (x1 &gt;(int)pixbuf_-&gt;width() - 1)  x1 = pixbuf_-&gt;width()-1;
+-        for(int x=x0;x&lt;=x1;x++) pixbuf_-&gt;setPixel(x,y,rgba);
+-    }
+-
+-    template class ScanlineRasterizerAA&lt;Image32&gt;;
+-    template void ScanlineRasterizerAA&lt;Image32&gt;::render&lt;SHIFT8&gt;(const geometry_type&amp;,const Color&amp;);
+-}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000079.html">[Mapnik-svn] r193 - trunk/include
+</A></li>
+	<LI>Next message: <A HREF="000081.html">[Mapnik-svn] r195 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#80">[ date ]</a>
+              <a href="thread.html#80">[ thread ]</a>
+              <a href="subject.html#80">[ subject ]</a>
+              <a href="author.html#80">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

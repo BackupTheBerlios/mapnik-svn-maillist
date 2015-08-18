@@ -1,0 +1,108 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r243 - trunk/include
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-May/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r243%20-%20trunk/include&In-Reply-To=%3C200605051429.k45ET2CB027756%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000127.html">
+   <LINK REL="Next"  HREF="000130.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r243 - trunk/include</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r243%20-%20trunk/include&In-Reply-To=%3C200605051429.k45ET2CB027756%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r243 - trunk/include">pavlenko at berlios.de
+       </A><BR>
+    <I>Fri May  5 16:29:02 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000127.html">[Mapnik-svn] r242 - trunk/bindings/python
+</A></li>
+        <LI>Next message: <A HREF="000130.html">[Mapnik-svn] r244 - in trunk/demo: . c++
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#128">[ date ]</a>
+              <a href="thread.html#128">[ thread ]</a>
+              <a href="subject.html#128">[ subject ]</a>
+              <a href="author.html#128">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-05-05 16:29:01 +0200 (Fri, 05 May 2006)
+New Revision: 243
+
+Modified:
+   trunk/include/filter_parser.hpp
+   trunk/include/mapnik.hpp
+Log:
+reorder #include 
+
+Modified: trunk/include/filter_parser.hpp
+===================================================================
+--- trunk/include/filter_parser.hpp	2006-05-04 00:00:20 UTC (rev 242)
++++ trunk/include/filter_parser.hpp	2006-05-05 14:29:01 UTC (rev 243)
+@@ -26,6 +26,9 @@
+ #ifndef FILTER_PARSER_HPP
+ #define FILTER_PARSER_HPP
+ 
++#include &lt;stack&gt;
++#include &lt;iostream&gt;
++
+ #include &lt;boost/shared_ptr.hpp&gt;
+ #include &lt;boost/spirit/core.hpp&gt;
+ #include &lt;boost/spirit/symbols.hpp&gt;
+@@ -39,8 +42,6 @@
+ #include &quot;filter.hpp&quot;
+ #include &quot;regex_filter.hpp&quot;
+ 
+-#include &lt;stack&gt;
+-#include &lt;iostream&gt;
+ 
+ using namespace boost::spirit;
+ using std::string;
+
+Modified: trunk/include/mapnik.hpp
+===================================================================
+--- trunk/include/mapnik.hpp	2006-05-04 00:00:20 UTC (rev 242)
++++ trunk/include/mapnik.hpp	2006-05-05 14:29:01 UTC (rev 243)
+@@ -28,6 +28,7 @@
+ #include &lt;map&gt;
+ #include &lt;vector&gt;
+ #include &lt;cassert&gt;
++
+ #include &quot;global.hpp&quot;
+ #include &quot;factory.hpp&quot;
+ #include &quot;filter.hpp&quot;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000127.html">[Mapnik-svn] r242 - trunk/bindings/python
+</A></li>
+	<LI>Next message: <A HREF="000130.html">[Mapnik-svn] r244 - in trunk/demo: . c++
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#128">[ date ]</a>
+              <a href="thread.html#128">[ thread ]</a>
+              <a href="subject.html#128">[ subject ]</a>
+              <a href="author.html#128">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

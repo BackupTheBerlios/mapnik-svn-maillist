@@ -1,0 +1,928 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r364 - in trunk: bindings/python demo/python	include/mapnik plugins/input/postgis src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-November/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r364%20-%20in%20trunk%3A%20bindings/python%20demo/python%0A%09include/mapnik%20plugins/input/postgis%20src&In-Reply-To=%3C200611012317.kA1NHBQ7032323%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000248.html">
+   <LINK REL="Next"  HREF="000250.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r364 - in trunk: bindings/python demo/python	include/mapnik plugins/input/postgis src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r364%20-%20in%20trunk%3A%20bindings/python%20demo/python%0A%09include/mapnik%20plugins/input/postgis%20src&In-Reply-To=%3C200611012317.kA1NHBQ7032323%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r364 - in trunk: bindings/python demo/python	include/mapnik plugins/input/postgis src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Thu Nov  2 00:17:11 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000248.html">[Mapnik-svn] r363 - trunk/utils/ogcserver
+</A></li>
+        <LI>Next message: <A HREF="000250.html">[Mapnik-svn] r365 - in trunk: bindings/python demo/python	include/mapnik src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#249">[ date ]</a>
+              <a href="thread.html#249">[ thread ]</a>
+              <a href="subject.html#249">[ subject ]</a>
+              <a href="author.html#249">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-11-02 00:17:05 +0100 (Thu, 02 Nov 2006)
+New Revision: 364
+
+Modified:
+   trunk/bindings/python/mapnik_text_symbolizer.cpp
+   trunk/demo/python/rundemo.py
+   trunk/include/mapnik/placement_finder.hpp
+   trunk/include/mapnik/text_path.hpp
+   trunk/include/mapnik/text_symbolizer.hpp
+   trunk/plugins/input/postgis/postgis.cpp
+   trunk/src/agg_renderer.cpp
+   trunk/src/load_map.cpp
+   trunk/src/placement_finder.cpp
+   trunk/src/text_symbolizer.cpp
+Log:
+1. patch from Toby that allows repeated labels to be placed on a line
+geometry (such as roads)
+2. restored text labels for point geometry.
+3. process 'spacing' attribute in load_map.cpp
+ 
+
+
+
+Modified: trunk/bindings/python/mapnik_text_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_text_symbolizer.cpp	2006-11-01 02:04:01 UTC (rev 363)
++++ trunk/bindings/python/mapnik_text_symbolizer.cpp	2006-11-01 23:17:05 UTC (rev 364)
+@@ -49,6 +49,9 @@
+         .add_property(&quot;text_ratio&quot;,
+                       &amp;text_symbolizer::get_text_ratio,
+                       &amp;text_symbolizer::set_text_ratio)
++        .add_property(&quot;label_spacing&quot;,
++                      &amp;text_symbolizer::get_label_spacing,
++                      &amp;text_symbolizer::set_label_spacing)
+         .add_property(&quot;halo_radius&quot;,
+                       &amp;text_symbolizer::get_halo_radius, 
+                       &amp;text_symbolizer::set_halo_radius)
+
+Modified: trunk/demo/python/rundemo.py
+===================================================================
+--- trunk/demo/python/rundemo.py	2006-11-01 02:04:01 UTC (rev 363)
++++ trunk/demo/python/rundemo.py	2006-11-01 23:17:05 UTC (rev 364)
+@@ -280,11 +280,13 @@
+ # The first parameter is the name of the attribute to use as the source of the
+ # text to label with.  Then there is font size in points (I think?), and colour.
+ 
+-popplaces_text_symbolizer = TextSymbolizer('GEONAME', 10, Color('black'))
++popplaces_text_symbolizer = TextSymbolizer('GEONAME',
++                                           'Bitstream Vera Sans Roman',
++                                           10, Color('black'))
+ 
+ # We set a &quot;halo&quot; around the text, which looks like an outline if thin enough,
+ # or an outright background if large enough.
+-
++popplaces_text_symbolizer.set_label_placement=label_placement.POINT_PLACEMENT
+ popplaces_text_symbolizer.halo_fill = Color('white')
+ popplaces_text_symbolizer.halo_radius = 1
+ popplaces_rule.symbols.append(popplaces_text_symbolizer)
+
+Modified: trunk/include/mapnik/placement_finder.hpp
+===================================================================
+--- trunk/include/mapnik/placement_finder.hpp	2006-11-01 02:04:01 UTC (rev 363)
++++ trunk/include/mapnik/placement_finder.hpp	2006-11-01 23:17:05 UTC (rev 364)
+@@ -36,6 +36,15 @@
+ 
+ namespace mapnik
+ {
++
++    struct placement_element
++    {
++        double starting_x;
++        double starting_y;
++    
++        text_path path;
++    };
++
+   struct placement
+   {
+     typedef  coord_transform2&lt;CoordTransform,geometry_type&gt; path_type;
+@@ -48,7 +57,8 @@
+     
+     ~placement();
+ 
+-    string_info *info;
++      unsigned path_size() const;
++      string_info *info;
+     
+     CoordTransform *ctrans;
+     const proj_transform *proj_trans;
+@@ -63,11 +73,10 @@
+     std::queue&lt; Envelope&lt;double&gt; &gt; envelopes;
+     
+     //output
+-    double starting_x;
+-    double starting_y;
+-    
+-    text_path path;
++    std::vector&lt;placement_element&gt; placements;
+ 
++    // caching output
++    placement_element current_placement;
+     
+     //helpers
+     std::pair&lt;double, double&gt; get_position_at_distance(double target_distance);
+@@ -78,14 +87,18 @@
+     
+     int wrap_width;
+     int text_ratio;
++
++    int label_spacing; // distance between repeated labels on a single geometry
+   };
++
++
+   
+   class placement_finder : boost::noncopyable
+   {
+   public:
+     placement_finder(Envelope&lt;double&gt; e);
+   
+-    bool find_placement(placement *placement);
++    bool find_placements(placement *p);
+     
+   protected:
+     bool find_placement_follow(placement *p);
+
+Modified: trunk/include/mapnik/text_path.hpp
+===================================================================
+--- trunk/include/mapnik/text_path.hpp	2006-11-01 02:04:01 UTC (rev 363)
++++ trunk/include/mapnik/text_path.hpp	2006-11-01 23:17:05 UTC (rev 364)
+@@ -93,9 +93,9 @@
+       }
+     };
+     
+-    struct text_path : private boost::noncopyable
++    struct text_path 
+     {
+-        struct character_node : boost::noncopyable
++        struct character_node
+         {
+             int c;
+             double x, y, angle;
+@@ -112,7 +112,7 @@
+             }
+         };
+ 
+-        typedef boost::ptr_vector&lt;character_node&gt; character_nodes_t;
++        typedef std::vector&lt;character_node&gt; character_nodes_t;
+         
+         character_nodes_t nodes_;
+         int itr_;
+@@ -120,11 +120,17 @@
+         std::pair&lt;unsigned,unsigned&gt; string_dimensions;
+         
+         text_path() :  itr_(0) {} 
++        text_path(const text_path &amp; other) : itr_(0)
++        {
++            nodes_ = other.nodes_;
++            string_dimensions = other.string_dimensions;
++        }
++ 
+         ~text_path() {}
+           
+         void add_node(int c, double x, double y, double angle)
+         {
+-            nodes_.push_back(new character_node(c, x, y, angle));
++            nodes_.push_back(character_node(c, x, y, angle));
+         }
+         
+         void vertex(int *c, double *x, double *y, double *angle)
+
+Modified: trunk/include/mapnik/text_symbolizer.hpp
+===================================================================
+--- trunk/include/mapnik/text_symbolizer.hpp	2006-11-01 02:04:01 UTC (rev 363)
++++ trunk/include/mapnik/text_symbolizer.hpp	2006-11-01 23:17:05 UTC (rev 364)
+@@ -45,8 +45,10 @@
+         std::string const&amp; get_name() const;
+         unsigned get_text_ratio() const; // target ratio for text bounding box in pixels
+         void set_text_ratio(unsigned ratio);
+-        unsigned get_wrap_width() const; // target ratio for text bounding box in pixels
++        unsigned get_wrap_width() const; // width to wrap text at, or trigger ratio
+         void set_wrap_width(unsigned ratio);
++        unsigned get_label_spacing() const; // spacing between repeated labels on lines
++        void set_label_spacing(unsigned spacing);
+         unsigned get_text_size() const;
+         std::string const&amp; get_face_name() const;
+         Color const&amp; get_fill() const;
+@@ -66,6 +68,7 @@
+         unsigned size_;
+         unsigned text_ratio_;
+         unsigned wrap_width_;
++        unsigned label_spacing_;
+         Color fill_;
+         Color halo_fill_;
+         unsigned halo_radius_;
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2006-11-01 02:04:01 UTC (rev 363)
++++ trunk/plugins/input/postgis/postgis.cpp	2006-11-01 23:17:05 UTC (rev 364)
+@@ -148,7 +148,7 @@
+                         desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Double,false,length));
+                     case 1042:  // bpchar
+                     case 1043:  // varchar
+-                    case 25:   // text
++                    case 25:    // text
+                         desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::String));
+                         break;
+                     default: // shouldn't get here
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-11-01 02:04:01 UTC (rev 363)
++++ trunk/src/agg_renderer.cpp	2006-11-01 23:17:05 UTC (rev 364)
+@@ -346,24 +346,26 @@
+                  
+                     placement text_placement(&amp;info, &amp;t_, &amp;prj_trans, geom, std::pair&lt;double, double&gt;(w, h) );
+                     
+-                    bool found = finder_.find_placement(&amp;text_placement);
++                    bool found = finder_.find_placements(&amp;text_placement);
+                     if (!found) {
+                       return;
+                     }
+                     
+-                    double x = text_placement.starting_x;
+-                    double y = text_placement.starting_y;
+-                    
+-                    int px=int(floor(x - 0.5 * w));
+-                    int py=int(floor(y - 0.5 * h));
+-                    
+-                    pixmap_.set_rectangle_alpha(px,py,*data);
+-            
+-                    Envelope&lt;double&gt; dim = ren.prepare_glyphs(&amp;text_placement.path);
+-                    
+-                    //If has_placement 
+-                    
+-                    ren.render(x,y);
++
++                    for (unsigned int ii = 0; ii &lt; text_placement.placements.size(); ++ ii)
++                    {
++                        double x = text_placement.placements[ii].starting_x;
++                        double y = text_placement.placements[ii].starting_y;
++
++                        int px=int(floor(x - 0.5 * w));
++                        int py=int(floor(y - 0.5 * h));
++                        
++                        pixmap_.set_rectangle_alpha(px,py,*data);
++                        
++                        Envelope&lt;double&gt; dim = ren.prepare_glyphs(&amp;text_placement.placements[ii].path);
++                        
++                        ren.render(x,y);
++                    }
+                 }
+             }
+         }
+@@ -496,33 +498,37 @@
+                     ren.set_fill(fill);
+                     ren.set_halo_fill(sym.get_halo_fill());
+                     ren.set_halo_radius(sym.get_halo_radius());
+-
++                    
+                     string_info info;
+-                  
++                    
+                     ren.get_string_info(text, &amp;info);
+-                 
++                    
+                     placement text_placement(&amp;info, &amp;t_, &amp;prj_trans, geom, sym.get_label_placement());
+                     text_placement.text_ratio = sym.get_text_ratio();
+                     text_placement.wrap_width = sym.get_wrap_width();
+-                  
+-                    bool found = finder_.find_placement(&amp;text_placement);
++                    text_placement.label_spacing = sym.get_label_spacing();
++                    
++                    bool found = finder_.find_placements(&amp;text_placement);
+                     if (!found) {
+                       return;
+                     }
+                     
+-                    double x = text_placement.starting_x;
+-                    double y = text_placement.starting_y;
+-                    
+-                    Envelope&lt;double&gt; dim = ren.prepare_glyphs(&amp;text_placement.path);
+-                    
+-                    Envelope&lt;double&gt; text_box(x + dim.minx() ,y - dim.maxy(), x + dim.maxx(),y - dim.miny());
+-		    
+-                    if (sym.get_halo_radius() &gt; 0)
++                    for (unsigned int ii = 0; ii &lt; text_placement.placements.size(); ++ ii)
+                     {
+-                        text_box.width(text_box.width() + sym.get_halo_radius()*2);
+-                        text_box.height(text_box.height() + sym.get_halo_radius()*2);
++                        double x = text_placement.placements[ii].starting_x;
++                        double y = text_placement.placements[ii].starting_y;
++                        
++                        Envelope&lt;double&gt; dim = ren.prepare_glyphs(&amp;text_placement.placements[ii].path);
++                        
++                        Envelope&lt;double&gt; text_box(x + dim.minx() ,y - dim.maxy(), x + dim.maxx(),y - dim.miny());
++		        
++                        if (sym.get_halo_radius() &gt; 0)
++                        {
++                            text_box.width(text_box.width() + sym.get_halo_radius()*2);
++                            text_box.height(text_box.height() + sym.get_halo_radius()*2);
++                        }
++                        ren.render(x,y);
+                     }
+-                    ren.render(x,y);
+                 }
+             }  
+         }
+
+Modified: trunk/src/load_map.cpp
+===================================================================
+--- trunk/src/load_map.cpp	2006-11-01 02:04:01 UTC (rev 363)
++++ trunk/src/load_map.cpp	2006-11-01 23:17:05 UTC (rev 364)
+@@ -126,7 +126,16 @@
+                             
+                             if ( sym.first == &quot;PointSymbolizer&quot;)
+                             {
+-                                std::cout &lt;&lt; sym.first &lt;&lt; &quot;\n&quot;;
++                                std::string file =  
++                                    sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.file&quot;); 
++                                std::string type =  
++                                    sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.type&quot;);
++                                unsigned width =  
++                                    sym.second.get&lt;unsigned&gt;(&quot;&lt;xmlattr&gt;.width&quot;);
++                                unsigned height =  
++                                    sym.second.get&lt;unsigned&gt;(&quot;&lt;xmlattr&gt;.height&quot;);
++                                
++                                rule.append(point_symbolizer(file,type,width,height));
+                             } 
+                             else if ( sym.first == &quot;LinePatternSymbolizer&quot;)
+                             {
+@@ -163,6 +172,7 @@
+                                 {
+                                     text_symbol.set_label_placement(line_placement);
+                                 }
++                                
+                                 // halo fill and radius
+                                 boost::optional&lt;std::string&gt; halo_fill = 
+                                     sym.second.get_optional&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.halo_fill&quot;);
+@@ -195,6 +205,13 @@
+                                     text_symbol.set_wrap_width(*wrap_width);
+                                 }
+                                 
++                                // spacing between repeated labels on lines
++                                boost::optional&lt;unsigned&gt; spacing = 
++                                    sym.second.get_optional&lt;unsigned&gt;(&quot;&lt;xmlattr&gt;.spacing&quot;);
++                                if (spacing)
++                                {
++                                    text_symbol.set_label_spacing(*spacing);
++                                }
+                                 rule.append(text_symbol);
+                             }
+                             else if ( sym.first == &quot;ShieldSymbolizer&quot;)
+
+Modified: trunk/src/placement_finder.cpp
+===================================================================
+--- trunk/src/placement_finder.cpp	2006-11-01 02:04:01 UTC (rev 363)
++++ trunk/src/placement_finder.cpp	2006-11-01 23:17:05 UTC (rev 364)
+@@ -41,26 +41,31 @@
+ namespace mapnik
+ {
+     placement::placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, std::pair&lt;double, double&gt; dimensions_)
+-        : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(point_placement), dimensions(dimensions_), has_dimensions(true), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0), wrap_width(0), text_ratio(0)
++        : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(point_placement), dimensions(dimensions_), has_dimensions(true), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0), wrap_width(0), text_ratio(0), label_spacing(0)
+     {
+     }
+-  
++
+     //For text
+     placement::placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, label_placement_e placement_)
+-        : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(placement_), has_dimensions(false), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0), wrap_width(0), text_ratio(0)
++        : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(placement_), has_dimensions(false), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0), wrap_width(0), text_ratio(0), label_spacing(0)
+     {
+     }
+   
+     placement::~placement()
+     {
+     }
+-
++    
++    unsigned placement::path_size() const
++    {
++        return geom-&gt;num_points();
++    }
++    
+     std::pair&lt;double, double&gt; placement::get_position_at_distance(double target_distance)
+     {
+         double old_x, old_y, new_x, new_y;
+         double x, y;
+         x = y = 0.0;
+-    
++        
+         double distance = 0.0;
+     
+         shape_path.rewind(0);
+@@ -132,11 +137,12 @@
+   
+   
+     placement_finder::placement_finder(Envelope&lt;double&gt; e)
+-        : detector_(e)
++      : detector_(e)
+     {
+     }
+ 
+-    bool placement_finder::find_placement(placement *p)
++
++    bool placement_finder::find_placements(placement *p)
+     {
+         if (p-&gt;label_placement == point_placement)
+         {
+@@ -156,37 +162,76 @@
+         double string_width = string_dimensions.first;
+         //    double string_height = string_dimensions.second;
+     
++
++        std::clog &lt;&lt; &quot;trying to place string: &quot;;
++        for (unsigned int ii = 0; ii &lt; p-&gt;info-&gt;num_characters(); ++ii)
++            std::clog &lt;&lt; static_cast&lt;char&gt; (p-&gt;info-&gt;at(ii).character);
++        std::clog &lt;&lt; std::endl;
++
+         double distance = p-&gt;get_total_distance();
+     
+-        //~ double delta = string_width/distance;
+-        double delta = distance/100.0;
++        if (string_width &gt; distance)
++        {
++            std::clog &lt;&lt; &quot;String longer than segment, bailing&quot; &lt;&lt; std::endl;
++            return false;
++        }
++
+     
+-        for (double i = 0; i &lt; (distance - string_width)/2.0; i += delta)
++        int num_labels = 0;
++        if (p-&gt;label_spacing)
++            num_labels = static_cast&lt;int&gt; (floor(distance / (p-&gt;label_spacing + string_width)));
++        if (num_labels == 0)
++            num_labels = 1;
++
++        double ideal_spacing = distance/num_labels;
++        std::vector&lt;double&gt; ideal_label_distances;
++        for (double label_pos = ideal_spacing/2; label_pos &lt; distance; label_pos += ideal_spacing)
++            ideal_label_distances.push_back(label_pos);
++
++        double delta = distance/100.0;
++        bool FoundPlacement = false;
++        for (std::vector&lt;double&gt;::const_iterator itr = ideal_label_distances.begin(); itr &lt; ideal_label_distances.end(); ++itr)
+         {
+-            p-&gt;clear_envelopes();
+-      
+-            if ( build_path_follow(p, (distance - string_width)/2.0 + i) ) {
+-                update_detector(p);
+-                return true;
++            std::clog &lt;&lt; &quot;Trying to find txt placement at distance: &quot; &lt;&lt; *itr &lt;&lt; std::endl;
++            for (double i = 0; i &lt; ideal_spacing; i += delta)
++            {
++                p-&gt;clear_envelopes();
++        
++                // check position +- delta for valid placement
++                if ( build_path_follow(p, *itr - string_width/2 + i)) {
++                    update_detector(p);
++                    FoundPlacement = true;
++                    break;
++                }
++
++                p-&gt;clear_envelopes();
++                if (build_path_follow(p, *itr - string_width/2 - i) ) {
++                    update_detector(p);
++                    FoundPlacement = true;
++                    break;
++                }
+             }
+-      
+-            p-&gt;clear_envelopes();
+-      
+-            if ( build_path_follow(p, (distance - string_width)/2.0 - i) ) {
+-                update_detector(p);
+-                return true;
+-            }
+-        }
++        }    
+     
+-        p-&gt;starting_x = 0;
+-        p-&gt;starting_y = 0;
+-    
+-        return false;
++        if (FoundPlacement)
++            std::clog &lt;&lt; &quot;Found Placement&quot; &lt;&lt; string_width &lt;&lt; &quot; &quot; &lt;&lt; distance &lt;&lt; std::endl;
++
++        return FoundPlacement;
+     }
+   
+     bool placement_finder::find_placement_horizontal(placement *p)
+     {
+-        double distance = p-&gt;get_total_distance();
++        if (p-&gt;path_size() == 1) // point geometry
++        {
++            if ( build_path_horizontal(p, 0) ) 
++            {
++                update_detector(p);
++                return true;
++            }
++            return false;
++        }
++        
++        double distance = p-&gt;get_total_distance();    
+         //~ double delta = string_width/distance;
+         double delta = distance/100.0;
+     
+@@ -206,10 +251,6 @@
+                 return true;
+             }
+         }
+-    
+-        p-&gt;starting_x = 0;
+-        p-&gt;starting_y = 0;
+-    
+         return false;
+     }
+   
+@@ -226,14 +267,14 @@
+     }
+ 
+     bool placement_finder::build_path_follow(placement *p, double target_distance)
+-    {
++     {
+         double new_x, new_y, old_x, old_y;
+         unsigned cur_node = 0;
+ 
+         double angle = 0.0;
+         int orientation = 0;
+     
+-        p-&gt;path.clear();
++        p-&gt;current_placement.path.clear();
+     
+         double x, y;
+         x = y = 0.0;
+@@ -265,9 +306,9 @@
+             distance += segment_length;
+             if (distance &gt; target_distance)
+             {
+-                p-&gt;starting_x = new_x - dx*(distance - target_distance)/segment_length;
+-                p-&gt;starting_y = new_y - dy*(distance - target_distance)/segment_length;
+-
++                p-&gt;current_placement.starting_x = new_x - dx*(distance - target_distance)/segment_length;
++                p-&gt;current_placement.starting_y = new_y - dy*(distance - target_distance)/segment_length;
++    
+                 angle = atan2(-dy, dx);
+ 
+                 if (angle &gt; M_PI/2 || angle &lt;= -M_PI/2) {
+@@ -282,13 +323,14 @@
+                 break;
+             }
+         }
+-
++    
+         for (unsigned i = 0; i &lt; p-&gt;info-&gt;num_characters(); i++)
+         {
+             character_info ci;
+             unsigned c;
+-      
+-            while (distance &lt;= 0) {
++    
++            while (distance &lt;= 0) 
++            {
+                 double dx, dy;
+ 
+                 cur_node++;
+@@ -332,7 +374,7 @@
+                 //Center the text on the line.
+                 x += (((double)string_height/2.0) - 1.0)*cos(angle+M_PI/2);
+                 y -= (((double)string_height/2.0) - 1.0)*sin(angle+M_PI/2);
+-          
++        
+                 if (!p-&gt;has_dimensions)
+                 {
+                     e.init(x, y, x + ci.width*cos(angle+M_PI), y - ci.width*sin(angle+M_PI));
+@@ -364,87 +406,26 @@
+         
+             p-&gt;envelopes.push(e);
+         
+-            p-&gt;path.add_node(c, x - p-&gt;starting_x, -y + p-&gt;starting_y, (orientation == -1 ? angle + M_PI : angle));
++            p-&gt;current_placement.path.add_node(c, x - p-&gt;current_placement.starting_x, -y + p-&gt;current_placement.starting_y, (orientation == -1 ? angle + M_PI : angle));
+         
+             distance -= ci.width;
+         }
+-    
++        p-&gt;placements.push_back(p-&gt;current_placement);
++
+         return true;
+     }
+ 
+-    /*
+-   bool placement_finder::build_path_horizontal(placement *p, double target_distance)
+-  {
+-    double x, y;
+-  
+-    p-&gt;path.clear();
+-    
+-    std::pair&lt;double, double&gt; string_dimensions = p-&gt;info-&gt;get_dimensions();
+-    double string_width = string_dimensions.first;
+-    double string_height = string_dimensions.second;
+-    
+-    x = -string_width/2.0;
+-    y = -string_height/2.0 + 1.0;
+-    
+-    if (p-&gt;geom-&gt;type() == LineString)
+-    {
+-      std::pair&lt;double, double&gt; starting_pos = p-&gt;get_position_at_distance(target_distance);
+-      
+-      p-&gt;starting_x = starting_pos.first;
+-      p-&gt;starting_y = starting_pos.second;
+-    }
+-    else
+-    {
+-      p-&gt;geom-&gt;label_position(&amp;p-&gt;starting_x, &amp;p-&gt;starting_y);
+-      //  TODO: 
+-      //  We would only want label position in final 'paper' coords.
+-      //  Move view and proj transforms to e.g. label_position(x,y,proj_trans,ctrans)?
+-      double z=0;  
+-      p-&gt;proj_trans-&gt;backward(p-&gt;starting_x, p-&gt;starting_y, z);
+-      p-&gt;ctrans-&gt;forward(&amp;p-&gt;starting_x, &amp;p-&gt;starting_y);
+-    }
+-    
+-    for (unsigned i = 0; i &lt; p-&gt;info-&gt;num_characters(); i++)
+-    {
+-        character_info ci;;
+-        ci = p-&gt;info-&gt;at(i);
+-        
+-        unsigned c = ci.character;
+-      
+-        p-&gt;path.add_node(c, x, y, 0.0);
+ 
+-        Envelope&lt;double&gt; e;
+-        if (p-&gt;has_dimensions)
+-        {
+-            e.init(p-&gt;starting_x - (p-&gt;dimensions.first/2.0), p-&gt;starting_y - (p-&gt;dimensions.second/2.0), p-&gt;starting_x + (p-&gt;dimensions.first/2.0), p-&gt;starting_y + (p-&gt;dimensions.second/2.0));
+-        }
+-        else
+-        {
+-          e.init(p-&gt;starting_x + x, p-&gt;starting_y - y, p-&gt;starting_x + x + ci.width, p-&gt;starting_y - y - ci.height);
+-        }
+-        
+-        if (!detector_.has_placement(e))
+-        {
+-          return false;
+-        }
+-        
+-        p-&gt;envelopes.push(e);
+-      
+-        x += ci.width;
+-    }
+-    return true;
+-  }
+-    */
+-    
+     bool placement_finder::build_path_horizontal(placement *p, double target_distance)
+     {
++        double x, y;
+     
+-        p-&gt;path.clear();
+-    
++        p-&gt;current_placement.path.clear();
++        
+         std::pair&lt;double, double&gt; string_dimensions = p-&gt;info-&gt;get_dimensions();
+         double string_width = string_dimensions.first;
+         double string_height = string_dimensions.second;
+-    
++        
+         // check if we need to wrap the string
+         double wrap_at = string_width + 1;
+         if (p-&gt;wrap_width &amp;&amp; string_width &gt; p-&gt;wrap_width)
+@@ -455,7 +436,7 @@
+                 wrap_at = p-&gt;wrap_width;
+             //std::clog &lt;&lt; &quot;Wrapping string at&quot; &lt;&lt; wrap_at &lt;&lt; std::endl;
+         }
+-
++    
+         // work out where our line breaks need to be
+         std::vector&lt;int&gt; line_breaks;
+         std::vector&lt;double&gt; line_widths;
+@@ -471,14 +452,14 @@
+             double word_height = 0;
+             for (unsigned int ii = 0; ii &lt; p-&gt;info-&gt;num_characters(); ii++)
+             {
+-                character_info ci;
++                character_info ci;;
+                 ci = p-&gt;info-&gt;at(ii);
+-            
++                
+                 unsigned c = ci.character;
+                 word_width += ci.width;
+                 word_height = word_height &gt; ci.height ? word_height : ci.height;
+                 ++line_count;
+-    
++        
+                 if (c == ' ')
+                 {
+                     last_space = ii;
+@@ -511,42 +492,42 @@
+             line_breaks.push_back(p-&gt;info-&gt;num_characters() + 1);
+             line_widths.push_back(string_width);
+         }
+-
+-        p-&gt;info-&gt;set_dimensions(string_width, string_height);
+     
++        p-&gt;info-&gt;set_dimensions(string_width, string_height);
++        
+         if (p-&gt;geom-&gt;type() == LineString)
+         {
+             std::pair&lt;double, double&gt; starting_pos = p-&gt;get_position_at_distance(target_distance);
+-      
+-            p-&gt;starting_x = starting_pos.first;
+-            p-&gt;starting_y = starting_pos.second;
++            
++            p-&gt;current_placement.starting_x = starting_pos.first;
++            p-&gt;current_placement.starting_y = starting_pos.second;
+         }
+         else
+         {
+-            p-&gt;geom-&gt;label_position(&amp;p-&gt;starting_x, &amp;p-&gt;starting_y);
++            p-&gt;geom-&gt;label_position(&amp;p-&gt;current_placement.starting_x, &amp;p-&gt;current_placement.starting_y);
+             //  TODO: 
+             //  We would only want label position in final 'paper' coords.
+             //  Move view and proj transforms to e.g. label_position(x,y,proj_trans,ctrans)?
+             double z=0;  
+-            p-&gt;proj_trans-&gt;backward(p-&gt;starting_x, p-&gt;starting_y, z);
+-            p-&gt;ctrans-&gt;forward(&amp;p-&gt;starting_x, &amp;p-&gt;starting_y);
++            p-&gt;proj_trans-&gt;backward(p-&gt;current_placement.starting_x, p-&gt;current_placement.starting_y, z);
++            p-&gt;ctrans-&gt;forward(&amp;p-&gt;current_placement.starting_x, &amp;p-&gt;current_placement.starting_y);
+         }
+-    
++        
+         double line_height = 0;
+         unsigned int line_number = 0;
+         unsigned int index_to_wrap_at = line_breaks[line_number];
+         double line_width = line_widths[line_number];
+-
+-        double x = -line_width/2.0;
+-        double y = -string_height/2.0 + 1.0;
+     
++        x = -line_width/2.0;
++        y = string_height/2.0;
++    
+         for (unsigned i = 0; i &lt; p-&gt;info-&gt;num_characters(); i++)
+         {
+-            character_info ci;
++            character_info ci;;
+             ci = p-&gt;info-&gt;at(i);
+-        
++            
+             unsigned c = ci.character;
+-      
++        
+             if (i == index_to_wrap_at)
+             {
+                 index_to_wrap_at = line_breaks[++line_number];
+@@ -558,35 +539,31 @@
+             }
+             else
+             {
+-                p-&gt;path.add_node(c, x, y, 0.0);
+-
++                p-&gt;current_placement.path.add_node(c, x, y, 0.0);
++    
+                 Envelope&lt;double&gt; e;
+                 if (p-&gt;has_dimensions)
+                 {
+-                    e.init(p-&gt;starting_x - (p-&gt;dimensions.first/2.0), 
+-                           p-&gt;starting_y - (p-&gt;dimensions.second/2.0), 
+-                           p-&gt;starting_x + (p-&gt;dimensions.first/2.0), 
+-                           p-&gt;starting_y + (p-&gt;dimensions.second/2.0));
++                    e.init(p-&gt;current_placement.starting_x - (p-&gt;dimensions.first/2.0), p-&gt;current_placement.starting_y - (p-&gt;dimensions.second/2.0), p-&gt;current_placement.starting_x + (p-&gt;dimensions.first/2.0), p-&gt;current_placement.starting_y + (p-&gt;dimensions.second/2.0));
+                 }
+                 else
+                 {
+-                    e.init(p-&gt;starting_x + x, 
+-                           p-&gt;starting_y - y, 
+-                           p-&gt;starting_x + x + ci.width, 
+-                           p-&gt;starting_y - y - ci.height);
++                    e.init(p-&gt;current_placement.starting_x + x, p-&gt;current_placement.starting_y - y, p-&gt;current_placement.starting_x + x + ci.width, p-&gt;current_placement.starting_y - y - ci.height);
+                 }
+-            
++                
+                 if (!detector_.has_placement(e))
+                 {
+                     return false;
+                 }
+-            
++                
+                 p-&gt;envelopes.push(e);
+             }
+             x += ci.width;
+             line_height = line_height &gt; ci.height ? line_height : ci.height;
+         }
++        p-&gt;placements.push_back(p-&gt;current_placement);
++    
+         return true;
+     }
+-}
+ 
++} // namespace
+
+Modified: trunk/src/text_symbolizer.cpp
+===================================================================
+--- trunk/src/text_symbolizer.cpp	2006-11-01 02:04:01 UTC (rev 363)
++++ trunk/src/text_symbolizer.cpp	2006-11-01 23:17:05 UTC (rev 364)
+@@ -35,6 +35,7 @@
+           size_(size),
+           text_ratio_(0),
+           wrap_width_(0),
++          label_spacing_(0),
+           fill_(fill),
+           halo_fill_(Color(255,255,255)),
+           halo_radius_(0),
+@@ -48,6 +49,7 @@
+           size_(rhs.size_),
+           text_ratio_(rhs.text_ratio_),
+           wrap_width_(rhs.wrap_width_),
++          label_spacing_(rhs.label_spacing_),
+           fill_(rhs.fill_),
+           halo_fill_(rhs.halo_fill_),
+           halo_radius_(rhs.halo_radius_),
+@@ -64,6 +66,7 @@
+         size_ = other.size_;
+         text_ratio_ = other.text_ratio_;
+         wrap_width_ = other.wrap_width_;
++        label_spacing_ = other.label_spacing_;
+         fill_ = other.fill_;
+         halo_fill_ = other.halo_fill_;
+         halo_radius_ = other.halo_radius_;
+@@ -85,7 +88,7 @@
+     
+     unsigned  text_symbolizer::get_text_ratio() const
+     {
+-        return text_ratio_;
++    return text_ratio_;
+     }
+ 
+     void  text_symbolizer::set_text_ratio(unsigned ratio) 
+@@ -95,14 +98,24 @@
+ 
+     unsigned  text_symbolizer::get_wrap_width() const
+     {
+-        return wrap_width_;
++    return wrap_width_;
+     }
+ 
+     void  text_symbolizer::set_wrap_width(unsigned width) 
+     {
+         wrap_width_ = width;
++    }    
++
++    unsigned  text_symbolizer::get_label_spacing() const
++    {
++    return label_spacing_;
+     }
+ 
++    void  text_symbolizer::set_label_spacing(unsigned spacing) 
++    {
++        label_spacing_ = spacing;
++    }
++
+     unsigned  text_symbolizer::get_text_size() const
+     {
+         return size_;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000248.html">[Mapnik-svn] r363 - trunk/utils/ogcserver
+</A></li>
+	<LI>Next message: <A HREF="000250.html">[Mapnik-svn] r365 - in trunk: bindings/python demo/python	include/mapnik src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#249">[ date ]</a>
+              <a href="thread.html#249">[ thread ]</a>
+              <a href="subject.html#249">[ subject ]</a>
+              <a href="author.html#249">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

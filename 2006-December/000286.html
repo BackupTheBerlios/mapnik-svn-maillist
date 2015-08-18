@@ -1,0 +1,121 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r401 - trunk/bindings/python
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-December/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r401%20-%20trunk/bindings/python&In-Reply-To=%3C200612042013.kB4KD2fa004553%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000285.html">
+   <LINK REL="Next"  HREF="000287.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r401 - trunk/bindings/python</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r401%20-%20trunk/bindings/python&In-Reply-To=%3C200612042013.kB4KD2fa004553%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r401 - trunk/bindings/python">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Mon Dec  4 21:13:02 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000285.html">[Mapnik-svn] r400 - trunk/src
+</A></li>
+        <LI>Next message: <A HREF="000287.html">[Mapnik-svn] r402 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#286">[ date ]</a>
+              <a href="thread.html#286">[ thread ]</a>
+              <a href="subject.html#286">[ subject ]</a>
+              <a href="author.html#286">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-12-04 21:12:58 +0100 (Mon, 04 Dec 2006)
+New Revision: 401
+
+Modified:
+   trunk/bindings/python/mapnik_python.cpp
+Log:
+applied missing part from mapnik_tile patch
+
+
+
+Modified: trunk/bindings/python/mapnik_python.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_python.cpp	2006-12-04 11:36:39 UTC (rev 400)
++++ trunk/bindings/python/mapnik_python.cpp	2006-12-04 20:12:58 UTC (rev 401)
+@@ -58,20 +58,28 @@
+ #include &lt;mapnik/load_map.hpp&gt;
+ #include &lt;mapnik/save_map.hpp&gt;
+ 
+-void render_to_file(const mapnik::Map&amp; map,
++
++void render(const mapnik::Map&amp; map,mapnik::Image32&amp; image, unsigned offset_x = 0, unsigned offset_y = 0)
++{
++    mapnik::agg_renderer&lt;mapnik::Image32&gt; ren(map,image,offset_x, offset_y);
++    ren.apply();
++}
++
++void render_tile_to_file(const mapnik::Map&amp; map, unsigned offset_x, unsigned offset_y,
++                    unsigned width, unsigned height,
+                     const std::string&amp; file,
+                     const std::string&amp; format)
+ {
+-    mapnik::Image32 image(map.getWidth(),map.getHeight());
+-    mapnik::agg_renderer&lt;mapnik::Image32&gt; ren(map,image);
+-    ren.apply();
++    mapnik::Image32 image(width,height);
++    render(map,image,offset_x, offset_y);
+     image.saveToFile(file,format);
+ }
+ 
+-void render(const mapnik::Map&amp; map,mapnik::Image32&amp; image)
++void render_to_file(const mapnik::Map&amp; map,
++                    const std::string&amp; file,
++                    const std::string&amp; format)
+ {
+-    mapnik::agg_renderer&lt;mapnik::Image32&gt; ren(map,image);
+-    ren.apply();
++    render_tile_to_file(map,0,0,map.getWidth(),map.getHeight(),file,format);
+ }
+ 
+ 
+@@ -109,6 +117,7 @@
+     export_map();
+     
+     def(&quot;render_to_file&quot;,&amp;render_to_file);
++    def(&quot;render_tile_to_file&quot;,&amp;render_tile_to_file);
+     def(&quot;render&quot;,&amp;render);
+     
+     def(&quot;load_map&quot;,&amp;load_map,&quot;load Map object from XML&quot;);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000285.html">[Mapnik-svn] r400 - trunk/src
+</A></li>
+	<LI>Next message: <A HREF="000287.html">[Mapnik-svn] r402 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#286">[ date ]</a>
+              <a href="thread.html#286">[ thread ]</a>
+              <a href="subject.html#286">[ subject ]</a>
+              <a href="author.html#286">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

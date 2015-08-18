@@ -1,0 +1,1147 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r379 - in trunk: bindings/python include/mapnik	plugins/input/postgis plugins/input/raster plugins/input/shape src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-November/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r379%20-%20in%20trunk%3A%20bindings/python%20include/mapnik%0A%09plugins/input/postgis%20plugins/input/raster%20plugins/input/shape%20src&In-Reply-To=%3C200611251103.kAPB3BKK020734%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000263.html">
+   <LINK REL="Next"  HREF="000265.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r379 - in trunk: bindings/python include/mapnik	plugins/input/postgis plugins/input/raster plugins/input/shape src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r379%20-%20in%20trunk%3A%20bindings/python%20include/mapnik%0A%09plugins/input/postgis%20plugins/input/raster%20plugins/input/shape%20src&In-Reply-To=%3C200611251103.kAPB3BKK020734%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r379 - in trunk: bindings/python include/mapnik	plugins/input/postgis plugins/input/raster plugins/input/shape src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Sat Nov 25 12:03:11 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000263.html">[Mapnik-svn] r378 - trunk/src
+</A></li>
+        <LI>Next message: <A HREF="000265.html">[Mapnik-svn] r380 - trunk/demo/python
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#264">[ date ]</a>
+              <a href="thread.html#264">[ thread ]</a>
+              <a href="subject.html#264">[ subject ]</a>
+              <a href="author.html#264">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-11-25 12:02:59 +0100 (Sat, 25 Nov 2006)
+New Revision: 379
+
+Added:
+   trunk/bindings/python/mapnik_image_view.cpp
+   trunk/include/mapnik/image_view.hpp
+Modified:
+   trunk/bindings/python/mapnik_datasource.cpp
+   trunk/bindings/python/mapnik_image.cpp
+   trunk/bindings/python/mapnik_map.cpp
+   trunk/bindings/python/mapnik_python.cpp
+   trunk/include/mapnik/datasource.hpp
+   trunk/include/mapnik/geom_util.hpp
+   trunk/include/mapnik/geometry.hpp
+   trunk/include/mapnik/graphics.hpp
+   trunk/include/mapnik/image_data.hpp
+   trunk/include/mapnik/image_util.hpp
+   trunk/include/mapnik/layer.hpp
+   trunk/include/mapnik/map.hpp
+   trunk/plugins/input/postgis/postgis.cpp
+   trunk/plugins/input/postgis/postgis.hpp
+   trunk/plugins/input/raster/raster_datasource.cpp
+   trunk/plugins/input/raster/raster_datasource.hpp
+   trunk/plugins/input/shape/shape.cpp
+   trunk/plugins/input/shape/shape.hpp
+   trunk/plugins/input/shape/shape_featureset.cpp
+   trunk/plugins/input/shape/shape_index_featureset.cpp
+   trunk/src/agg_renderer.cpp
+   trunk/src/datasource_cache.cpp
+   trunk/src/graphics.cpp
+   trunk/src/image_util.cpp
+   trunk/src/layer.cpp
+   trunk/src/map.cpp
+Log:
+1. hit_test implementation for geometry objects:
+        
+    bool hit_test(double x, double y, double tol);
+       
+2. added image_view(unsigned x, unsigned y, unsigned width, unsigned height)
+   allowing to select region from image data e.g (in Python):
+
+    im = Image(2048,2048)
+    view = im.view(0,0,256,256)
+    save_to_file(filename,type, view)
+    
+3. changed envelope method to return vy value in datasource classes
+
+4. features_at_point impl for shape and postgis plug-ins
+
+  
+
+
+Modified: trunk/bindings/python/mapnik_datasource.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_datasource.cpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/bindings/python/mapnik_datasource.cpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -75,8 +75,8 @@
+     
+     class_&lt;datasource,boost::shared_ptr&lt;datasource&gt;,
+         boost::noncopyable&gt;(&quot;Datasource&quot;,no_init)
+-        .def(&quot;envelope&quot;,&amp;datasource::envelope,
+-             return_value_policy&lt;copy_const_reference&gt;())
++        .def(&quot;envelope&quot;,&amp;datasource::envelope)
++        .def(&quot;descriptor&quot;,&amp;datasource::get_descriptor) //todo
+         .def(&quot;features&quot;,&amp;datasource::features)
+         .def(&quot;params&quot;,&amp;datasource::params,return_value_policy&lt;copy_const_reference&gt;(), 
+              &quot;The configuration parameters of the data source. &quot;  
+
+Modified: trunk/bindings/python/mapnik_image.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_image.cpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/bindings/python/mapnik_image.cpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -39,8 +39,9 @@
+ {
+     using namespace boost::python;
+     class_&lt;Image32&gt;(&quot;Image&quot;,&quot;This class represents a 32 bit image.&quot;,init&lt;int,int&gt;())
+-	.def(&quot;width&quot;,&amp;Image32::width)
+-	.def(&quot;height&quot;,&amp;Image32::height)
++        .def(&quot;width&quot;,&amp;Image32::width)
++        .def(&quot;height&quot;,&amp;Image32::height)
++        .def(&quot;view&quot;,&amp;Image32::get_view)
+         .add_property(&quot;background&quot;,make_function
+                       (&amp;Image32::getBackground,return_value_policy&lt;copy_const_reference&gt;()),
+                        &amp;Image32::setBackground, &quot;The background color of the image.&quot;)
+
+Added: trunk/bindings/python/mapnik_image_view.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_image_view.cpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/bindings/python/mapnik_image_view.cpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -0,0 +1,45 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko, Jean-Francois Doyon
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++//$Id$
++
++#include &lt;boost/python.hpp&gt;
++
++//#include &lt;boost/python/module.hpp&gt;
++//#include &lt;boost/python/def.hpp&gt;
++//#include &lt;mapnik/graphics.hpp&gt;
++#include &lt;mapnik/image_util.hpp&gt;
++#include &lt;mapnik/image_view.hpp&gt;
++
++using mapnik::ImageData32;
++using mapnik::image_view;
++using mapnik::save_to_file;
++
++void export_image_view()
++{
++    using namespace boost::python;
++    class_&lt;image_view&lt;ImageData32&gt; &gt;(&quot;ImageView&quot;,&quot;A view into an image.&quot;,no_init)
++        .def(&quot;width&quot;,&amp;image_view&lt;ImageData32&gt;::width)
++        .def(&quot;height&quot;,&amp;image_view&lt;ImageData32&gt;::height)
++        ;
++    
++    def(&quot;save_to_file&quot;,save_to_file&lt;image_view&lt;ImageData32&gt; &gt;);
++}
+
+Modified: trunk/bindings/python/mapnik_map.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_map.cpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/bindings/python/mapnik_map.cpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -78,6 +78,9 @@
+     }
+ };
+ 
++std::vector&lt;Layer&gt;&amp; (Map::*layers_nonconst)() =  &amp;Map::layers;
++std::vector&lt;Layer&gt; const&amp; (Map::*layers_const)() const =  &amp;Map::layers;
++
+ void export_map() 
+ {
+     using namespace boost::python;
+@@ -108,7 +111,7 @@
+         .def(&quot;append_style&quot;,&amp;Map::insert_style)
+         .def(&quot;remove_style&quot;,&amp;Map::remove_style)
+         .add_property(&quot;layers&quot;,make_function
+-                      (&amp;Map::layers,return_value_policy&lt;reference_existing_object&gt;()), 
++                      (layers_nonconst,return_value_policy&lt;reference_existing_object&gt;()), 
+                       &quot;Get the list of layers in this map.&quot;)
+         .def(&quot;find_style&quot;,&amp;Map::find_style,return_value_policy&lt;copy_const_reference&gt;())
+         .def_pickle(map_pickle_suite())
+
+Modified: trunk/bindings/python/mapnik_python.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_python.cpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/bindings/python/mapnik_python.cpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -32,6 +32,7 @@
+ void export_envelope();
+ void export_query();
+ void export_image();
++void export_image_view();
+ void export_map();
+ void export_python();
+ void export_filter();
+@@ -96,6 +97,7 @@
+     export_color(); 
+     export_envelope();   
+     export_image();
++    export_image_view();
+     export_filter();
+     export_rule();
+     export_style();    
+
+Modified: trunk/include/mapnik/datasource.hpp
+===================================================================
+--- trunk/include/mapnik/datasource.hpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/include/mapnik/datasource.hpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -46,9 +46,9 @@
+         virtual feature_ptr next()=0;
+         virtual ~Featureset() {};
+     };
+-
+-    typedef boost::shared_ptr&lt;Featureset&gt; featureset_ptr;
+     
++    typedef MAPNIK_DECL boost::shared_ptr&lt;Featureset&gt; featureset_ptr;
++    
+     class MAPNIK_DECL datasource_exception : public std::exception
+     {
+     private:
+@@ -84,8 +84,8 @@
+         virtual int type() const=0;
+         virtual featureset_ptr features(const query&amp; q) const=0;
+         virtual featureset_ptr features_at_point(coord2d const&amp; pt) const=0;
+-        virtual Envelope&lt;double&gt; const&amp; envelope() const=0;
+-        virtual layer_descriptor const&amp; get_descriptor() const=0;
++        virtual Envelope&lt;double&gt; envelope() const=0;
++        virtual layer_descriptor get_descriptor() const=0;
+         virtual ~datasource() {};
+     };
+     
+@@ -103,7 +103,7 @@
+         }
+     };
+ 
+-    typedef boost::shared_ptr&lt;datasource&gt; datasource_p;
++    typedef boost::shared_ptr&lt;datasource&gt; datasource_ptr;
+     
+     
+     #define DATASOURCE_PLUGIN(classname)                              \
+
+Modified: trunk/include/mapnik/geom_util.hpp
+===================================================================
+--- trunk/include/mapnik/geom_util.hpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/include/mapnik/geom_util.hpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -34,7 +34,6 @@
+ 
+ namespace mapnik
+ {
+-
+     template &lt;typename T&gt;
+     bool clip_test(T p,T q,double&amp; tmin,double&amp; tmax)
+     {
+@@ -117,14 +116,6 @@
+     	return inside;
+     }
+ 
+-#define TOL 0.00001
+-
+-    /*
+-      (Ay-Cy)(Bx-Ax)-(Ax-Cx)(By-Ay)
+-      s = -----------------------------
+-      L^2
+-    */
+-
+     inline bool point_in_circle(double x,double y,double cx,double cy,double r)
+     {
+         double dx = x - cx;
+@@ -133,40 +124,75 @@
+         return (d2 &lt;= r * r);
+     }
+     
+-    inline bool point_on_segment(double x,double y,double x0,double y0,double x1,double y1)
+-    {	
++    template &lt;typename T&gt;
++    inline T sqr(T x)
++    {
++        return x * x;
++    }
++
++    inline double distance2(double x0,double y0,double x1,double y1)
++    {
+         double dx = x1 - x0;
+         double dy = y1 - y0;
+-        if ( fabs(dx) &gt; TOL  ||  fabs(dy) &gt; TOL )
+-        {
+-            double s = (y0 - y) * dx - (x0 - x) * dy;
+-            return ( fabs (s) &lt; TOL ) ;
+-        } 
+-        return false;
++        return sqr(dx) + sqr(dy);
+     }
+-
+-    inline bool point_on_segment2(double x,double y,double x0,double y0,double x1,double y1)
+-    {	 
+-        double d  = sqrt ((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0));
+-        double d0 = sqrt ((x0 - x) * (x0 - x) + (y0 - y) * (y0 - y));
+-        double d1 = sqrt ((x1 - x) * (x1 - x) + (y1 - y) * (y1 - y));
+-        double d2 = d0 + d1;
+-        return ( d2 - d &lt; 0.01);
++    
++    inline double distance(double x0,double y0, double x1,double y1)
++    {
++        return sqrt(distance2(x0,y0,x1,y1));
+     }
+     
+-#undef TOL
+-    template &lt;typename Iter&gt; 
+-    inline bool point_on_path(double x,double y,Iter start,Iter end)
++    inline double point_to_segment_distance(double x, double y, 
++                                            double ax, double ay, 
++                                            double bx, double by)
+     {
+-        return false;
++        double len2 = distance2(ax,ay,bx,by);
++        
++        if (len2 &lt; 1e-7) 
++        {
++            return distance(x,y,ax,ay);
++        }
++        
++        double r = ((x - ax)*(bx - ax) + (y - ay)*(by -ay))/len2;
++        if ( r &lt; 0 )
++        {
++            return distance(x,y,ax,ay);
++        }
++        else if (r &gt; 1)
++        {
++            return distance(x,y,bx,by);
++        }
++        double s = ((ay - y)*(bx - ax) - (ax - x)*(by - ay))/len2;
++        return fabs(s) * sqrt(len2);
+     }
+-    
++        
+     template &lt;typename Iter&gt; 
+-    inline bool point_on_points (double x,double y,Iter start,Iter end) 
++    inline bool point_on_path(double x,double y,Iter start,Iter end, double tol)
+     {
+-        return false; 
++        double x0=boost::get&lt;0&gt;(*start);
++        double y0=boost::get&lt;1&gt;(*start);
++        double x1,y1;
++        while (++start!=end) 
++        {
++            if ( boost::get&lt;2&gt;(*start) == SEG_MOVETO)
++            {
++                x0 = boost::get&lt;0&gt;(*start);
++                y0 = boost::get&lt;1&gt;(*start);
++                continue;
++            }		
++            x1=boost::get&lt;0&gt;(*start);
++            y1=boost::get&lt;1&gt;(*start);
++            
++            double distance = point_to_segment_distance(x,y,x0,y0,x1,y1);
++            if (distance &lt; tol)
++                return true;
++            x0=x1;
++            y0=y1;
++        }
++    	return false;
+     }
+-
++    
++    // filters
+     struct filter_in_box
+     {
+         Envelope&lt;double&gt; box_;
+@@ -191,4 +217,4 @@
+     };
+ }
+ 
+-#endif                                            //GEOM_UTIL_HPP
++#endif //GEOM_UTIL_HPP
+
+Modified: trunk/include/mapnik/geometry.hpp
+===================================================================
+--- trunk/include/mapnik/geometry.hpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/include/mapnik/geometry.hpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -76,9 +76,9 @@
+             }
+             return result;
+         }
+-
++        
+         virtual int type() const=0;
+-        virtual bool hit_test(value_type x,value_type y) const=0;	
++        virtual bool hit_test(value_type x,value_type y, double tol) const=0;	
+         virtual void label_position(double *x, double *y) const=0;
+         virtual void move_to(value_type x,value_type y)=0;
+         virtual void line_to(value_type x,value_type y)=0;
+@@ -134,10 +134,11 @@
+ 	
+         void rewind(unsigned ) {}
+ 	
+-        bool hit_test(value_type x,value_type y) const
++        bool hit_test(value_type x,value_type y, double tol) const
+         {
+-            return false;
++            return point_in_circle(pt_.x,pt_.y, x,y,tol);
+         }
++        
+         void set_capacity(size_t) {}
+         virtual ~point() {}
+     };
+@@ -227,7 +228,7 @@
+             itr_=0;
+         }
+ 	
+-        bool hit_test(value_type x,value_type y) const
++        bool hit_test(value_type x,value_type y, double) const
+         {	    
+             return point_inside_path(x,y,cont_.begin(),cont_.end());
+         } 
+@@ -239,7 +240,7 @@
+         virtual ~polygon() {}
+     };
+     
+-    template &lt;typename T, template &lt;typename&gt; class Container=vertex_vector&gt;
++    template &lt;typename T, template &lt;typename&gt; class Container=vertex_vector2&gt;
+     class line_string : public geometry&lt;T&gt;
+     {
+         typedef geometry&lt;T&gt; geometry_base;
+@@ -337,9 +338,9 @@
+             itr_=0;
+         }
+ 	
+-        bool hit_test(value_type x,value_type y) const
++        bool hit_test(value_type x,value_type y, double tol) const
+         {	    
+-            return false;
++            return point_on_path(x,y,cont_.begin(),cont_.end(),tol);
+         } 
+ 	
+         void set_capacity(size_t size) 
+
+Modified: trunk/include/mapnik/graphics.hpp
+===================================================================
+--- trunk/include/mapnik/graphics.hpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/include/mapnik/graphics.hpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -33,6 +33,7 @@
+ #include &lt;mapnik/gamma.hpp&gt;
+ #include &lt;mapnik/image_data.hpp&gt;
+ #include &lt;mapnik/envelope.hpp&gt;
++#include &lt;mapnik/image_view.hpp&gt;
+ 
+ namespace mapnik
+ {
+@@ -45,9 +46,9 @@
+         ImageData32 data_;
+     public:
+         Image32(int width,int height);
+-        Image32(const Image32&amp; rhs);
++        Image32(Image32 const&amp; rhs);
+         ~Image32();
+-        void setBackground(const Color&amp; background);
++        void setBackground(Color const&amp; background);
+         const Color&amp; getBackground() const;     
+         const ImageData32&amp; data() const;
+         
+@@ -65,10 +66,16 @@
+         {
+             return data_.getBytes();
+         }
+-	
++        
++        inline image_view&lt;ImageData32&gt; get_view(unsigned x,unsigned y, unsigned w,unsigned h)
++        {
++            return image_view&lt;ImageData32&gt;(x,y,w,h,data_);
++        }
++        
+         void saveToFile(const std::string&amp; file,const std::string&amp; format=&quot;auto&quot;); 
++
+     private:
+-
++        
+         inline bool checkBounds(unsigned x, unsigned y) const
+         {
+             return (x &lt; width_ &amp;&amp; y &lt; height_);
+
+Modified: trunk/include/mapnik/image_data.hpp
+===================================================================
+--- trunk/include/mapnik/image_data.hpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/include/mapnik/image_data.hpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -31,12 +31,9 @@
+ {
+     template &lt;class T&gt; class ImageData
+     {
+-    private:
+-        const unsigned width_;
+-        const unsigned height_;
+-        T *pData_;
+-        ImageData&amp; operator=(const ImageData&amp;);
+     public:
++        typedef T pixel_type;
++        
+         ImageData(unsigned width,unsigned height)
+             : width_(width),
+               height_(height),
+@@ -119,6 +116,12 @@
+         {
+             ::operator delete(pData_),pData_=0;
+         }
++        
++    private:
++        const unsigned width_;
++        const unsigned height_;
++        T *pData_;
++        ImageData&amp; operator=(const ImageData&amp;);
+ 	
+     };
+ 
+
+Modified: trunk/include/mapnik/image_util.hpp
+===================================================================
+--- trunk/include/mapnik/image_util.hpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/include/mapnik/image_util.hpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -31,23 +31,23 @@
+ #include &lt;mapnik/config.hpp&gt;
+ #include &lt;mapnik/graphics.hpp&gt;
+ 
+-namespace mapnik
+-{
+-    class MAPNIK_DECL ImageUtils
+-    {
+-    public:
+-        static void save_to_file(const std::string&amp; filename,
+-                                 const std::string&amp; type,
+-                                 const Image32&amp; image);
+-    private:
+-        static void save_as_png(const std::string&amp; filename,
+-                                const Image32&amp; image);
+-        static void save_as_jpeg(const std::string&amp; filename,
+-                                 int quality, 
+-                                 const Image32&amp; image);
+-    };
++namespace mapnik {
+     
+     template &lt;typename T&gt;
++    void save_to_file(std::string const&amp; filename,
++                      std::string const&amp; type,
++                      T const&amp; image);
++    
++    template &lt;typename T&gt;
++    void save_as_png(std::string const&amp; filename,
++                     Image32 const&amp; image);
++    template &lt;typename T&gt;
++    void save_as_jpeg(std::string const&amp; filename,
++                      int quality, 
++                      T const&amp; image);
++    
++    
++    template &lt;typename T&gt;
+     double distance(T x0,T y0,T x1,T y1)
+     {
+         double dx = x1-x0;
+
+Added: trunk/include/mapnik/image_view.hpp
+===================================================================
+--- trunk/include/mapnik/image_view.hpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/include/mapnik/image_view.hpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -0,0 +1,102 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++//$Id$
++
++#ifndef IMAGE_VIEW_HPP
++#define IMAGE_VIEW_HPP
++
++
++namespace mapnik {
++    
++    template &lt;typename T&gt; 
++    class image_view  
++    {
++        typedef typename T::pixel_type pixel_type;
++    public:
++        image_view(unsigned x, unsigned y, unsigned width, unsigned height, T const&amp; data)
++            : x_(x),
++              y_(y),
++              width_(width),
++              height_(height),
++              data_(data) 
++        {
++            if (x_ &gt;= data_.width()) x_=data_.width()-1;
++            if (y_ &gt;= data_.height()) x_=data_.height()-1;
++            if (x_ + width_ &gt; data_.width()) width_= data_.width() - x_;
++            if (y_ + height_ &gt; data_.height()) height_= data_.height() - y_;
++        }
++        
++        ~image_view() {}
++        
++        image_view(image_view&lt;T&gt; const&amp; rhs)
++            : x_(rhs.x_),
++              y_(rhs.y_),
++              width_(rhs.width_),
++              height_(rhs.height_),
++              data_(rhs.data_) {}
++        
++        image_view&lt;T&gt; &amp; operator=(image_view&lt;T&gt; const&amp; rhs)
++        {
++            if (&amp;rhs==this) return *this;
++            x_ = rhs.x_;
++            y_ = rhs.y_;
++            width_ = rhs.width_;
++            height_ = rhs.height_;
++            data_ = rhs.data_;
++        }
++        
++        inline unsigned x() const
++        {
++            return x_;
++        }
++
++        inline unsigned y() const
++        {
++            return y_;
++        }
++        
++        inline unsigned width() const
++        {
++            return width_;
++        }
++        inline unsigned height() const
++        {
++            return height_;
++        }
++        
++        inline const pixel_type* getRow(unsigned row) const
++        {
++            return data_.getRow(row + y_) + x_;
++        }
++        
++    private:
++        unsigned x_;
++        unsigned y_;
++        unsigned width_;
++        unsigned height_;
++        T const&amp; data_;
++    };
++}
++
++#endif // IMAGE_VIEW_HPP
++
+
+Modified: trunk/include/mapnik/layer.hpp
+===================================================================
+--- trunk/include/mapnik/layer.hpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/include/mapnik/layer.hpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -46,7 +46,7 @@
+         bool selectable_;
+         std::vector&lt;std::string&gt;  styles_;
+         std::string selection_style_;
+-        datasource_p ds_;
++        datasource_ptr ds_;
+         
+         mutable std::vector&lt;boost::shared_ptr&lt;Feature&gt; &gt; selection_;
+         
+@@ -79,8 +79,8 @@
+         void add_to_selection(boost::shared_ptr&lt;Feature&gt;&amp; feature) const;
+         std::vector&lt;boost::shared_ptr&lt;Feature&gt; &gt;&amp; selection() const;
+         void clear_selection() const;
+-        void set_datasource(datasource_p const&amp; ds);
+-        datasource_p datasource() const;
++        void set_datasource(datasource_ptr const&amp; ds);
++        datasource_ptr datasource() const;
+         Envelope&lt;double&gt; envelope() const;
+         ~Layer();
+     private:
+
+Modified: trunk/include/mapnik/map.hpp
+===================================================================
+--- trunk/include/mapnik/map.hpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/include/mapnik/map.hpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -60,6 +60,7 @@
+         Layer&amp; getLayer(size_t index);
+         void removeLayer(size_t index);
+         std::vector&lt;Layer&gt; const&amp; layers() const;
++        std::vector&lt;Layer&gt; &amp; layers();
+         void remove_all();        
+         unsigned getWidth() const;
+         unsigned getHeight() const;
+@@ -77,6 +78,7 @@
+         void pan_and_zoom(int x,int y,double zoom);
+         const Envelope&lt;double&gt;&amp; getCurrentExtent() const;
+         double scale() const;
++        CoordTransform view_transform() const;
+         ~Map();
+     private:
+         void fixAspectRatio();
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/plugins/input/postgis/postgis.cpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -171,7 +171,7 @@
+     return type_;
+ }
+ 
+-layer_descriptor const&amp; postgis_datasource::get_descriptor() const
++layer_descriptor postgis_datasource::get_descriptor() const
+ {
+     return desc_;
+ }
+@@ -231,7 +231,7 @@
+     return featureset_ptr();
+ }
+ 
+-const Envelope&lt;double&gt;&amp; postgis_datasource::envelope() const
++Envelope&lt;double&gt; postgis_datasource::envelope() const
+ {
+     return extent_;
+ }
+
+Modified: trunk/plugins/input/postgis/postgis.hpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.hpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/plugins/input/postgis/postgis.hpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -57,8 +57,8 @@
+     int type() const;
+     featureset_ptr features(const query&amp; q) const;
+     featureset_ptr features_at_point(coord2d const&amp; pt) const;
+-    mapnik::Envelope&lt;double&gt; const&amp; envelope() const;
+-    layer_descriptor const&amp; get_descriptor() const;
++    mapnik::Envelope&lt;double&gt; envelope() const;
++    layer_descriptor get_descriptor() const;
+     postgis_datasource(const parameters &amp;params);
+     ~postgis_datasource();
+ private:
+
+Modified: trunk/plugins/input/raster/raster_datasource.cpp
+===================================================================
+--- trunk/plugins/input/raster/raster_datasource.cpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/plugins/input/raster/raster_datasource.cpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -74,12 +74,12 @@
+     return name_;
+ }
+ 
+-const mapnik::Envelope&lt;double&gt;&amp; raster_datasource::envelope() const
++mapnik::Envelope&lt;double&gt; raster_datasource::envelope() const
+ {
+     return extent_;
+ }
+ 
+-layer_descriptor const&amp; raster_datasource::get_descriptor() const
++layer_descriptor raster_datasource::get_descriptor() const
+ {
+     return desc_;
+ }
+
+Modified: trunk/plugins/input/raster/raster_datasource.hpp
+===================================================================
+--- trunk/plugins/input/raster/raster_datasource.hpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/plugins/input/raster/raster_datasource.hpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -45,8 +45,8 @@
+     static std::string name();
+     featureset_ptr features(const query&amp; q) const;
+     featureset_ptr features_at_point(coord2d const&amp; pt) const;
+-    mapnik::Envelope&lt;double&gt; const&amp; envelope() const;
+-    layer_descriptor const&amp; get_descriptor() const;
++    mapnik::Envelope&lt;double&gt; envelope() const;
++    layer_descriptor get_descriptor() const;
+ private:
+     //no copying
+     raster_datasource(const raster_datasource&amp;);
+
+Modified: trunk/plugins/input/shape/shape.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape.cpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/plugins/input/shape/shape.cpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -136,7 +136,7 @@
+     return type_;
+ }
+ 
+-layer_descriptor const&amp; shape_datasource::get_descriptor() const
++layer_descriptor shape_datasource::get_descriptor() const
+ {
+     return desc_;
+ }
+@@ -154,16 +154,41 @@
+         return featureset_ptr
+             (new shape_index_featureset&lt;filter_in_box&gt;(filter,shape_name_,q.property_names()));
+     }
+-    return featureset_ptr
+-        (new shape_featureset&lt;filter_in_box&gt;(filter,shape_name_,q.property_names(),file_length_));
++    else
++    {
++        return featureset_ptr
++            (new shape_featureset&lt;filter_in_box&gt;(filter,shape_name_,q.property_names(),file_length_));
++    }
+ }
+ 
+ featureset_ptr shape_datasource::features_at_point(coord2d const&amp; pt) const
+ {
+-    return featureset_ptr();
++    filter_at_point filter(pt);
++    // collect all attribute names
++    std::vector&lt;attribute_descriptor&gt; const&amp; desc_vector = desc_.get_descriptors();
++    std::vector&lt;attribute_descriptor&gt;::const_iterator itr = desc_vector.begin();
++    std::vector&lt;attribute_descriptor&gt;::const_iterator end = desc_vector.end();
++    std::set&lt;std::string&gt; names;
++    
++    while (itr != end)
++    {    
++        names.insert(itr-&gt;get_name());
++        ++itr;
++    }
++    
++    if (indexed_)
++    {
++        return featureset_ptr
++            (new shape_index_featureset&lt;filter_at_point&gt;(filter,shape_name_,names));
++    }
++    else
++    {
++        return featureset_ptr
++            (new shape_featureset&lt;filter_at_point&gt;(filter,shape_name_,names,file_length_));
++    }
+ }
+ 
+-const Envelope&lt;double&gt;&amp; shape_datasource::envelope() const
++Envelope&lt;double&gt; shape_datasource::envelope() const
+ {
+     return extent_;
+ }
+
+Modified: trunk/plugins/input/shape/shape.hpp
+===================================================================
+--- trunk/plugins/input/shape/shape.hpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/plugins/input/shape/shape.hpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -37,13 +37,13 @@
+ public:
+     shape_datasource(const parameters &amp;params);
+     virtual ~shape_datasource();
+- 
++    
+     int type() const;
+     static std::string name();
+     featureset_ptr features(const query&amp; q) const;
+     featureset_ptr features_at_point(coord2d const&amp; pt) const;
+-    const Envelope&lt;double&gt;&amp; envelope() const;
+-    layer_descriptor const&amp; get_descriptor() const;   
++    Envelope&lt;double&gt; envelope() const;
++    layer_descriptor get_descriptor() const;   
+ private:
+     shape_datasource(const shape_datasource&amp;);
+     shape_datasource&amp; operator=(const shape_datasource&amp;);
+@@ -52,7 +52,7 @@
+     std::string shape_name_;
+     int type_;
+     long file_length_;
+-    mapnik::Envelope&lt;double&gt; extent_;
++    Envelope&lt;double&gt; extent_;
+     bool indexed_;
+     layer_descriptor desc_;
+     static std::string name_;
+
+Modified: trunk/plugins/input/shape/shape_featureset.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape_featureset.cpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/plugins/input/shape/shape_featureset.cpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -191,3 +191,5 @@
+ shape_featureset&lt;filterT&gt;::~shape_featureset() {}
+ 
+ template class shape_featureset&lt;filter_in_box&gt;;
++template class shape_featureset&lt;filter_at_point&gt;;
++
+
+Modified: trunk/plugins/input/shape/shape_index_featureset.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape_index_featureset.cpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/plugins/input/shape/shape_index_featureset.cpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -197,4 +197,5 @@
+ shape_index_featureset&lt;filterT&gt;::~shape_index_featureset() {}
+ 
+ template class shape_index_featureset&lt;filter_in_box&gt;;
++template class shape_index_featureset&lt;filter_at_point&gt;;
+ 
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/src/agg_renderer.cpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -419,7 +419,7 @@
+                                   Feature const&amp; feature,
+                                   proj_transform const&amp; prj_trans)
+     {
+-        typedef  coord_transform2&lt;CoordTransform,geometry_type&gt; path_type;
++        typedef coord_transform2&lt;CoordTransform,geometry_type&gt; path_type;
+         typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base; 
+         typedef agg::wrap_mode_repeat wrap_x_type;
+         typedef agg::wrap_mode_repeat wrap_y_type;
+
+Modified: trunk/src/datasource_cache.cpp
+===================================================================
+--- trunk/src/datasource_cache.cpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/src/datasource_cache.cpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -48,9 +48,9 @@
+     std::map&lt;string,boost::shared_ptr&lt;PluginInfo&gt; &gt; datasource_cache::plugins_;
+     bool datasource_cache::registered_=false;
+         
+-    datasource_p datasource_cache::create(const parameters&amp; params)
++    datasource_ptr datasource_cache::create(const parameters&amp; params)
+     {
+-        datasource_p ds;
++        datasource_ptr ds;
+         try
+         {
+             const std::string type=params.get(&quot;type&quot;);	    
+@@ -67,7 +67,7 @@
+                     }
+                     else
+                     {
+-                        ds=datasource_p(create_datasource(params),datasource_deleter());
++                        ds=datasource_ptr(create_datasource(params),datasource_deleter());
+                     }
+                 }
+                 else
+
+Modified: trunk/src/graphics.cpp
+===================================================================
+--- trunk/src/graphics.cpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/src/graphics.cpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -63,6 +63,6 @@
+     void Image32::saveToFile(const std::string&amp; file,const std::string&amp; format) 
+     {
+ 	    //TODO: image writer factory
+-	    ImageUtils::save_to_file(file,format,*this);
++	    save_to_file(file,format,data_);
+     }
+ }
+
+Modified: trunk/src/image_util.cpp
+===================================================================
+--- trunk/src/image_util.cpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/src/image_util.cpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -28,6 +28,7 @@
+ #include &lt;mapnik/graphics.hpp&gt;
+ #include &lt;mapnik/memory.hpp&gt;
+ #include &lt;mapnik/image_util.hpp&gt;
++#include &lt;mapnik/image_view.hpp&gt;
+ // jpeg png
+ extern &quot;C&quot;
+ {
+@@ -37,9 +38,7 @@
+ 
+ namespace mapnik
+ {
+-
+     //use memory manager for mem allocation in libpng
+-
+     png_voidp malloc_fn(png_structp png_ptr,png_size_t size)
+     {
+         return Object::operator new(size);
+@@ -48,10 +47,11 @@
+     {
+         Object::operator delete(ptr);
+     }
+-    //
+-    void ImageUtils::save_to_file(const std::string&amp; filename,
+-                                  const std::string&amp; type,
+-                                  const Image32&amp; image)
++    
++    template &lt;typename T&gt;
++    void save_to_file(std::string const&amp; filename,
++                      std::string const&amp; type,
++                      T const&amp; image)
+     {
+         //all that should go into image_writer factory
+         if (type==&quot;png&quot;)
+@@ -63,8 +63,9 @@
+             save_as_jpeg(filename,85,image);
+         }
+     }
+-
+-    void ImageUtils::save_as_png(const std::string&amp; filename,const Image32&amp; image)
++    
++    template &lt;typename T&gt;
++    void save_as_png(std::string const&amp; filename, T const&amp; image)
+     {
+         FILE *fp=fopen(filename.c_str(), &quot;wb&quot;);
+         if (!fp) return;
+@@ -105,20 +106,18 @@
+                      PNG_COLOR_TYPE_RGB_ALPHA,PNG_INTERLACE_NONE,
+                      PNG_COMPRESSION_TYPE_DEFAULT,PNG_FILTER_TYPE_DEFAULT);
+         png_write_info(png_ptr, info_ptr);
+-
+-        const ImageData32&amp; imageData=image.data();
+-
+         for (unsigned i=0;i&lt;image.height();i++)
+         {
+-            png_write_row(png_ptr,(png_bytep)imageData.getRow(i));
++            png_write_row(png_ptr,(png_bytep)image.getRow(i));
+         }
+ 
+         png_write_end(png_ptr, info_ptr);
+         png_destroy_write_struct(&amp;png_ptr, &amp;info_ptr);
+         fclose(fp);
+     }
+-
+-    void ImageUtils::save_as_jpeg(const std::string&amp; filename,int quality, const Image32&amp; image)
++    
++    template &lt;typename T&gt;
++    void save_as_jpeg(std::string const&amp; filename,int quality, T const&amp; image)
+     {
+         FILE *fp=fopen(filename.c_str(), &quot;wb&quot;);
+         if (!fp) return;
+@@ -140,10 +139,10 @@
+         jpeg_start_compress(&amp;cinfo, 1);
+         JSAMPROW row_pointer[1];
+         JSAMPLE* row=new JSAMPLE[width*3];
+-        const ImageData32&amp; imageData=image.data();
++        
+         while (cinfo.next_scanline &lt; cinfo.image_height) 
+         {
+-            const unsigned* imageRow=imageData.getRow(cinfo.next_scanline);
++            const unsigned* imageRow=image.getRow(cinfo.next_scanline);
+             int index=0;
+             for (int i=0;i&lt;width;++i)
+             {
+@@ -158,5 +157,14 @@
+         jpeg_finish_compress(&amp;cinfo);
+         fclose(fp);
+         jpeg_destroy_compress(&amp;cinfo);
+-    }
++    }  
++    
++    template void save_to_file&lt;ImageData32&gt;(std::string const&amp;,
++                                            std::string const&amp; , 
++                                            ImageData32 const&amp;);
++
++    template void save_to_file&lt;image_view&lt;ImageData32&gt; &gt; (std::string const&amp;,
++                                                          std::string const&amp; , 
++                                                          image_view&lt;ImageData32&gt; const&amp;);
++    
+ }
+
+Modified: trunk/src/layer.cpp
+===================================================================
+--- trunk/src/layer.cpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/src/layer.cpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -186,12 +186,12 @@
+         return selectable_;
+     }
+ 
+-    datasource_p Layer::datasource() const
++    datasource_ptr Layer::datasource() const
+     {
+         return ds_;
+     }
+     
+-    void Layer::set_datasource(datasource_p const&amp; ds)
++    void Layer::set_datasource(datasource_ptr const&amp; ds)
+     {
+         ds_ = ds;
+     }
+
+Modified: trunk/src/map.cpp
+===================================================================
+--- trunk/src/map.cpp	2006-11-22 22:09:11 UTC (rev 378)
++++ trunk/src/map.cpp	2006-11-25 11:02:59 UTC (rev 379)
+@@ -124,7 +124,12 @@
+     {
+         return layers_;
+     }
+-    
++
++    std::vector&lt;Layer&gt; &amp; Map::layers()
++    {
++        return layers_;
++    }
++
+     unsigned Map::getWidth() const
+     {
+         return width_;
+@@ -295,6 +300,11 @@
+             return currentExtent_.width()/width_;
+         return currentExtent_.width();
+     }
++
++    CoordTransform Map::view_transform() const
++    {
++        return CoordTransform(width_,height_,currentExtent_);
++    }
+     
+     Map::~Map() {}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000263.html">[Mapnik-svn] r378 - trunk/src
+</A></li>
+	<LI>Next message: <A HREF="000265.html">[Mapnik-svn] r380 - trunk/demo/python
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#264">[ date ]</a>
+              <a href="thread.html#264">[ thread ]</a>
+              <a href="subject.html#264">[ subject ]</a>
+              <a href="author.html#264">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

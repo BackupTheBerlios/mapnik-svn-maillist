@@ -1,0 +1,83 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r302 - trunk
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r302%20-%20trunk&In-Reply-To=%3C200610030837.k938bZNq019504%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="000188.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r302 - trunk</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r302%20-%20trunk&In-Reply-To=%3C200610030837.k938bZNq019504%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r302 - trunk">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Tue Oct  3 10:37:35 CEST 2006</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="000188.html">[Mapnik-svn] r303 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#187">[ date ]</a>
+              <a href="thread.html#187">[ thread ]</a>
+              <a href="subject.html#187">[ subject ]</a>
+              <a href="author.html#187">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-03 10:37:34 +0200 (Tue, 03 Oct 2006)
+New Revision: 302
+
+Modified:
+   trunk/SConstruct
+Log:
+Apparently, we need this check on some systems (??)
+
+
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2006-09-17 19:45:01 UTC (rev 301)
++++ trunk/SConstruct	2006-10-03 08:37:34 UTC (rev 302)
+@@ -73,6 +73,7 @@
+ env.ParseConfig(env['FREETYPE_CONFIG'] + ' --libs --cflags')
+ 
+ C_LIBSHEADERS = [
++    ['m', 'math.h', True],
+     ['ltdl', 'ltdl.h', True],
+     ['png', 'png.h', True],
+     ['tiff', 'tiff.h', True],
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="000188.html">[Mapnik-svn] r303 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#187">[ date ]</a>
+              <a href="thread.html#187">[ thread ]</a>
+              <a href="subject.html#187">[ subject ]</a>
+              <a href="author.html#187">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

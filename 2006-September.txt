@@ -1,0 +1,2601 @@
+From pavlenko at mail.berlios.de  Wed Sep  6 11:15:22 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Wed, 6 Sep 2006 11:15:22 +0200
+Subject: [Mapnik-svn] r295 - in trunk: . bindings/python fonts
+	plugins/input/postgis plugins/input/raster plugins/input/shape src
+Message-ID: <200609060915.k869FMRh021885@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-09-06 11:14:41 +0200 (Wed, 06 Sep 2006)
+New Revision: 295
+
+Modified:
+   trunk/SConstruct
+   trunk/bindings/python/SConscript
+   trunk/fonts/SConscript
+   trunk/plugins/input/postgis/SConscript
+   trunk/plugins/input/raster/SConscript
+   trunk/plugins/input/shape/SConscript
+   trunk/src/SConscript
+Log:
+added support for building on x86_64 platform e.g. /usr/lib64 etc.
+
+
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2006-08-31 21:32:07 UTC (rev 294)
++++ trunk/SConstruct	2006-09-06 09:14:41 UTC (rev 295)
+@@ -20,30 +20,39 @@
+ # $Id$
+ 
+ 
+-import os, sys
++import os, sys, platform
+ 
++
++
++if platform.uname()[4] == 'x86_64':
++    LIB_PLATFORM = 'lib64'
++else :
++    LIB_PLATFORM = 'lib'
++
++    
+ opts = Options()
+ 
+ opts.Add('PREFIX', 'The install path "prefix"', '/usr/local')
+ opts.Add(PathOption('BOOST_INCLUDES', 'Search path for boost include files', '/usr/include'))
+-opts.Add(PathOption('BOOST_LIBS', 'Search path for boost library files', '/usr/lib'))
++opts.Add(PathOption('BOOST_LIBS', 'Search path for boost library files', '/usr/' + LIB_PLATFORM))
+ opts.Add(PathOption('FREETYPE_CONFIG', 'The path to the freetype-config executable.', '/usr/bin/freetype-config'))
+ opts.Add(PathOption('PNG_INCLUDES', 'Search path for libpng include files', '/usr/include'))
+-opts.Add(PathOption('PNG_LIBS', 'Search path for libpng include files', '/usr/lib'))
++opts.Add(PathOption('PNG_LIBS', 'Search path for libpng include files', '/usr/' + LIB_PLATFORM))
+ opts.Add(PathOption('JPEG_INCLUDES', 'Search path for libjpeg include files', '/usr/include'))
+-opts.Add(PathOption('JPEG_LIBS', 'Search path for libjpeg library files', '/usr/lib'))
++opts.Add(PathOption('JPEG_LIBS', 'Search path for libjpeg library files', '/usr/' + LIB_PLATFORM))
+ opts.Add(PathOption('TIFF_INCLUDES', 'Search path for libtiff include files', '/usr/include'))
+-opts.Add(PathOption('TIFF_LIBS', 'Search path for libtiff library files', '/usr/lib'))
++opts.Add(PathOption('TIFF_LIBS', 'Search path for libtiff library files', '/usr/' + LIB_PLATFORM))
+ opts.Add(PathOption('PGSQL_INCLUDES', 'Search path for PostgreSQL include files', '/usr/include'))
+-opts.Add(PathOption('PGSQL_LIBS', 'Search path for PostgreSQL library files', '/usr/lib'))
++opts.Add(PathOption('PGSQL_LIBS', 'Search path for PostgreSQL library files', '/usr/' + LIB_PLATFORM))
+ opts.Add(PathOption('PROJ_INCLUDES', 'Search path for PROJ.4 include files', '/usr/local/include'))
+-opts.Add(PathOption('PROJ_LIBS', 'Search path for PROJ.4 include files', '/usr/local/lib'))
++opts.Add(PathOption('PROJ_LIBS', 'Search path for PROJ.4 include files', '/usr/local/' + LIB_PLATFORM))
+ opts.Add(PathOption('PYTHON','Python executable', sys.executable))
+ opts.Add(ListOption('INPUT_PLUGINS','Input drivers to include','all',['postgis','shape','raster']))
+ opts.Add(ListOption('BINDINGS','Language bindings to build','all',['python']))
+ opts.Add('DEBUG', 'Compile a debug version of mapnik', '')
+ 
+ env = Environment(ENV=os.environ, options=opts)
++env['LIB_PLATFORM'] = LIB_PLATFORM
+ 
+ Help(opts.GenerateHelpText(env))
+ 
+
+Modified: trunk/bindings/python/SConscript
+===================================================================
+--- trunk/bindings/python/SConscript	2006-08-31 21:32:07 UTC (rev 294)
++++ trunk/bindings/python/SConscript	2006-09-06 09:14:41 UTC (rev 295)
+@@ -23,7 +23,7 @@
+ 
+ Import('env')
+ 
+-prefix = env['PYTHON_PREFIX'] + '/lib/python' + env['PYTHON_VERSION'] + '/site-packages/'
++prefix = env['PYTHON_PREFIX'] + '/'+env['LIB_PLATFORM']+ '/python' + env['PYTHON_VERSION'] + '/site-packages/'
+ 
+ libraries = ['mapnik', 'boost_python%s' % env['BOOST_APPEND']]
+ headers = [env['PYTHON_PREFIX'] + '/include/python' + env['PYTHON_VERSION']] + env['CPPPATH']
+@@ -36,7 +36,7 @@
+ fontscollectionpath = mapniklibpath + '/fonts'
+ """
+ 
+-file('mapnik/paths.py','w').write(paths % (env['PREFIX'] + '/lib/mapnik',))
++file('mapnik/paths.py','w').write(paths % (env['PREFIX'] + '/'+env['LIB_PLATFORM']+'/mapnik',))
+ 
+ pymapnik = glob.glob('mapnik/*.py')
+ env.Alias(target='install', source=env.Install(prefix+'/mapnik', pymapnik))
+
+Modified: trunk/fonts/SConscript
+===================================================================
+--- trunk/fonts/SConscript	2006-08-31 21:32:07 UTC (rev 294)
++++ trunk/fonts/SConscript	2006-09-06 09:14:41 UTC (rev 295)
+@@ -24,4 +24,4 @@
+ prefix = env['PREFIX']
+ 
+ includes = glob.glob('*/*.ttf')
+-env.Alias(target='install', source=env.Install(prefix+'/lib/mapnik/fonts', includes))
++env.Alias(target='install', source=env.Install(prefix+'/' + env['LIB_PLATFORM'] + '/mapnik/fonts', includes))
+
+Modified: trunk/plugins/input/postgis/SConscript
+===================================================================
+--- trunk/plugins/input/postgis/SConscript	2006-08-31 21:32:07 UTC (rev 294)
++++ trunk/plugins/input/postgis/SConscript	2006-09-06 09:14:41 UTC (rev 295)
+@@ -32,5 +32,5 @@
+ 
+ postgis_inputdriver = env.SharedLibrary('postgis', source=postgis_src, SHLIBPREFIX='', LIBS='pq')
+ 
+-env.Install(prefix + '/lib/mapnik/input', postgis_inputdriver)
+-env.Alias("install", prefix + '/lib/mapnik/input')
++env.Install(prefix + '/' + env['LIB_PLATFORM'] + '/mapnik/input', postgis_inputdriver)
++env.Alias('install', prefix + '/' + env['LIB_PLATFORM'] + '/mapnik/input')
+
+Modified: trunk/plugins/input/raster/SConscript
+===================================================================
+--- trunk/plugins/input/raster/SConscript	2006-08-31 21:32:07 UTC (rev 294)
++++ trunk/plugins/input/raster/SConscript	2006-09-06 09:14:41 UTC (rev 295)
+@@ -33,5 +33,5 @@
+ 
+ raster_inputdriver = env.SharedLibrary('raster', source=raster_src, SHLIBPREFIX='', LIBS=[])
+ 
+-env.Install(prefix + '/lib/mapnik/input', raster_inputdriver)
+-env.Alias('install', prefix + '/lib/mapnik/input')
++env.Install(prefix + '/' + env['LIB_PLATFORM'] + '/mapnik/input', raster_inputdriver)
++env.Alias('install', prefix + '/' + env['LIB_PLATFORM'] + '/mapnik/input')
+
+Modified: trunk/plugins/input/shape/SConscript
+===================================================================
+--- trunk/plugins/input/shape/SConscript	2006-08-31 21:32:07 UTC (rev 294)
++++ trunk/plugins/input/shape/SConscript	2006-09-06 09:14:41 UTC (rev 295)
+@@ -38,5 +38,5 @@
+ 
+ shape_inputdriver = env.SharedLibrary('shape', source=shape_src, SHLIBPREFIX='', LIBS=[])
+ 
+-env.Install(prefix+'/lib/mapnik/input', shape_inputdriver)
+-env.Alias('install', prefix + '/lib/mapnik/input')
++env.Install(prefix + '/' + env['LIB_PLATFORM'] + '/mapnik/input', shape_inputdriver)
++env.Alias('install', prefix + '/' + env['LIB_PLATFORM'] + '/mapnik/input')
+
+Modified: trunk/src/SConscript
+===================================================================
+--- trunk/src/SConscript	2006-08-31 21:32:07 UTC (rev 294)
++++ trunk/src/SConscript	2006-09-06 09:14:41 UTC (rev 295)
+@@ -57,6 +57,6 @@
+ 
+ mapnik = env.SharedLibrary('mapnik', source, LIBS=libraries, LINKFLAGS=linkflags)
+ 
+-env.Alias(target='install', source=env.Install(prefix+'/lib', mapnik))
++env.Alias(target='install', source=env.Install(prefix + '/' + env['LIB_PLATFORM'], mapnik))
+ includes = glob.glob('../include' + '/*.hpp')
+ env.Alias(target='install', source=env.Install(prefix+'/include/mapnik', includes))
+
+
+
+From pavlenko at mail.berlios.de  Mon Sep 11 11:48:43 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Mon, 11 Sep 2006 11:48:43 +0200
+Subject: [Mapnik-svn] r296 - in trunk: bindings/python include
+Message-ID: <200609110948.k8B9mhtf003817@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-09-11 11:48:27 +0200 (Mon, 11 Sep 2006)
+New Revision: 296
+
+Added:
+   trunk/bindings/python/mapnik_query.cpp
+Modified:
+   trunk/bindings/python/mapnik_color.cpp
+   trunk/bindings/python/mapnik_datasource_cache.cpp
+   trunk/bindings/python/mapnik_envelope.cpp
+   trunk/bindings/python/mapnik_filter.cpp
+   trunk/bindings/python/mapnik_font_engine.cpp
+   trunk/bindings/python/mapnik_image.cpp
+   trunk/bindings/python/mapnik_layer.cpp
+   trunk/bindings/python/mapnik_line_pattern_symbolizer.cpp
+   trunk/bindings/python/mapnik_line_symbolizer.cpp
+   trunk/bindings/python/mapnik_map.cpp
+   trunk/bindings/python/mapnik_parameters.cpp
+   trunk/bindings/python/mapnik_point_symbolizer.cpp
+   trunk/bindings/python/mapnik_polygon_pattern_symbolizer.cpp
+   trunk/bindings/python/mapnik_polygon_symbolizer.cpp
+   trunk/bindings/python/mapnik_python.cpp
+   trunk/bindings/python/mapnik_raster_symbolizer.cpp
+   trunk/bindings/python/mapnik_rule.cpp
+   trunk/bindings/python/mapnik_stroke.cpp
+   trunk/bindings/python/mapnik_style.cpp
+   trunk/bindings/python/mapnik_text_symbolizer.cpp
+   trunk/include/filter.hpp
+   trunk/include/filter_parser.hpp
+   trunk/include/graphics.hpp
+   trunk/include/math_expr.hpp
+   trunk/include/raster_symbolizer.hpp
+Log:
+refactored #includes to reduce compilation times
+added mapnik_query skeleton
+ 
+
+
+Modified: trunk/bindings/python/mapnik_color.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_color.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_color.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -1,20 +1,3 @@
+-/* This file is part of python_mapnik (c++/python mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
+- *
+- * Mapnik is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version 2
+- * of the License, or any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+- */
+ /*****************************************************************************
+  * 
+  * This file is part of Mapnik (c++ mapping toolkit)
+@@ -36,12 +19,12 @@
+  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+  *
+  *****************************************************************************/
+-//$Id: mapnik_color.cc 17 2005-03-08 23:58:43Z pavlenko $
++//$Id$
+ 
+ 
+-
+ #include <boost/python.hpp>
+-#include <mapnik.hpp>
++#include <color.hpp>
++#include <color_factory.hpp>
+ 
+ using mapnik::Color;
+ using mapnik::color_factory;
+
+Modified: trunk/bindings/python/mapnik_datasource_cache.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_datasource_cache.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_datasource_cache.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -23,9 +23,8 @@
+ //$Id$
+ 
+ #include <boost/python.hpp>
+-#include "mapnik.hpp"
++#include "datasource_cache.hpp"
+ 
+-
+ void export_datasource_cache()
+ {
+     using mapnik::datasource_cache;
+
+Modified: trunk/bindings/python/mapnik_envelope.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_envelope.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_envelope.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -22,9 +22,8 @@
+ //$Id: mapnik_envelope.cc 27 2005-03-30 21:45:40Z pavlenko $
+ 
+ #include <boost/python.hpp>
+-#include <mapnik.hpp>
++#include <envelope.hpp>
+ 
+-
+ using mapnik::coord;
+ using mapnik::Envelope;
+ 
+
+Modified: trunk/bindings/python/mapnik_filter.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_filter.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_filter.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -22,7 +22,12 @@
+ //$Id$
+ 
+ #include <boost/python.hpp>
+-#include <mapnik.hpp>
++#include <spatial.hpp>
++#include <logical.hpp>
++#include <comparison.hpp>
++#include <regex_filter.hpp>
++#include <filter.hpp>
++#include <filter_factory.hpp>
+ 
+ using mapnik::filter;
+ using mapnik::filter_ptr;
+@@ -34,15 +39,18 @@
+     using namespace boost::python;
+     filter_ptr create_filter(string const& filter_text)
+     {
+-	return filter_factory<Feature>::compile(filter_text);
++        return filter_factory<Feature>::compile(filter_text);
+     }
+ }
+ 
+ void export_filter()
+ {
+     using namespace boost::python;
+-    class_<filter<Feature>,boost::noncopyable>("Filter","An expression which allows to select features.",no_init)
+-	.def("__str__",&filter<Feature>::to_string);
++    class_<filter<Feature>,boost::noncopyable>("Filter",
++                                               "An expression which allows "
++                                               "to select features.",no_init)
++        .def("__str__",&filter<Feature>::to_string);
+ 	;
++    
+     def("Filter",&create_filter);
+ }
+
+Modified: trunk/bindings/python/mapnik_font_engine.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_font_engine.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_font_engine.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -22,7 +22,7 @@
+ //$Id$
+ 
+ #include <boost/python.hpp>
+-#include "font_engine_freetype.hpp"
++#include <font_engine_freetype.hpp>
+ 
+ void export_font_engine()
+ {
+
+Modified: trunk/bindings/python/mapnik_image.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_image.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_image.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -21,10 +21,10 @@
+  *****************************************************************************/
+ //$Id$
+ 
+-# include <boost/python.hpp>
+-# include <boost/python/module.hpp>
+-# include <boost/python/def.hpp>
+-# include <mapnik.hpp>
++#include <boost/python.hpp>
++#include <boost/python/module.hpp>
++#include <boost/python/def.hpp>
++#include <graphics.hpp>
+ 
+ using mapnik::Image32;
+ 
+
+Modified: trunk/bindings/python/mapnik_layer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_layer.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_layer.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -25,7 +25,7 @@
+ #include <boost/python.hpp>
+ #include <boost/python/detail/api_placeholder.hpp>
+ #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
+-#include <mapnik.hpp>
++#include <layer.hpp>
+ 
+ using mapnik::Layer;
+ using mapnik::parameters;
+
+Modified: trunk/bindings/python/mapnik_line_pattern_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_line_pattern_symbolizer.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_line_pattern_symbolizer.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -22,7 +22,7 @@
+ //$Id$
+ 
+ #include <boost/python.hpp>
+-#include <mapnik.hpp>
++#include <line_pattern_symbolizer.hpp>
+ 
+ using mapnik::line_pattern_symbolizer;
+ 
+
+Modified: trunk/bindings/python/mapnik_line_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_line_symbolizer.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_line_symbolizer.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -22,7 +22,7 @@
+ //$Id$
+ 
+ #include <boost/python.hpp>
+-#include <mapnik.hpp>
++#include <line_symbolizer.hpp>
+ 
+ using mapnik::line_symbolizer;
+ using mapnik::stroke;
+
+Modified: trunk/bindings/python/mapnik_map.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_map.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_map.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -25,8 +25,10 @@
+ #include <boost/python.hpp>
+ #include <boost/python/detail/api_placeholder.hpp>
+ #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
+-#include <mapnik.hpp>
+ 
++#include <layer.hpp>
++#include <map.hpp>
++
+ using mapnik::Color;
+ using mapnik::coord;
+ using mapnik::Envelope;
+
+Modified: trunk/bindings/python/mapnik_parameters.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_parameters.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_parameters.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -19,18 +19,15 @@
+  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+  *
+  *****************************************************************************/
+-//$Id: mapnik_parameters.cc 17 2005-03-08 23:58:43Z pavlenko $
++//$Id: mapnik_parameters.cpp 17 2005-03-08 23:58:43Z pavlenko $
+ 
+ #include <boost/python.hpp>
+ #include <boost/python/detail/api_placeholder.hpp>
+-#include <mapnik.hpp>
++#include <params.hpp>
+ 
+ using mapnik::parameter;
+ using mapnik::parameters;
+ 
+-//void (parameters::*add1)(const parameter&)=&parameters::insert;
+-//void (parameters::*add2)(std::make_pair(const std::string&,const std::string&))=&parameters::insert;
+-
+ struct parameter_pickle_suite : boost::python::pickle_suite
+ {
+     static boost::python::tuple
+
+Modified: trunk/bindings/python/mapnik_point_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_point_symbolizer.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_point_symbolizer.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -22,13 +22,12 @@
+ //$Id$
+ 
+ #include <boost/python.hpp>
+-#include <mapnik.hpp>
++#include <point_symbolizer.hpp>
+ 
+-using mapnik::point_symbolizer;
+-
+ void export_point_symbolizer()
+ {
+     using namespace boost::python;
++    using mapnik::point_symbolizer;
+     
+     class_<point_symbolizer>("PointSymbolizer",
+                              init<>("Default Point Symbolizer - 4x4 black square"))
+
+Modified: trunk/bindings/python/mapnik_polygon_pattern_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_polygon_pattern_symbolizer.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_polygon_pattern_symbolizer.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -22,13 +22,12 @@
+ //$Id$
+ 
+ #include <boost/python.hpp>
+-#include <mapnik.hpp>
++#include <polygon_pattern_symbolizer.hpp>
+ 
+-using mapnik::polygon_pattern_symbolizer;
+-
+ void export_polygon_pattern_symbolizer()
+ {
+     using namespace boost::python;
++    using mapnik::polygon_pattern_symbolizer;
+     
+     class_<polygon_pattern_symbolizer>("PolygonPatternSymbolizer",
+ 				       init<std::string const&,
+
+Modified: trunk/bindings/python/mapnik_polygon_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_polygon_symbolizer.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_polygon_symbolizer.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -22,14 +22,13 @@
+ //$Id$
+ 
+ #include <boost/python.hpp>
+-#include <mapnik.hpp>
++#include <polygon_symbolizer.hpp>
+ 
+-using mapnik::polygon_symbolizer;
+-using mapnik::Color;
+-
+ void export_polygon_symbolizer()
+ {
+     using namespace boost::python;
++    using mapnik::polygon_symbolizer;
++    using mapnik::Color;
+     
+     class_<polygon_symbolizer>("PolygonSymbolizer",
+ 				    init<>("Default PolygonSymbolizer - solid fill grey"))
+
+Modified: trunk/bindings/python/mapnik_python.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_python.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_python.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -25,14 +25,13 @@
+ #include <boost/get_pointer.hpp>
+ #include <boost/python/detail/api_placeholder.hpp>
+ 
+-#include "mapnik.hpp"
++//#include <mapnik.hpp>
+ 
+-using namespace mapnik;
+-
+ void export_color();
+ void export_layer();
+ void export_parameters();
+ void export_envelope();
++void export_query();
+ void export_image();
+ void export_map();
+ void export_python();
+@@ -50,30 +49,50 @@
+ void export_text_symbolizer();
+ void export_font_engine();
+ 
+-void render_to_file(const Map& map,const std::string& file,const std::string& format)
++//using namespace mapnik;
++#include <map.hpp>
++#include <agg_renderer.hpp>
++#include <graphics.hpp>
++//#include <filter.hpp>
++//#include <coord.hpp>
++
++void render_to_file(const mapnik::Map& map,
++                    const std::string& file,
++                    const std::string& format)
+ {
+-    Image32 image(map.getWidth(),map.getHeight());
+-    agg_renderer<Image32> ren(map,image);
++    mapnik::Image32 image(map.getWidth(),map.getHeight());
++    mapnik::agg_renderer<mapnik::Image32> ren(map,image);
+     ren.apply();
+     image.saveToFile(file,format);
+ }
+ 
+-void render(const Map& map,Image32& image)
++void render(const mapnik::Map& map,mapnik::Image32& image)
+ {
+-    agg_renderer<Image32> ren(map,image);
++    mapnik::agg_renderer<mapnik::Image32> ren(map,image);
+     ren.apply();
+ }
+ 
+ BOOST_PYTHON_MODULE(_mapnik)
+ {
+     using namespace boost::python;
++    using mapnik::Featureset;
++    using mapnik::featureset_ptr;
++    using mapnik::datasource;
++    using mapnik::coord;
++    using mapnik::filter_ptr;
+     
++    export_query();
++    
++    class_<Featureset,featureset_ptr,boost::noncopyable>("FeatureSet",no_init)
++      ;
++    
+     class_<datasource,boost::shared_ptr<datasource>,
+-	boost::noncopyable>("Datasource",no_init)
+-        .def("envelope",&datasource::envelope,
+-	     return_value_policy<reference_existing_object>())
+-        ;
+-        
++      boost::noncopyable>("Datasource",no_init)
++      .def("envelope",&datasource::envelope,
++	   return_value_policy<reference_existing_object>())
++      .def("features",&datasource::features)
++      ;
++    
+     export_parameters();
+     export_color(); 
+     export_envelope();   
+
+Added: trunk/bindings/python/mapnik_query.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_query.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_query.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -0,0 +1,34 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko, Jean-Francois Doyon
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++//$Id$
++
++#include <boost/python.hpp>
++#include <query.hpp>
++
++void export_query()
++{
++    using mapnik::query;
++    
++}
++
++
++
+
+Modified: trunk/bindings/python/mapnik_raster_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_raster_symbolizer.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_raster_symbolizer.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -22,13 +22,12 @@
+ //$Id$
+ 
+ #include <boost/python.hpp>
+-#include <mapnik.hpp>
++#include <raster_symbolizer.hpp>
+ 
+-using mapnik::raster_symbolizer;
+-
+ void export_raster_symbolizer()
+ {
+     using namespace boost::python;
++    using mapnik::raster_symbolizer;
+     
+     class_<raster_symbolizer>("RasterSymbolizer",
+ 				    init<>("Default ctor"))
+
+Modified: trunk/bindings/python/mapnik_rule.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_rule.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_rule.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -25,27 +25,28 @@
+ #include <boost/python.hpp>
+ #include <boost/python/implicit.hpp>
+ #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
+-#include <mapnik.hpp>
++#include <rule.hpp>
+ 
+-using mapnik::rule_type;
+-using mapnik::filter;
+-using mapnik::filter_ptr;
+-using mapnik::Feature;
+ 
+-using mapnik::point_symbolizer;
+-using mapnik::line_symbolizer;
+-using mapnik::line_pattern_symbolizer;
+-using mapnik::polygon_symbolizer;
+-using mapnik::polygon_pattern_symbolizer;
+-using mapnik::raster_symbolizer;
+-using mapnik::text_symbolizer;
+-using mapnik::symbolizer;
+-using mapnik::symbolizers;
+-
+ void export_rule()
+ {
+     using namespace boost::python;
+ 
++    using mapnik::rule_type;
++    using mapnik::filter;
++    using mapnik::filter_ptr;
++    using mapnik::Feature;
++    using mapnik::point_symbolizer;
++    using mapnik::line_symbolizer;
++    using mapnik::line_pattern_symbolizer;
++    using mapnik::polygon_symbolizer;
++    using mapnik::polygon_pattern_symbolizer;
++    using mapnik::raster_symbolizer;
++    using mapnik::text_symbolizer;
++    using mapnik::symbolizer;
++    using mapnik::symbolizers;
++
++    
+     implicitly_convertible<point_symbolizer,symbolizer>();
+     implicitly_convertible<line_symbolizer,symbolizer>();
+     implicitly_convertible<line_pattern_symbolizer,symbolizer>();
+
+Modified: trunk/bindings/python/mapnik_stroke.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_stroke.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_stroke.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -22,7 +22,7 @@
+ //$Id$
+ 
+ #include <boost/python.hpp>
+-#include <mapnik.hpp>
++#include <stroke.hpp>
+ 
+ void export_stroke ()
+ {
+
+Modified: trunk/bindings/python/mapnik_style.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_style.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_style.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -23,21 +23,23 @@
+ 
+ #include <boost/python.hpp>
+ #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
+-#include "mapnik.hpp"
++#include <feature_type_style.hpp>
+ 
+-using mapnik::feature_type_style;
+-using mapnik::rules;
+-
+ void export_style()
+ {
+     using namespace boost::python;
+ 
++    
++    using mapnik::feature_type_style;
++    using mapnik::rules;
++
+     class_<rules>("Rules",init<>("default ctor"))
+ 	.def(vector_indexing_suite<rules>())
+ 	;
+     class_<feature_type_style>("Style",init<>("default style constructor"))
+ 	.add_property("rules",make_function
+-		      (&feature_type_style::get_rules,return_value_policy<reference_existing_object>()))
++		      (&feature_type_style::get_rules,
++               return_value_policy<reference_existing_object>()))
+ 	;
+     
+ }
+
+Modified: trunk/bindings/python/mapnik_text_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_text_symbolizer.cpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/bindings/python/mapnik_text_symbolizer.cpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -22,20 +22,23 @@
+ //$Id$
+ 
+ #include <boost/python.hpp>
+-#include <mapnik.hpp>
++#include <text_symbolizer.hpp>
+ 
+-using mapnik::text_symbolizer;
+-using mapnik::Color;
+-
+ void export_text_symbolizer()
+ {
+     using namespace boost::python;
+-    
++
++    using mapnik::text_symbolizer;
++    using mapnik::Color;
++ 
+     class_<text_symbolizer>("TextSymbolizer",
+ 			    init<std::string const&,unsigned,Color const&>())
+         .add_property("halo_fill",make_function(
+-                      &text_symbolizer::get_halo_fill,return_value_policy<copy_const_reference>()),
++                      &text_symbolizer::get_halo_fill,
++                      return_value_policy<copy_const_reference>()),
+                       &text_symbolizer::set_halo_fill)
+-        .add_property("halo_radius",&text_symbolizer::get_halo_radius, &text_symbolizer::set_halo_radius)
++        .add_property("halo_radius",
++                      &text_symbolizer::get_halo_radius, 
++                      &text_symbolizer::set_halo_radius)
+ 	;
+ }
+
+Modified: trunk/include/filter.hpp
+===================================================================
+--- trunk/include/filter.hpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/include/filter.hpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -25,7 +25,6 @@
+ #ifndef FILTER_HPP
+ #define FILTER_HPP
+ 
+-//#include "filter_visitor.hpp"
+ #include "feature.hpp"
+ 
+ namespace mapnik
+
+Modified: trunk/include/filter_parser.hpp
+===================================================================
+--- trunk/include/filter_parser.hpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/include/filter_parser.hpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -38,6 +38,7 @@
+ 
+ #include "value.hpp"
+ #include "comparison.hpp"
++#include "math_expr.hpp"
+ #include "expression.hpp"
+ #include "filter.hpp"
+ #include "regex_filter.hpp"
+@@ -53,392 +54,393 @@
+     template <typename FeatureT>
+     struct push_integer
+     {
+-	push_integer(stack<shared_ptr<expression<FeatureT> > >& exprs)
+-	    : exprs_(exprs) {}
++        push_integer(stack<shared_ptr<expression<FeatureT> > >& exprs)
++            : exprs_(exprs) {}
+ 	
+-	void operator() (int val) const
+-	{
+-	    exprs_.push(shared_ptr<expression<FeatureT> >(new literal<FeatureT>(val)));
+-	}
+-	stack<shared_ptr<expression<FeatureT> > >& exprs_;
++        void operator() (int val) const
++        {
++            exprs_.push(shared_ptr<expression<FeatureT> >(new literal<FeatureT>(val)));
++        }
++        stack<shared_ptr<expression<FeatureT> > >& exprs_;
+     };
+    
+     template <typename FeatureT>
+     struct push_real
+     {
+-	push_real(stack<shared_ptr<expression<FeatureT> > >& exprs)
+-	    : exprs_(exprs) {}
+-	void operator() (double val) const
+-	{
+-	    exprs_.push(shared_ptr<expression<FeatureT> >(new literal<FeatureT>(val)));
+-	}
+-	stack<shared_ptr<expression<FeatureT> > >& exprs_;
++        push_real(stack<shared_ptr<expression<FeatureT> > >& exprs)
++            : exprs_(exprs) {}
++        void operator() (double val) const
++        {
++            exprs_.push(shared_ptr<expression<FeatureT> >(new literal<FeatureT>(val)));
++        }
++        stack<shared_ptr<expression<FeatureT> > >& exprs_;
+     };
+     
+     template <typename FeatureT>
+     struct push_string
+     {
+-	push_string(stack<shared_ptr<expression<FeatureT> > >& exprs)
+-	    : exprs_(exprs) {}
++        push_string(stack<shared_ptr<expression<FeatureT> > >& exprs)
++            : exprs_(exprs) {}
+ 	
+-	template <typename Iter>
+-	void operator() (Iter start,Iter end) const
+-	{
+-	    string str(start,end);
+-	    char quote='\\';
+-	    string::size_type idx;
+-	    idx = str.find(quote);
+-	    while (idx != string::npos)
+-	    {	    		
+-		str.erase(idx,1);
+-		idx = str.find(quote);
+-	    }
+-	    exprs_.push(shared_ptr<expression<FeatureT> >(new literal<FeatureT>(str)));
+-	}
+-	stack<shared_ptr<expression<FeatureT> > >& exprs_;
++        template <typename Iter>
++        void operator() (Iter start,Iter end) const
++        {
++            string str(start,end);
++            char quote='\\';
++            string::size_type idx;
++            idx = str.find(quote);
++            while (idx != string::npos)
++            {	    		
++                str.erase(idx,1);
++                idx = str.find(quote);
++            }
++            exprs_.push(shared_ptr<expression<FeatureT> >(new literal<FeatureT>(str)));
++        }
++        stack<shared_ptr<expression<FeatureT> > >& exprs_;
+     };
+     
+     template <typename FeatureT>
+     struct push_property
+     {
+-	push_property(stack<shared_ptr<expression<FeatureT> > >& exprs)
+-	    : exprs_(exprs) {}
++        push_property(stack<shared_ptr<expression<FeatureT> > >& exprs)
++            : exprs_(exprs) {}
+ 	
+-	template <typename Iter>
+-	void operator() (Iter start,Iter end) const
+-	{
+-	    string str(start,end);
+-	    exprs_.push(shared_ptr<expression<FeatureT> >(new property<FeatureT>(str)));
+-	}
+-	stack<shared_ptr<expression<FeatureT> > >& exprs_;
++        template <typename Iter>
++        void operator() (Iter start,Iter end) const
++        {
++            string str(start,end);
++            exprs_.push(shared_ptr<expression<FeatureT> >(new property<FeatureT>(str)));
++        }
++        stack<shared_ptr<expression<FeatureT> > >& exprs_;
+     };
+ 
+     template <typename FeatureT,typename Op>
+     struct compose_expression
+     {
+-	compose_expression(stack<shared_ptr<expression<FeatureT> > >& exprs)
+-	    : exprs_(exprs) {}
++        compose_expression(stack<shared_ptr<expression<FeatureT> > >& exprs)
++            : exprs_(exprs) {}
+ 
+-	template <typename Iter>
+-	void operator() (Iter,Iter) const
+-	{
+-	    if (exprs_.size()>=2)
+-	    {
+-		shared_ptr<expression<FeatureT> > right = exprs_.top();
+-		exprs_.pop();
+-		shared_ptr<expression<FeatureT> > left = exprs_.top();
+-		exprs_.pop();
+-		if (left && right)
+-		{
+-		    exprs_.push(shared_ptr<expression<FeatureT> >(new math_expr_b<FeatureT,Op>(*left,*right)));
+-		}
+-	    }
+-	}
+-	stack<shared_ptr<expression<FeatureT> > >& exprs_;
++        template <typename Iter>
++        void operator() (Iter,Iter) const
++        {
++            if (exprs_.size()>=2)
++            {
++                shared_ptr<expression<FeatureT> > right = exprs_.top();
++                exprs_.pop();
++                shared_ptr<expression<FeatureT> > left = exprs_.top();
++                exprs_.pop();
++                if (left && right)
++                {
++                    exprs_.push(shared_ptr<expression<FeatureT> >
++                                (new mapnik::math_expr_b<FeatureT,Op>(*left,*right)));
++                }
++            }
++        }
++        stack<shared_ptr<expression<FeatureT> > >& exprs_;
+     };
+     
+     template <typename FeatureT>
+     struct compose_regex
+     {
+-	compose_regex(stack<shared_ptr<filter<FeatureT> > >& filters,
+-		       stack<shared_ptr<expression<FeatureT> > >& exprs)
+-	    : filters_(filters),exprs_(exprs) {}
++        compose_regex(stack<shared_ptr<filter<FeatureT> > >& filters,
++                      stack<shared_ptr<expression<FeatureT> > >& exprs)
++            : filters_(filters),exprs_(exprs) {}
+ 
+-	template <typename Iter>
+-	void operator() (Iter start,Iter end) const
+-	{
+-	    if (exprs_.size()>=1)
+-	    {
+-		shared_ptr<expression<FeatureT> > exp = exprs_.top();
+-		exprs_.pop();
+-		if (exp)
+-		{		    
+-		    std::string pattern(start,end);
+-		    try 
+-		    {
+-			filters_.push(shared_ptr<filter<FeatureT> >(new regex_filter<FeatureT>(*exp,pattern)));
+-		    }
+-		    catch (...)//boost::regex_error& ex)
+-		    {
+-		      clog<<"error\n";//ex.what()<<"\n";
+-		    }
++        template <typename Iter>
++        void operator() (Iter start,Iter end) const
++        {
++            if (exprs_.size()>=1)
++            {
++                shared_ptr<expression<FeatureT> > exp = exprs_.top();
++                exprs_.pop();
++                if (exp)
++                {		    
++                    std::string pattern(start,end);
++                    try 
++                    {
++                        filters_.push(shared_ptr<filter<FeatureT> >(new regex_filter<FeatureT>(*exp,pattern)));
++                    }
++                    catch (...)//boost::regex_error& ex)
++                    {
++                        clog<<"error\n";//ex.what()<<"\n";
++                    }
+ 		    
+-		}
+-	    }
+-	}
+-	stack<shared_ptr<filter<FeatureT> > >& filters_;
+-	stack<shared_ptr<expression<FeatureT> > >& exprs_;
++                }
++            }
++        }
++        stack<shared_ptr<filter<FeatureT> > >& filters_;
++        stack<shared_ptr<expression<FeatureT> > >& exprs_;
+     };
+ 
+   
+     template <typename FeatureT,typename Op>
+     struct compose_filter
+     {
+-	compose_filter(stack<shared_ptr<filter<FeatureT> > >& filters,
+-		       stack<shared_ptr<expression<FeatureT> > >& exprs)
+-	    : filters_(filters),exprs_(exprs) {}
++        compose_filter(stack<shared_ptr<filter<FeatureT> > >& filters,
++                       stack<shared_ptr<expression<FeatureT> > >& exprs)
++            : filters_(filters),exprs_(exprs) {}
+ 
+-	template <typename Iter>
+-	void operator() (Iter,Iter) const
+-	{
+-	    if (exprs_.size()>=2)
+-	    {
+-		shared_ptr<expression<FeatureT> > right = exprs_.top();
+-		exprs_.pop();
+-		shared_ptr<expression<FeatureT> > left = exprs_.top();
+-		exprs_.pop();
+-		if (left && right)
+-		{
+-		    filters_.push(shared_ptr<filter<FeatureT> >(new compare_filter<FeatureT,Op>(*left,*right)));
+-		}
+-	    }
+-	}
+-	stack<shared_ptr<filter<FeatureT> > >& filters_;
+-	stack<shared_ptr<expression<FeatureT> > >& exprs_;
++        template <typename Iter>
++        void operator() (Iter,Iter) const
++        {
++            if (exprs_.size()>=2)
++            {
++                shared_ptr<expression<FeatureT> > right = exprs_.top();
++                exprs_.pop();
++                shared_ptr<expression<FeatureT> > left = exprs_.top();
++                exprs_.pop();
++                if (left && right)
++                {
++                    filters_.push(shared_ptr<filter<FeatureT> >(new compare_filter<FeatureT,Op>(*left,*right)));
++                }
++            }
++        }
++        stack<shared_ptr<filter<FeatureT> > >& filters_;
++        stack<shared_ptr<expression<FeatureT> > >& exprs_;
+     };
+     
+     template <typename FeatureT>
+     struct compose_and_filter
+     {
+-	compose_and_filter(stack<shared_ptr<filter<FeatureT> > >& filters)
+-	    : filters_(filters) {}
++        compose_and_filter(stack<shared_ptr<filter<FeatureT> > >& filters)
++            : filters_(filters) {}
+ 
+-	template <typename Iter>
+-	void operator() (Iter,Iter) const
+-	{
+-	    if (filters_.size()>=2)
+-	    {
+-		shared_ptr<filter<FeatureT> > right = filters_.top();
+-		filters_.pop();
+-		shared_ptr<filter<FeatureT> > left = filters_.top();
+-		filters_.pop();
+-		if (left && right)
+-		{
+-		    filters_.push(shared_ptr<filter<FeatureT> >(new logical_and<FeatureT>(*left,*right)));
+-		}
+-	    }
+-	}
+-	stack<shared_ptr<filter<FeatureT> > >& filters_;
++        template <typename Iter>
++        void operator() (Iter,Iter) const
++        {
++            if (filters_.size()>=2)
++            {
++                shared_ptr<filter<FeatureT> > right = filters_.top();
++                filters_.pop();
++                shared_ptr<filter<FeatureT> > left = filters_.top();
++                filters_.pop();
++                if (left && right)
++                {
++                    filters_.push(shared_ptr<filter<FeatureT> >(new logical_and<FeatureT>(*left,*right)));
++                }
++            }
++        }
++        stack<shared_ptr<filter<FeatureT> > >& filters_;
+     };
+     
+     template <typename FeatureT>
+     struct compose_or_filter
+     {
+-	compose_or_filter(stack<shared_ptr<filter<FeatureT> > >& filters)
+-	    : filters_(filters) {}
++        compose_or_filter(stack<shared_ptr<filter<FeatureT> > >& filters)
++            : filters_(filters) {}
+ 
+-	template <typename Iter>
+-	void operator() (Iter,Iter) const
+-	{
+-	    if (filters_.size()>=2)
+-	    {
+-		shared_ptr<filter<FeatureT> > right = filters_.top();
+-		filters_.pop();
+-		shared_ptr<filter<FeatureT> > left = filters_.top();
+-		filters_.pop();
+-		if (left && right)
+-		{
+-		    filters_.push(shared_ptr<filter<FeatureT> >(new logical_or<FeatureT>(*left,*right)));
+-		}
+-	    }
+-	}
+-	stack<shared_ptr<filter<FeatureT> > >& filters_;
++        template <typename Iter>
++        void operator() (Iter,Iter) const
++        {
++            if (filters_.size()>=2)
++            {
++                shared_ptr<filter<FeatureT> > right = filters_.top();
++                filters_.pop();
++                shared_ptr<filter<FeatureT> > left = filters_.top();
++                filters_.pop();
++                if (left && right)
++                {
++                    filters_.push(shared_ptr<filter<FeatureT> >(new logical_or<FeatureT>(*left,*right)));
++                }
++            }
++        }
++        stack<shared_ptr<filter<FeatureT> > >& filters_;
+     };
+     
+     template <typename FeatureT>
+     struct compose_not_filter
+     {
+-	compose_not_filter(stack<shared_ptr<filter<FeatureT> > >& filters)
+-	    : filters_(filters) {}
++        compose_not_filter(stack<shared_ptr<filter<FeatureT> > >& filters)
++            : filters_(filters) {}
+ 
+-	template <typename Iter>
+-	void operator() (Iter,Iter) const
+-	{
+-	    if (filters_.size()>=1)
+-	    {
+-		shared_ptr<filter<FeatureT> > filter_ = filters_.top();
+-		filters_.pop();
+-		if (filter_)
+-		{
+-		    filters_.push(shared_ptr<filter<FeatureT> >(new logical_not<FeatureT>(*filter_)));
+-		}
+-	    }
+-	}
+-	stack<shared_ptr<filter<FeatureT> > >& filters_;
++        template <typename Iter>
++        void operator() (Iter,Iter) const
++        {
++            if (filters_.size()>=1)
++            {
++                shared_ptr<filter<FeatureT> > filter_ = filters_.top();
++                filters_.pop();
++                if (filter_)
++                {
++                    filters_.push(shared_ptr<filter<FeatureT> >(new logical_not<FeatureT>(*filter_)));
++                }
++            }
++        }
++        stack<shared_ptr<filter<FeatureT> > >& filters_;
+     };
+     
+     template <typename FeatureT>
+     struct filter_grammar : public grammar<filter_grammar<FeatureT> >
+     {
+-	filter_grammar(stack<shared_ptr<filter<FeatureT> > >& filters_,
+-		       stack<shared_ptr<expression<FeatureT> > >& exprs_)
+-	    : filters(filters_),exprs(exprs_) {}
++        filter_grammar(stack<shared_ptr<filter<FeatureT> > >& filters_,
++                       stack<shared_ptr<expression<FeatureT> > >& exprs_)
++            : filters(filters_),exprs(exprs_) {}
+ 	
+-	template <typename ScannerT>
+-	struct definition
+-	{
+-	    definition(filter_grammar const& self)
+-	    {	
+-		typedef boost::spirit::chset<wchar_t> chset_t;
++        template <typename ScannerT>
++        struct definition
++        {
++            definition(filter_grammar const& self)
++            {	
++                typedef boost::spirit::chset<wchar_t> chset_t;
+ 
+-		func1_op = "sqrt","sin","cos";
+-		func2_op = "min","max";
+-		spatial_op = "Equals","Disjoint","Touches","Within","Overlaps",
+-		    "Crosses","Intersects","Contains","DWithin","Beyond","BBOX";
++                func1_op = "sqrt","sin","cos";
++                func2_op = "min","max";
++                spatial_op = "Equals","Disjoint","Touches","Within","Overlaps",
++                    "Crosses","Intersects","Contains","DWithin","Beyond","BBOX";
+ 		
+-		chset_t BaseChar (L"\x41-\x5A\x61-\x7A\xC0-\xD6\xD8-\xF6\xF8-\xFF\x100-\x131\x134-\x13E"
+-				  L"\x141-\x148\x14A-\x17E\x180-\x1C3\x1CD-\x1F0\x1F4-\x1F5\x1FA-\x217"
+-				  L"\x250-\x2A8\x2BB-\x2C1\x386\x388-\x38A\x38C\x38E-\x3A1\x3A3-\x3CE"
+-				  L"\x3D0-\x3D6\x3DA\x3DC\x3DE\x3E0\x3E2-\x3F3\x401-\x40C\x40E-\x44F"
+-				  L"\x451-\x45C\x45E-\x481\x490-\x4C4\x4C7-\x4C8\x4CB-\x4CC\x4D0-\x4EB"
+-				  L"\x4EE-\x4F5\x4F8-\x4F9\x531-\x556\x559\x561-\x586\x5D0-\x5EA"
+-				  L"\x5F0-\x5F2\x621-\x63A\x641-\x64A\x671-\x6B7\x6BA-\x6BE\x6C0-\x6CE"
+-				  L"\x6D0-\x6D3\x6D5\x6E5-\x6E6\x905-\x939\x93D\x958-\x961\x985-\x98C"
+-				  L"\x98F-\x990\x993-\x9A8\x9AA-\x9B0\x9B2\x9B6-\x9B9\x9DC-\x9DD"
+-				  L"\x9DF-\x9E1\x9F0-\x9F1\xA05-\xA0A\xA0F-\xA10\xA13-\xA28\xA2A-\xA30"
+-				  L"\xA32-\xA33\xA35-\xA36\xA38-\xA39\xA59-\xA5C\xA5E\xA72-\xA74"
+-				  L"\xA85-\xA8B\xA8D\xA8F-\xA91\xA93-\xAA8\xAAA-\xAB0\xAB2-\xAB3"
+-				  L"\xAB5-\xAB9\xABD\xAE0\xB05-\xB0C\xB0F-\xB10\xB13-\xB28\xB2A-\xB30"
+-				  L"\xB32-\xB33\xB36-\xB39\xB3D\xB5C-\xB5D\xB5F-\xB61\xB85-\xB8A"
+-				  L"\xB8E-\xB90\xB92-\xB95\xB99-\xB9A\xB9C\xB9E-\xB9F\xBA3-\xBA4"
+-				  L"\xBA8-\xBAA\xBAE-\xBB5\xBB7-\xBB9\xC05-\xC0C\xC0E-\xC10\xC12-\xC28"
+-				  L"\xC2A-\xC33\xC35-\xC39\xC60-\xC61\xC85-\xC8C\xC8E-\xC90\xC92-\xCA8"
+-				  L"\xCAA-\xCB3\xCB5-\xCB9\xCDE\xCE0-\xCE1\xD05-\xD0C\xD0E-\xD10"
+-				  L"\xD12-\xD28\xD2A-\xD39\xD60-\xD61\xE01-\xE2E\xE30\xE32-\xE33"
+-				  L"\xE40-\xE45\xE81-\xE82\xE84\xE87-\xE88\xE8A\xE8D\xE94-\xE97"
+-				  L"\xE99-\xE9F\xEA1-\xEA3\xEA5\xEA7\xEAA-\xEAB\xEAD-\xEAE\xEB0"
+-				  L"\xEB2-\xEB3\xEBD\xEC0-\xEC4\xF40-\xF47\xF49-\xF69\x10A0-\x10C5"
+-				  L"\x10D0-\x10F6\x1100\x1102-\x1103\x1105-\x1107\x1109\x110B-\x110C"
+-				  L"\x110E-\x1112\x113C\x113E\x1140\x114C\x114E\x1150\x1154-\x1155"
+-				  L"\x1159\x115F-\x1161\x1163\x1165\x1167\x1169\x116D-\x116E"
+-				  L"\x1172-\x1173\x1175\x119E\x11A8\x11AB\x11AE-\x11AF\x11B7-\x11B8"
+-				  L"\x11BA\x11BC-\x11C2\x11EB\x11F0\x11F9\x1E00-\x1E9B\x1EA0-\x1EF9"
+-				  L"\x1F00-\x1F15\x1F18-\x1F1D\x1F20-\x1F45\x1F48-\x1F4D\x1F50-\x1F57"
+-				  L"\x1F59\x1F5B\x1F5D\x1F5F-\x1F7D\x1F80-\x1FB4\x1FB6-\x1FBC\x1FBE"
+-				  L"\x1FC2-\x1FC4\x1FC6-\x1FCC\x1FD0-\x1FD3\x1FD6-\x1FDB\x1FE0-\x1FEC"
+-				  L"\x1FF2-\x1FF4\x1FF6-\x1FFC\x2126\x212A-\x212B\x212E\x2180-\x2182"
+-				  L"\x3041-\x3094\x30A1-\x30FA\x3105-\x312C\xAC00-\xD7A3");
++                chset_t BaseChar (L"\x41-\x5A\x61-\x7A\xC0-\xD6\xD8-\xF6\xF8-\xFF\x100-\x131\x134-\x13E"
++                                  L"\x141-\x148\x14A-\x17E\x180-\x1C3\x1CD-\x1F0\x1F4-\x1F5\x1FA-\x217"
++                                  L"\x250-\x2A8\x2BB-\x2C1\x386\x388-\x38A\x38C\x38E-\x3A1\x3A3-\x3CE"
++                                  L"\x3D0-\x3D6\x3DA\x3DC\x3DE\x3E0\x3E2-\x3F3\x401-\x40C\x40E-\x44F"
++                                  L"\x451-\x45C\x45E-\x481\x490-\x4C4\x4C7-\x4C8\x4CB-\x4CC\x4D0-\x4EB"
++                                  L"\x4EE-\x4F5\x4F8-\x4F9\x531-\x556\x559\x561-\x586\x5D0-\x5EA"
++                                  L"\x5F0-\x5F2\x621-\x63A\x641-\x64A\x671-\x6B7\x6BA-\x6BE\x6C0-\x6CE"
++                                  L"\x6D0-\x6D3\x6D5\x6E5-\x6E6\x905-\x939\x93D\x958-\x961\x985-\x98C"
++                                  L"\x98F-\x990\x993-\x9A8\x9AA-\x9B0\x9B2\x9B6-\x9B9\x9DC-\x9DD"
++                                  L"\x9DF-\x9E1\x9F0-\x9F1\xA05-\xA0A\xA0F-\xA10\xA13-\xA28\xA2A-\xA30"
++                                  L"\xA32-\xA33\xA35-\xA36\xA38-\xA39\xA59-\xA5C\xA5E\xA72-\xA74"
++                                  L"\xA85-\xA8B\xA8D\xA8F-\xA91\xA93-\xAA8\xAAA-\xAB0\xAB2-\xAB3"
++                                  L"\xAB5-\xAB9\xABD\xAE0\xB05-\xB0C\xB0F-\xB10\xB13-\xB28\xB2A-\xB30"
++                                  L"\xB32-\xB33\xB36-\xB39\xB3D\xB5C-\xB5D\xB5F-\xB61\xB85-\xB8A"
++                                  L"\xB8E-\xB90\xB92-\xB95\xB99-\xB9A\xB9C\xB9E-\xB9F\xBA3-\xBA4"
++                                  L"\xBA8-\xBAA\xBAE-\xBB5\xBB7-\xBB9\xC05-\xC0C\xC0E-\xC10\xC12-\xC28"
++                                  L"\xC2A-\xC33\xC35-\xC39\xC60-\xC61\xC85-\xC8C\xC8E-\xC90\xC92-\xCA8"
++                                  L"\xCAA-\xCB3\xCB5-\xCB9\xCDE\xCE0-\xCE1\xD05-\xD0C\xD0E-\xD10"
++                                  L"\xD12-\xD28\xD2A-\xD39\xD60-\xD61\xE01-\xE2E\xE30\xE32-\xE33"
++                                  L"\xE40-\xE45\xE81-\xE82\xE84\xE87-\xE88\xE8A\xE8D\xE94-\xE97"
++                                  L"\xE99-\xE9F\xEA1-\xEA3\xEA5\xEA7\xEAA-\xEAB\xEAD-\xEAE\xEB0"
++                                  L"\xEB2-\xEB3\xEBD\xEC0-\xEC4\xF40-\xF47\xF49-\xF69\x10A0-\x10C5"
++                                  L"\x10D0-\x10F6\x1100\x1102-\x1103\x1105-\x1107\x1109\x110B-\x110C"
++                                  L"\x110E-\x1112\x113C\x113E\x1140\x114C\x114E\x1150\x1154-\x1155"
++                                  L"\x1159\x115F-\x1161\x1163\x1165\x1167\x1169\x116D-\x116E"
++                                  L"\x1172-\x1173\x1175\x119E\x11A8\x11AB\x11AE-\x11AF\x11B7-\x11B8"
++                                  L"\x11BA\x11BC-\x11C2\x11EB\x11F0\x11F9\x1E00-\x1E9B\x1EA0-\x1EF9"
++                                  L"\x1F00-\x1F15\x1F18-\x1F1D\x1F20-\x1F45\x1F48-\x1F4D\x1F50-\x1F57"
++                                  L"\x1F59\x1F5B\x1F5D\x1F5F-\x1F7D\x1F80-\x1FB4\x1FB6-\x1FBC\x1FBE"
++                                  L"\x1FC2-\x1FC4\x1FC6-\x1FCC\x1FD0-\x1FD3\x1FD6-\x1FDB\x1FE0-\x1FEC"
++                                  L"\x1FF2-\x1FF4\x1FF6-\x1FFC\x2126\x212A-\x212B\x212E\x2180-\x2182"
++                                  L"\x3041-\x3094\x30A1-\x30FA\x3105-\x312C\xAC00-\xD7A3");
+             
+-		chset_t Ideographic(L"\x4E00-\x9FA5\x3007\x3021-\x3029");
+-		chset_t Letter = BaseChar | Ideographic;
++                chset_t Ideographic(L"\x4E00-\x9FA5\x3007\x3021-\x3029");
++                chset_t Letter = BaseChar | Ideographic;
+ 	    
+-		chset_t CombiningChar(L"\x0300-\x0345\x0360-\x0361\x0483-\x0486\x0591-\x05A1\x05A3-\x05B9"
+-				      L"\x05BB-\x05BD\x05BF\x05C1-\x05C2\x05C4\x064B-\x0652\x0670"
+-				      L"\x06D6-\x06DC\x06DD-\x06DF\x06E0-\x06E4\x06E7-\x06E8\x06EA-\x06ED"
+-				      L"\x0901-\x0903\x093C\x093E-\x094C\x094D\x0951-\x0954\x0962-\x0963"
+-				      L"\x0981-\x0983\x09BC\x09BE\x09BF\x09C0-\x09C4\x09C7-\x09C8"
+-				      L"\x09CB-\x09CD\x09D7\x09E2-\x09E3\x0A02\x0A3C\x0A3E\x0A3F"
+-				      L"\x0A40-\x0A42\x0A47-\x0A48\x0A4B-\x0A4D\x0A70-\x0A71\x0A81-\x0A83"
+-				      L"\x0ABC\x0ABE-\x0AC5\x0AC7-\x0AC9\x0ACB-\x0ACD\x0B01-\x0B03\x0B3C"
+-				      L"\x0B3E-\x0B43\x0B47-\x0B48\x0B4B-\x0B4D\x0B56-\x0B57\x0B82-\x0B83"
+-				      L"\x0BBE-\x0BC2\x0BC6-\x0BC8\x0BCA-\x0BCD\x0BD7\x0C01-\x0C03"
+-				      L"\x0C3E-\x0C44\x0C46-\x0C48\x0C4A-\x0C4D\x0C55-\x0C56\x0C82-\x0C83"
+-				      L"\x0CBE-\x0CC4\x0CC6-\x0CC8\x0CCA-\x0CCD\x0CD5-\x0CD6\x0D02-\x0D03"
+-				      L"\x0D3E-\x0D43\x0D46-\x0D48\x0D4A-\x0D4D\x0D57\x0E31\x0E34-\x0E3A"
+-				      L"\x0E47-\x0E4E\x0EB1\x0EB4-\x0EB9\x0EBB-\x0EBC\x0EC8-\x0ECD"
+-				      L"\x0F18-\x0F19\x0F35\x0F37\x0F39\x0F3E\x0F3F\x0F71-\x0F84"
+-				      L"\x0F86-\x0F8B\x0F90-\x0F95\x0F97\x0F99-\x0FAD\x0FB1-\x0FB7\x0FB9"
+-				      L"\x20D0-\x20DC\x20E1\x302A-\x302F\x3099\x309A");
++                chset_t CombiningChar(L"\x0300-\x0345\x0360-\x0361\x0483-\x0486\x0591-\x05A1\x05A3-\x05B9"
++                                      L"\x05BB-\x05BD\x05BF\x05C1-\x05C2\x05C4\x064B-\x0652\x0670"
++                                      L"\x06D6-\x06DC\x06DD-\x06DF\x06E0-\x06E4\x06E7-\x06E8\x06EA-\x06ED"
++                                      L"\x0901-\x0903\x093C\x093E-\x094C\x094D\x0951-\x0954\x0962-\x0963"
++                                      L"\x0981-\x0983\x09BC\x09BE\x09BF\x09C0-\x09C4\x09C7-\x09C8"
++                                      L"\x09CB-\x09CD\x09D7\x09E2-\x09E3\x0A02\x0A3C\x0A3E\x0A3F"
++                                      L"\x0A40-\x0A42\x0A47-\x0A48\x0A4B-\x0A4D\x0A70-\x0A71\x0A81-\x0A83"
++                                      L"\x0ABC\x0ABE-\x0AC5\x0AC7-\x0AC9\x0ACB-\x0ACD\x0B01-\x0B03\x0B3C"
++                                      L"\x0B3E-\x0B43\x0B47-\x0B48\x0B4B-\x0B4D\x0B56-\x0B57\x0B82-\x0B83"
++                                      L"\x0BBE-\x0BC2\x0BC6-\x0BC8\x0BCA-\x0BCD\x0BD7\x0C01-\x0C03"
++                                      L"\x0C3E-\x0C44\x0C46-\x0C48\x0C4A-\x0C4D\x0C55-\x0C56\x0C82-\x0C83"
++                                      L"\x0CBE-\x0CC4\x0CC6-\x0CC8\x0CCA-\x0CCD\x0CD5-\x0CD6\x0D02-\x0D03"
++                                      L"\x0D3E-\x0D43\x0D46-\x0D48\x0D4A-\x0D4D\x0D57\x0E31\x0E34-\x0E3A"
++                                      L"\x0E47-\x0E4E\x0EB1\x0EB4-\x0EB9\x0EBB-\x0EBC\x0EC8-\x0ECD"
++                                      L"\x0F18-\x0F19\x0F35\x0F37\x0F39\x0F3E\x0F3F\x0F71-\x0F84"
++                                      L"\x0F86-\x0F8B\x0F90-\x0F95\x0F97\x0F99-\x0FAD\x0FB1-\x0FB7\x0FB9"
++                                      L"\x20D0-\x20DC\x20E1\x302A-\x302F\x3099\x309A");
+ 	    
+-		chset_t Digit(L"\x0030-\x0039\x0660-\x0669\x06F0-\x06F9\x0966-\x096F\x09E6-\x09EF"
+-			      L"\x0A66-\x0A6F\x0AE6-\x0AEF\x0B66-\x0B6F\x0BE7-\x0BEF\x0C66-\x0C6F"
+-			      L"\x0CE6-\x0CEF\x0D66-\x0D6F\x0E50-\x0E59\x0ED0-\x0ED9\x0F20-\x0F29");
++                chset_t Digit(L"\x0030-\x0039\x0660-\x0669\x06F0-\x06F9\x0966-\x096F\x09E6-\x09EF"
++                              L"\x0A66-\x0A6F\x0AE6-\x0AEF\x0B66-\x0B6F\x0BE7-\x0BEF\x0C66-\x0C6F"
++                              L"\x0CE6-\x0CEF\x0D66-\x0D6F\x0E50-\x0E59\x0ED0-\x0ED9\x0F20-\x0F29");
+ 		
+-		chset_t Extender(L"\x00B7\x02D0\x02D1\x0387\x0640\x0E46\x0EC6\x3005\x3031-\x3035"
+-				 L"\x309D-\x309E\x30FC-\x30FE");
++                chset_t Extender(L"\x00B7\x02D0\x02D1\x0387\x0640\x0E46\x0EC6\x3005\x3031-\x3035"
++                                 L"\x309D-\x309E\x30FC-\x30FE");
+ 		
+-		chset_t NameChar =
+-		    Letter 
+-		    | Digit 
+-		    | L'.'
+-		    | L'-'
+-		    | L'_'
+-		    | L':'
+-		    | CombiningChar 
+-		    | Extender;
++                chset_t NameChar =
++                    Letter 
++                    | Digit 
++                    | L'.'
++                    | L'-'
++                    | L'_'
++                    | L':'
++                    | CombiningChar 
++                    | Extender;
+ 				
+-		number = strict_real_p [push_real<FeatureT>(self.exprs)] 
+-		    | int_p [push_integer<FeatureT>(self.exprs)];
++                number = strict_real_p [push_real<FeatureT>(self.exprs)] 
++                    | int_p [push_integer<FeatureT>(self.exprs)];
+ 		
+-		string_ = confix_p(L'\'',(*lex_escape_ch_p)
+-			 [push_string<FeatureT>(self.exprs)],
+-				   L'\'');
++                string_ = confix_p(L'\'',(*lex_escape_ch_p)
++                                   [push_string<FeatureT>(self.exprs)],
++                                   L'\'');
+ 		
+-		property = L'[' >> ( (Letter | L'_' | L':') 
+-				    >> *NameChar )[push_property<FeatureT>(self.exprs)] >> L']';
++                property = L'[' >> ( (Letter | L'_' | L':') 
++                                     >> *NameChar )[push_property<FeatureT>(self.exprs)] >> L']';
+ 		
+-		literal = number | string_ | property;
++                literal = number | string_ | property;
+ 		
+-		function = literal | ( func1_op >> L'('>> literal >> L')') | 
+-		    (func2_op >> L'(' >> literal >> L','>> literal >> L')');
++                function = literal | ( func1_op >> L'('>> literal >> L')') | 
++                    (func2_op >> L'(' >> literal >> L','>> literal >> L')');
+ 		
+-		factor = function 
+-		    | L'(' >> or_expr >> L')'
+-		    | ( L'-' >> factor) 
+-		    ;
+-		term = factor
+-		    >> *((L'*' >> factor) [compose_expression<FeatureT,mapnik::mult<value> >(self.exprs)] 
+-			 | (L'/' >> factor) [compose_expression<FeatureT,mapnik::div<value> >(self.exprs)]);
++                factor = function 
++                    | L'(' >> or_expr >> L')'
++                    | ( L'-' >> factor) 
++                    ;
++                term = factor
++                    >> *((L'*' >> factor) [compose_expression<FeatureT,mapnik::mult<value> >(self.exprs)] 
++                         | (L'/' >> factor) [compose_expression<FeatureT,mapnik::div<value> >(self.exprs)]);
+ 		
+-		expression = term >> *((L'+' >> term) [compose_expression<FeatureT,mapnik::add<value> >(self.exprs)] 
+-				       | (L'-' >> term) [compose_expression<FeatureT,mapnik::sub<value> >(self.exprs)]);
++                expression = term >> *((L'+' >> term) [compose_expression<FeatureT,mapnik::add<value> >(self.exprs)] 
++                                       | (L'-' >> term) [compose_expression<FeatureT,mapnik::sub<value> >(self.exprs)]);
+ 
+-		regex = str_p(L".match")>>L'('>>confix_p(L'\'',(*lex_escape_ch_p)
+-						       [compose_regex<FeatureT>(self.filters,self.exprs)],
+-						       L'\'') >>L')';
++                regex = str_p(L".match")>>L'('>>confix_p(L'\'',(*lex_escape_ch_p)
++                                                         [compose_regex<FeatureT>(self.filters,self.exprs)],
++                                                         L'\'') >>L')';
+ 
+-		relation   = expression 
+-		    >> *((L">=" >> expression) 
+-			 [compose_filter<FeatureT,greater_than_or_equal<value> >(self.filters,self.exprs)]
+-			 | (L'>' >> expression)
+-			 [compose_filter<FeatureT,mapnik::greater_than<value> >(self.filters,self.exprs)]
+-			 | (L'<' >> expression)
+-			 [compose_filter<FeatureT,mapnik::less_than<value> >(self.filters,self.exprs)]
+-			 | (L"<=" >> expression)
+-			 [compose_filter<FeatureT,less_than_or_equal<value> >(self.filters,self.exprs)]
+-			 | regex );
++                relation   = expression 
++                    >> *((L">=" >> expression) 
++                         [compose_filter<FeatureT,greater_than_or_equal<value> >(self.filters,self.exprs)]
++                         | (L'>' >> expression)
++                         [compose_filter<FeatureT,mapnik::greater_than<value> >(self.filters,self.exprs)]
++                         | (L'<' >> expression)
++                         [compose_filter<FeatureT,mapnik::less_than<value> >(self.filters,self.exprs)]
++                         | (L"<=" >> expression)
++                         [compose_filter<FeatureT,less_than_or_equal<value> >(self.filters,self.exprs)]
++                         | regex );
+ 
+-		equation = relation >> *( ( L'=' >> relation)
+-		     [compose_filter<FeatureT,mapnik::equals<value> >(self.filters,self.exprs)]
+-		     | ( L"<>" >> relation)
+-		     [compose_filter<FeatureT,not_equals<value> >(self.filters,self.exprs)]);
++                equation = relation >> *( ( L'=' >> relation)
++                                          [compose_filter<FeatureT,mapnik::equals<value> >(self.filters,self.exprs)]
++                                          | ( L"<>" >> relation)
++                                          [compose_filter<FeatureT,not_equals<value> >(self.filters,self.exprs)]);
+ 
+-		not_expr = equation | *(str_p(L"not") >> equation)[compose_not_filter<FeatureT>(self.filters)];
++                not_expr = equation | *(str_p(L"not") >> equation)[compose_not_filter<FeatureT>(self.filters)];
+ 
+-		and_expr = not_expr >> *(L"and" >> not_expr)[compose_and_filter<FeatureT>(self.filters)];
++                and_expr = not_expr >> *(L"and" >> not_expr)[compose_and_filter<FeatureT>(self.filters)];
+ 
+-		or_expr  = and_expr >> *(L"or" >> and_expr)[compose_or_filter<FeatureT>(self.filters)];
++                or_expr  = and_expr >> *(L"or" >> and_expr)[compose_or_filter<FeatureT>(self.filters)];
+ 
+-		filter_statement = or_expr;	
+-	    }
++                filter_statement = or_expr;	
++            }
+ 	    
+-	    boost::spirit::rule<ScannerT> const& start() const
+-	    {
+-		return filter_statement;
+-	    }
++            boost::spirit::rule<ScannerT> const& start() const
++            {
++                return filter_statement;
++            }
+ 	    	    
+-	    boost::spirit::rule<ScannerT> factor; 
+-	    boost::spirit::rule<ScannerT> term;
+-	    boost::spirit::rule<ScannerT> expression;
+-	    boost::spirit::rule<ScannerT> relation;
+-	    boost::spirit::rule<ScannerT> equation;
+-	    boost::spirit::rule<ScannerT> not_expr;
+-	    boost::spirit::rule<ScannerT> and_expr;
+-	    boost::spirit::rule<ScannerT> or_expr;
++            boost::spirit::rule<ScannerT> factor; 
++            boost::spirit::rule<ScannerT> term;
++            boost::spirit::rule<ScannerT> expression;
++            boost::spirit::rule<ScannerT> relation;
++            boost::spirit::rule<ScannerT> equation;
++            boost::spirit::rule<ScannerT> not_expr;
++            boost::spirit::rule<ScannerT> and_expr;
++            boost::spirit::rule<ScannerT> or_expr;
+ 	    
+-	    boost::spirit::rule<ScannerT> filter_statement;   
+-	    boost::spirit::rule<ScannerT> literal;
+-	    boost::spirit::rule<ScannerT> number;
+-	    boost::spirit::rule<ScannerT> string_;
+-	    boost::spirit::rule<ScannerT> property;
+-	    boost::spirit::rule<ScannerT> function;
+-	    boost::spirit::rule<ScannerT> regex;
+-	    symbols<string> func1_op;
+-	    symbols<string> func2_op;
+-	    symbols<string> spatial_op;
+-	};
+-	stack<shared_ptr<filter<FeatureT> > >& filters;
+-	stack<shared_ptr<expression<FeatureT> > >& exprs;
++            boost::spirit::rule<ScannerT> filter_statement;   
++            boost::spirit::rule<ScannerT> literal;
++            boost::spirit::rule<ScannerT> number;
++            boost::spirit::rule<ScannerT> string_;
++            boost::spirit::rule<ScannerT> property;
++            boost::spirit::rule<ScannerT> function;
++            boost::spirit::rule<ScannerT> regex;
++            symbols<string> func1_op;
++            symbols<string> func2_op;
++            symbols<string> spatial_op;
++        };
++        stack<shared_ptr<filter<FeatureT> > >& filters;
++        stack<shared_ptr<expression<FeatureT> > >& exprs;
+     };    
+ }
+ 
+
+Modified: trunk/include/graphics.hpp
+===================================================================
+--- trunk/include/graphics.hpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/include/graphics.hpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -49,9 +49,12 @@
+         void setBackground(const Color& background);
+         const Color& getBackground() const;     
+         const ImageData32& data() const;
+-        inline ImageData32& data() {
++        
++        inline ImageData32& data() 
++        {
+             return data_;
+         }
++        
+         inline const unsigned char* raw_data() const
+         {
+             return data_.getBytes();
+
+Modified: trunk/include/math_expr.hpp
+===================================================================
+--- trunk/include/math_expr.hpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/include/math_expr.hpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -31,99 +31,98 @@
+     template <typename T>
+     struct add
+     {
+-	T operator () (T const& left, T const& right)
+-	{
+-	    return left + right;
+-	}
+-	static std::string to_string()
+-	{
+-	    return "+";
+-	} 
++        T operator () (T const& left, T const& right)
++        {
++            return left + right;
++        }
++        static std::string to_string()
++        {
++            return "+";
++        } 
+     };
+ 
+     template <typename T>
+     struct sub
+     {
+-	T operator () (T const& left, T const& right)
+-	{
+-	    return left - right;
+-	}
+-	static std::string to_string()
+-	{
+-	    return "-";
+-	} 
++        T operator () (T const& left, T const& right)
++        {
++            return left - right;
++        }
++        static std::string to_string()
++        {
++            return "-";
++        } 
+     };
+     
+     template <typename T>
+     struct mult
+     {
+-	T operator () (T const& left, T const& right)
+-	{
+-	    return left * right;
+-	}
+-	static std::string to_string()
+-	{
+-	    return "*";
+-	} 
++        T operator () (T const& left, T const& right)
++        {
++            return left * right;
++        }
++        static std::string to_string()
++        {
++            return "*";
++        } 
+     };
+     
+     template <typename T>
+     struct div
+     {
+-	T operator () (T const& left, T const& right)
+-	{
+-	    return left / right;
+-	}
+-	static std::string to_string()
+-	{
+-	    return "/";
+-	} 
++        T operator () (T const& left, T const& right)
++        {
++            return left / right;
++        }
++        static std::string to_string()
++        {
++            return "/";
++        } 
+     };
+     
+     template <typename FeatureT,typename Op>
+     struct math_expr_b : public expression<FeatureT>
+     {
+-	math_expr_b(expression<FeatureT> const& left,
+-		    expression<FeatureT> const& right)
+-	    : expression<FeatureT>(),
+-	      left_(left.clone()), 
+-	      right_(right.clone()) {}
+-	math_expr_b(math_expr_b const& other)
+-	    : expression<FeatureT>(),
+-	      left_(other.left_->clone()),
+-	      right_(other.right_->clone()) {}
++        math_expr_b(expression<FeatureT> const& left,
++                    expression<FeatureT> const& right)
++            : expression<FeatureT>(),
++              left_(left.clone()), 
++              right_(right.clone()) {}
++        math_expr_b(math_expr_b const& other)
++            : expression<FeatureT>(),
++              left_(other.left_->clone()),
++              right_(other.right_->clone()) {}
+ 
+-	value get_value(FeatureT const& feature) const
+-	{
+-	    return Op ()(left_->get_value(feature),right_->get_value(feature));
+-	}
++        value get_value(FeatureT const& feature) const
++        {
++            return Op ()(left_->get_value(feature),right_->get_value(feature));
++        }
+ 
+-	void accept(filter_visitor<FeatureT>& v)
+-	{
+-	    left_->accept(v);
+-	    right_->accept(v);
+-	    v.visit(*this);
+-	}
++        void accept(filter_visitor<FeatureT>& v)
++        {
++            left_->accept(v);
++            right_->accept(v);
++            v.visit(*this);
++        }
+ 
+-	expression<FeatureT>* clone() const
+-	{
+-	    return new math_expr_b<FeatureT,Op>(*this);
+-	}
+-	std::string to_string() const
+-	{
+-	    return "("+left_->to_string() + Op::to_string() + right_->to_string()+")";
+-	}
++        expression<FeatureT>* clone() const
++        {
++            return new math_expr_b<FeatureT,Op>(*this);
++        }
++        std::string to_string() const
++        {
++            return "("+left_->to_string() + Op::to_string() + right_->to_string()+")";
++        }
+ 
+-	~math_expr_b() 
+-	{
+-	    delete left_;
+-	    delete right_;
+-	}
++        ~math_expr_b() 
++        {
++            delete left_;
++            delete right_;
++        }
+     private:
+-	expression<FeatureT>* left_;
+-	expression<FeatureT>* right_;	
++        expression<FeatureT>* left_;
++        expression<FeatureT>* right_;	
+     }; 
+ }
+ 
+-
+ #endif //
+
+Modified: trunk/include/raster_symbolizer.hpp
+===================================================================
+--- trunk/include/raster_symbolizer.hpp	2006-09-06 09:14:41 UTC (rev 295)
++++ trunk/include/raster_symbolizer.hpp	2006-09-11 09:48:27 UTC (rev 296)
+@@ -25,6 +25,7 @@
+ #define RASTER_SYMBOLIZER_HPP
+ 
+ #include <boost/shared_ptr.hpp> 
++#include <config.hpp>
+ 
+ namespace mapnik
+ {
+
+
+
+From pavlenko at mail.berlios.de  Tue Sep 12 16:29:27 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Tue, 12 Sep 2006 16:29:27 +0200
+Subject: [Mapnik-svn] r297 - in trunk: bindings/python include
+	plugins/input/raster plugins/input/shape src
+Message-ID: <200609121429.k8CETRAb025238@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-09-12 16:29:22 +0200 (Tue, 12 Sep 2006)
+New Revision: 297
+
+Modified:
+   trunk/bindings/python/mapnik_query.cpp
+   trunk/include/agg_renderer.hpp
+   trunk/include/feature_style_processor.hpp
+   trunk/include/query.hpp
+   trunk/include/raster.hpp
+   trunk/plugins/input/raster/raster_featureset.cpp
+   trunk/plugins/input/raster/raster_featureset.hpp
+   trunk/plugins/input/shape/shape.cpp
+   trunk/src/agg_renderer.cpp
+Log:
+1.removed map width/height from query interface
+2.small cleanups
+
+
+
+Modified: trunk/bindings/python/mapnik_query.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_query.cpp	2006-09-11 09:48:27 UTC (rev 296)
++++ trunk/bindings/python/mapnik_query.cpp	2006-09-12 14:29:22 UTC (rev 297)
+@@ -27,7 +27,7 @@
+ void export_query()
+ {
+     using mapnik::query;
+-    
++    //class_<query>("Query",init<
+ }
+ 
+ 
+
+Modified: trunk/include/agg_renderer.hpp
+===================================================================
+--- trunk/include/agg_renderer.hpp	2006-09-11 09:48:27 UTC (rev 296)
++++ trunk/include/agg_renderer.hpp	2006-09-12 14:29:22 UTC (rev 297)
+@@ -34,26 +34,26 @@
+ {
+     template <typename T>
+     class MAPNIK_DECL agg_renderer : public feature_style_processor<agg_renderer<T> >,
+-				     private boost::noncopyable
++                                     private boost::noncopyable
+     {
+     public:
+-	agg_renderer(Map const& m, T & pixmap);
+-	void start_map_processing(Map const& map);
+-	void end_map_processing(Map const& map);
+-	void start_layer_processing(Layer const& lay);
+-	void end_layer_processing(Layer const& lay);
+-	void process(point_symbolizer const& sym,Feature const& feature);
+-	void process(line_symbolizer const& sym,Feature const& feature);
+-	void process(line_pattern_symbolizer const& sym,Feature const& feature);
+-	void process(polygon_symbolizer const& sym,Feature const& feature);
+-	void process(polygon_pattern_symbolizer const& sym,Feature const& feature);
+-	void process(raster_symbolizer const& sym,Feature const& feature);
+-	void process(text_symbolizer const& sym,Feature const& feature);
++        agg_renderer(Map const& m, T & pixmap);
++        void start_map_processing(Map const& map);
++        void end_map_processing(Map const& map);
++        void start_layer_processing(Layer const& lay);
++        void end_layer_processing(Layer const& lay);
++        void process(point_symbolizer const& sym,Feature const& feature);
++        void process(line_symbolizer const& sym,Feature const& feature);
++        void process(line_pattern_symbolizer const& sym,Feature const& feature);
++        void process(polygon_symbolizer const& sym,Feature const& feature);
++        void process(polygon_pattern_symbolizer const& sym,Feature const& feature);
++        void process(raster_symbolizer const& sym,Feature const& feature);
++        void process(text_symbolizer const& sym,Feature const& feature);
+     private:
+-	T & pixmap_;
+-	CoordTransform t_;
+-	face_manager<freetype_engine> font_manager_;
+-	label_collision_detector2 detector_;
++        T & pixmap_;
++        CoordTransform t_;
++        face_manager<freetype_engine> font_manager_;
++        label_collision_detector2 detector_;
+     };
+ }
+ 
+
+Modified: trunk/include/feature_style_processor.hpp
+===================================================================
+--- trunk/include/feature_style_processor.hpp	2006-09-11 09:48:27 UTC (rev 296)
++++ trunk/include/feature_style_processor.hpp	2006-09-12 14:29:22 UTC (rev 297)
+@@ -103,7 +103,7 @@
+                     const std::vector<rule_type>& rules=style.get_rules();
+                     std::vector<rule_type>::const_iterator ruleIter=rules.begin();
+ 		    
+-                    query q(bbox,m_.getWidth(),m_.getHeight());
++                    query q(bbox); //BBOX query
+                     while (ruleIter!=rules.end())
+                     {
+                         if (ruleIter->active(scale))
+
+Modified: trunk/include/query.hpp
+===================================================================
+--- trunk/include/query.hpp	2006-09-11 09:48:27 UTC (rev 296)
++++ trunk/include/query.hpp	2006-09-12 14:29:22 UTC (rev 297)
+@@ -36,96 +36,74 @@
+     class query 
+     {
+     private:
+-	Envelope<double> bbox_;
+-	unsigned width_;
+-	unsigned height_;
+-	filter<Feature>* filter_;
+-	std::set<std::string> names_;
++        Envelope<double> bbox_;
++        filter<Feature>* filter_;
++        std::set<std::string> names_;
+     public:
+-	query(unsigned width,unsigned height) 
+-	    : bbox_(std::numeric_limits<double>::min(),
+-		    std::numeric_limits<double>::min(),
+-		    std::numeric_limits<double>::max(),
+-		    std::numeric_limits<double>::max()),
+-	      width_(width),
+-	      height_(height),
+-	      filter_(new all_filter<Feature>)
+-	{}
++        query() 
++            : bbox_(std::numeric_limits<double>::min(),
++                    std::numeric_limits<double>::min(),
++                    std::numeric_limits<double>::max(),
++                    std::numeric_limits<double>::max()),
++              filter_(new all_filter<Feature>)
++        {}
++        
++        query(const Envelope<double>& bbox)
++            : bbox_(bbox),
++              filter_(new all_filter<Feature>)
++        {}
+ 	
+-	query(const Envelope<double>& bbox,unsigned width,unsigned height)
+-	    : bbox_(bbox),
+-	      width_(width),
+-	      height_(height),
+-	      filter_(new all_filter<Feature>)
+-	{}
++        query(const Envelope<double>& bbox, const filter<Feature>& f)
++            : bbox_(bbox),
++              filter_(f.clone())
++        {}
+ 	
+-	query(const Envelope<double>& bbox,unsigned width,unsigned height,const filter<Feature>& f)
+-	    : bbox_(bbox),
+-	      width_(width),
+-	      height_(height),
+-	      filter_(f.clone())
+-	{}
++        query(const query& other)
++            : bbox_(other.bbox_),
++              filter_(other.filter_->clone())
++        {}
++        
++        query& operator=(const query& other)
++        {
++            filter<Feature>* tmp=other.filter_->clone();
++            delete filter_;
++            filter_=tmp;
++            bbox_=other.bbox_;
++            names_=other.names_;
++            return *this;
++        }
+ 	
+-	query(const query& other)
+-	    : bbox_(other.bbox_),
+-	      width_(other.width_),
+-	      height_(other.height_),
+-	      filter_(other.filter_->clone())
+-	{}
++        const filter<Feature>* get_filter() const
++        {
++            return  filter_;
++        }
+ 	
+-	query& operator=(const query& other)
+-	{
+-	    filter<Feature>* tmp=other.filter_->clone();
+-	    delete filter_;
+-	    filter_=tmp;
+-	    bbox_=other.bbox_;
+-	    width_=other.width_;
+-	    height_=other.height_;
+-	    names_=other.names_;
+-	    return *this;
+-	}
+-	
+-	const filter<Feature>* get_filter() const
+-	{
+-	    return  filter_;
+-	}
+-	
+-	const Envelope<double>& get_bbox() const
+-	{
+-	    return bbox_;
+-	}
++        const Envelope<double>& get_bbox() const
++        {
++            return bbox_;
++        }
+ 
+-	unsigned get_width() const
+-	{
+-	    return width_;
+-	}
+-
+-	unsigned get_height() const
+-	{
+-	    return height_;
+-	}
+-
+-	void set_filter(const filter<Feature>& f)
+-	{
+-	    filter<Feature>* tmp=f.clone();
+-	    delete filter_;
+-	    filter_=tmp;
+-	}
++        void set_filter(const filter<Feature>& f)
++        {
++            filter<Feature>* tmp=f.clone();
++            delete filter_;
++            filter_=tmp;
++        }
+         
+-	void add_property_name(const std::string& name)
+-	{
+-	    names_.insert(name);
+-	} 
++        void add_property_name(const std::string& name)
++        {
++            names_.insert(name);
++        } 
+ 	
+-	const std::set<std::string>& property_names() const
+-	{
+-	    return names_;
+-	}
++        const std::set<std::string>& property_names() const
++        {
++            return names_;
++        }
+ 	
+-	~query() 
+-	{
+-	    delete filter_;
+-	}
++        ~query() 
++        {
++            delete filter_;
++        }
+     };
+ }
+ 
+
+Modified: trunk/include/raster.hpp
+===================================================================
+--- trunk/include/raster.hpp	2006-09-11 09:48:27 UTC (rev 296)
++++ trunk/include/raster.hpp	2006-09-12 14:29:22 UTC (rev 297)
+@@ -30,12 +30,10 @@
+ {
+     struct raster
+     {
+-        int x_;
+-        int y_;
++        Envelope<double> ext_;
+         ImageData32 data_;
+-	raster(int x,int y,ImageData32& data)
+-	    : x_(x),
+-	      y_(y),
++	raster(Envelope<double> const ext,ImageData32& data)
++	    : ext_(ext),
+ 	      data_(data) {}
+     };
+ }
+
+Modified: trunk/plugins/input/raster/raster_featureset.cpp
+===================================================================
+--- trunk/plugins/input/raster/raster_featureset.cpp	2006-09-11 09:48:27 UTC (rev 296)
++++ trunk/plugins/input/raster/raster_featureset.cpp	2006-09-12 14:29:22 UTC (rev 297)
+@@ -24,14 +24,13 @@
+ #include "image_util.hpp"
+ 
+ template <typename LookupPolicy>
+-raster_featureset<LookupPolicy>::raster_featureset(LookupPolicy const& policy,query const& q)
++raster_featureset<LookupPolicy>::raster_featureset(LookupPolicy const& policy,
++                                                   query const& q)
+     : policy_(policy),
+       id_(1),
+       extent_(q.get_bbox()),
+-      t_(q.get_width(),q.get_height(),extent_),
+       curIter_(policy_.query(extent_)),
+       endIter_(policy_.end()) 
+-
+ {}
+ 
+ template <typename LookupPolicy>
+@@ -42,13 +41,13 @@
+ {
+     if (curIter_!=endIter_)
+     {
+-	feature_ptr feature(new Feature(+id_));
++        feature_ptr feature(new Feature(+id_));
+         try
+         {
+-	    std::clog<<"raster_featureset "<<curIter_->format()<<" "<<curIter_->file()<<std::endl;
++            std::clog<<"raster_featureset "<<curIter_->format()<<" "<<curIter_->file()<<std::endl;
+             std::auto_ptr<ImageReader> reader(get_image_reader(curIter_->format(),curIter_->file()));
+-	    std::clog<<reader.get()<<std::endl;
+-	    if (reader.get())
++            std::clog<<reader.get()<<std::endl;
++            if (reader.get())
+             {
+                 int image_width=reader->width();
+                 int image_height=reader->height();
+@@ -58,14 +57,9 @@
+                     Envelope<double> intersect=extent_.intersect(curIter_->envelope());
+                     Envelope<double> ext=t.forward(intersect);
+                     
+-		    Envelope<double> image_ext=t_.forward(intersect);
+-                    
+-		    ImageData32 image((int)ext.width(),(int)ext.height());
++                    ImageData32 image((int)ext.width(),(int)ext.height());
+                     reader->read((int)ext.minx(),(int)ext.miny(),image);
+-                    
+-		    ImageData32 target((int)(image_ext.width()+0.5),(int)(image_ext.height()+0.5));
+-                    scale_image<ImageData32>(target,image);
+-		    feature->set_raster(raster_ptr(new raster(int(image_ext.minx()+0.5),int(image_ext.miny()+0.5),target)));
++                    feature->set_raster(raster_ptr(new raster(intersect,image)));
+                 }
+             }
+         }
+@@ -73,11 +67,9 @@
+         {
+         }
+         ++curIter_;
+-	return feature;
++        return feature;
+     }
+     return feature_ptr();
+ }
+ 
+-
+ template class raster_featureset<single_file_policy>;
+-//template raster_featureset<os_name_policy>;
+
+Modified: trunk/plugins/input/raster/raster_featureset.hpp
+===================================================================
+--- trunk/plugins/input/raster/raster_featureset.hpp	2006-09-11 09:48:27 UTC (rev 296)
++++ trunk/plugins/input/raster/raster_featureset.hpp	2006-09-12 14:29:22 UTC (rev 297)
+@@ -34,71 +34,66 @@
+ public:
+     class const_iterator
+     {
+-	enum {start,end};
+-	bool status_;
+-	const single_file_policy* p_;
++        enum {start,end};
++        bool status_;
++        const single_file_policy* p_;
+     public:
+-	explicit const_iterator(const single_file_policy* p)
+-	    :status_(start),
+-	     p_(p) {}
++        explicit const_iterator(const single_file_policy* p)
++            :status_(start),
++             p_(p) {}
+ 
+-	const_iterator()
+-	    :status_(end){}
++        const_iterator()
++            :status_(end){}
+ 
+-	const_iterator(const const_iterator& other)
+-	    :status_(other.status_),
+-	     p_(other.p_) {}
++        const_iterator(const const_iterator& other)
++            :status_(other.status_),
++             p_(other.p_) {}
+ 
+-	const_iterator& operator++()
+-	{
+-	    status_=end;
+-	    return *this;
+-	}
++        const_iterator& operator++()
++        {
++            status_=end;
++            return *this;
++        }
+ 
+-	const raster_info& operator*() const
+-	{
+-	    return p_->info_;
+-	}
++        const raster_info& operator*() const
++        {
++            return p_->info_;
++        }
+ 
+-	const raster_info* operator->() const
+-	{
+-	    return &(p_->info_);
+-	}
++        const raster_info* operator->() const
++        {
++            return &(p_->info_);
++        }
+ 
+-	bool operator!=(const const_iterator& itr)
+-	{
+-	    return status_!=itr.status_;
+-	}
++        bool operator!=(const const_iterator& itr)
++        {
++            return status_!=itr.status_;
++        }
+     };
+ 
+     explicit single_file_policy(const raster_info& info)
+-	:info_(info) {}
++        :info_(info) {}
+ 
+     const_iterator begin()
+     {
+-	return const_iterator(this);
++        return const_iterator(this);
+     }
+ 
+     const_iterator query(const Envelope<double>& box)
+     {
+-	if (box.intersects(info_.envelope()))
+-	{
+-	    return begin();
+-	}
+-	return end();
++        if (box.intersects(info_.envelope()))
++        {
++            return begin();
++        }
++        return end();
+     }
+ 
+     const_iterator end()
+     {
+-	return const_iterator();
++        return const_iterator();
+     }
+ };
+ 
+-class os_name_policy
+-{
+-    //TODO
+-};
+-
+ template <typename LookupPolicy>
+ class raster_featureset : public Featureset
+ {
+@@ -106,7 +101,6 @@
+     LookupPolicy policy_;
+     size_t id_;
+     Envelope<double> extent_;
+-    CoordTransform t_;
+     iterator_type curIter_;
+     iterator_type endIter_;
+ public:
+
+Modified: trunk/plugins/input/shape/shape.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape.cpp	2006-09-11 09:48:27 UTC (rev 296)
++++ trunk/plugins/input/shape/shape.cpp	2006-09-12 14:29:22 UTC (rev 297)
+@@ -124,7 +124,6 @@
+     std::clog << "shape_type=" << shape_type << std::endl;
+ }
+ 
+-
+ int shape_datasource::type() const
+ {
+     return type_;
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-09-11 09:48:27 UTC (rev 296)
++++ trunk/src/agg_renderer.cpp	2006-09-12 14:29:22 UTC (rev 297)
+@@ -55,6 +55,7 @@
+ 
+ #include <boost/utility.hpp>
+ #include <iostream>
++#include "image_util.hpp"
+ 
+ namespace mapnik
+ {
+@@ -389,7 +390,10 @@
+         raster_ptr const& raster=feature.get_raster();
+         if (raster)
+         {
+-            pixmap_.set_rectangle(raster->x_,raster->y_,raster->data_);
++            Envelope<double> ext=t_.forward(raster->ext_);
++            ImageData32 target((int)(ext.width() + 0.5),(int)(ext.height() + 0.5));
++            scale_image<ImageData32>(target,raster->data_);
++            pixmap_.set_rectangle(int(ext.minx()),int(ext.miny()),target);
+         }
+     }
+     
+
+
+
+From pavlenko at mail.berlios.de  Fri Sep 15 09:56:37 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Fri, 15 Sep 2006 09:56:37 +0200
+Subject: [Mapnik-svn] r298 - trunk/include
+Message-ID: <200609150756.k8F7ubD1028564@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-09-15 09:56:35 +0200 (Fri, 15 Sep 2006)
+New Revision: 298
+
+Modified:
+   trunk/include/color.hpp
+Log:
+This patch:
+* Adds set_alpha()
+* Reorders the get/set color functions to be red() green() blue() alpha() (code tidyness)
+* Changes the internal color variable to be named abgr_ instead of rgba_ since that is the order the colors are stored in it.
+
+Thanks to Dave Leaver.
+
+
+
+
+Modified: trunk/include/color.hpp
+===================================================================
+--- trunk/include/color.hpp	2006-09-12 14:29:22 UTC (rev 297)
++++ trunk/include/color.hpp	2006-09-15 07:56:35 UTC (rev 298)
+@@ -34,70 +34,71 @@
+     class MAPNIK_DECL Color
+     {
+     private:
+-        unsigned int rgba_;
++        unsigned int abgr_;
+     public:
+         Color()
+-            :rgba_(0xffffffff) {}
++            :abgr_(0xffffffff) {}
+ 
+         Color(int red,int green,int blue,int alpha=0xff)
+-            : rgba_((alpha&0xff) << 24 | (blue&0xff) << 16 | (green&0xff) << 8 | red&0xff) {}
++            : abgr_((alpha&0xff) << 24 | (blue&0xff) << 16 | (green&0xff) << 8 | red&0xff) {}
+ 	
+         explicit Color(int rgba)
+-            : rgba_(rgba) {}
++            : abgr_(rgba) {}
+ 
+         Color(const Color& rhs)
+-            : rgba_(rhs.rgba_) {}
++            : abgr_(rhs.abgr_) {}
+ 
+         Color& operator=(const Color& rhs)
+         {
+             if (this==&rhs) return *this;
+-            rgba_=rhs.rgba_;
++            abgr_=rhs.abgr_;
+             return *this;
+         }
+-        inline unsigned int blue() const
++        inline unsigned int red() const
+         {
+-            return (rgba_>>16)&0xff;
++            return abgr_&0xff;
+         }
+         inline unsigned int green() const
+         {
+-            return (rgba_>>8)&0xff;
++            return (abgr_>>8)&0xff;
+         }
+-        inline unsigned int red() const
++        inline unsigned int blue() const
+         {
+-            return rgba_&0xff;
++            return (abgr_>>16)&0xff;
+         }
++        inline unsigned int alpha() const
++        {
++            return (abgr_>>24)&0xff;
++        }
+ 	
+         inline void set_red(unsigned int r)
+         {
+-            rgba_ = (rgba_ & 0xffffff00) | (r&0xff);
++            abgr_ = (abgr_ & 0xffffff00) | (r&0xff);
+         }
+-	
+         inline void set_green(unsigned int g)
+         {
+-            rgba_ = (rgba_ & 0xffff00ff) | ((g&0xff) << 8);
++            abgr_ = (abgr_ & 0xffff00ff) | ((g&0xff) << 8);
+         }
+-	
+         inline void set_blue(unsigned int b)
+         {
+-            rgba_ = (rgba_ & 0xff00ffff) | ((b&0xff) << 16);
++            abgr_ = (abgr_ & 0xff00ffff) | ((b&0xff) << 16);
+         }
+-
+-        inline unsigned int alpha() const
++        inline void set_alpha(unsigned int a)
+         {
+-            return (rgba_>>24)&0xff;
++            abgr_ = (abgr_ & 0x00ffffff | (a&0xff) << 24);
+         }
+-	
++
+         inline unsigned int rgba() const
+         {
+-            return rgba_;
++            return abgr_;
+         }
+         inline void set_bgr(unsigned bgr)
+         {
+-            rgba_ = (rgba_ & 0xff000000) | (bgr & 0xffffff);
++            abgr_ = (abgr_ & 0xff000000) | (bgr & 0xffffff);
+         }
+         inline bool operator==(Color const& other) const
+         {
+-            return rgba_ == other.rgba_;
++            return abgr_ == other.abgr_;
+         }
+ 
+         inline std::string to_string() const
+
+
+
+From pavlenko at mail.berlios.de  Fri Sep 15 10:19:05 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Fri, 15 Sep 2006 10:19:05 +0200
+Subject: [Mapnik-svn] r299 - trunk/include
+Message-ID: <200609150819.k8F8J5IY031232@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-09-15 10:19:03 +0200 (Fri, 15 Sep 2006)
+New Revision: 299
+
+Modified:
+   trunk/include/color.hpp
+Log:
+added alpha to to_string method.
+ rgb ( R, B, G, A)
+
+TODO: modify CSS color parser to accept alpha channel e.g 
+rgb (R,G,B,A)
+#RRGGBBAA
+#RGBA
+ 
+
+
+Modified: trunk/include/color.hpp
+===================================================================
+--- trunk/include/color.hpp	2006-09-15 07:56:35 UTC (rev 298)
++++ trunk/include/color.hpp	2006-09-15 08:19:03 UTC (rev 299)
+@@ -100,13 +100,18 @@
+         {
+             return abgr_ == other.abgr_;
+         }
+-
++        
+         inline std::string to_string() const
+         {
+             std::stringstream ss;
+-            ss << "rgb (" << red() << ","  << green() << ","  << blue() <<")";
++            ss << "rgb (" 
++               << red()   << ","  
++               << green() << ","  
++               << blue()  << ","
++               << alpha() << ")";
+             return ss.str();
+         }
++        
+         inline std::string to_hex_string() const
+         {
+             std::stringstream ss;
+
+
+
+From pavlenko at mail.berlios.de  Fri Sep 15 10:20:11 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Fri, 15 Sep 2006 10:20:11 +0200
+Subject: [Mapnik-svn] r300 - trunk/bindings/python
+Message-ID: <200609150820.k8F8KBqS031490@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-09-15 10:20:09 +0200 (Fri, 15 Sep 2006)
+New Revision: 300
+
+Modified:
+   trunk/bindings/python/mapnik_color.cpp
+Log:
+added write access to alpha property.
+
+
+
+Modified: trunk/bindings/python/mapnik_color.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_color.cpp	2006-09-15 08:19:03 UTC (rev 299)
++++ trunk/bindings/python/mapnik_color.cpp	2006-09-15 08:20:09 UTC (rev 300)
+@@ -32,7 +32,7 @@
+ struct color_pickle_suite : boost::python::pickle_suite
+ {
+     static boost::python::tuple
+-        getinitargs(const Color& c)
++    getinitargs(const Color& c)
+     {
+         using namespace boost::python;
+         return boost::python::make_tuple(c.red(),c.green(),c.blue());
+@@ -61,11 +61,11 @@
+         .add_property("r",&Color::red,&Color::set_red)
+         .add_property("g",&Color::green,&Color::set_green)
+         .add_property("b",&Color::blue,&Color::set_blue)
+-	.add_property("a",&Color::alpha)
+-	.def(self == self)
++        .add_property("a",&Color::alpha,&Color::set_alpha)
++        .def(self == self)
+         .def_pickle(color_pickle_suite())
+-	.def("__str__",&Color::to_string)
+-	;
++        .def("__str__",&Color::to_string)
++        ;
+     
+     def("Color",&create_from_string);
+     def("Color",&create_from_rgba);
+
+
+
+From pavlenko at mail.berlios.de  Sun Sep 17 21:45:05 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Sun, 17 Sep 2006 21:45:05 +0200
+Subject: [Mapnik-svn] r301 - in trunk: bindings/python demo/c++ include src
+Message-ID: <200609171945.k8HJj5Ff004716@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-09-17 21:45:01 +0200 (Sun, 17 Sep 2006)
+New Revision: 301
+
+Modified:
+   trunk/bindings/python/mapnik_filter.cpp
+   trunk/demo/c++/rundemo.cpp
+   trunk/include/color.hpp
+   trunk/include/mapnik.hpp
+   trunk/src/mapnik.cpp
+Log:
+ * create_filter moved to core lib
+ * modified demo/c++/rundemo.cpp to reflect the above
+
+
+
+Modified: trunk/bindings/python/mapnik_filter.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_filter.cpp	2006-09-15 08:20:09 UTC (rev 300)
++++ trunk/bindings/python/mapnik_filter.cpp	2006-09-17 19:45:01 UTC (rev 301)
+@@ -28,21 +28,14 @@
+ #include <regex_filter.hpp>
+ #include <filter.hpp>
+ #include <filter_factory.hpp>
++#include <mapnik.hpp>
+ 
+ using mapnik::filter;
+ using mapnik::filter_ptr;
+ using mapnik::filter_factory;
+ using mapnik::Feature;
++using mapnik::create_filter;
+ 
+-namespace  
+-{
+-    using namespace boost::python;
+-    filter_ptr create_filter(string const& filter_text)
+-    {
+-        return filter_factory<Feature>::compile(filter_text);
+-    }
+-}
+-
+ void export_filter()
+ {
+     using namespace boost::python;
+
+Modified: trunk/demo/c++/rundemo.cpp
+===================================================================
+--- trunk/demo/c++/rundemo.cpp	2006-09-15 08:20:09 UTC (rev 300)
++++ trunk/demo/c++/rundemo.cpp	2006-09-17 19:45:01 UTC (rev 301)
+@@ -4,17 +4,16 @@
+ 
+ using namespace mapnik;
+ 
+-// helper function 
+-filter_ptr create_filter (std::string const& wkt)
+-{
+-    filter_factory<Feature> factory;
+-    return factory.compile(wkt);
+-}
+-
+ int main ( int argc , char** argv)
+ {    
++    if (argc != 2)
++    {
++        std::cout << "usage: ./rundemo <plugins_dir>\n";
++        return EXIT_SUCCESS;
++    }
++    
+     std::cout << " running demo ... \n";
+-    datasource_cache::instance()->register_datasources("/usr/local/lib/mapnik/input"); 
++    datasource_cache::instance()->register_datasources(argv[1]); 
+     freetype_engine::instance()->register_font("/usr/share/fonts/bitstream-vera/Vera.ttf");
+     
+     Map m(800,600);
+@@ -217,5 +216,5 @@
+         "- demo.png\n"
+         "Have a look!\n";
+     
+-    return 0;
++    return EXIT_SUCCESS;
+ }
+
+Modified: trunk/include/color.hpp
+===================================================================
+--- trunk/include/color.hpp	2006-09-15 08:20:09 UTC (rev 300)
++++ trunk/include/color.hpp	2006-09-17 19:45:01 UTC (rev 301)
+@@ -40,8 +40,11 @@
+             :abgr_(0xffffffff) {}
+ 
+         Color(int red,int green,int blue,int alpha=0xff)
+-            : abgr_((alpha&0xff) << 24 | (blue&0xff) << 16 | (green&0xff) << 8 | red&0xff) {}
+-	
++            : abgr_((alpha&0xff) << 24 | 
++                    (blue&0xff) << 16  | 
++                    (green&0xff) << 8  | 
++                    red&0xff) {}
++        
+         explicit Color(int rgba)
+             : abgr_(rgba) {}
+ 
+
+Modified: trunk/include/mapnik.hpp
+===================================================================
+--- trunk/include/mapnik.hpp	2006-09-15 08:20:09 UTC (rev 300)
++++ trunk/include/mapnik.hpp	2006-09-17 19:45:01 UTC (rev 301)
+@@ -74,11 +74,11 @@
+ #include "feature_layer_desc.hpp"
+ #include "css_color_parser.hpp"
+ #include "color_factory.hpp"
++#include "config.hpp"
+ 
+-
+-
+ namespace mapnik
+ {
++    MAPNIK_DECL filter_ptr create_filter (std::string const& wkt);
+ }
+ 
+ #endif //MAPNIK_HPP
+
+Modified: trunk/src/mapnik.cpp
+===================================================================
+--- trunk/src/mapnik.cpp	2006-09-15 08:20:09 UTC (rev 300)
++++ trunk/src/mapnik.cpp	2006-09-17 19:45:01 UTC (rev 301)
+@@ -22,11 +22,15 @@
+ 
+ //$Id$
+ 
+-#include <fstream>
+ #include "mapnik.hpp"
+ 
+ namespace mapnik
+ {
++    filter_ptr create_filter (std::string const& wkt)
++    {
++        filter_factory<Feature> factory;
++        return factory.compile(wkt);
++    }
+ }
+ 
+ 
+
+
+

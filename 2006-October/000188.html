@@ -1,0 +1,515 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r303 - in trunk: include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r303%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200610030839.k938dkAI019581%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000187.html">
+   <LINK REL="Next"  HREF="000189.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r303 - in trunk: include src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r303%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200610030839.k938dkAI019581%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r303 - in trunk: include src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Tue Oct  3 10:39:46 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000187.html">[Mapnik-svn] r302 - trunk
+</A></li>
+        <LI>Next message: <A HREF="000189.html">[Mapnik-svn] r304 - in trunk: bindings/python demo/c++ demo/python	include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#188">[ date ]</a>
+              <a href="thread.html#188">[ thread ]</a>
+              <a href="subject.html#188">[ subject ]</a>
+              <a href="author.html#188">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-03 10:39:43 +0200 (Tue, 03 Oct 2006)
+New Revision: 303
+
+Added:
+   trunk/include/load_map.hpp
+   trunk/include/save_map.hpp
+   trunk/src/load_map.cpp
+   trunk/src/save_map.cpp
+Log:
+added save/load functionality based on boost::property_tree (aka ElementTree in c++)
+
+
+
+Added: trunk/include/load_map.hpp
+===================================================================
+--- trunk/include/load_map.hpp	2006-10-03 08:37:34 UTC (rev 302)
++++ trunk/include/load_map.hpp	2006-10-03 08:39:43 UTC (rev 303)
+@@ -0,0 +1,35 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++// $Id$
++
++#ifndef MAP_LOADER_HPP
++#define MAP_LOADER_HPP
++
++#include &lt;string&gt;
++#include &quot;map.hpp&quot;
++
++namespace mapnik
++{
++    void load_map(Map &amp; map, std::string const&amp; filename);
++}
++
++#endif // LOAD_MAP_HPP
+
+Added: trunk/include/save_map.hpp
+===================================================================
+--- trunk/include/save_map.hpp	2006-10-03 08:37:34 UTC (rev 302)
++++ trunk/include/save_map.hpp	2006-10-03 08:39:43 UTC (rev 303)
+@@ -0,0 +1,35 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++// $Id$
++
++#ifndef SAVE_MAP_HPP
++#define SAVE_MAP_HPP
++
++#include &lt;string&gt;
++#include &quot;map.hpp&quot;
++
++namespace mapnik
++{
++    void save_map(Map const&amp; map, std::string const&amp; filename);
++}
++
++#endif // SAVE_MAP_HPP
+
+Added: trunk/src/load_map.cpp
+===================================================================
+--- trunk/src/load_map.cpp	2006-10-03 08:37:34 UTC (rev 302)
++++ trunk/src/load_map.cpp	2006-10-03 08:39:43 UTC (rev 303)
+@@ -0,0 +1,296 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++
++#include &lt;iostream&gt;
++
++#include &lt;boost/foreach.hpp&gt;
++#include &lt;boost/optional.hpp&gt;
++#include &lt;boost/algorithm/string.hpp&gt;
++#include &lt;boost/lexical_cast.hpp&gt;
++#include &lt;boost/tokenizer.hpp&gt;
++#include &lt;boost/property_tree/ptree.hpp&gt;
++#include &lt;boost/property_tree/xml_parser.hpp&gt;
++
++#include &quot;color.hpp&quot;
++#include &quot;color_factory.hpp&quot;
++#include &quot;filter_factory.hpp&quot;
++#include &quot;layer.hpp&quot;
++#include &quot;datasource_cache.hpp&quot;
++#include &quot;load_map.hpp&quot;
++
++namespace mapnik 
++{
++    void load_map(Map &amp; map, std::string const&amp; filename)
++    {
++        using boost::property_tree::ptree;
++        ptree pt;
++        
++        read_xml(filename,pt);
++        
++        boost::optional&lt;std::string&gt; bgcolor = 
++            pt.get_optional&lt;std::string&gt;(&quot;Map.&lt;xmlattr&gt;.bgcolor&quot;);
++        if ( bgcolor)
++        {
++            Color bg = color_factory::from_string(bgcolor-&gt;c_str());
++            map.setBackground(bg);
++        }
++        
++        BOOST_FOREACH (ptree::value_type &amp; v, pt.get_child(&quot;Map&quot;))
++        {
++            if (v.first == &quot;Style&quot;)
++            {
++                std::string name = v.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.name&quot;);
++                feature_type_style style;
++                
++                BOOST_FOREACH(ptree::value_type &amp; rule_tag, v.second)
++                {
++                    if (rule_tag.first == &quot;Rule&quot;)
++                    {
++                        std::string name = 
++                            rule_tag.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.name&quot;,&quot;&quot;);
++                        std::string title = 
++                            rule_tag.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.title&quot;,&quot;&quot;);
++                        rule_type rule(name,title);
++
++                        boost::optional&lt;std::string&gt; filter_expr = 
++                            rule_tag.second.get_optional&lt;std::string&gt;(&quot;Filter&quot;);
++                        
++                        if (filter_expr)
++                        {
++                            rule.set_filter(create_filter(*filter_expr));
++                        }
++                        
++                        boost::optional&lt;double&gt; min_scale = 
++                            rule_tag.second.get_optional&lt;double&gt;(&quot;MinScaleDenominator&quot;);
++                        if (min_scale)
++                        {
++                            rule.set_min_scale(*min_scale);
++                        }
++                        
++                        boost::optional&lt;double&gt; max_scale = 
++                            rule_tag.second.get_optional&lt;double&gt;(&quot;MaxScaleDenominator&quot;);
++                        if (max_scale) 
++                        {
++                            rule.set_max_scale(*max_scale);   
++                        }    
++                        
++                        BOOST_FOREACH(ptree::value_type &amp; sym, rule_tag.second)
++                        {
++                            if ( sym.first == &quot;PointSymbolizer&quot;)
++                            {
++                                std::cout &lt;&lt; sym.first &lt;&lt; &quot;\n&quot;;
++                            } 
++                            else  if ( sym.first == &quot;LineSymbolizer&quot;)
++                            {
++                                stroke strk;
++                                BOOST_FOREACH (ptree::value_type &amp; css, sym.second)
++                                {
++                                    std::string css_name  = 
++                                        css.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.name&quot;);
++                                    std::string data = css.second.data();
++                                    if (css_name == &quot;stroke&quot;)
++                                    {
++                                        Color c = color_factory::from_string(css.second.data().c_str());
++                                        strk.set_color(c);
++                                    }
++                                    else if (css_name == &quot;stroke-width&quot;)
++                                    {
++                                        try 
++                                        {
++                                            float width = lexical_cast&lt;float&gt;(data);
++                                            strk.set_width(width);
++                                        }
++                                        catch (bad_lexical_cast &amp; ex)
++                                        {
++                                            std::clog &lt;&lt; ex.what() &lt;&lt; &quot;\n&quot;;
++                                        }
++                                    }
++                                    else if (css_name == &quot;stroke-opacity&quot;)
++                                    {
++                                        try 
++                                        {
++                                            float opacity = lexical_cast&lt;float&gt;(data);
++                                            strk.set_opacity(opacity);
++                                        }
++                                        catch (bad_lexical_cast &amp; ex)
++                                        {
++                                            std::clog &lt;&lt; ex.what() &lt;&lt; &quot;\n&quot;;
++                                        }
++                                    }
++                                    else if (css_name == &quot;stroke-linejoin&quot;)
++                                    {
++                                         if (&quot;miter&quot; == data)
++                                         {
++                                             strk.set_line_join(mapnik::MITER_JOIN);
++                                         }
++                                         else if (&quot;round&quot; == data)
++                                         {
++                                             strk.set_line_join(mapnik::ROUND_JOIN);
++                                         }
++                                         else if (&quot;bevel&quot; == data)
++                                         {
++                                             strk.set_line_join(mapnik::BEVEL_JOIN);
++                                         }
++                                    }
++                                    else if (css_name == &quot;stroke-linecap&quot;)
++                                    {
++                                        if (&quot;round&quot; == data)
++                                        {
++                                            strk.set_line_cap(mapnik::ROUND_CAP);
++                                        }
++                                        else if (&quot;butt&quot; == data)
++                                        {
++                                            strk.set_line_cap(mapnik::BUTT_CAP);
++                                        }
++                                        else if (&quot;square&quot; == data)
++                                        {
++                                            strk.set_line_cap(mapnik::SQUARE_CAP);
++                                        }
++                                    }
++                                    else if (css_name == &quot;stroke-dasharray&quot;)
++                                    {
++                                        tokenizer&lt;&gt; tok (data);
++                                        std::vector&lt;float&gt; dash_array;
++                                        for (tokenizer&lt;&gt;::iterator itr = tok.begin(); itr != tok.end(); ++itr)
++                                        {
++                                            try 
++                                            {
++                                                float f = boost::lexical_cast&lt;float&gt;(*itr);
++                                                dash_array.push_back(f);
++                                            }
++                                            catch ( boost::bad_lexical_cast &amp; ex)
++                                            {
++                                                std::clog &lt;&lt; ex.what() &lt;&lt; &quot;\n&quot;;
++                                            }
++                                        }
++                                        if (dash_array.size())
++                                        {
++                                            size_t size = dash_array.size();
++                                            if ( size % 2) 
++                                            { 
++                                                for (size_t i=0; i &lt; size ;++i)
++                                                {
++                                                    dash_array.push_back(dash_array[i]);
++                                                }
++                                            }
++                                            std::vector&lt;float&gt;::const_iterator pos = dash_array.begin();
++                                            while (pos != dash_array.end())
++                                            {
++                                                strk.add_dash(*pos,*(pos + 1));
++                                                pos +=2;
++                                            }
++                                        }
++                                    }
++                                }
++                                rule.append(line_symbolizer(strk));
++                            } 
++                            else if ( sym.first == &quot;PolygonSymbolizer&quot;)
++                            {
++                                polygon_symbolizer poly_sym;
++                                BOOST_FOREACH (ptree::value_type &amp; css, sym.second)
++                                {
++                                    std::string css_name  = 
++                                        css.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.name&quot;);
++                                    std::string data = css.second.data();
++                                    if (css_name == &quot;fill&quot;)
++                                    {
++                                        Color c = color_factory::from_string(css.second.data().c_str());
++                                        poly_sym.set_fill(c);
++                                    }
++                                    else if (css_name == &quot;fill-opacity&quot;)
++                                    {
++                                        try 
++                                        {
++                                            float opacity = lexical_cast&lt;float&gt;(data);
++                                            poly_sym.set_opacity(opacity);
++                                        }
++                                        catch (bad_lexical_cast &amp; ex)
++                                        {
++                                            std::clog &lt;&lt; ex.what() &lt;&lt; &quot;\n&quot;;
++                                        }
++                                    }
++                                }
++                                rule.append(poly_sym);
++                            }
++                            else if ( sym.first == &quot;TextSymbolizer&quot;)
++                            {
++                                std::cout &lt;&lt; sym.first &lt;&lt; &quot;\n&quot;;
++                            } 
++                            else if ( sym.first == &quot;RasterSymbolizer&quot;)
++                            {
++                                rule.append(raster_symbolizer());
++                            } 
++                        } 
++                        
++                        style.add_rule(rule);
++                    }
++                }
++                
++                map.insert_style(name, style);
++                
++            }
++            else if (v.first == &quot;Layer&quot;)
++            {
++                
++                std::string name = v.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.name&quot;,&quot;&quot;);
++                Layer lyr(name);
++                
++                boost::optional&lt;std::string&gt; status = 
++                    v.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.status&quot;);
++                
++                if (status &amp;&amp; *status == &quot;off&quot;)
++                {
++                    lyr.setActive(false);
++                }
++                
++                
++                BOOST_FOREACH (ptree::value_type &amp; child, v.second)
++                {
++                    if (child.first == &quot;StyleName&quot;)
++                    {
++                        lyr.add_style(child.second.data());
++                    }
++                    else if (child.first == &quot;Datasource&quot;)
++                    {
++                        parameters params;
++                        BOOST_FOREACH (ptree::value_type &amp; param_tag, child.second)
++                        {
++
++                            if (param_tag.first == &quot;Parameter&quot;)
++                            {
++                                std::string name = param_tag.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.name&quot;);
++                                std::string value = param_tag.second.data();
++                                std::clog &lt;&lt; &quot;name = &quot; &lt;&lt; name &lt;&lt; &quot; value = &quot; &lt;&lt; value &lt;&lt; &quot;\n&quot;;
++                                params[name] = value; 
++                            }
++                        }
++                        //now we're ready to create datasource 
++                        boost::shared_ptr&lt;datasource&gt; ds = datasource_cache::instance()-&gt;create(params);
++                        lyr.set_datasource(ds);
++                    }
++                }
++                map.addLayer(lyr);
++            }
++        }
++    }   
++}
+
+Added: trunk/src/save_map.cpp
+===================================================================
+--- trunk/src/save_map.cpp	2006-10-03 08:37:34 UTC (rev 302)
++++ trunk/src/save_map.cpp	2006-10-03 08:39:43 UTC (rev 303)
+@@ -0,0 +1,50 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++
++#include &lt;iostream&gt;
++
++#include &lt;boost/foreach.hpp&gt;
++//#include &lt;boost/optional.hpp&gt;
++#include &lt;boost/algorithm/string.hpp&gt;
++#include &lt;boost/lexical_cast.hpp&gt;
++#include &lt;boost/tokenizer.hpp&gt;
++#include &lt;boost/property_tree/ptree.hpp&gt;
++#include &lt;boost/property_tree/xml_parser.hpp&gt;
++
++//#include &quot;color.hpp&quot;
++//#include &quot;color_factory.hpp&quot;
++//#include &quot;filter_factory.hpp&quot;
++//#include &quot;layer.hpp&quot;
++//#include &quot;datasource_cache.hpp&quot;
++//#include &quot;save_map.hpp&quot;
++
++namespace mapnik 
++{
++    void save_map(Map &amp; map, std::string const&amp; filename)
++    {
++        using boost::property_tree::ptree;
++        ptree pt;
++        // TODO
++        write_xml(filename,pt);
++    }
++}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000187.html">[Mapnik-svn] r302 - trunk
+</A></li>
+	<LI>Next message: <A HREF="000189.html">[Mapnik-svn] r304 - in trunk: bindings/python demo/c++ demo/python	include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#188">[ date ]</a>
+              <a href="thread.html#188">[ thread ]</a>
+              <a href="subject.html#188">[ subject ]</a>
+              <a href="author.html#188">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

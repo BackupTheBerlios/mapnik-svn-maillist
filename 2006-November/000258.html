@@ -1,0 +1,370 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r373 - in trunk: bindings/python include/mapnik src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-November/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r373%20-%20in%20trunk%3A%20bindings/python%20include/mapnik%20src&In-Reply-To=%3C200611171407.kAHE7gS0015486%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000257.html">
+   <LINK REL="Next"  HREF="000259.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r373 - in trunk: bindings/python include/mapnik src</H1>
+    <B>vspader10east at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r373%20-%20in%20trunk%3A%20bindings/python%20include/mapnik%20src&In-Reply-To=%3C200611171407.kAHE7gS0015486%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r373 - in trunk: bindings/python include/mapnik src">vspader10east at mail.berlios.de
+       </A><BR>
+    <I>Fri Nov 17 15:07:42 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000257.html">[Mapnik-svn] r372 - trunk/include/mapnik
+</A></li>
+        <LI>Next message: <A HREF="000259.html">[Mapnik-svn] r374 - trunk/plugins/input/postgis
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#258">[ date ]</a>
+              <a href="thread.html#258">[ thread ]</a>
+              <a href="subject.html#258">[ subject ]</a>
+              <a href="author.html#258">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: vspader10east
+Date: 2006-11-17 15:07:41 +0100 (Fri, 17 Nov 2006)
+New Revision: 373
+
+Modified:
+   trunk/bindings/python/mapnik_shield_symbolizer.cpp
+   trunk/bindings/python/mapnik_text_symbolizer.cpp
+   trunk/include/mapnik/placement_finder.hpp
+   trunk/include/mapnik/shield_symbolizer.hpp
+   trunk/include/mapnik/text_symbolizer.hpp
+   trunk/src/agg_renderer.cpp
+   trunk/src/placement_finder.cpp
+   trunk/src/shield_symbolizer.cpp
+   trunk/src/text_symbolizer.cpp
+Log:
+Added avoid_edges property to shield and text symbolizers.
+If this is enabled, no shield/text symbolizers will be cut off
+at the edges of the image.
+
+
+
+Modified: trunk/bindings/python/mapnik_shield_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_shield_symbolizer.cpp	2006-11-17 02:02:29 UTC (rev 372)
++++ trunk/bindings/python/mapnik_shield_symbolizer.cpp	2006-11-17 14:07:41 UTC (rev 373)
+@@ -34,6 +34,9 @@
+                              init&lt;&gt;(&quot;Default Shield Symbolizer - 4x4 black square&quot;))
+         .def (init&lt; std::string const&amp;, std::string const&amp;, unsigned, mapnik::Color const&amp;,
+               std::string const&amp;, std::string const&amp;,unsigned,unsigned&gt;(&quot;TODO&quot;))
++        .add_property(&quot;avoid_edges&quot;,
++                      &amp;shield_symbolizer::get_avoid_edges,
++                      &amp;shield_symbolizer::set_avoid_edges)
+         ;
+     
+ }
+
+Modified: trunk/bindings/python/mapnik_text_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_text_symbolizer.cpp	2006-11-17 02:02:29 UTC (rev 372)
++++ trunk/bindings/python/mapnik_text_symbolizer.cpp	2006-11-17 14:07:41 UTC (rev 373)
+@@ -58,6 +58,9 @@
+         .add_property(&quot;max_char_angle_delta&quot;,
+                       &amp;text_symbolizer::get_max_char_angle_delta,
+                       &amp;text_symbolizer::set_max_char_angle_delta)
++        .add_property(&quot;avoid_edges&quot;,
++                      &amp;text_symbolizer::get_avoid_edges,
++                      &amp;text_symbolizer::set_avoid_edges)
+         .def(&quot;set_label_placement&quot;,&amp;text_symbolizer::set_label_placement,
+              &quot;Set the placement of the label&quot;)
+ 	;
+
+Modified: trunk/include/mapnik/placement_finder.hpp
+===================================================================
+--- trunk/include/mapnik/placement_finder.hpp	2006-11-17 02:02:29 UTC (rev 372)
++++ trunk/include/mapnik/placement_finder.hpp	2006-11-17 14:07:41 UTC (rev 373)
+@@ -91,6 +91,8 @@
+     int label_spacing; // distance between repeated labels on a single geometry
+ 
+     double max_char_angle_delta;
++    
++    bool avoid_edges;
+   };
+ 
+ 
+@@ -98,7 +100,8 @@
+   class placement_finder : boost::noncopyable
+   {
+   public:
+-    placement_finder(Envelope&lt;double&gt; e);
++    //E is the dimensions of the map, buffer is the buffer used for collission detection.
++    placement_finder(Envelope&lt;double&gt; e, unsigned buffer);
+   
+     bool find_placements(placement *p);
+     
+@@ -111,8 +114,8 @@
+ 
+     void update_detector(placement *p);
+   
++    Envelope&lt;double&gt; dimensions_;
+     label_collision_detector3 detector_;
+-
+   };
+   
+ }
+
+Modified: trunk/include/mapnik/shield_symbolizer.hpp
+===================================================================
+--- trunk/include/mapnik/shield_symbolizer.hpp	2006-11-17 02:02:29 UTC (rev 372)
++++ trunk/include/mapnik/shield_symbolizer.hpp	2006-11-17 14:07:41 UTC (rev 373)
+@@ -53,6 +53,8 @@
+         void set_allow_overlap(bool overlap);
+         bool get_allow_overlap() const;
+         
++        void set_avoid_edges(bool avoid);
++        bool get_avoid_edges() const;
+     private:
+         std::string name_;
+         std::string face_name_;
+@@ -60,6 +62,7 @@
+         Color fill_;
+         boost::shared_ptr&lt;ImageData32&gt; symbol_;
+         bool overlap_;
++        bool avoid_edges_;
+     };
+ }
+ 
+
+Modified: trunk/include/mapnik/text_symbolizer.hpp
+===================================================================
+--- trunk/include/mapnik/text_symbolizer.hpp	2006-11-17 02:02:29 UTC (rev 372)
++++ trunk/include/mapnik/text_symbolizer.hpp	2006-11-17 14:07:41 UTC (rev 373)
+@@ -64,6 +64,9 @@
+         position const&amp; get_anchor() const;	
+         void set_displacement(double x, double y);
+         position const&amp; get_displacement() const;
++
++        void set_avoid_edges(bool avoid);
++        bool get_avoid_edges() const;
+     private:
+         std::string name_;
+         std::string face_name_;
+@@ -78,6 +81,7 @@
+         label_placement_e label_p_;
+         position anchor_;
+         position displacement_;
++        bool avoid_edges_;
+     };
+ }
+ 
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-11-17 02:02:29 UTC (rev 372)
++++ trunk/src/agg_renderer.cpp	2006-11-17 14:07:41 UTC (rev 373)
+@@ -95,7 +95,7 @@
+         : feature_style_processor&lt;agg_renderer&gt;(m),
+           pixmap_(pixmap),
+           t_(m.getWidth(),m.getHeight(),m.getCurrentExtent()),
+-          finder_(Envelope&lt;double&gt;(-64 ,-64, m.getWidth() + 64 ,m.getHeight() + 64)),
++          finder_(Envelope&lt;double&gt;(0 ,0, m.getWidth(), m.getHeight()), 64),
+           point_detector_(Envelope&lt;double&gt;(-64 ,-64, m.getWidth() + 64 ,m.getHeight() + 64))
+     {
+         Color const&amp; bg=m.getBackground();
+@@ -345,7 +345,8 @@
+                     ren.get_string_info(text, &amp;info);
+                  
+                     placement text_placement(&amp;info, &amp;t_, &amp;prj_trans, geom, std::pair&lt;double, double&gt;(w, h) );
+-                    
++                    text_placement.avoid_edges = sym.get_avoid_edges();
++                  
+                     bool found = finder_.find_placements(&amp;text_placement);
+                     if (!found) {
+                       return;
+@@ -509,6 +510,7 @@
+                     text_placement.wrap_width = sym.get_wrap_width();
+                     text_placement.label_spacing = sym.get_label_spacing();
+                     text_placement.max_char_angle_delta = sym.get_max_char_angle_delta();
++                    text_placement.avoid_edges = sym.get_avoid_edges();
+                   
+                     bool found = finder_.find_placements(&amp;text_placement);
+                     if (!found) {
+
+Modified: trunk/src/placement_finder.cpp
+===================================================================
+--- trunk/src/placement_finder.cpp	2006-11-17 02:02:29 UTC (rev 372)
++++ trunk/src/placement_finder.cpp	2006-11-17 14:07:41 UTC (rev 373)
+@@ -40,14 +40,15 @@
+ 
+ namespace mapnik
+ {
++    //For shields
+     placement::placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, std::pair&lt;double, double&gt; dimensions_)
+-        : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(point_placement), dimensions(dimensions_), has_dimensions(true), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0), wrap_width(0), text_ratio(0), label_spacing(0), max_char_angle_delta(0.0)
++        : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(point_placement), dimensions(dimensions_), has_dimensions(true), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0), wrap_width(0), text_ratio(0), label_spacing(0), max_char_angle_delta(0.0), avoid_edges(false)
+     {
+     }
+ 
+     //For text
+     placement::placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, label_placement_e placement_)
+-        : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(placement_), has_dimensions(false), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0), wrap_width(0), text_ratio(0), label_spacing(0), max_char_angle_delta(0.0)
++        : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(placement_), has_dimensions(false), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0), wrap_width(0), text_ratio(0), label_spacing(0), max_char_angle_delta(0.0), avoid_edges(false)
+     {
+     }
+   
+@@ -136,8 +137,8 @@
+   
+   
+   
+-    placement_finder::placement_finder(Envelope&lt;double&gt; e)
+-      : detector_(e)
++    placement_finder::placement_finder(Envelope&lt;double&gt; e, unsigned buffer)
++      : dimensions_(e), detector_(Envelope&lt;double&gt;(e.minx() - buffer, e.miny() - buffer, e.maxx() + buffer, e.maxy() + buffer))
+     {
+     }
+ 
+@@ -476,6 +477,11 @@
+             {
+                 return false;
+             }
++            
++            if (p-&gt;avoid_edges &amp;&amp; !dimensions_.contains(e))
++            {
++                return false;
++            }
+         
+             p-&gt;envelopes.push(e);
+ 
+@@ -635,6 +641,11 @@
+                 {
+                     return false;
+                 }
++
++                if (p-&gt;avoid_edges &amp;&amp; !dimensions_.contains(e))
++                {
++                    return false;
++                }
+                 
+                 p-&gt;envelopes.push(e);
+             }
+
+Modified: trunk/src/shield_symbolizer.cpp
+===================================================================
+--- trunk/src/shield_symbolizer.cpp	2006-11-17 02:02:29 UTC (rev 372)
++++ trunk/src/shield_symbolizer.cpp	2006-11-17 14:07:41 UTC (rev 373)
+@@ -50,7 +50,7 @@
+                           std::string const&amp; file,
+                           std::string const&amp; type,
+                           unsigned width,unsigned height)
+-        : name_(name), face_name_(face_name), size_(size), fill_(fill), symbol_(new ImageData32(width,height))
++        : name_(name), face_name_(face_name), size_(size), fill_(fill), symbol_(new ImageData32(width,height)), avoid_edges_(false)
+     {
+         try 
+         {
+@@ -72,7 +72,8 @@
+           size_(rhs.size_),
+           fill_(rhs.fill_),
+           symbol_(rhs.symbol_),
+-          overlap_(rhs.overlap_)
++          overlap_(rhs.overlap_),
++          avoid_edges_(rhs.avoid_edges_)
+     {}
+     
+     void shield_symbolizer::set_data( boost::shared_ptr&lt;ImageData32&gt; symbol)
+@@ -114,5 +115,15 @@
+     {
+         return fill_;
+     }
++    
++    bool shield_symbolizer::get_avoid_edges() const
++    {
++        return avoid_edges_;
++    }
++    
++    void shield_symbolizer::set_avoid_edges(bool avoid)
++    {
++        avoid_edges_ = avoid;
++    }
+ }
+ 
+
+Modified: trunk/src/text_symbolizer.cpp
+===================================================================
+--- trunk/src/text_symbolizer.cpp	2006-11-17 02:02:29 UTC (rev 372)
++++ trunk/src/text_symbolizer.cpp	2006-11-17 14:07:41 UTC (rev 373)
+@@ -42,7 +42,8 @@
+ 	  halo_radius_(0),
+ 	  label_p_(point_placement),
+ 	  anchor_(0.0,0.5),
+-	  displacement_(0.0,0.0)  {}
++	  displacement_(0.0,0.0),
++    avoid_edges_(false) {}
+            
+     text_symbolizer::text_symbolizer(text_symbolizer const&amp; rhs)
+         : name_(rhs.name_),
+@@ -57,7 +58,8 @@
+           halo_radius_(rhs.halo_radius_),
+           label_p_(rhs.label_p_),
+           anchor_(rhs.anchor_),
+-          displacement_(rhs.displacement_) {}
++          displacement_(rhs.displacement_),
++          avoid_edges_(rhs.avoid_edges_) {}
+ 
+     text_symbolizer&amp; text_symbolizer::operator=(text_symbolizer const&amp; other)
+     {
+@@ -76,6 +78,8 @@
+         label_p_ = other.label_p_;
+         anchor_ = other.anchor_;
+         displacement_ = other.displacement_; 
++        avoid_edges_ = other.avoid_edges_;
++        
+         return *this;
+     } 
+ 
+@@ -187,4 +191,14 @@
+     {
+         return displacement_;
+     }
++    
++    bool text_symbolizer::get_avoid_edges() const
++    {
++        return avoid_edges_;
++    }
++    
++    void text_symbolizer::set_avoid_edges(bool avoid)
++    {
++        avoid_edges_ = avoid;
++    }
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000257.html">[Mapnik-svn] r372 - trunk/include/mapnik
+</A></li>
+	<LI>Next message: <A HREF="000259.html">[Mapnik-svn] r374 - trunk/plugins/input/postgis
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#258">[ date ]</a>
+              <a href="thread.html#258">[ thread ]</a>
+              <a href="subject.html#258">[ subject ]</a>
+              <a href="author.html#258">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

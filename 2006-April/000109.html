@@ -1,0 +1,430 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r224 - in trunk/demo: data python
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-April/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r224%20-%20in%20trunk/demo%3A%20data%20python&In-Reply-To=%3C200604062319.k36NJe2f031403%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000108.html">
+   <LINK REL="Next"  HREF="000110.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r224 - in trunk/demo: data python</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r224%20-%20in%20trunk/demo%3A%20data%20python&In-Reply-To=%3C200604062319.k36NJe2f031403%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r224 - in trunk/demo: data python">jdoyon at berlios.de
+       </A><BR>
+    <I>Fri Apr  7 01:19:40 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000108.html">[Mapnik-svn] r223 - in trunk: include src
+</A></li>
+        <LI>Next message: <A HREF="000110.html">[Mapnik-svn] r225 - in trunk/bindings/python/mapnik: . ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#109">[ date ]</a>
+              <a href="thread.html#109">[ thread ]</a>
+              <a href="subject.html#109">[ subject ]</a>
+              <a href="author.html#109">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-04-07 01:18:44 +0200 (Fri, 07 Apr 2006)
+New Revision: 224
+
+Added:
+   trunk/demo/data/boundaries.prj
+   trunk/demo/data/boundaries.sbn
+   trunk/demo/data/boundaries.sbx
+   trunk/demo/data/boundaries.shp.xml
+   trunk/demo/data/boundaries_l.prj
+   trunk/demo/data/boundaries_l.sbn
+   trunk/demo/data/boundaries_l.sbx
+   trunk/demo/data/boundaries_l.shp.xml
+   trunk/demo/data/new/
+   trunk/demo/data/ontdrainage.prj
+   trunk/demo/data/ontdrainage.sbn
+   trunk/demo/data/ontdrainage.sbx
+   trunk/demo/data/ontdrainage.shp.xml
+   trunk/demo/data/popplaces.prj
+   trunk/demo/data/popplaces.sbn
+   trunk/demo/data/popplaces.sbx
+   trunk/demo/data/popplaces.shp.xml
+   trunk/demo/data/qcdrainage.prj
+   trunk/demo/data/qcdrainage.sbn
+   trunk/demo/data/qcdrainage.sbx
+   trunk/demo/data/qcdrainage.shp.xml
+   trunk/demo/data/roads.prj
+   trunk/demo/data/roads.sbn
+   trunk/demo/data/roads.sbx
+   trunk/demo/data/roads.shp.xml
+Modified:
+   trunk/demo/data/boundaries.dbf
+   trunk/demo/data/boundaries.shp
+   trunk/demo/data/boundaries.shx
+   trunk/demo/data/boundaries_l.dbf
+   trunk/demo/data/boundaries_l.shp
+   trunk/demo/data/boundaries_l.shx
+   trunk/demo/data/ontdrainage.dbf
+   trunk/demo/data/ontdrainage.shp
+   trunk/demo/data/ontdrainage.shx
+   trunk/demo/data/popplaces.dbf
+   trunk/demo/data/popplaces.shp
+   trunk/demo/data/popplaces.shx
+   trunk/demo/data/qcdrainage.dbf
+   trunk/demo/data/qcdrainage.shp
+   trunk/demo/data/qcdrainage.shx
+   trunk/demo/data/roads.dbf
+   trunk/demo/data/roads.shp
+   trunk/demo/data/roads.shx
+   trunk/demo/python/rundemo.py
+Log:
+The data has been transformed to a slightly different projection (EPSG:42304).  Also full files are included for ESRI tools, in case someone wants to manipulate it further.
+
+Modified: trunk/demo/data/boundaries.dbf
+===================================================================
+(Binary files differ)
+
+Added: trunk/demo/data/boundaries.prj
+===================================================================
+--- trunk/demo/data/boundaries.prj	2006-04-05 08:27:45 UTC (rev 223)
++++ trunk/demo/data/boundaries.prj	2006-04-06 23:18:44 UTC (rev 224)
+@@ -0,0 +1 @@
++PROJCS[&quot;Atlas of Canada Lambert Conformal Conic&quot;,GEOGCS[&quot;GCS_North_American_1983&quot;,DATUM[&quot;D_North_American_1983&quot;,SPHEROID[&quot;GRS_1980&quot;,6378137.0,298.257222101]],PRIMEM[&quot;Greenwich&quot;,0.0],UNIT[&quot;Degree&quot;,0.0174532925199433]],PROJECTION[&quot;Lambert_Conformal_Conic&quot;],PARAMETER[&quot;False_Easting&quot;,0.0],PARAMETER[&quot;False_Northing&quot;,0.0],PARAMETER[&quot;Central_Meridian&quot;,-95.0],PARAMETER[&quot;Standard_Parallel_1&quot;,49.0],PARAMETER[&quot;Standard_Parallel_2&quot;,77.0],PARAMETER[&quot;Latitude_Of_Origin&quot;,49.0],UNIT[&quot;Meter&quot;,1.0]]
+\ No newline at end of file
+
+Added: trunk/demo/data/boundaries.sbn
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/demo/data/boundaries.sbn
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/demo/data/boundaries.sbx
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/demo/data/boundaries.sbx
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Modified: trunk/demo/data/boundaries.shp
+===================================================================
+(Binary files differ)
+
+Added: trunk/demo/data/boundaries.shp.xml
+===================================================================
+--- trunk/demo/data/boundaries.shp.xml	2006-04-05 08:27:45 UTC (rev 223)
++++ trunk/demo/data/boundaries.shp.xml	2006-04-06 23:18:44 UTC (rev 224)
+@@ -0,0 +1,3 @@
++&lt;?xml version=&quot;1.0&quot;?&gt;
++&lt;!--&lt;!DOCTYPE metadata SYSTEM &quot;<A HREF="http://www.esri.com/metadata/esriprof80.dtd">http://www.esri.com/metadata/esriprof80.dtd</A>&quot;&gt;--&gt;
++&lt;metadata xml:lang=&quot;en&quot;&gt;&lt;Esri&gt;&lt;CreaDate&gt;20060405&lt;/CreaDate&gt;&lt;CreaTime&gt;20435800&lt;/CreaTime&gt;&lt;SyncOnce&gt;TRUE&lt;/SyncOnce&gt;&lt;DataProperties&gt;&lt;lineage&gt;&lt;Process Name=&quot;Project_1&quot; ToolSource=&quot;C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\Project&quot; Date=&quot;20060405&quot; Time=&quot;202939&quot;&gt;Project Z:\mapnik-trunk\demo\data\boundaries.shp Z:\mapnik-trunk\demo\data\boundaries_Project.shp PROJCS['Canada_Lambert_Conformal_Conic',GEOGCS['GCS_North_American_1983',DATUM['D_North_American_1983',SPHEROID['GRS_1980',6378137.0,298.257222101]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Lambert_Conformal_Conic'],PARAMETER['False_Easting',0.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',-96.0],PARAMETER['Standard_Parallel_1',50.0],PARAMETER['Standard_Parallel_2',70.0],PARAMETER['Latitude_Of_Origin',40.0],UNIT['Meter',1.0]] #&lt;/Process&gt;&lt;Process Name=&quot;Rename_3&quot; ToolSource=&quot;C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\Rename&quot; !
+ Date=&quot;20060405&quot; Time=&quot;203122&quot;&gt;Rename Z:\mapnik-trunk\demo\data\boundaries_Project.shp Z:\mapnik-trunk\demo\data\boundaries.shp ShapeFile&lt;/Process&gt;&lt;Process Name=&quot;Rename_27&quot; ToolSource=&quot;C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\Rename&quot; Date=&quot;20060405&quot; Time=&quot;204652&quot;&gt;Rename Z:\mapnik-trunk\demo\data\boundaries_shp.shp Z:\mapnik-trunk\demo\data\boundaries.shp ShapeFile&lt;/Process&gt;&lt;/lineage&gt;&lt;/DataProperties&gt;&lt;MetaID&gt;{11E7D7C0-9F4D-4BB6-BFF8-F3FE77C30F38}&lt;/MetaID&gt;&lt;/Esri&gt;&lt;idinfo&gt;&lt;citation&gt;&lt;citeinfo&gt;&lt;onlink Sync=&quot;TRUE&quot;&gt;&lt;/onlink&gt;&lt;/citeinfo&gt;&lt;/citation&gt;&lt;/idinfo&gt;&lt;distInfo&gt;&lt;distributor&gt;&lt;distorTran&gt;&lt;onLineSrc&gt;&lt;linkage Sync=&quot;TRUE&quot;&gt;<A HREF="file://&lt;/linkage">file://&lt;/linkage</A>&gt;&lt;protocol Sync=&quot;TRUE&quot;&gt;Local Area Network&lt;/protocol&gt;&lt;/onLineSrc&gt;&lt;/distorTran&gt;&lt;/distributor&gt;&lt;/distInfo&gt;&lt;dataqual&gt;&lt;lineage&gt;&lt;procstep&gt;&lt;procdesc Sync=&quot;TRUE&quot;&gt;Dataset copied.&lt;/procdesc&gt;&lt;srcused Sync=&quot;TRUE&quot;&gt;&lt;/srcused&gt;&lt;date Sync=&quot;TRUE&quot;&gt;20060405&lt;/date&gt;&lt;time Sync=&quot;TRUE&quot;&gt;20435800&lt;/time&gt;&lt;/procstep&gt;&lt;/lineage&gt;&lt;/dataqual&gt;&lt;/metadata&gt;
+
+Modified: trunk/demo/data/boundaries.shx
+===================================================================
+(Binary files differ)
+
+Modified: trunk/demo/data/boundaries_l.dbf
+===================================================================
+(Binary files differ)
+
+Added: trunk/demo/data/boundaries_l.prj
+===================================================================
+--- trunk/demo/data/boundaries_l.prj	2006-04-05 08:27:45 UTC (rev 223)
++++ trunk/demo/data/boundaries_l.prj	2006-04-06 23:18:44 UTC (rev 224)
+@@ -0,0 +1 @@
++PROJCS[&quot;Atlas of Canada Lambert Conformal Conic&quot;,GEOGCS[&quot;GCS_North_American_1983&quot;,DATUM[&quot;D_North_American_1983&quot;,SPHEROID[&quot;GRS_1980&quot;,6378137.0,298.257222101]],PRIMEM[&quot;Greenwich&quot;,0.0],UNIT[&quot;Degree&quot;,0.0174532925199433]],PROJECTION[&quot;Lambert_Conformal_Conic&quot;],PARAMETER[&quot;False_Easting&quot;,0.0],PARAMETER[&quot;False_Northing&quot;,0.0],PARAMETER[&quot;Central_Meridian&quot;,-95.0],PARAMETER[&quot;Standard_Parallel_1&quot;,49.0],PARAMETER[&quot;Standard_Parallel_2&quot;,77.0],PARAMETER[&quot;Latitude_Of_Origin&quot;,49.0],UNIT[&quot;Meter&quot;,1.0]]
+\ No newline at end of file
+
+Added: trunk/demo/data/boundaries_l.sbn
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/demo/data/boundaries_l.sbn
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/demo/data/boundaries_l.sbx
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/demo/data/boundaries_l.sbx
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Modified: trunk/demo/data/boundaries_l.shp
+===================================================================
+(Binary files differ)
+
+Added: trunk/demo/data/boundaries_l.shp.xml
+===================================================================
+--- trunk/demo/data/boundaries_l.shp.xml	2006-04-05 08:27:45 UTC (rev 223)
++++ trunk/demo/data/boundaries_l.shp.xml	2006-04-06 23:18:44 UTC (rev 224)
+@@ -0,0 +1,3 @@
++&lt;?xml version=&quot;1.0&quot;?&gt;
++&lt;!--&lt;!DOCTYPE metadata SYSTEM &quot;<A HREF="http://www.esri.com/metadata/esriprof80.dtd">http://www.esri.com/metadata/esriprof80.dtd</A>&quot;&gt;--&gt;
++&lt;metadata xml:lang=&quot;en&quot;&gt;&lt;Esri&gt;&lt;CreaDate&gt;20060405&lt;/CreaDate&gt;&lt;CreaTime&gt;20435900&lt;/CreaTime&gt;&lt;SyncOnce&gt;TRUE&lt;/SyncOnce&gt;&lt;DataProperties&gt;&lt;lineage&gt;&lt;Process Name=&quot;Project_4&quot; ToolSource=&quot;C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\Project&quot; Date=&quot;20060405&quot; Time=&quot;203244&quot;&gt;Project Z:\mapnik-trunk\demo\data\boundaries_l.shp Z:\mapnik-trunk\demo\data\boundaries_l_Project.shp PROJCS['Canada_Lambert_Conformal_Conic',GEOGCS['GCS_North_American_1983',DATUM['D_North_American_1983',SPHEROID['GRS_1980',6378137.0,298.257222101]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Lambert_Conformal_Conic'],PARAMETER['False_Easting',0.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',-96.0],PARAMETER['Standard_Parallel_1',50.0],PARAMETER['Standard_Parallel_2',70.0],PARAMETER['Latitude_Of_Origin',40.0],UNIT['Meter',1.0]] #&lt;/Process&gt;&lt;Process Name=&quot;Rename_6&quot; ToolSource=&quot;C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\Rena!
+ me&quot; Date=&quot;20060405&quot; Time=&quot;203309&quot;&gt;Rename Z:\mapnik-trunk\demo\data\boundaries_l_Project.shp Z:\mapnik-trunk\demo\data\boundaries_l.shp ShapeFile&lt;/Process&gt;&lt;Process Name=&quot;Rename_26&quot; ToolSource=&quot;C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\Rename&quot; Date=&quot;20060405&quot; Time=&quot;204641&quot;&gt;Rename Z:\mapnik-trunk\demo\data\boundaries_l_shp.shp Z:\mapnik-trunk\demo\data\boundaries_l.shp ShapeFile&lt;/Process&gt;&lt;/lineage&gt;&lt;/DataProperties&gt;&lt;MetaID&gt;{6498D899-968E-419C-96BC-4A6039E0D319}&lt;/MetaID&gt;&lt;/Esri&gt;&lt;idinfo&gt;&lt;citation&gt;&lt;citeinfo&gt;&lt;onlink Sync=&quot;TRUE&quot;&gt;&lt;/onlink&gt;&lt;/citeinfo&gt;&lt;/citation&gt;&lt;/idinfo&gt;&lt;distInfo&gt;&lt;distributor&gt;&lt;distorTran&gt;&lt;onLineSrc&gt;&lt;linkage Sync=&quot;TRUE&quot;&gt;<A HREF="file://&lt;/linkage">file://&lt;/linkage</A>&gt;&lt;protocol Sync=&quot;TRUE&quot;&gt;Local Area Network&lt;/protocol&gt;&lt;/onLineSrc&gt;&lt;/distorTran&gt;&lt;/distributor&gt;&lt;/distInfo&gt;&lt;dataqual&gt;&lt;lineage&gt;&lt;procstep&gt;&lt;procdesc Sync=&quot;TRUE&quot;&gt;Dataset copied.&lt;/procdesc&gt;&lt;srcused Sync=&quot;TRUE&quot;&gt;&lt;/srcused&gt;&lt;date Sync=&quot;TRUE&quot;&gt;20060405&lt;/date&gt;&lt;time Sync=&quot;TRUE&quot;&gt;20435900&lt;/time&gt;&lt;/procstep&gt;&lt;/lineage&gt;&lt;/dataqual&gt;&lt;/m!
+ etadata&gt;
+
+Modified: trunk/demo/data/boundaries_l.shx
+===================================================================
+(Binary files differ)
+
+Modified: trunk/demo/data/ontdrainage.dbf
+===================================================================
+(Binary files differ)
+
+Added: trunk/demo/data/ontdrainage.prj
+===================================================================
+--- trunk/demo/data/ontdrainage.prj	2006-04-05 08:27:45 UTC (rev 223)
++++ trunk/demo/data/ontdrainage.prj	2006-04-06 23:18:44 UTC (rev 224)
+@@ -0,0 +1 @@
++PROJCS[&quot;Atlas of Canada Lambert Conformal Conic&quot;,GEOGCS[&quot;GCS_North_American_1983&quot;,DATUM[&quot;D_North_American_1983&quot;,SPHEROID[&quot;GRS_1980&quot;,6378137.0,298.257222101]],PRIMEM[&quot;Greenwich&quot;,0.0],UNIT[&quot;Degree&quot;,0.0174532925199433]],PROJECTION[&quot;Lambert_Conformal_Conic&quot;],PARAMETER[&quot;False_Easting&quot;,0.0],PARAMETER[&quot;False_Northing&quot;,0.0],PARAMETER[&quot;Central_Meridian&quot;,-95.0],PARAMETER[&quot;Standard_Parallel_1&quot;,49.0],PARAMETER[&quot;Standard_Parallel_2&quot;,77.0],PARAMETER[&quot;Latitude_Of_Origin&quot;,49.0],UNIT[&quot;Meter&quot;,1.0]]
+\ No newline at end of file
+
+Added: trunk/demo/data/ontdrainage.sbn
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/demo/data/ontdrainage.sbn
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/demo/data/ontdrainage.sbx
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/demo/data/ontdrainage.sbx
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Modified: trunk/demo/data/ontdrainage.shp
+===================================================================
+(Binary files differ)
+
+Added: trunk/demo/data/ontdrainage.shp.xml
+===================================================================
+--- trunk/demo/data/ontdrainage.shp.xml	2006-04-05 08:27:45 UTC (rev 223)
++++ trunk/demo/data/ontdrainage.shp.xml	2006-04-06 23:18:44 UTC (rev 224)
+@@ -0,0 +1,3 @@
++&lt;?xml version=&quot;1.0&quot;?&gt;
++&lt;!--&lt;!DOCTYPE metadata SYSTEM &quot;<A HREF="http://www.esri.com/metadata/esriprof80.dtd">http://www.esri.com/metadata/esriprof80.dtd</A>&quot;&gt;--&gt;
++&lt;metadata xml:lang=&quot;en&quot;&gt;&lt;Esri&gt;&lt;CreaDate&gt;20060405&lt;/CreaDate&gt;&lt;CreaTime&gt;20440100&lt;/CreaTime&gt;&lt;SyncOnce&gt;TRUE&lt;/SyncOnce&gt;&lt;DataProperties&gt;&lt;lineage&gt;&lt;Process Name=&quot;Project_7&quot; ToolSource=&quot;C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\Project&quot; Date=&quot;20060405&quot; Time=&quot;203436&quot;&gt;Project Z:\mapnik-trunk\demo\data\ontdrainage.shp Z:\mapnik-trunk\demo\data\ontdrainage_Project.shp PROJCS['Canada_Lambert_Conformal_Conic',GEOGCS['GCS_North_American_1983',DATUM['D_North_American_1983',SPHEROID['GRS_1980',6378137.0,298.257222101]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Lambert_Conformal_Conic'],PARAMETER['False_Easting',0.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',-96.0],PARAMETER['Standard_Parallel_1',50.0],PARAMETER['Standard_Parallel_2',70.0],PARAMETER['Latitude_Of_Origin',40.0],UNIT['Meter',1.0]] #&lt;/Process&gt;&lt;Process Name=&quot;Rename_9&quot; ToolSource=&quot;C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\Rename!
+ &quot; Date=&quot;20060405&quot; Time=&quot;203518&quot;&gt;Rename Z:\mapnik-trunk\demo\data\ontdrainage_Project.shp Z:\mapnik-trunk\demo\data\ontdrainage.shp ShapeFile&lt;/Process&gt;&lt;Process Name=&quot;Rename_28&quot; ToolSource=&quot;C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\Rename&quot; Date=&quot;20060405&quot; Time=&quot;204707&quot;&gt;Rename Z:\mapnik-trunk\demo\data\ontdrainage_shp.shp Z:\mapnik-trunk\demo\data\ontdrainage.shp ShapeFile&lt;/Process&gt;&lt;/lineage&gt;&lt;/DataProperties&gt;&lt;MetaID&gt;{FB3824F8-C9DD-41CD-950D-7CDE493F1C80}&lt;/MetaID&gt;&lt;/Esri&gt;&lt;idinfo&gt;&lt;citation&gt;&lt;citeinfo&gt;&lt;onlink Sync=&quot;TRUE&quot;&gt;&lt;/onlink&gt;&lt;/citeinfo&gt;&lt;/citation&gt;&lt;/idinfo&gt;&lt;distInfo&gt;&lt;distributor&gt;&lt;distorTran&gt;&lt;onLineSrc&gt;&lt;linkage Sync=&quot;TRUE&quot;&gt;<A HREF="file://&lt;/linkage">file://&lt;/linkage</A>&gt;&lt;protocol Sync=&quot;TRUE&quot;&gt;Local Area Network&lt;/protocol&gt;&lt;/onLineSrc&gt;&lt;/distorTran&gt;&lt;/distributor&gt;&lt;/distInfo&gt;&lt;dataqual&gt;&lt;lineage&gt;&lt;procstep&gt;&lt;procdesc Sync=&quot;TRUE&quot;&gt;Dataset copied.&lt;/procdesc&gt;&lt;srcused Sync=&quot;TRUE&quot;&gt;&lt;/srcused&gt;&lt;date Sync=&quot;TRUE&quot;&gt;20060405&lt;/date&gt;&lt;time Sync=&quot;TRUE&quot;&gt;20440100&lt;/time&gt;&lt;/procstep&gt;&lt;/lineage&gt;&lt;/dataqual&gt;&lt;/metadat!
+ a&gt;
+
+Modified: trunk/demo/data/ontdrainage.shx
+===================================================================
+(Binary files differ)
+
+Modified: trunk/demo/data/popplaces.dbf
+===================================================================
+(Binary files differ)
+
+Added: trunk/demo/data/popplaces.prj
+===================================================================
+--- trunk/demo/data/popplaces.prj	2006-04-05 08:27:45 UTC (rev 223)
++++ trunk/demo/data/popplaces.prj	2006-04-06 23:18:44 UTC (rev 224)
+@@ -0,0 +1 @@
++PROJCS[&quot;Atlas of Canada Lambert Conformal Conic&quot;,GEOGCS[&quot;GCS_North_American_1983&quot;,DATUM[&quot;D_North_American_1983&quot;,SPHEROID[&quot;GRS_1980&quot;,6378137.0,298.257222101]],PRIMEM[&quot;Greenwich&quot;,0.0],UNIT[&quot;Degree&quot;,0.0174532925199433]],PROJECTION[&quot;Lambert_Conformal_Conic&quot;],PARAMETER[&quot;False_Easting&quot;,0.0],PARAMETER[&quot;False_Northing&quot;,0.0],PARAMETER[&quot;Central_Meridian&quot;,-95.0],PARAMETER[&quot;Standard_Parallel_1&quot;,49.0],PARAMETER[&quot;Standard_Parallel_2&quot;,77.0],PARAMETER[&quot;Latitude_Of_Origin&quot;,49.0],UNIT[&quot;Meter&quot;,1.0]]
+\ No newline at end of file
+
+Added: trunk/demo/data/popplaces.sbn
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/demo/data/popplaces.sbn
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/demo/data/popplaces.sbx
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/demo/data/popplaces.sbx
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Modified: trunk/demo/data/popplaces.shp
+===================================================================
+(Binary files differ)
+
+Added: trunk/demo/data/popplaces.shp.xml
+===================================================================
+--- trunk/demo/data/popplaces.shp.xml	2006-04-05 08:27:45 UTC (rev 223)
++++ trunk/demo/data/popplaces.shp.xml	2006-04-06 23:18:44 UTC (rev 224)
+@@ -0,0 +1,3 @@
++&lt;?xml version=&quot;1.0&quot;?&gt;
++&lt;!--&lt;!DOCTYPE metadata SYSTEM &quot;<A HREF="http://www.esri.com/metadata/esriprof80.dtd">http://www.esri.com/metadata/esriprof80.dtd</A>&quot;&gt;--&gt;
++&lt;metadata xml:lang=&quot;en&quot;&gt;&lt;Esri&gt;&lt;CreaDate&gt;20060405&lt;/CreaDate&gt;&lt;CreaTime&gt;20440200&lt;/CreaTime&gt;&lt;SyncOnce&gt;TRUE&lt;/SyncOnce&gt;&lt;DataProperties&gt;&lt;lineage&gt;&lt;Process Name=&quot;Project_10&quot; ToolSource=&quot;C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\Project&quot; Date=&quot;20060405&quot; Time=&quot;203711&quot;&gt;Project Z:\mapnik-trunk\demo\data\popplaces.shp Z:\mapnik-trunk\demo\data\popplaces_Project.shp PROJCS['Canada_Lambert_Conformal_Conic',GEOGCS['GCS_North_American_1983',DATUM['D_North_American_1983',SPHEROID['GRS_1980',6378137.0,298.257222101]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Lambert_Conformal_Conic'],PARAMETER['False_Easting',0.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',-96.0],PARAMETER['Standard_Parallel_1',50.0],PARAMETER['Standard_Parallel_2',70.0],PARAMETER['Latitude_Of_Origin',40.0],UNIT['Meter',1.0]] #&lt;/Process&gt;&lt;Process Name=&quot;Rename_12&quot; ToolSource=&quot;C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\Rename&quot; !
+ Date=&quot;20060405&quot; Time=&quot;203732&quot;&gt;Rename Z:\mapnik-trunk\demo\data\popplaces_Project.shp Z:\mapnik-trunk\demo\data\popplaces.shp ShapeFile&lt;/Process&gt;&lt;Process Name=&quot;Rename_29&quot; ToolSource=&quot;C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\Rename&quot; Date=&quot;20060405&quot; Time=&quot;204718&quot;&gt;Rename Z:\mapnik-trunk\demo\data\popplaces_shp.shp Z:\mapnik-trunk\demo\data\popplaces.shp ShapeFile&lt;/Process&gt;&lt;/lineage&gt;&lt;/DataProperties&gt;&lt;MetaID&gt;{976BB2B2-C17F-4944-BE7B-C454E656918D}&lt;/MetaID&gt;&lt;/Esri&gt;&lt;idinfo&gt;&lt;citation&gt;&lt;citeinfo&gt;&lt;onlink Sync=&quot;TRUE&quot;&gt;&lt;/onlink&gt;&lt;/citeinfo&gt;&lt;/citation&gt;&lt;/idinfo&gt;&lt;distInfo&gt;&lt;distributor&gt;&lt;distorTran&gt;&lt;onLineSrc&gt;&lt;linkage Sync=&quot;TRUE&quot;&gt;<A HREF="file://&lt;/linkage">file://&lt;/linkage</A>&gt;&lt;protocol Sync=&quot;TRUE&quot;&gt;Local Area Network&lt;/protocol&gt;&lt;/onLineSrc&gt;&lt;/distorTran&gt;&lt;/distributor&gt;&lt;/distInfo&gt;&lt;dataqual&gt;&lt;lineage&gt;&lt;procstep&gt;&lt;procdesc Sync=&quot;TRUE&quot;&gt;Dataset copied.&lt;/procdesc&gt;&lt;srcused Sync=&quot;TRUE&quot;&gt;&lt;/srcused&gt;&lt;date Sync=&quot;TRUE&quot;&gt;20060405&lt;/date&gt;&lt;time Sync=&quot;TRUE&quot;&gt;20440200&lt;/time&gt;&lt;/procstep&gt;&lt;/lineage&gt;&lt;/dataqual&gt;&lt;/metadata&gt;
+
+Modified: trunk/demo/data/popplaces.shx
+===================================================================
+(Binary files differ)
+
+Modified: trunk/demo/data/qcdrainage.dbf
+===================================================================
+(Binary files differ)
+
+Added: trunk/demo/data/qcdrainage.prj
+===================================================================
+--- trunk/demo/data/qcdrainage.prj	2006-04-05 08:27:45 UTC (rev 223)
++++ trunk/demo/data/qcdrainage.prj	2006-04-06 23:18:44 UTC (rev 224)
+@@ -0,0 +1 @@
++PROJCS[&quot;Atlas of Canada Lambert Conformal Conic&quot;,GEOGCS[&quot;GCS_North_American_1983&quot;,DATUM[&quot;D_North_American_1983&quot;,SPHEROID[&quot;GRS_1980&quot;,6378137.0,298.257222101]],PRIMEM[&quot;Greenwich&quot;,0.0],UNIT[&quot;Degree&quot;,0.0174532925199433]],PROJECTION[&quot;Lambert_Conformal_Conic&quot;],PARAMETER[&quot;False_Easting&quot;,0.0],PARAMETER[&quot;False_Northing&quot;,0.0],PARAMETER[&quot;Central_Meridian&quot;,-95.0],PARAMETER[&quot;Standard_Parallel_1&quot;,49.0],PARAMETER[&quot;Standard_Parallel_2&quot;,77.0],PARAMETER[&quot;Latitude_Of_Origin&quot;,49.0],UNIT[&quot;Meter&quot;,1.0]]
+\ No newline at end of file
+
+Added: trunk/demo/data/qcdrainage.sbn
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/demo/data/qcdrainage.sbn
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/demo/data/qcdrainage.sbx
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/demo/data/qcdrainage.sbx
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Modified: trunk/demo/data/qcdrainage.shp
+===================================================================
+(Binary files differ)
+
+Added: trunk/demo/data/qcdrainage.shp.xml
+===================================================================
+--- trunk/demo/data/qcdrainage.shp.xml	2006-04-05 08:27:45 UTC (rev 223)
++++ trunk/demo/data/qcdrainage.shp.xml	2006-04-06 23:18:44 UTC (rev 224)
+@@ -0,0 +1,3 @@
++&lt;?xml version=&quot;1.0&quot;?&gt;
++&lt;!--&lt;!DOCTYPE metadata SYSTEM &quot;<A HREF="http://www.esri.com/metadata/esriprof80.dtd">http://www.esri.com/metadata/esriprof80.dtd</A>&quot;&gt;--&gt;
++&lt;metadata xml:lang=&quot;en&quot;&gt;&lt;Esri&gt;&lt;CreaDate&gt;20060405&lt;/CreaDate&gt;&lt;CreaTime&gt;20440300&lt;/CreaTime&gt;&lt;SyncOnce&gt;TRUE&lt;/SyncOnce&gt;&lt;DataProperties&gt;&lt;lineage&gt;&lt;Process Name=&quot;Project_13&quot; ToolSource=&quot;C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\Project&quot; Date=&quot;20060405&quot; Time=&quot;203819&quot;&gt;Project Z:\mapnik-trunk\demo\data\qcdrainage.shp Z:\mapnik-trunk\demo\data\qcdrainage_Project.shp PROJCS['Canada_Lambert_Conformal_Conic',GEOGCS['GCS_North_American_1983',DATUM['D_North_American_1983',SPHEROID['GRS_1980',6378137.0,298.257222101]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Lambert_Conformal_Conic'],PARAMETER['False_Easting',0.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',-96.0],PARAMETER['Standard_Parallel_1',50.0],PARAMETER['Standard_Parallel_2',70.0],PARAMETER['Latitude_Of_Origin',40.0],UNIT['Meter',1.0]] #&lt;/Process&gt;&lt;Process Name=&quot;Rename_15&quot; ToolSource=&quot;C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\Rename!
+ &quot; Date=&quot;20060405&quot; Time=&quot;203837&quot;&gt;Rename Z:\mapnik-trunk\demo\data\qcdrainage_Project.shp Z:\mapnik-trunk\demo\data\qcdrainage.shp ShapeFile&lt;/Process&gt;&lt;Process Name=&quot;Rename_30&quot; ToolSource=&quot;C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\Rename&quot; Date=&quot;20060405&quot; Time=&quot;204729&quot;&gt;Rename Z:\mapnik-trunk\demo\data\qcdrainage_shp.shp Z:\mapnik-trunk\demo\data\qcdrainage.shp ShapeFile&lt;/Process&gt;&lt;/lineage&gt;&lt;/DataProperties&gt;&lt;MetaID&gt;{4C6B0852-DD15-4FB1-828C-E3FE1F5083FB}&lt;/MetaID&gt;&lt;/Esri&gt;&lt;idinfo&gt;&lt;citation&gt;&lt;citeinfo&gt;&lt;onlink Sync=&quot;TRUE&quot;&gt;&lt;/onlink&gt;&lt;/citeinfo&gt;&lt;/citation&gt;&lt;/idinfo&gt;&lt;distInfo&gt;&lt;distributor&gt;&lt;distorTran&gt;&lt;onLineSrc&gt;&lt;linkage Sync=&quot;TRUE&quot;&gt;<A HREF="file://&lt;/linkage">file://&lt;/linkage</A>&gt;&lt;protocol Sync=&quot;TRUE&quot;&gt;Local Area Network&lt;/protocol&gt;&lt;/onLineSrc&gt;&lt;/distorTran&gt;&lt;/distributor&gt;&lt;/distInfo&gt;&lt;dataqual&gt;&lt;lineage&gt;&lt;procstep&gt;&lt;procdesc Sync=&quot;TRUE&quot;&gt;Dataset copied.&lt;/procdesc&gt;&lt;srcused Sync=&quot;TRUE&quot;&gt;&lt;/srcused&gt;&lt;date Sync=&quot;TRUE&quot;&gt;20060405&lt;/date&gt;&lt;time Sync=&quot;TRUE&quot;&gt;20440300&lt;/time&gt;&lt;/procstep&gt;&lt;/lineage&gt;&lt;/dataqual&gt;&lt;/metadata&gt;
+
+Modified: trunk/demo/data/qcdrainage.shx
+===================================================================
+(Binary files differ)
+
+Modified: trunk/demo/data/roads.dbf
+===================================================================
+(Binary files differ)
+
+Added: trunk/demo/data/roads.prj
+===================================================================
+--- trunk/demo/data/roads.prj	2006-04-05 08:27:45 UTC (rev 223)
++++ trunk/demo/data/roads.prj	2006-04-06 23:18:44 UTC (rev 224)
+@@ -0,0 +1 @@
++PROJCS[&quot;Atlas of Canada Lambert Conformal Conic&quot;,GEOGCS[&quot;GCS_North_American_1983&quot;,DATUM[&quot;D_North_American_1983&quot;,SPHEROID[&quot;GRS_1980&quot;,6378137.0,298.257222101]],PRIMEM[&quot;Greenwich&quot;,0.0],UNIT[&quot;Degree&quot;,0.0174532925199433]],PROJECTION[&quot;Lambert_Conformal_Conic&quot;],PARAMETER[&quot;False_Easting&quot;,0.0],PARAMETER[&quot;False_Northing&quot;,0.0],PARAMETER[&quot;Central_Meridian&quot;,-95.0],PARAMETER[&quot;Standard_Parallel_1&quot;,49.0],PARAMETER[&quot;Standard_Parallel_2&quot;,77.0],PARAMETER[&quot;Latitude_Of_Origin&quot;,49.0],UNIT[&quot;Meter&quot;,1.0]]
+\ No newline at end of file
+
+Added: trunk/demo/data/roads.sbn
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/demo/data/roads.sbn
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/demo/data/roads.sbx
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/demo/data/roads.sbx
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Modified: trunk/demo/data/roads.shp
+===================================================================
+(Binary files differ)
+
+Added: trunk/demo/data/roads.shp.xml
+===================================================================
+--- trunk/demo/data/roads.shp.xml	2006-04-05 08:27:45 UTC (rev 223)
++++ trunk/demo/data/roads.shp.xml	2006-04-06 23:18:44 UTC (rev 224)
+@@ -0,0 +1,3 @@
++&lt;?xml version=&quot;1.0&quot;?&gt;
++&lt;!--&lt;!DOCTYPE metadata SYSTEM &quot;<A HREF="http://www.esri.com/metadata/esriprof80.dtd">http://www.esri.com/metadata/esriprof80.dtd</A>&quot;&gt;--&gt;
++&lt;metadata xml:lang=&quot;en&quot;&gt;&lt;Esri&gt;&lt;CreaDate&gt;20060405&lt;/CreaDate&gt;&lt;CreaTime&gt;20440600&lt;/CreaTime&gt;&lt;SyncOnce&gt;TRUE&lt;/SyncOnce&gt;&lt;DataProperties&gt;&lt;lineage&gt;&lt;Process Name=&quot;Project_16&quot; ToolSource=&quot;C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\Project&quot; Date=&quot;20060405&quot; Time=&quot;203859&quot;&gt;Project Z:\mapnik-trunk\demo\data\roads.shp Z:\mapnik-trunk\demo\data\roads_Project.shp PROJCS['Canada_Lambert_Conformal_Conic',GEOGCS['GCS_North_American_1983',DATUM['D_North_American_1983',SPHEROID['GRS_1980',6378137.0,298.257222101]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Lambert_Conformal_Conic'],PARAMETER['False_Easting',0.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',-96.0],PARAMETER['Standard_Parallel_1',50.0],PARAMETER['Standard_Parallel_2',70.0],PARAMETER['Latitude_Of_Origin',40.0],UNIT['Meter',1.0]] #&lt;/Process&gt;&lt;Process Name=&quot;Rename_18&quot; ToolSource=&quot;C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\Rename&quot; Date=&quot;20!
+ 060405&quot; Time=&quot;203920&quot;&gt;Rename Z:\mapnik-trunk\demo\data\roads_Project.shp Z:\mapnik-trunk\demo\data\roads.shp ShapeFile&lt;/Process&gt;&lt;Process Name=&quot;Rename_31&quot; ToolSource=&quot;C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\Rename&quot; Date=&quot;20060405&quot; Time=&quot;204740&quot;&gt;Rename Z:\mapnik-trunk\demo\data\roads_shp.shp Z:\mapnik-trunk\demo\data\roads.shp ShapeFile&lt;/Process&gt;&lt;/lineage&gt;&lt;/DataProperties&gt;&lt;MetaID&gt;{8D5C6277-B191-49E2-BF58-09F1C9803B91}&lt;/MetaID&gt;&lt;/Esri&gt;&lt;idinfo&gt;&lt;citation&gt;&lt;citeinfo&gt;&lt;onlink Sync=&quot;TRUE&quot;&gt;&lt;/onlink&gt;&lt;/citeinfo&gt;&lt;/citation&gt;&lt;/idinfo&gt;&lt;distInfo&gt;&lt;distributor&gt;&lt;distorTran&gt;&lt;onLineSrc&gt;&lt;linkage Sync=&quot;TRUE&quot;&gt;<A HREF="file://&lt;/linkage">file://&lt;/linkage</A>&gt;&lt;protocol Sync=&quot;TRUE&quot;&gt;Local Area Network&lt;/protocol&gt;&lt;/onLineSrc&gt;&lt;/distorTran&gt;&lt;/distributor&gt;&lt;/distInfo&gt;&lt;dataqual&gt;&lt;lineage&gt;&lt;procstep&gt;&lt;procdesc Sync=&quot;TRUE&quot;&gt;Dataset copied.&lt;/procdesc&gt;&lt;srcused Sync=&quot;TRUE&quot;&gt;&lt;/srcused&gt;&lt;date Sync=&quot;TRUE&quot;&gt;20060405&lt;/date&gt;&lt;time Sync=&quot;TRUE&quot;&gt;20440600&lt;/time&gt;&lt;/procstep&gt;&lt;/lineage&gt;&lt;/dataqual&gt;&lt;/metadata&gt;
+
+Modified: trunk/demo/data/roads.shx
+===================================================================
+(Binary files differ)
+
+Modified: trunk/demo/python/rundemo.py
+===================================================================
+--- trunk/demo/python/rundemo.py	2006-04-05 08:27:45 UTC (rev 223)
++++ trunk/demo/python/rundemo.py	2006-04-06 23:18:44 UTC (rev 224)
+@@ -288,7 +288,7 @@
+ 
+ # Set the initial extent of the map.
+ 
+-m.zoom_to_box(Envelope(7622019.99659767, 2966323.17001496, 7909470.44644348, 2755360.15422466))
++m.zoom_to_box(Envelope(1405120.04127408,-247003.813399447,1706357.31328276,-25098.593149577))
+ 
+ # Render two maps, one PNG, one JPEG.
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000108.html">[Mapnik-svn] r223 - in trunk: include src
+</A></li>
+	<LI>Next message: <A HREF="000110.html">[Mapnik-svn] r225 - in trunk/bindings/python/mapnik: . ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#109">[ date ]</a>
+              <a href="thread.html#109">[ thread ]</a>
+              <a href="subject.html#109">[ subject ]</a>
+              <a href="author.html#109">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

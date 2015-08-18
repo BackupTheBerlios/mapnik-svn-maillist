@@ -1,0 +1,444 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r140 - in trunk: bindings/python include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-February/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r140%20-%20in%20trunk%3A%20bindings/python%20include%20src&In-Reply-To=%3C200602050945.k159jqRF028555%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000025.html">
+   <LINK REL="Next"  HREF="000027.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r140 - in trunk: bindings/python include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r140%20-%20in%20trunk%3A%20bindings/python%20include%20src&In-Reply-To=%3C200602050945.k159jqRF028555%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r140 - in trunk: bindings/python include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Sun Feb  5 10:45:52 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000025.html">[Mapnik-svn] r139 - in trunk/agg: include src
+</A></li>
+        <LI>Next message: <A HREF="000027.html">[Mapnik-svn] r141 - in trunk: include plugins/input/shape
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#26">[ date ]</a>
+              <a href="thread.html#26">[ thread ]</a>
+              <a href="subject.html#26">[ subject ]</a>
+              <a href="author.html#26">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-02-05 10:45:51 +0100 (Sun, 05 Feb 2006)
+New Revision: 140
+
+Removed:
+   trunk/include/named_style_cache.hpp
+   trunk/src/named_style_cache.cpp
+Modified:
+   trunk/bindings/python/mapnik_map.cpp
+   trunk/bindings/python/mapnik_style.cpp
+   trunk/include/map.hpp
+   trunk/include/mapnik.hpp
+   trunk/include/render.hpp
+   trunk/src/SConscript
+   trunk/src/map.cpp
+   trunk/src/render.cpp
+Log:
+1.removed named_style_cache
+2.styles moved to Map object
+
+
+
+Modified: trunk/bindings/python/mapnik_map.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_map.cpp	2006-02-04 21:30:08 UTC (rev 139)
++++ trunk/bindings/python/mapnik_map.cpp	2006-02-05 09:45:51 UTC (rev 140)
+@@ -91,6 +91,8 @@
+         .def(&quot;pan&quot;,&amp;Map::pan)
+         .def(&quot;zoom&quot;,&amp;Map::zoom)
+         .def(&quot;pan_and_zoom&quot;,&amp;Map::pan_and_zoom)
++	.def(&quot;append_style&quot;,&amp;Map::insert_style)
++	.def(&quot;remove_style&quot;,&amp;Map::remove_style)
+ 	.add_property(&quot;layers&quot;,make_function
+ 		      (&amp;Map::layers,return_value_policy&lt;reference_existing_object&gt;()))
+         .def_pickle(map_pickle_suite())
+
+Modified: trunk/bindings/python/mapnik_style.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_style.cpp	2006-02-04 21:30:08 UTC (rev 139)
++++ trunk/bindings/python/mapnik_style.cpp	2006-02-05 09:45:51 UTC (rev 140)
+@@ -23,9 +23,6 @@
+ #include &quot;mapnik.hpp&quot;
+ 
+ using mapnik::feature_type_style;
+-using mapnik::named_style_cache;
+-using mapnik::singleton;
+-using mapnik::CreateStatic;
+ using mapnik::rules;
+ 
+ void export_style()
+@@ -40,18 +37,5 @@
+ 		      (&amp;feature_type_style::get_rules,return_value_policy&lt;reference_existing_object&gt;()))
+ 	;
+     
+-    class_&lt;singleton&lt;named_style_cache,CreateStatic&gt;,boost::noncopyable&gt;(&quot;singleton&quot;,no_init)
+-    	.def(&quot;instance&quot;,&amp;singleton&lt;named_style_cache,CreateStatic&gt;::instance,
+-    	     return_value_policy&lt;reference_existing_object&gt;())
+-    	.staticmethod(&quot;instance&quot;)
+-    	;
+-    
+-    class_&lt;named_style_cache,bases&lt;singleton&lt;named_style_cache,CreateStatic&gt; &gt;,
+-	boost::noncopyable&gt;(&quot;style_cache&quot;,no_init)
+-	.def(&quot;insert&quot;,&amp;named_style_cache::insert)
+-	.staticmethod(&quot;insert&quot;)
+-	.def(&quot;remove&quot;,&amp;named_style_cache::remove)
+-	.staticmethod(&quot;remove&quot;)
+-	;
+ }
+ 
+
+Modified: trunk/include/map.hpp
+===================================================================
+--- trunk/include/map.hpp	2006-02-04 21:30:08 UTC (rev 139)
++++ trunk/include/map.hpp	2006-02-05 09:45:51 UTC (rev 140)
+@@ -23,6 +23,7 @@
+ 
+ #include &lt;boost/serialization/serialization.hpp&gt;
+ #include &lt;boost/serialization/vector.hpp&gt;
++#include &quot;feature_type_style.hpp&quot;
+ 
+ namespace mapnik
+ {
+@@ -46,6 +47,7 @@
+ 	unsigned height_;
+ 	int srid_;
+ 	Color background_;
++	std::map&lt;std::string,feature_type_style&gt; styles_;
+ 	std::vector&lt;Layer&gt; layers_;
+ 	Envelope&lt;double&gt; currentExtent_;
+     public:
+@@ -53,11 +55,15 @@
+ 	Map(int width,int height,int srid=-1);
+ 	Map(const Map&amp; rhs);
+ 	Map&amp; operator=(const Map&amp; rhs);
++
++	bool insert_style(std::string const&amp; name,feature_type_style const&amp; style);
++	void remove_style(const std::string&amp; name);
++	feature_type_style find_style(std::string const&amp; name) const;
++	
+ 	size_t layerCount() const;
+ 	void addLayer(const Layer&amp; l);
+ 	const Layer&amp; getLayer(size_t index) const;
+ 	void removeLayer(size_t index);
+-	void removeLayer(const char* lName);
+ 	std::vector&lt;Layer&gt; const&amp; layers() const;
+ 	unsigned getWidth() const;
+ 	unsigned getHeight() const;
+
+Modified: trunk/include/mapnik.hpp
+===================================================================
+--- trunk/include/mapnik.hpp	2006-02-04 21:30:08 UTC (rev 139)
++++ trunk/include/mapnik.hpp	2006-02-05 09:45:51 UTC (rev 140)
+@@ -56,7 +56,6 @@
+ #include &quot;wkb.hpp&quot;
+ #include &quot;map.hpp&quot;
+ #include &quot;feature_type_style.hpp&quot;
+-#include &quot;named_style_cache.hpp&quot;
+ #include &quot;feature_factory.hpp&quot;
+ #include &quot;math_expr.hpp&quot;
+ #include &quot;value.hpp&quot;
+
+Deleted: trunk/include/named_style_cache.hpp
+===================================================================
+--- trunk/include/named_style_cache.hpp	2006-02-04 21:30:08 UTC (rev 139)
++++ trunk/include/named_style_cache.hpp	2006-02-05 09:45:51 UTC (rev 140)
+@@ -1,47 +0,0 @@
+-/* This file is part of Mapnik (c++ mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
+- *
+- * Mapnik is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version 2
+- * of the License, or any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+- */
+-
+-//$Id: style_cache.hpp 39 2005-04-10 20:39:53Z pavlenko $
+-
+-#ifndef STYLE_CACHE_HPP
+-#define STYLE_CACHE_HPP
+-
+-#include &quot;utils.hpp&quot;
+-#include &lt;map&gt;
+-#include &quot;feature_type_style.hpp&quot;
+-
+-namespace mapnik {
+-      
+-    class named_style_cache : public singleton &lt;named_style_cache,CreateStatic&gt;
+-    {
+-	friend class CreateStatic&lt;named_style_cache&gt;;
+-    private:
+-	static std::map&lt;std::string,feature_type_style&gt; styles_;  
+-	named_style_cache();
+-	~named_style_cache();
+-	named_style_cache(const named_style_cache&amp;);
+-	named_style_cache&amp; operator=(const named_style_cache&amp;);
+-    public:
+-	static bool insert(const std::string&amp; name,const feature_type_style&amp; style);
+-	static void remove(const std::string&amp; name);
+-	static feature_type_style find(const std::string&amp; name);
+-    }; 
+-}
+-
+-
+-#endif //STYLE_CACHE_HPP
+
+Modified: trunk/include/render.hpp
+===================================================================
+--- trunk/include/render.hpp	2006-02-04 21:30:08 UTC (rev 139)
++++ trunk/include/render.hpp	2006-02-05 09:45:51 UTC (rev 140)
+@@ -36,7 +36,7 @@
+ 	static void render(const Map&amp; map,Image&amp; image);
+     private:
+ 	Renderer();
+-	static void render_vector_layer(datasource_p const&amp; ds,
++	static void render_vector_layer(datasource_p const&amp; ds,Map const&amp; map,
+ 					std::vector&lt;std::string&gt; const&amp; , 
+ 					unsigned width,
+ 					unsigned height,
+
+Modified: trunk/src/SConscript
+===================================================================
+--- trunk/src/SConscript	2006-02-04 21:30:08 UTC (rev 139)
++++ trunk/src/SConscript	2006-02-05 09:45:51 UTC (rev 140)
+@@ -41,7 +41,6 @@
+     plugin.cpp
+     png_reader.cpp
+     render.cpp
+-    named_style_cache.cpp
+     text.cpp
+     tiff_reader.cpp
+     wkb.cpp
+
+Modified: trunk/src/map.cpp
+===================================================================
+--- trunk/src/map.cpp	2006-02-04 21:30:08 UTC (rev 139)
++++ trunk/src/map.cpp	2006-02-05 09:45:51 UTC (rev 140)
+@@ -37,12 +37,13 @@
+ 
+     Map::Map(const Map&amp; rhs)
+         : width_(rhs.width_),
+-        height_(rhs.height_),
+-        srid_(rhs.srid_),
+-        background_(rhs.background_),
+-        layers_(rhs.layers_),
+-        currentExtent_(rhs.currentExtent_) {}
+-
++	  height_(rhs.height_),
++	  srid_(rhs.srid_),
++	  background_(rhs.background_),
++	  styles_(rhs.styles_),
++	  layers_(rhs.layers_),
++	  currentExtent_(rhs.currentExtent_) {}
++    
+     Map&amp; Map::operator=(const Map&amp; rhs)
+     {
+         if (this==&amp;rhs) return *this;
+@@ -50,15 +51,34 @@
+         height_=rhs.height_;
+         srid_=rhs.srid_;
+         background_=rhs.background_;
++	styles_=rhs.styles_;
+         layers_=rhs.layers_;
+         return *this;
+     }
+ 
++    bool Map::insert_style(std::string const&amp; name,feature_type_style const&amp; style) 
++    {
++	return styles_.insert(make_pair(name,style)).second;
++    }
++    
++    void Map::remove_style(std::string const&amp; name) 
++    {
++	styles_.erase(name);
++    }
++    
++    feature_type_style Map::find_style(std::string const&amp; name) const
++    {
++	std::map&lt;std::string,feature_type_style&gt;::const_iterator itr=styles_.find(name);
++	if (itr!=styles_.end()) 
++	    return itr-&gt;second;
++	return feature_type_style();
++    }
++    
+     size_t Map::layerCount() const
+     {
+         return layers_.size();
+     }
+-
++    
+     void Map::addLayer(const Layer&amp; l)
+     {
+         layers_.push_back(l);
+@@ -67,10 +87,7 @@
+     {
+         layers_.erase(layers_.begin()+index);
+     }
+-    void Map::removeLayer(const char* lName)
+-    {
+-        //todo
+-    }
++
+     const Layer&amp; Map::getLayer(size_t index) const
+     {
+         return layers_[index];
+
+Deleted: trunk/src/named_style_cache.cpp
+===================================================================
+--- trunk/src/named_style_cache.cpp	2006-02-04 21:30:08 UTC (rev 139)
++++ trunk/src/named_style_cache.cpp	2006-02-05 09:45:51 UTC (rev 140)
+@@ -1,53 +0,0 @@
+-/* This file is part of Mapnik (c++ mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
+- *
+- * Mapnik is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version 2
+- * of the License, or any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+- */
+-
+-//$Id: style_cache.cpp 37 2005-04-07 17:09:38Z pavlenko $
+-
+-#include &quot;named_style_cache.hpp&quot;
+-#include &lt;boost/thread/mutex.hpp&gt;
+-
+-namespace mapnik 
+-{
+-    named_style_cache::named_style_cache() {}
+-    named_style_cache::~named_style_cache() {}
+-    
+-    std::map&lt;std::string,feature_type_style&gt; named_style_cache::styles_;
+-
+-    bool named_style_cache::insert(const std::string&amp; name,const feature_type_style&amp; style) 
+-    {
+-	mutex::scoped_lock lock(mutex_);
+-	return styles_.insert(make_pair(name,style)).second;
+-    }
+-    
+-    void named_style_cache::remove(const std::string&amp; name) 
+-    {
+-	mutex::scoped_lock lock(mutex_);
+-	styles_.erase(name);
+-    }
+-    
+-    feature_type_style named_style_cache::find(const std::string&amp; name)
+-    {
+-	mutex::scoped_lock lock(mutex_);
+-	std::map&lt;std::string,feature_type_style&gt;::iterator itr=styles_.find(name);
+-	if (itr!=styles_.end()) 
+-	{
+-	    return itr-&gt;second;
+-	}
+-	return feature_type_style();
+-    }
+-}
+
+Modified: trunk/src/render.cpp
+===================================================================
+--- trunk/src/render.cpp	2006-02-04 21:30:08 UTC (rev 139)
++++ trunk/src/render.cpp	2006-02-05 09:45:51 UTC (rev 140)
+@@ -21,7 +21,6 @@
+ #include &quot;render.hpp&quot;
+ #include &quot;image_util.hpp&quot;
+ #include &quot;utils.hpp&quot;
+-#include &quot;named_style_cache.hpp&quot;
+ #include &quot;symbolizer.hpp&quot;
+ #include &quot;query.hpp&quot;
+ #include &quot;feature_layer_desc.hpp&quot;
+@@ -36,7 +35,7 @@
+ {  
+     
+     template &lt;typename Image&gt;
+-    void Renderer&lt;Image&gt;::render_vector_layer(datasource_p const&amp; ds,
++    void Renderer&lt;Image&gt;::render_vector_layer(datasource_p const&amp; ds,Map const&amp; map,
+ 					      std::vector&lt;std::string&gt; const&amp; namedStyles,
+ 					      unsigned width,unsigned height,
+ 					      const Envelope&lt;double&gt;&amp; bbox,Image&amp; image)
+@@ -45,7 +44,7 @@
+ 	std::vector&lt;std::string&gt;::const_iterator stylesIter=namedStyles.begin();
+ 	while (stylesIter!=namedStyles.end())
+ 	{
+-	    feature_type_style style=named_style_cache::instance()-&gt;find(*stylesIter++);
++	    //feature_type_style style=named_style_cache::instance()-&gt;find(*stylesIter++);
+ 	    
+ 	    std::set&lt;std::string&gt; names;
+ 	    attribute_collector&lt;Feature&gt; collector(names);
+@@ -56,6 +55,9 @@
+ 	    std::vector&lt;rule_type*&gt; else_rules;
+ 	    
+ 	    bool active_rules=false;
++
++	    feature_type_style style=map.find_style(*stylesIter++);
++
+ 	    const std::vector&lt;rule_type&gt;&amp; rules=style.get_rules();
+ 	    std::vector&lt;rule_type&gt;::const_iterator ruleIter=rules.begin();
+ 	    
+@@ -182,7 +184,7 @@
+ 		if (!ds) continue;
+                 if (ds-&gt;type() == datasource::Vector)
+ 		{
+-		    render_vector_layer(ds,l.styles(),width,height,extent,image);
++		    render_vector_layer(ds,map,l.styles(),width,height,extent,image);
+ 		}
+ 		else if (ds-&gt;type() == datasource::Raster)
+ 		{
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000025.html">[Mapnik-svn] r139 - in trunk/agg: include src
+</A></li>
+	<LI>Next message: <A HREF="000027.html">[Mapnik-svn] r141 - in trunk: include plugins/input/shape
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#26">[ date ]</a>
+              <a href="thread.html#26">[ thread ]</a>
+              <a href="subject.html#26">[ subject ]</a>
+              <a href="author.html#26">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

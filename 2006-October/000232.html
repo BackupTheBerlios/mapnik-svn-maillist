@@ -1,0 +1,400 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r347 - in trunk: include/mapnik src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r347%20-%20in%20trunk%3A%20include/mapnik%20src&In-Reply-To=%3C200610182244.k9IMihgj008908%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000231.html">
+   <LINK REL="Next"  HREF="000233.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r347 - in trunk: include/mapnik src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r347%20-%20in%20trunk%3A%20include/mapnik%20src&In-Reply-To=%3C200610182244.k9IMihgj008908%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r347 - in trunk: include/mapnik src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Thu Oct 19 00:44:43 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000231.html">[Mapnik-svn] r346 - in trunk/boost/property_tree: . detail
+</A></li>
+        <LI>Next message: <A HREF="000233.html">[Mapnik-svn] r348 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#232">[ date ]</a>
+              <a href="thread.html#232">[ thread ]</a>
+              <a href="subject.html#232">[ subject ]</a>
+              <a href="author.html#232">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-19 00:44:37 +0200 (Thu, 19 Oct 2006)
+New Revision: 347
+
+Added:
+   trunk/include/mapnik/distance.hpp
+   trunk/include/mapnik/scale_denominator.hpp
+   trunk/src/distance.cpp
+   trunk/src/scale_denominator.cpp
+Modified:
+   trunk/include/mapnik/feature_style_processor.hpp
+   trunk/src/SConscript
+   trunk/src/layer.cpp
+Log:
+added scale_denominator calc + great-circle distance
+(needs checking with different projections)
+
+
+
+Added: trunk/include/mapnik/distance.hpp
+===================================================================
+--- trunk/include/mapnik/distance.hpp	2006-10-18 22:09:30 UTC (rev 346)
++++ trunk/include/mapnik/distance.hpp	2006-10-18 22:44:37 UTC (rev 347)
+@@ -0,0 +1,55 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++//$Id$
++
++#ifndef DISTANCE_HPP
++#define DISTANCE_HPP
++
++#include &lt;mapnik/coord.hpp&gt;
++
++namespace mapnik
++{
++    class ellipsoid;
++    
++    // great-circle distance 
++    
++    class great_circle_distance
++    {
++    public:
++        double operator() (coord2d const&amp; pt0, coord2d const&amp; pt1) const;
++    };
++    
++    // vincenty distance 
++    /*
++    class vincenty_distance : boost::noncopyble
++    {
++    public:
++        vincenty_distance(ellipsoid const&amp; e);
++        double operator() (coord2d const&amp; pt0, coord2d const&amp; pt1) const;
++    private:
++        ellipsoid &amp; e_;
++    };
++    */
++}
++
++#endif // GEO_UTILS_HPP
+
+Modified: trunk/include/mapnik/feature_style_processor.hpp
+===================================================================
+--- trunk/include/mapnik/feature_style_processor.hpp	2006-10-18 22:09:30 UTC (rev 346)
++++ trunk/include/mapnik/feature_style_processor.hpp	2006-10-18 22:44:37 UTC (rev 347)
+@@ -37,6 +37,7 @@
+ #include &lt;mapnik/attribute_collector.hpp&gt;
+ #include &lt;mapnik/utils.hpp&gt;
+ #include &lt;mapnik/projection.hpp&gt;
++#include &lt;mapnik/scale_denominator.hpp&gt;
+ 
+ namespace mapnik
+ {       
+@@ -68,25 +69,24 @@
+ 	
+         void apply()
+         {
+-            boost::progress_timer t(std::clog);
+-            
++            boost::progress_timer t(std::clog);            
+             Processor &amp; p = static_cast&lt;Processor&amp;&gt;(*this);
+-            
+             p.start_map_processing(m_);
+-            
+-            std::vector&lt;Layer&gt;::const_iterator itr = m_.layers().begin();
+-            std::vector&lt;Layer&gt;::const_iterator end = m_.layers().end();
+-            
++                       
+             try
+             {
+                 projection proj(m_.srs()); // map projection
++                double scale_denom = scale_denominator(m_,proj);
++                std::clog &lt;&lt; &quot;scale denominator = &quot; &lt;&lt; scale_denom &lt;&lt; &quot;\n&quot;;
+                 
++                std::vector&lt;Layer&gt;::const_iterator itr = m_.layers().begin();
++                std::vector&lt;Layer&gt;::const_iterator end = m_.layers().end();
++            
+                 while (itr != end)
+                 {
+-                    if (itr-&gt;isVisible(m_.scale()))// &amp;&amp; 
+-                        //itr-&gt;envelope().intersects(m_.getCurrentExtent())) TODO
+-                    {    
+-                        apply_to_layer(*itr, p, proj);
++                    if (itr-&gt;isVisible(scale_denom))
++                    {
++                        apply_to_layer(*itr, p, proj, scale_denom);
+                     }
+                     ++itr;
+                 }
+@@ -99,7 +99,8 @@
+             p.end_map_processing(m_);
+         }	
+     private:
+-        void apply_to_layer(Layer const&amp; lay, Processor &amp; p, projection const&amp; proj0)
++        void apply_to_layer(Layer const&amp; lay, Processor &amp; p, 
++                            projection const&amp; proj0,double scale_denom)
+         {
+             p.start_layer_processing(lay);
+             boost::shared_ptr&lt;datasource&gt; ds=lay.datasource();
+@@ -121,8 +122,6 @@
+                 Envelope&lt;double&gt; bbox(x0,y0,x1,y1);
+                 std::clog &lt;&lt; bbox &lt;&lt; &quot;\n&quot;;
+                 
+-                double scale = m_.scale();
+-                
+                 std::vector&lt;std::string&gt; const&amp; style_names = lay.styles();
+                 std::vector&lt;std::string&gt;::const_iterator stylesIter = style_names.begin();
+                 std::vector&lt;std::string&gt;::const_iterator stylesEnd = style_names.end();
+@@ -146,7 +145,7 @@
+                                         
+                     while (ruleIter!=ruleEnd)
+                     {
+-                        if (ruleIter-&gt;active(scale))
++                        if (ruleIter-&gt;active(scale_denom))
+                         {
+                             active_rules=true;
+                             ruleIter-&gt;accept(collector);
+
+Added: trunk/include/mapnik/scale_denominator.hpp
+===================================================================
+--- trunk/include/mapnik/scale_denominator.hpp	2006-10-18 22:09:30 UTC (rev 346)
++++ trunk/include/mapnik/scale_denominator.hpp	2006-10-18 22:44:37 UTC (rev 347)
+@@ -0,0 +1,30 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++//$Id$
++
++namespace mapnik {
++ 
++    class Map;
++    class projection;
++    double scale_denominator(Map const&amp; map,projection const&amp; prj); 
++}
+
+Modified: trunk/src/SConscript
+===================================================================
+--- trunk/src/SConscript	2006-10-18 22:09:30 UTC (rev 346)
++++ trunk/src/SConscript	2006-10-18 22:44:37 UTC (rev 347)
+@@ -58,6 +58,8 @@
+     wkb.cpp
+     projection.cpp
+     proj_transform.cpp
++    distance.cpp
++    scale_denominator.cpp
+     &quot;&quot;&quot;
+     )
+ 
+
+Added: trunk/src/distance.cpp
+===================================================================
+--- trunk/src/distance.cpp	2006-10-18 22:09:30 UTC (rev 346)
++++ trunk/src/distance.cpp	2006-10-18 22:44:37 UTC (rev 347)
+@@ -0,0 +1,52 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++//$Id$
++#include &lt;cmath&gt;
++#include &lt;mapnik/ellipsoid.hpp&gt;
++#include &lt;mapnik/distance.hpp&gt;
++
++namespace mapnik {
++    
++    static const double deg2rad = 0.0174532925199432958;
++    static const double R = 6372795.0; // average great-circle radius of the earth
++    
++    double great_circle_distance::operator() (coord2d const&amp; pt0, 
++                                              coord2d const&amp; pt1) const
++    {
++        double lon0 = pt0.x * deg2rad;
++        double lat0 = pt0.y * deg2rad;
++        double lon1 = pt1.x * deg2rad;
++        double lat1 = pt1.y * deg2rad;
++        
++        double dlat = lat1 - lat0;
++        double dlon = lon1 - lon0;
++        
++        double sin_dlat = sin(0.5 * dlat);
++        double sin_dlon = sin(0.5 * dlon);
++        
++        double a = pow(sin_dlat,2.0) + cos(lat0)*cos(lat1)*pow(sin_dlon,2.0);
++        double c = 2 * atan2(sqrt(a),sqrt(1 - a));
++        return R * c; 
++    }
++    
++}
+
+Modified: trunk/src/layer.cpp
+===================================================================
+--- trunk/src/layer.cpp	2006-10-18 22:09:30 UTC (rev 346)
++++ trunk/src/layer.cpp	2006-10-18 22:44:37 UTC (rev 347)
+@@ -173,7 +173,7 @@
+ 
+     bool Layer::isVisible(double scale) const
+     {
+-        return isActive() &amp;&amp; scale&gt;=minZoom_ &amp;&amp; scale&lt;maxZoom_;
++        return isActive() &amp;&amp; scale &gt;= minZoom_ &amp;&amp; scale &lt; maxZoom_;
+     }
+ 
+     void Layer::setSelectable(bool selectable)
+
+Added: trunk/src/scale_denominator.cpp
+===================================================================
+--- trunk/src/scale_denominator.cpp	2006-10-18 22:09:30 UTC (rev 346)
++++ trunk/src/scale_denominator.cpp	2006-10-18 22:44:37 UTC (rev 347)
+@@ -0,0 +1,54 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++//$Id$
++#include &lt;cmath&gt;
++#include &lt;mapnik/map.hpp&gt;
++#include &lt;mapnik/projection.hpp&gt;
++#include &lt;mapnik/distance.hpp&gt;
++#include &lt;mapnik/scale_denominator.hpp&gt;
++
++namespace mapnik {
++ 
++    static const double dpi = 90.0; // display resolution
++    
++    double scale_denominator(Map const&amp; map,projection const&amp; prj)
++    {
++        double map_width = map.getWidth();
++        double map_height = map.getHeight();
++        Envelope&lt;double&gt; const&amp; extent = map.getCurrentExtent();
++        double x0 = extent.minx();
++        double y0 = extent.miny();
++        double x1 = extent.maxx();
++        double y1 = extent.maxy();
++        
++        if (!prj.is_geographic())
++        {
++            prj.inverse(x0,y0);
++            prj.inverse(x1,y1); 
++        }
++        great_circle_distance distance;
++        double d1 = distance(coord2d(x0,y0),coord2d(x1, y1));
++        double d0 = sqrt(map_width * map_width + map_height * map_height) / dpi * 0.0254;
++        return d1 / d0;
++    }
++}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000231.html">[Mapnik-svn] r346 - in trunk/boost/property_tree: . detail
+</A></li>
+	<LI>Next message: <A HREF="000233.html">[Mapnik-svn] r348 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#232">[ date ]</a>
+              <a href="thread.html#232">[ thread ]</a>
+              <a href="subject.html#232">[ subject ]</a>
+              <a href="author.html#232">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

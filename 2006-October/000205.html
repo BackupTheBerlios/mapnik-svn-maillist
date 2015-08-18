@@ -1,0 +1,435 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r320 - in trunk: include/mapnik src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r320%20-%20in%20trunk%3A%20include/mapnik%20src&In-Reply-To=%3C200610090952.k999qIf1009518%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000204.html">
+   <LINK REL="Next"  HREF="000206.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r320 - in trunk: include/mapnik src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r320%20-%20in%20trunk%3A%20include/mapnik%20src&In-Reply-To=%3C200610090952.k999qIf1009518%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r320 - in trunk: include/mapnik src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Mon Oct  9 11:52:18 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000204.html">[Mapnik-svn] r319 - trunk/plugins/input/postgis
+</A></li>
+        <LI>Next message: <A HREF="000206.html">[Mapnik-svn] r321 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#205">[ date ]</a>
+              <a href="thread.html#205">[ thread ]</a>
+              <a href="subject.html#205">[ subject ]</a>
+              <a href="author.html#205">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-09 11:52:15 +0200 (Mon, 09 Oct 2006)
+New Revision: 320
+
+Modified:
+   trunk/include/mapnik/ctrans.hpp
+   trunk/include/mapnik/geometry.hpp
+   trunk/include/mapnik/vertex_transform.hpp
+   trunk/include/mapnik/vertex_vector.hpp
+   trunk/src/agg_renderer.cpp
+Log:
+simplified coord transformation interface.
+
+
+
+Modified: trunk/include/mapnik/ctrans.hpp
+===================================================================
+--- trunk/include/mapnik/ctrans.hpp	2006-10-09 09:45:45 UTC (rev 319)
++++ trunk/include/mapnik/ctrans.hpp	2006-10-09 09:52:15 UTC (rev 320)
+@@ -34,21 +34,21 @@
+     template &lt;typename Transform,typename Geometry&gt;
+     struct MAPNIK_DECL coord_transform
+     {
+-        coord_transform(Transform const&amp; t,Geometry&amp; geom)
++        coord_transform(Transform const&amp; t, Geometry&amp; geom)
+             : t_(t), geom_(geom) {}
+-	
++        
+         unsigned  vertex(double *x , double *y) const
+         {
+             unsigned command = geom_.vertex(x,y);
+-            *x = t_.forward_x_(x);
+-            *y = t_.forward_y_(y);
++            t_.forward(x,y);
+             return command;
+         }
++        
+         void rewind (unsigned pos)
+         {
+             geom_.rewind(pos);
+         }
+-	
++        
+     private:
+         Transform const&amp; t_;
+         Geometry&amp; geom_;
+@@ -60,13 +60,13 @@
+ 	    int width;
+ 	    int height;
+ 	    double scale_;
+-	    Envelope&lt;double&gt; extent;
++	    Envelope&lt;double&gt; extent_;
+     public:
+         CoordTransform(int width,int height,const Envelope&lt;double&gt;&amp; extent)
+-            :width(width),height(height),extent(extent)
++            :width(width),height(height),extent_(extent)
+         {
+-            double sx=((double)width)/extent.width();
+-            double sy=((double)height)/extent.height();
++            double sx=((double)width)/extent_.width();
++            double sy=((double)height)/extent_.height();
+             scale_=std::min(sx,sy);
+         }
+ 	
+@@ -74,48 +74,29 @@
+         {
+             return scale_;
+         }
+-	
+-        inline void forward_x(double* x) const 
++        
++        inline void forward(double * x, double * y) const
+         {
+-            *x = (*x - extent.minx() ) * scale_;   
++            
++            *x = (*x - extent_.minx()) * scale_;
++            *y = (extent_.maxy() - *y) * scale_;
+         }
+-	
+-        inline void forward_y(double* y) const 
++        
++        inline void backward(double * x, double * y) const
+         {
+-            *y = (extent.maxy() - *y) * scale_;
++            *x = extent_.minx() + *x/scale_;
++            *y = extent_.maxy() - *y/scale_;
+         }
+-
+-        inline double forward_x_(double* x) const 
+-        {
+-            return (*x - extent.minx() ) * scale_;   
+-        }
+-	
+-        inline double forward_y_(double* y) const 
+-        {
+-            return (extent.maxy() - *y) * scale_;
+-        }
+-
+-        inline void backward_x(double* x) const
+-        {
+-            *x = extent.minx() + *x/scale_;
+-        }
+-	
+-        inline void backward_y(double* y) const
+-        {
+-            *y = extent.maxy() - *y/scale_;
+-        }
+-	
++        
+         inline coord2d&amp; forward(coord2d&amp; c) const
+         {
+-            forward_x(&amp;c.x);
+-            forward_y(&amp;c.y);
++            forward(&amp;c.x,&amp;c.y);
+             return c;
+         }
+ 
+         inline coord2d&amp; backward(coord2d&amp; c) const
+         {
+-            backward_x(&amp;c.x);
+-            backward_y(&amp;c.y);
++            backward(&amp;c.x,&amp;c.y);
+             return c;
+         }
+ 
+@@ -125,10 +106,8 @@
+             double y0 = e.miny();
+             double x1 = e.maxx();
+             double y1 = e.maxy();
+-            forward_x(&amp;x0);
+-            forward_y(&amp;y0);
+-            forward_x(&amp;x1);
+-            forward_y(&amp;y1);
++            forward(&amp;x0,&amp;y0);
++            forward(&amp;x1,&amp;y1);
+             return Envelope&lt;double&gt;(x0,y0,x1,y1);
+         }
+ 
+@@ -138,11 +117,8 @@
+             double y0 = e.miny();
+             double x1 = e.maxx();
+             double y1 = e.maxy();
+-            backward_x(&amp;x0);
+-            backward_y(&amp;y0);
+-            backward_x(&amp;x1);
+-            backward_y(&amp;y1);
+-	    
++            backward(&amp;x0,&amp;y0);
++            backward(&amp;x1,&amp;y1);
+             return Envelope&lt;double&gt;(x0,y0,x1,y1);
+         }
+ 
+
+Modified: trunk/include/mapnik/geometry.hpp
+===================================================================
+--- trunk/include/mapnik/geometry.hpp	2006-10-09 09:45:45 UTC (rev 319)
++++ trunk/include/mapnik/geometry.hpp	2006-10-09 09:52:15 UTC (rev 320)
+@@ -31,7 +31,6 @@
+ #include &lt;boost/utility.hpp&gt;
+ // mapnik
+ #include &lt;mapnik/vertex_vector.hpp&gt;
+-#include &lt;mapnik/vertex_transform.hpp&gt;
+ #include &lt;mapnik/ctrans.hpp&gt;
+ #include &lt;mapnik/geom_util.hpp&gt;
+ 
+@@ -83,7 +82,6 @@
+         virtual void label_position(double *x, double *y) const=0;
+         virtual void move_to(value_type x,value_type y)=0;
+         virtual void line_to(value_type x,value_type y)=0;
+-        virtual void transform(const mapnik::CoordTransform&amp; t)=0;
+         virtual unsigned num_points() const = 0;
+         virtual unsigned vertex(double* x, double* y)=0;
+         virtual void rewind(unsigned )=0;
+@@ -121,13 +119,7 @@
+         }
+ 	
+         void line_to(value_type ,value_type ) {}
+-	
+-        void transform(const mapnik::CoordTransform&amp; t)
+-        {
+-            t.forward_x(&amp;pt_.x);
+-            t.forward_y(&amp;pt_.y);
+-        }
+-	
++        
+         unsigned num_points() const
+         {
+             return 1;
+@@ -193,7 +185,6 @@
+             unsigned i,j;
+             for (i = size-1,j = 0; j &lt; size; i = j, ++j)
+             {
+-		
+                 cont_.get_vertex(i,&amp;x0,&amp;y0);
+                 cont_.get_vertex(j,&amp;x1,&amp;y1);
+                 ai = x0 * y1 - x1 * y0;
+@@ -221,15 +212,6 @@
+             cont_.push_back(x,y,SEG_MOVETO);
+         }
+ 	
+-        void transform(mapnik::CoordTransform const&amp; t)
+-        {
+-            unsigned size = cont_.size();
+-            for (unsigned pos=0; pos &lt; size; ++pos)
+-            {	
+-                cont_.transform_at(pos,t);
+-            }
+-        }
+-	
+         unsigned num_points() const
+         {
+             return cont_.size();
+@@ -339,16 +321,7 @@
+         {
+             cont_.push_back(x,y,SEG_MOVETO);
+         }
+-	
+-        void transform(mapnik::CoordTransform const&amp; t)
+-        {
+-            unsigned size = cont_.size();
+-            for (unsigned pos=0; pos &lt; size; ++pos)
+-            {	
+-                cont_.transform_at(pos,t);
+-            }
+-        }
+-	
++
+         unsigned num_points() const
+         {
+             return cont_.size();
+
+Modified: trunk/include/mapnik/vertex_transform.hpp
+===================================================================
+--- trunk/include/mapnik/vertex_transform.hpp	2006-10-09 09:45:45 UTC (rev 319)
++++ trunk/include/mapnik/vertex_transform.hpp	2006-10-09 09:52:15 UTC (rev 320)
+@@ -33,34 +33,34 @@
+     template &lt;typename T0 ,typename T1,int shift=8&gt;
+     struct Shift
+     {
+-	typedef T0 value_type;
+-	typedef T1 return_type;
+-	static return_type apply(value_type val)
+-	{
+-	    return static_cast&lt;return_type&gt;(val*(1&lt;&lt;shift));
+-	}
++        typedef T0 value_type;
++        typedef T1 return_type;
++        static return_type apply(value_type val)
++        {
++            return static_cast&lt;return_type&gt;(val*(1&lt;&lt;shift));
++        }
+     };
+ 
+     template &lt;typename T0,typename T1&gt;
+     struct Shift&lt;T0,T1,0&gt; 
+     {
+-	typedef T0 value_type;
+-	typedef T1 return_type;
+-	static return_type apply(value_type val)
+-	{
+-	    return static_cast&lt;return_type&gt;(val);
+-	}
++        typedef T0 value_type;
++        typedef T1 return_type;
++        static return_type apply(value_type val)
++        {
++            return static_cast&lt;return_type&gt;(val);
++        }
+     };
+ 
+     template &lt;typename T&gt;
+     struct Shift&lt;T,T,0&gt;
+     {
+-	typedef T value_type;
+-	typedef T return_type;
+-	static T&amp; apply(T&amp; val)
+-	{
+-	    return val;
+-	}
++        typedef T value_type;
++        typedef T return_type;
++        static T&amp; apply(T&amp; val)
++        {
++            return val;
++        }
+     };
+ 
+     typedef Shift&lt;double,double,0&gt; NO_SHIFT;
+
+Modified: trunk/include/mapnik/vertex_vector.hpp
+===================================================================
+--- trunk/include/mapnik/vertex_vector.hpp	2006-10-09 09:45:45 UTC (rev 319)
++++ trunk/include/mapnik/vertex_vector.hpp	2006-10-09 09:52:15 UTC (rev 320)
+@@ -110,19 +110,11 @@
+             return commands_[block] [pos &amp; block_mask];
+         }
+         	
+-        void transform_at(unsigned pos,const CoordTransform&amp; t)
+-        {
+-            if (pos &gt;= pos_) return;
+-            unsigned block = pos &gt;&gt; block_shift;
+-            value_type* vertex = vertexs_[block] + (( pos &amp; block_mask) &lt;&lt; 1);
+-            t.forward_x(vertex);
+-            ++vertex;
+-            t.forward_y(vertex);
+-        }
+         void set_capacity(size_t)
+         {
+             //do nothing
+         }
++        
+     private:
+         void allocate_block(unsigned block)
+         {
+@@ -181,13 +173,6 @@
+             return cont_.end();
+         }
+ 
+-        void transform_at(unsigned pos,const CoordTransform&amp; t)
+-        {
+-            if (pos &gt;= cont_.size()) return;
+-            vertex_type &amp; c = cont_[pos];
+-            t.forward_x(&amp;boost::get&lt;0&gt;(c));
+-            t.forward_y(&amp;boost::get&lt;1&gt;(c));
+-        }
+         void set_capacity(size_t size)
+         {
+             cont_.reserve(size);
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-10-09 09:45:45 UTC (rev 319)
++++ trunk/src/agg_renderer.cpp	2006-10-09 09:52:15 UTC (rev 320)
+@@ -96,7 +96,7 @@
+     {
+         Color const&amp; bg=m.getBackground();
+         pixmap_.setBackground(bg);
+-        std::clog &lt;&lt; &quot;scale=&quot;&lt;&lt;m.scale()&lt;&lt;std::endl;
++        std::clog &lt;&lt; &quot;scale=&quot; &lt;&lt; m.scale() &lt;&lt; &quot;\n&quot;;
+     }
+     
+     template &lt;typename T&gt;
+@@ -172,7 +172,9 @@
+         if (geom &amp;&amp; geom-&gt;num_points() &gt; 1)
+         {
+             path_type path(t_,*geom);
+-            agg::row_ptr_cache&lt;agg::int8u&gt; buf(pixmap_.raw_data(),pixmap_.width(),pixmap_.height(),
++            agg::row_ptr_cache&lt;agg::int8u&gt; buf(pixmap_.raw_data(),
++                                               pixmap_.width(),
++                                               pixmap_.height(),
+                                                pixmap_.width()*4);
+             agg::pixfmt_rgba32 pixf(buf);
+             ren_base renb(pixf);	    
+@@ -286,8 +288,7 @@
+             if ( data )
+             {
+                 geom-&gt;label_position(&amp;x,&amp;y);
+-                t_.forward_x(&amp;x);
+-                t_.forward_y(&amp;y);
++                t_.forward(&amp;x,&amp;y);
+                 int w = data-&gt;width();
+                 int h = data-&gt;height();
+                 int px=int(floor(x - 0.5 * w));
+@@ -435,8 +436,7 @@
+                 double x;
+                 double y;
+                 geom-&gt;label_position(&amp;x,&amp;y);
+-                t_.forward_x(&amp;x);
+-                t_.forward_y(&amp;y);
++                t_.forward(&amp;x,&amp;y);
+ 
+                 face_ptr face = font_manager_.get_face(&quot;Bitstream Vera Sans Roman&quot;);//TODO
+                 //face_ptr face = font_manager_.get_face(&quot;Times New Roman Regular&quot;);//TODO
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000204.html">[Mapnik-svn] r319 - trunk/plugins/input/postgis
+</A></li>
+	<LI>Next message: <A HREF="000206.html">[Mapnik-svn] r321 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#205">[ date ]</a>
+              <a href="thread.html#205">[ thread ]</a>
+              <a href="subject.html#205">[ subject ]</a>
+              <a href="author.html#205">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

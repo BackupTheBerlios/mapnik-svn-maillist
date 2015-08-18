@@ -1,0 +1,570 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r248 - in trunk: bindings/python/mapnik/ogcserver bindings/python/pyprojection docs/ogcserver
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-May/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r248%20-%20in%20trunk%3A%20bindings/python/mapnik/ogcserver%20bindings/python/pyprojection%20docs/ogcserver&In-Reply-To=%3C200605110424.k4B4OsDA001378%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000132.html">
+   <LINK REL="Next"  HREF="000134.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r248 - in trunk: bindings/python/mapnik/ogcserver bindings/python/pyprojection docs/ogcserver</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r248%20-%20in%20trunk%3A%20bindings/python/mapnik/ogcserver%20bindings/python/pyprojection%20docs/ogcserver&In-Reply-To=%3C200605110424.k4B4OsDA001378%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r248 - in trunk: bindings/python/mapnik/ogcserver bindings/python/pyprojection docs/ogcserver">jdoyon at berlios.de
+       </A><BR>
+    <I>Thu May 11 06:24:54 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000132.html">[Mapnik-svn] r247 - trunk/docs/ogcserver
+</A></li>
+        <LI>Next message: <A HREF="000134.html">[Mapnik-svn] r249 - trunk/utils/shapeindex
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#133">[ date ]</a>
+              <a href="thread.html#133">[ thread ]</a>
+              <a href="subject.html#133">[ subject ]</a>
+              <a href="author.html#133">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-05-11 06:24:51 +0200 (Thu, 11 May 2006)
+New Revision: 248
+
+Modified:
+   trunk/bindings/python/mapnik/ogcserver/WMS.py
+   trunk/bindings/python/mapnik/ogcserver/cgiserver.py
+   trunk/bindings/python/mapnik/ogcserver/common.py
+   trunk/bindings/python/mapnik/ogcserver/wms111.py
+   trunk/bindings/python/mapnik/ogcserver/wms130.py
+   trunk/bindings/python/pyprojection/Projection_wrap.c
+   trunk/docs/ogcserver/readme.txt
+Log:
+- Rigidified parameter validation
+- Fixed BLANK exception handling bug
+- Added STYLES/LAYERS correlation check
+- Finalized ogcserver readme.txt
+- Got rid of a compiler warning with PyProjection
+- Some coding style edits
+
+Modified: trunk/bindings/python/mapnik/ogcserver/WMS.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/WMS.py	2006-05-11 00:44:20 UTC (rev 247)
++++ trunk/bindings/python/mapnik/ogcserver/WMS.py	2006-05-11 04:24:51 UTC (rev 248)
+@@ -37,11 +37,11 @@
+         return ServiceHandler111(conf, mapfactory, onlineresource)
+ 
+ class BaseWMSFactory:
+-    
++
+     def __init__(self):
+         self.layers = {}
+         self.styles = {}
+-    
++
+     def register_layer(self, layer, extrastyles=()):
+         layername = layer.name()
+         if not layername:
+@@ -51,14 +51,14 @@
+             layer.wmsextrastyles = extrastyles
+         else:
+             raise ServerConfigurationError('Layer &quot;%s&quot; was passed an invalid list of extra styles.  List must be a tuple of strings.' % layername)
+-    
++
+     def register_style(self, name, style):
+         if not name:
+             raise ServerConfigurationError('Attempted to register a style without providing a name.')
+         if not isinstance(style, Style):
+             raise ServerConfigurationError('Bad style object passed to register_style() for style &quot;%s&quot;.' % name)
+         self.styles[name] = style
+-    
++
+     def finalize(self):
+         if len(self.layers) == 0:
+             raise ServerConfigurationError('No layers defined!')
+
+Modified: trunk/bindings/python/mapnik/ogcserver/cgiserver.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/cgiserver.py	2006-05-11 00:44:20 UTC (rev 247)
++++ trunk/bindings/python/mapnik/ogcserver/cgiserver.py	2006-05-11 04:24:51 UTC (rev 248)
+@@ -57,23 +57,30 @@
+         onlineresource = '<A HREF="http://%s:%s%s?">http://%s:%s%s?</A>' % (req.environ['SERVER_NAME'], req.environ['SERVER_PORT'], req.environ['SCRIPT_NAME'])
+         if not reqparams.has_key('request'):
+             raise OGCException('Missing request parameter.')
+-        if reqparams['request'] == 'GetCapabilities' and not reqparams.has_key('service'):
++        request = reqparams['request']
++        del reqparams['request']
++        if request == 'GetCapabilities' and not reqparams.has_key('service'):
+             raise OGCException('Missing service parameter.')
+-        if reqparams['request'] in ['GetMap', 'GetFeatureInfo']:
+-            reqparams['service'] = 'WMS'
++        if request in ['GetMap', 'GetFeatureInfo']:
++            service = 'WMS'
++        else:
++            service = reqparams['service']
++        if reqparams.has_key('service'):
++            del reqparams['service']
+         try:
+-            mapnikmodule = __import__('mapnik.ogcserver.' + reqparams['service'])
++            mapnikmodule = __import__('mapnik.ogcserver.' + service)
+         except:
+-            raise OGCException('Unsupported service &quot;%s&quot;.' % reqparams['service'])
+-        ServiceHandlerFactory = getattr(mapnikmodule.ogcserver, reqparams['service']).ServiceHandlerFactory
++            raise OGCException('Unsupported service &quot;%s&quot;.' % service)
++        ServiceHandlerFactory = getattr(mapnikmodule.ogcserver, service).ServiceHandlerFactory
+         servicehandler = ServiceHandlerFactory(self.conf, self.mapfactory, onlineresource, reqparams.get('version', None))
+-        if reqparams['request'] not in servicehandler.SERVICE_PARAMS.keys():
+-            raise OGCException('Operation &quot;%s&quot; not supported.' % reqparams['request'], 'OperationNotSupported')
+-        ogcparams = servicehandler.processParameters(reqparams['request'], reqparams)
++        del reqparams['version']
++        if request not in servicehandler.SERVICE_PARAMS.keys():
++            raise OGCException('Operation &quot;%s&quot; not supported.' % request, 'OperationNotSupported')
++        ogcparams = servicehandler.processParameters(request, reqparams)
+         try:
+-            requesthandler = getattr(servicehandler, reqparams['request'])
++            requesthandler = getattr(servicehandler, request)
+         except:
+-            raise OGCException('Operation &quot;%s&quot; not supported.' % reqparams['request'], 'OperationNotSupported')
++            raise OGCException('Operation &quot;%s&quot; not supported.' % request, 'OperationNotSupported')
+         response = requesthandler(ogcparams)
+         req.set_header('Content-Type', response.content_type)
+         req.write(response.content)
+
+Modified: trunk/bindings/python/mapnik/ogcserver/common.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/common.py	2006-05-11 00:44:20 UTC (rev 247)
++++ trunk/bindings/python/mapnik/ogcserver/common.py	2006-05-11 04:24:51 UTC (rev 248)
+@@ -46,21 +46,21 @@
+ 
+             @param mandatory: Is this parameter required by the request?
+             @type mandatory: Boolean.
+-            
++
+             @param default: Default value to use if one is not provided
+                             and the parameter is optional.
+             @type default: None or any valid value.
+-            
++
+             @param allowedvalues: A list of allowed values for the parameter.
+                                   If a value is provided that is not in this
+                                   list, an error is raised.
+             @type allowedvalues: A python tuple of values.
+-            
++
+             @param fallback: Whether the value of the parameter should fall
+                              back to the default should an illegal value be
+                              provided.
+             @type fallback: Boolean.
+-            
++
+             @return: A L{ParameterDefinition} instance.
+         &quot;&quot;&quot;
+         if mandatory not in [True, False]:
+@@ -81,6 +81,9 @@
+ 
+     def processParameters(self, requestname, params):
+         finalparams = {}
++        for paramname in params.keys():
++            if paramname not in self.SERVICE_PARAMS[requestname].keys():
++                raise OGCException('Unknown request parameter &quot;%s&quot;.' % paramname)
+         for paramname, paramdef in self.SERVICE_PARAMS[requestname].items():
+             if paramname not in params.keys() and paramdef.mandatory:
+                 raise OGCException('Mandatory parameter &quot;%s&quot; missing from request.' % paramname)
+@@ -144,10 +147,10 @@
+                     return 0
+ 
+ class ListFactory:
+-    
++
+     def __init__(self, cast):
+         self.cast = cast
+-    
++
+     def __call__(self, string):
+         seq = string.split(',')
+         return map(self.cast, seq)
+@@ -159,15 +162,15 @@
+         raise OGCException('Invalid color value. Must be of format &quot;0xFFFFFF&quot;.')
+ 
+ class CRS:
+-    
++
+     def __init__(self, namespace, code):
+         self.namespace = namespace
+         self.code = int(code)
+         self.proj = None
+-    
++
+     def __repr__(self):
+         return '%s:%s' % (self.namespace, self.code)
+-    
++
+     def __eq__(self, other):
+         if str(other) == str(self):
+             return True
+@@ -177,17 +180,17 @@
+         if not self.proj:
+             self.proj = Projection(['init=%s' % str(self).lower()])
+         return self.proj.Inverse(x, y)
+-    
++
+     def Forward(self, x, y):
+         if not self.proj:
+             self.proj = Projection(['init=%s' % str(self).lower()])
+         return self.proj.Forward(x, y)
+ 
+ class CRSFactory:
+-    
++
+     def __init__(self, allowednamespaces):
+         self.allowednamespaces = allowednamespaces
+-    
++
+     def __call__(self, crsstring):
+         if not re.match('^[A-Z]{3,5}:\d+$', crsstring):
+             raise OGCException('Invalid format for the CRS parameter: %s' % crsstring, 'InvalidCRS')
+@@ -198,12 +201,14 @@
+             raise OGCException('Invalid CRS Namespace: %s' % crsparts[0], 'InvalidCRS')
+ 
+ class WMSBaseServiceHandler(BaseServiceHandler):
+-    
++
+     def GetMap(self, params):
+         if params['bbox'][0] &gt;= params['bbox'][2]:
+             raise OGCException(&quot;BBOX values don't make sense.  minx is greater than maxx.&quot;)
+         if params['bbox'][1] &gt;= params['bbox'][3]:
+             raise OGCException(&quot;BBOX values don't make sense.  miny is greater than maxy.&quot;)
++        if params.has_key('styles') and len(params['styles']) != len(params['layers']):
++            raise OGCException('STYLES length does not match LAYERS length.')
+         m = Map(params['width'], params['height'])
+         if params.has_key('transparent') and params['transparent'] == 'FALSE':
+             m.background = params['bgcolor']
+@@ -225,7 +230,6 @@
+         m.zoom_to_box(Envelope(params['bbox'][0], params['bbox'][1], params['bbox'][2], params['bbox'][3]))
+         im = Image(params['width'], params['height'])
+         render(m, im)
+-        render_to_file(m, '/tmp/ogcserver.png', 'png')
+         im = fromstring('RGBA', (params['width'], params['height']), rawdata(im))
+         fh = StringIO()
+         im.save(fh, PIL_TYPE_MAPPING[params['format']], quality=100)
+@@ -233,10 +237,10 @@
+         return Response(params['format'], fh.read())
+ 
+ class BaseExceptionHandler:
+-    
++
+     def __init__(self, debug):
+         self.debug = debug
+-    
++
+     def getresponse(self, params):
+         code = ''
+         message = ''
+@@ -252,10 +256,10 @@
+         if isinstance(excinfo[1], OGCException) and len(excinfo[1].args) &gt; 1:
+             code = excinfo[1].args[1]
+         exceptions = params.get('exceptions', None)
+-        if not exceptions:
++        if not exceptions or not self.handlers.has_key(exceptions):
+             exceptions = self.defaulthandler
+         return self.handlers[exceptions](self, code, message, params)
+-    
++
+     def xmlhandler(self, code, message, params):
+         ogcexcetree = deepcopy(self.xmltemplate)
+         e = ogcexcetree.find(self.xpath)
+@@ -274,10 +278,10 @@
+         im.save(fh, PIL_TYPE_MAPPING[params['format']])
+         fh.seek(0)
+         return Response(params['format'], fh.read())
+-    
++
+     def blankhandler(self, code, message, params):
+         bgcolor = params.get('bgcolor', '#FFFFFF')
+-        bgcolor.replace('0x', '#')
++        bgcolor = bgcolor.replace('0x', '#')
+         transparent = params.get('transparent', 'FALSE')
+         if transparent == 'TRUE':
+             im = new('RGBA', (int(params['width']), int(params['height'])))
+@@ -287,4 +291,4 @@
+         fh = StringIO()
+         im.save(fh, PIL_TYPE_MAPPING[params['format']])
+         fh.seek(0)
+-        return Response(params['format'], fh.read())
++        return Response(params['format'], fh.read())
+\ No newline at end of file
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms111.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms111.py	2006-05-11 00:44:20 UTC (rev 247)
++++ trunk/bindings/python/mapnik/ogcserver/wms111.py	2006-05-11 04:24:51 UTC (rev 248)
+@@ -32,17 +32,16 @@
+             'updatesequence': ParameterDefinition(False, str)
+         },
+         'GetMap': {
+-            'version': ParameterDefinition(True, Version, allowedvalues=(Version('1.1.1'),)),
+             'layers': ParameterDefinition(True, ListFactory(str)),
+             'styles': ParameterDefinition(True, ListFactory(str)),
+             'srs': ParameterDefinition(True, CRSFactory(['EPSG'])),
+             'bbox': ParameterDefinition(True, ListFactory(float)),
+             'width': ParameterDefinition(True, int),
+             'height': ParameterDefinition(True, int),
+-            'format': ParameterDefinition(True, str, allowedvalues=('image/png', 'image/jpeg', 'image/gif')),
++            'format': ParameterDefinition(True, str, allowedvalues=('image/png', 'image/jpeg')),
+             'transparent': ParameterDefinition(False, str, 'FALSE', ('TRUE', 'FALSE')),
+             'bgcolor': ParameterDefinition(False, ColorFactory, ColorFactory('0xFFFFFF')),
+-            'exceptions': ParameterDefinition(False, str, 'application/vnd.ogc.se_xml', ('application/vnd.ogc.se_xml', 'application/vnd.ogc.se_inimage'))
++            'exceptions': ParameterDefinition(False, str, 'application/vnd.ogc.se_xml', ('application/vnd.ogc.se_xml', 'application/vnd.ogc.se_inimage', 'application/vnd.ogc.se_blank'))
+         }
+     }
+ 
+@@ -113,7 +112,7 @@
+             ServerConfigurationError('EPSG code not properly configured.')
+ 
+         capetree = ElementTree.fromstring(self.capabilitiesxmltemplate)
+-        
++
+         elements = capetree.findall('Capability//OnlineResource')
+         for element in elements:
+             element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}href', opsonlineresource)
+@@ -138,7 +137,7 @@
+                         servicee.append(element)
+ 
+         rootlayerelem = capetree.find('Capability/Layer')
+-        
++
+         rootlayersrs = rootlayerelem.find('SRS')
+         rootlayersrs.text = str(self.crs)
+ 
+@@ -177,7 +176,7 @@
+                     style.append(styletitle)
+                     layere.append(style)
+             rootlayerelem.append(layere)
+-        
++
+         self.capabilities = '&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;\n' + ElementTree.tostring(capetree)
+ 
+     def GetCapabilities(self, params):
+@@ -190,20 +189,20 @@
+         return WMSBaseServiceHandler.GetMap(self, params)
+ 
+ class ExceptionHandler(BaseExceptionHandler):
+-    
++
+     xmlmimetype = &quot;application/vnd.ogc.se_xml&quot;
+-    
++
+     xmltemplate = ElementTree.fromstring(&quot;&quot;&quot;&lt;?xml version='1.0' encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;
+     &lt;!DOCTYPE ServiceExceptionReport SYSTEM &quot;<A HREF="http://www.digitalearth.gov/wmt/xml/exception_1_1_1.dtd">http://www.digitalearth.gov/wmt/xml/exception_1_1_1.dtd</A>&quot;&gt;
+     &lt;ServiceExceptionReport version=&quot;1.1.1&quot;&gt;
+       &lt;ServiceException /&gt;
+     &lt;/ServiceExceptionReport&gt;
+     &quot;&quot;&quot;)
+-    
++
+     xpath = 'ServiceException'
+ 
+     handlers = {'application/vnd.ogc.se_xml': BaseExceptionHandler.xmlhandler,
+                 'application/vnd.ogc.se_inimage': BaseExceptionHandler.inimagehandler,
+                 'application/vnd.ogc.se_blank': BaseExceptionHandler.blankhandler}
+-    
++
+     defaulthandler = 'application/vnd.ogc.se_xml'
+\ No newline at end of file
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms130.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms130.py	2006-05-11 00:44:20 UTC (rev 247)
++++ trunk/bindings/python/mapnik/ogcserver/wms130.py	2006-05-11 04:24:51 UTC (rev 248)
+@@ -33,17 +33,16 @@
+             'updatesequence': ParameterDefinition(False, str)
+         },
+         'GetMap': {
+-            'version': ParameterDefinition(True, Version, allowedvalues=(Version('1.3.0'),)),
+             'layers': ParameterDefinition(True, ListFactory(str)),
+             'styles': ParameterDefinition(True, ListFactory(str)),
+             'crs': ParameterDefinition(True, CRSFactory(['EPSG'])),
+             'bbox': ParameterDefinition(True, ListFactory(float)),
+             'width': ParameterDefinition(True, int),
+             'height': ParameterDefinition(True, int),
+-            'format': ParameterDefinition(True, str, allowedvalues=('image/gif','image/png', 'image/jpeg')),
++            'format': ParameterDefinition(True, str, allowedvalues=('image/png', 'image/jpeg')),
+             'transparent': ParameterDefinition(False, str, 'FALSE', ('TRUE', 'FALSE')),
+             'bgcolor': ParameterDefinition(False, ColorFactory, ColorFactory('0xFFFFFF')),
+-            'exceptions': ParameterDefinition(False, str, 'XML', ('XML', 'INIMAGE')),
++            'exceptions': ParameterDefinition(False, str, 'XML', ('XML', 'INIMAGE', 'BLANK')),
+         }
+     }
+ 
+@@ -119,7 +118,7 @@
+             raise ServerConfigurationError('EPSG code not properly configured.')
+ 
+         capetree = ElementTree.fromstring(self.capabilitiesxmltemplate)
+-        
++
+         elements = capetree.findall('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Capability//{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}OnlineResource')
+         for element in elements:
+             element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}href', opsonlineresource)
+@@ -143,12 +142,11 @@
+                         element.text = value
+                         servicee.append(element)
+ 
+-        
+         rootlayerelem = capetree.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Capability/{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Layer')
+ 
+         rootlayercrs = rootlayerelem.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}CRS')
+         rootlayercrs.text = str(self.crs)
+-        
++
+         for layer in self.mapfactory.layers.values():
+             layername = ElementTree.Element('Name')
+             layername.text = layer.name()
+@@ -192,13 +190,13 @@
+                     style.append(styletitle)
+                     layere.append(style)
+             rootlayerelem.append(layere)
+-        
++
+         self.capabilities = '&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;' + ElementTree.tostring(capetree)
+ 
+     def GetCapabilities(self, params):
+         response = Response('text/xml', self.capabilities)
+         return response
+-        
++
+     def GetMap(self, params):
+         if params['width'] &gt; int(self.conf.get('service', 'maxwidth')) or params['height'] &gt; int(self.conf.get('service', 'maxheight')):
+             raise OGCException('Requested map size exceeds limits set by this server.')
+@@ -207,9 +205,9 @@
+         return WMSBaseServiceHandler.GetMap(self, params)
+ 
+ class ExceptionHandler(BaseExceptionHandler):
+-    
++
+     xmlmimetype = &quot;text/xml&quot;
+-    
++
+     xmltemplate = ElementTree.fromstring(&quot;&quot;&quot;&lt;?xml version='1.0' encoding=&quot;UTF-8&quot;?&gt;
+     &lt;ServiceExceptionReport version=&quot;1.3.0&quot;
+                             xmlns=&quot;<A HREF="http://www.opengis.net/ogc">http://www.opengis.net/ogc</A>&quot;
+@@ -218,11 +216,11 @@
+       &lt;ServiceException/&gt;
+     &lt;/ServiceExceptionReport&gt;
+     &quot;&quot;&quot;)
+-    
++
+     xpath = '{<A HREF="http://www.opengis.net/ogc">http://www.opengis.net/ogc</A>}ServiceException'
+-    
++
+     handlers = {'XML': BaseExceptionHandler.xmlhandler,
+                 'INIMAGE': BaseExceptionHandler.inimagehandler,
+                 'BLANK': BaseExceptionHandler.blankhandler}
+-    
++
+     defaulthandler = 'XML'
+\ No newline at end of file
+
+Modified: trunk/bindings/python/pyprojection/Projection_wrap.c
+===================================================================
+--- trunk/bindings/python/pyprojection/Projection_wrap.c	2006-05-11 00:44:20 UTC (rev 247)
++++ trunk/bindings/python/pyprojection/Projection_wrap.c	2006-05-11 04:24:51 UTC (rev 248)
+@@ -24,6 +24,7 @@
+  * this copyright message remains intact.
+  ************************************************************************/
+ 
++#include &quot;Python.h&quot;
+ #include &lt;string.h&gt;
+ 
+ #if defined(_WIN32) || defined(__WIN32__)
+@@ -173,7 +174,6 @@
+  ************************************************************************/
+ 
+ #include &lt;stdlib.h&gt;
+-#include &quot;Python.h&quot;
+ 
+ #ifdef __cplusplus
+ extern &quot;C&quot; {
+
+Modified: trunk/docs/ogcserver/readme.txt
+===================================================================
+--- trunk/docs/ogcserver/readme.txt	2006-05-11 00:44:20 UTC (rev 247)
++++ trunk/docs/ogcserver/readme.txt	2006-05-11 04:24:51 UTC (rev 248)
+@@ -23,6 +23,7 @@
+ - XML/INIMAGE/BLANK error handling
+ - No real layer metadata support yet
+ - No re-projection support
++- Needs to be able to write to tempfile.gettempdir() (most likely &quot;/tmp&quot;)
+ 
+ 
+ Dependencies
+@@ -101,7 +102,8 @@
+ 		
+ 		lyr = Layer(name='layername')
+ 		...
+-		self.register_layer(lyr, ('extra', 'style', 'names'))
++		lyr.styles.append('stylename')
++		self.register_layer(lyr)
+ 		self.finalize()
+ 		
+ The rules for writing this class are:
+@@ -116,11 +118,24 @@
+ - No Map() object is used or needed here.
+ - Be sure to call self.finalize() once you've registered everything! This will
+   validate everything and let you know if there's problems.
+-- You can associate more styles to a given layer by passing a tuple of style
+-  names along with the layer itself to register_layer().  As of this writing
+-  this is useless as the core engine doesn't yet support named styles :)
++- Be sure to associate a default style with the layer.  In the future, there
++  will be a mechanism to assign other non-default styles to a layer, to support
++  named styles through the STYLES= parameter.
+ 
++To Do
++-----
+ 
++- Named style support.
++- Improve configuration to allow for full server metadata.
++- Add support for richer layer metadata.
++- Investigate moving to cElementTree from lxml.
++- Add some internal &quot;caching&quot; for performance improvements.
++- Support GetFeatureInfo (Requires core changes).
++- Switch to using C/C++ libs for image generation, instead of PIL (also
++  requires core changes). PIL requirement will remain for INIMAGE/BLANK
++  error handling.
++
++
+ Conclusion
+ ----------
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000132.html">[Mapnik-svn] r247 - trunk/docs/ogcserver
+</A></li>
+	<LI>Next message: <A HREF="000134.html">[Mapnik-svn] r249 - trunk/utils/shapeindex
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#133">[ date ]</a>
+              <a href="thread.html#133">[ thread ]</a>
+              <a href="subject.html#133">[ subject ]</a>
+              <a href="author.html#133">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

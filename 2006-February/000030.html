@@ -1,0 +1,141 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r144 - trunk
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-February/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r144%20-%20trunk&In-Reply-To=%3C200602052203.k15M3inT021225%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000029.html">
+   <LINK REL="Next"  HREF="000031.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r144 - trunk</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r144%20-%20trunk&In-Reply-To=%3C200602052203.k15M3inT021225%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r144 - trunk">jdoyon at berlios.de
+       </A><BR>
+    <I>Sun Feb  5 23:03:44 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000029.html">[Mapnik-svn] r143 - trunk
+</A></li>
+        <LI>Next message: <A HREF="000031.html">[Mapnik-svn] r145 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#30">[ date ]</a>
+              <a href="thread.html#30">[ thread ]</a>
+              <a href="subject.html#30">[ subject ]</a>
+              <a href="author.html#30">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-02-05 23:03:43 +0100 (Sun, 05 Feb 2006)
+New Revision: 144
+
+Modified:
+   trunk/SConstruct
+Log:
+Cleaning SConstruct a little bit.  No new functionality.
+
+
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2006-02-05 21:04:30 UTC (rev 143)
++++ trunk/SConstruct	2006-02-05 22:03:43 UTC (rev 144)
+@@ -89,11 +89,17 @@
+             print 'Could not find header or shared library for boost %s, exiting!' % libinfo[0]
+             Exit(1)
+ 
++Export('env')
++
++inputplugins = [ driver.strip() for driver in Split(env['INPUT_PLUGINS'])]
++
++bindings = [ binding.strip() for binding in Split(env['BINDINGS'])]
++
+ # Check out the Python situation
+ 
+ if 'python' in env['BINDINGS']:
+     if not os.access(env['PYTHON'], os.X_OK):
+-        print 'Cannot run python, make sure that you have the permissions to execute it.'
++        print &quot;Cannot run python interpreter at '%s', make sure that you have the permissions to execute it.&quot; % env['PYTHON']
+         Exit(1)
+ 
+     env['PYTHON_PREFIX'] = os.popen(&quot;%s -c 'import sys; print sys.prefix'&quot; % env['PYTHON']).read().strip()
+@@ -113,6 +119,8 @@
+ 
+     print 'Python %s prefix... %s' % (env['PYTHON_VERSION'], env['PYTHON_PREFIX'])
+ 
++    SConscript('bindings/python/SConscript')
++
+ env = conf.Finish()
+ 
+ # Setup the c++ args for our own codebase
+@@ -122,21 +130,17 @@
+ else:
+     env.Append(CXXFLAGS = '-Wall -ftemplate-depth-100 -O3 -finline-functions -Wno-inline -pthread -DNDEBUG')
+ 
+-# Build the input plug-ins
+-
+-inputplugins = [ driver.strip() for driver in Split(env['INPUT_PLUGINS'])]
+-
+-Export('env')
+-
+ # Build agg first, doesn't need anything special
+ 
+ SConscript('agg/SConscript')
+ 
+-# Build shapeindex and remove it's dependency from the LIBS
++# Build shapeindex and remove its dependency from the LIBS
+ 
+ if 'boost_program_options' in env['LIBS'] or 'boost_program_options-gcc-mt' in env['LIBS']:
+     SConscript('utils/shapeindex/SConscript')
+ 
++# Build the input plug-ins
++
+ if 'postgis' in inputplugins and 'pq' in env['LIBS']:
+     SConscript('plugins/input/postgis/SConscript')
+     env['LIBS'].remove('pq')
+@@ -150,10 +154,3 @@
+ # Build the core library
+ 
+ SConscript('src/SConscript')
+-
+-# Build python bindings
+-
+-bindings = [ binding.strip() for binding in Split(env['BINDINGS'])]
+-
+-if 'python' in bindings:
+-    SConscript('bindings/python/SConscript')
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000029.html">[Mapnik-svn] r143 - trunk
+</A></li>
+	<LI>Next message: <A HREF="000031.html">[Mapnik-svn] r145 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#30">[ date ]</a>
+              <a href="thread.html#30">[ thread ]</a>
+              <a href="subject.html#30">[ subject ]</a>
+              <a href="author.html#30">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

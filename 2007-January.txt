@@ -1,0 +1,1869 @@
+From pavlenko at mail.berlios.de  Tue Jan  9 12:23:36 2007
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Tue, 9 Jan 2007 12:23:36 +0100
+Subject: [Mapnik-svn] r424 - in trunk: bindings/python include/mapnik src
+Message-ID: <200701091123.l09BNaIc028838@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2007-01-09 12:23:19 +0100 (Tue, 09 Jan 2007)
+New Revision: 424
+
+Modified:
+   trunk/bindings/python/mapnik_feature.cpp
+   trunk/bindings/python/mapnik_layer.cpp
+   trunk/include/mapnik/feature.hpp
+   trunk/include/mapnik/layer.hpp
+   trunk/src/layer.cpp
+Log:
+added queryable property and visible method to Layer (Python)
+
+
+
+Modified: trunk/bindings/python/mapnik_feature.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_feature.cpp	2006-12-31 11:44:34 UTC (rev 423)
++++ trunk/bindings/python/mapnik_feature.cpp	2007-01-09 11:23:19 UTC (rev 424)
+@@ -35,16 +35,15 @@
+         boost::noncopyable>("Feature",no_init)
+         .def("id",&Feature::id)
+         .def("__str__",&Feature::to_string)
++      //.def(map_indexing_suite<mapnik::Feature>())
+ 	.add_property("properties", 
+ 		      make_function(&Feature::props,return_value_policy<reference_existing_object>()))
+         ;
+     
+-    //implicitly_convertible<std::string,mapnik::value>();
+-    
+     class_<std::map<std::string, mapnik::value> >("Properties")
+-	.def(map_indexing_suite<std::map<std::string, mapnik::value
+-	     > >())
+-	;
++      .def(map_indexing_suite<std::map<std::string, mapnik::value
++	   > >())
++      ;
+     
+     class_<mapnik::value>("Value")
+ 	.def("__str__",&mapnik::value::to_string)
+
+Modified: trunk/bindings/python/mapnik_layer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_layer.cpp	2006-12-31 11:44:34 UTC (rev 423)
++++ trunk/bindings/python/mapnik_layer.cpp	2007-01-09 11:23:19 UTC (rev 424)
+@@ -80,7 +80,10 @@
+         .add_property("active",
+                       &Layer::isActive,
+                       &Layer::setActive)
+-        
++        .add_property("queryable",
++		      &Layer::isQueryable,
++		      &Layer::setQueryable)
++        .def("visible", &Layer::isVisible)
+         .def("envelope",&Layer::envelope, 
+              "Return the geographic envelope/bounding box "
+              "of the data in the layer.")
+
+Modified: trunk/include/mapnik/feature.hpp
+===================================================================
+--- trunk/include/mapnik/feature.hpp	2006-12-31 11:44:34 UTC (rev 423)
++++ trunk/include/mapnik/feature.hpp	2007-01-09 11:23:19 UTC (rev 424)
+@@ -48,7 +48,9 @@
+     public:
+         typedef T1 geometry_type;
+         typedef T2 raster_type;
+-       
++      typedef std::map<std::string,value>::value_type value_type;
++      typedef std::map<std::string,value>::size_type size_type;
++      
+     private:
+         int id_;
+         geometry_type geom_;
+
+Modified: trunk/include/mapnik/layer.hpp
+===================================================================
+--- trunk/include/mapnik/layer.hpp	2006-12-31 11:44:34 UTC (rev 423)
++++ trunk/include/mapnik/layer.hpp	2007-01-09 11:23:19 UTC (rev 424)
+@@ -43,7 +43,7 @@
+         double minZoom_;
+         double maxZoom_;
+         bool active_;
+-        bool selectable_;
++        bool queryable_;
+         std::vector<std::string>  styles_;
+         std::string selection_style_;
+         datasource_ptr ds_;
+@@ -74,8 +74,8 @@
+         double getMaxZoom() const;
+         void setActive(bool active);
+         bool isActive() const;
+-        void setSelectable(bool selectable);
+-        bool isSelectable() const;
++        void setQueryable(bool queryable);
++        bool isQueryable() const;
+         bool isVisible(double scale) const;
+         void add_to_selection(boost::shared_ptr<Feature>& feature) const;
+         std::vector<boost::shared_ptr<Feature> >& selection() const;
+
+Modified: trunk/src/layer.cpp
+===================================================================
+--- trunk/src/layer.cpp	2006-12-31 11:44:34 UTC (rev 423)
++++ trunk/src/layer.cpp	2007-01-09 11:23:19 UTC (rev 424)
+@@ -46,7 +46,7 @@
+           minZoom_(0),
+           maxZoom_(std::numeric_limits<double>::max()),
+           active_(true),
+-          selectable_(false),
++          queryable_(false),
+           selection_style_("default_selection"),
+           ds_() {}
+     
+@@ -58,7 +58,7 @@
+           minZoom_(rhs.minZoom_),
+           maxZoom_(rhs.maxZoom_),
+           active_(rhs.active_),
+-          selectable_(rhs.selectable_),
++          queryable_(rhs.queryable_),
+           styles_(rhs.styles_),
+           selection_style_(rhs.selection_style_),
+           ds_(rhs.ds_) {}
+@@ -83,7 +83,7 @@
+         minZoom_=rhs.minZoom_;
+         maxZoom_=rhs.maxZoom_;
+         active_=rhs.active_;
+-        selectable_=rhs.selectable_;
++        queryable_=rhs.queryable_;
+         styles_=rhs.styles_;
+         selection_style_=rhs.selection_style_;
+         ds_=rhs.ds_;
+@@ -181,14 +181,14 @@
+         return isActive() && scale >= minZoom_ - 1e-6 && scale < maxZoom_ + 1e-6;
+     }
+ 
+-    void Layer::setSelectable(bool selectable)
++    void Layer::setQueryable(bool queryable)
+     {
+-        selectable_=selectable;
++        queryable_=queryable;
+     }
+ 
+-    bool Layer::isSelectable() const
++    bool Layer::isQueryable() const
+     {
+-        return selectable_;
++        return queryable_;
+     }
+ 
+     datasource_ptr Layer::datasource() const
+
+
+
+From pavlenko at mail.berlios.de  Thu Jan 11 18:19:53 2007
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Thu, 11 Jan 2007 18:19:53 +0100
+Subject: [Mapnik-svn] r425 - in trunk: include/mapnik src
+Message-ID: <200701111719.l0BHJrrO000182@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2007-01-11 18:19:51 +0100 (Thu, 11 Jan 2007)
+New Revision: 425
+
+Modified:
+   trunk/include/mapnik/map.hpp
+   trunk/src/map.cpp
+Log:
+include Layer instead of forward declaration
+
+
+
+Modified: trunk/include/mapnik/map.hpp
+===================================================================
+--- trunk/include/mapnik/map.hpp	2007-01-09 11:23:19 UTC (rev 424)
++++ trunk/include/mapnik/map.hpp	2007-01-11 17:19:51 UTC (rev 425)
+@@ -26,11 +26,10 @@
+ 
+ #include <mapnik/feature_type_style.hpp>
+ #include <mapnik/datasource.hpp>
++#include <mapnik/layer.hpp>
+ 
+ namespace mapnik
+ {
+-    class Layer;
+-
+     class MAPNIK_DECL Map
+     {	
+         static const unsigned MIN_MAPSIZE=16;
+
+Modified: trunk/src/map.cpp
+===================================================================
+--- trunk/src/map.cpp	2007-01-09 11:23:19 UTC (rev 424)
++++ trunk/src/map.cpp	2007-01-11 17:19:51 UTC (rev 425)
+@@ -25,7 +25,6 @@
+ #include <mapnik/style.hpp>
+ #include <mapnik/datasource.hpp>
+ #include <mapnik/projection.hpp>
+-#include <mapnik/layer.hpp>
+ #include <mapnik/filter_featureset.hpp>
+ #include <mapnik/hit_test_filter.hpp>
+ #include <mapnik/map.hpp>
+
+
+
+From pavlenko at mail.berlios.de  Tue Jan 16 16:18:28 2007
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Tue, 16 Jan 2007 16:18:28 +0100
+Subject: [Mapnik-svn] r426 - trunk/src
+Message-ID: <200701161518.l0GFISdY014098@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2007-01-16 16:18:25 +0100 (Tue, 16 Jan 2007)
+New Revision: 426
+
+Modified:
+   trunk/src/map.cpp
+Log:
+in query_point method expect (x,y) in Map coordinate system
+
+
+
+Modified: trunk/src/map.cpp
+===================================================================
+--- trunk/src/map.cpp	2007-01-11 17:19:51 UTC (rev 425)
++++ trunk/src/map.cpp	2007-01-16 15:18:25 UTC (rev 426)
+@@ -318,23 +318,15 @@
+         return CoordTransform(width_,height_,currentExtent_);
+     }
+     
+-    featureset_ptr Map::query_point(unsigned index, double lat, double lon) const
++    featureset_ptr Map::query_point(unsigned index, double x, double y) const
+     {
+         if ( index< layers_.size())
+         {
+             mapnik::Layer const& layer = layers_[index];    
+             try
+             {
+-                double x = lon;
+-                double y = lat;
+                 double z = 0;
+                 mapnik::projection dest(srs_);
+-
+-		if (!dest.is_geographic())
+-		{
+-		    dest.forward(x,y);
+-		}
+-		
+                 mapnik::projection source(layer.srs());
+                 proj_transform prj_trans(source,dest);
+                 prj_trans.backward(x,y,z);
+
+
+
+From pavlenko at mail.berlios.de  Tue Jan 16 16:22:52 2007
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Tue, 16 Jan 2007 16:22:52 +0100
+Subject: [Mapnik-svn] r427 - trunk/plugins/input/postgis
+Message-ID: <200701161522.l0GFMq5c014435@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2007-01-16 16:22:49 +0100 (Tue, 16 Jan 2007)
+New Revision: 427
+
+Modified:
+   trunk/plugins/input/postgis/connection_manager.hpp
+Log:
+use all parameters to calculate connection id
+
+
+
+Modified: trunk/plugins/input/postgis/connection_manager.hpp
+===================================================================
+--- trunk/plugins/input/postgis/connection_manager.hpp	2007-01-16 15:18:25 UTC (rev 426)
++++ trunk/plugins/input/postgis/connection_manager.hpp	2007-01-16 15:22:49 UTC (rev 427)
+@@ -38,11 +38,7 @@
+ template <typename T>
+ class ConnectionCreator
+ {
+-    string url_;
+-    string port_;
+-    string dbname_;
+-    string user_;
+-    string pass_;
++
+ public:
+     ConnectionCreator(string const& url,
+                       string const& port,
+@@ -59,10 +55,21 @@
+     {
+         return new T(url_,port_,dbname_,user_,pass_);
+     }
++    
+     std::string id() const 
+     {
+-        return url_ + ":" + dbname_;
++        return url_ + ":" 
++	  + dbname_ + ":" 
++	  + port_ +":" 
++	  + user_ ; 
+     }
++private:
++    string url_;
++    string port_;
++    string dbname_;
++    string user_;
++    string pass_;
++
+ };
+ 
+ class ConnectionManager : public singleton <ConnectionManager,CreateStatic>
+
+
+
+From pavlenko at mail.berlios.de  Wed Jan 17 12:43:21 2007
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Wed, 17 Jan 2007 12:43:21 +0100
+Subject: [Mapnik-svn] r428 - in trunk: include/mapnik plugins/input/shape
+Message-ID: <200701171143.l0HBhLfM002294@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2007-01-17 12:43:11 +0100 (Wed, 17 Jan 2007)
+New Revision: 428
+
+Modified:
+   trunk/include/mapnik/config.hpp
+   trunk/include/mapnik/datasource.hpp
+   trunk/include/mapnik/geom_util.hpp
+   trunk/include/mapnik/image_util.hpp
+   trunk/include/mapnik/load_map.hpp
+   trunk/include/mapnik/save_map.hpp
+   trunk/plugins/input/shape/shape.hpp
+   trunk/plugins/input/shape/shape_featureset.hpp
+   trunk/plugins/input/shape/shape_index_featureset.hpp
+Log:
+improved win32 support from  Valery Moiseev.
+
+
+
+Modified: trunk/include/mapnik/config.hpp
+===================================================================
+--- trunk/include/mapnik/config.hpp	2007-01-16 15:22:49 UTC (rev 427)
++++ trunk/include/mapnik/config.hpp	2007-01-17 11:43:11 UTC (rev 428)
+@@ -26,14 +26,22 @@
+ // Windows DLL support
+ 
+ #ifdef _WINDOWS
+-# define MAPNIK_DECL __declspec (dllexport)
+-# pragma warning( disable: 4251 )
+-# pragma warning( disable: 4275 )
+-# if (_MSC_VER >= 1400) // vc8
+-#   pragma warning(disable : 4996) //_CRT_SECURE_NO_DEPRECATE
+-# endif
++#  define MAPNIK_EXP __declspec (dllexport)
++#  define MAPNIK_IMP __declspec (dllimport)
++#  ifdef MAPNIK_EXPORTS
++#    define MAPNIK_DECL __declspec (dllexport)
++#  else
++#    define MAPNIK_DECL __declspec (dllimport)
++#  endif
++#  pragma warning( disable: 4251 )
++#  pragma warning( disable: 4275 )
++#  if (_MSC_VER >= 1400) // vc8
++#    pragma warning(disable : 4996) //_CRT_SECURE_NO_DEPRECATE
++#  endif
+ #else
+-# define MAPNIK_DECL 
++#  define MAPNIK_EXP
++#  define MAPNIK_IMP
++#  define MAPNIK_DECL
+ #endif
+ 
+ #endif // CONFIG_HPP
+
+Modified: trunk/include/mapnik/datasource.hpp
+===================================================================
+--- trunk/include/mapnik/datasource.hpp	2007-01-16 15:22:49 UTC (rev 427)
++++ trunk/include/mapnik/datasource.hpp	2007-01-17 11:43:11 UTC (rev 428)
+@@ -108,15 +108,15 @@
+     
+     
+     #define DATASOURCE_PLUGIN(classname)                              \
+-        extern "C" MAPNIK_DECL std::string datasource_name()            \
++        extern "C" MAPNIK_EXP std::string datasource_name()            \
+         {                                                               \
+             return classname::name();                                   \
+         }                                                               \
+-        extern "C"  MAPNIK_DECL datasource* create(const parameters &params) \
++        extern "C"  MAPNIK_EXP datasource* create(const parameters &params) \
+         {                                                               \
+             return new classname(params);                               \
+         }                                                               \
+-        extern "C" MAPNIK_DECL void destroy(datasource *ds)             \
++        extern "C" MAPNIK_EXP void destroy(datasource *ds)             \
+         {                                                               \
+             delete ds;                                                  \
+         }                                                               \
+
+Modified: trunk/include/mapnik/geom_util.hpp
+===================================================================
+--- trunk/include/mapnik/geom_util.hpp	2007-01-16 15:22:49 UTC (rev 427)
++++ trunk/include/mapnik/geom_util.hpp	2007-01-17 11:43:11 UTC (rev 428)
+@@ -148,7 +148,7 @@
+     {
+         double len2 = distance2(ax,ay,bx,by);
+         
+-        if (len2 < 1e-7) 
++        if (len2 < 1e-14) 
+         {
+             return distance(x,y,ax,ay);
+         }
+@@ -172,7 +172,7 @@
+         double x0=boost::get<0>(*start);
+         double y0=boost::get<1>(*start);
+         double x1,y1;
+-        while (++start!=end) 
++        while (++start != end) 
+         {
+             if ( boost::get<2>(*start) == SEG_MOVETO)
+             {
+@@ -184,7 +184,7 @@
+             y1=boost::get<1>(*start);
+             
+             double distance = point_to_segment_distance(x,y,x0,y0,x1,y1);
+-            if (distance < tol)
++	    if (distance < tol)
+                 return true;
+             x0=x1;
+             y0=y1;
+
+Modified: trunk/include/mapnik/image_util.hpp
+===================================================================
+--- trunk/include/mapnik/image_util.hpp	2007-01-16 15:22:49 UTC (rev 427)
++++ trunk/include/mapnik/image_util.hpp	2007-01-17 11:43:11 UTC (rev 428)
+@@ -33,20 +33,12 @@
+ 
+ namespace mapnik {
+     
+-    template <typename T>
++    template <typename T> MAPNIK_DECL
+     void save_to_file(std::string const& filename,
+                       std::string const& type,
+                       T const& image);
+     
+-    template <typename T>
+-    void save_as_png(std::string const& filename,
+-                     Image32 const& image);
+-    template <typename T>
+-    void save_as_jpeg(std::string const& filename,
+-                      int quality, 
+-                      T const& image);
+     
+-    
+     template <typename T>
+     double distance(T x0,T y0,T x1,T y1)
+     {
+
+Modified: trunk/include/mapnik/load_map.hpp
+===================================================================
+--- trunk/include/mapnik/load_map.hpp	2007-01-16 15:22:49 UTC (rev 427)
++++ trunk/include/mapnik/load_map.hpp	2007-01-17 11:43:11 UTC (rev 428)
+@@ -29,7 +29,7 @@
+ 
+ namespace mapnik
+ {
+-    void load_map(Map & map, std::string const& filename);
++    MAPNIK_DECL void load_map(Map & map, std::string const& filename);
+ }
+ 
+ #endif // LOAD_MAP_HPP
+
+Modified: trunk/include/mapnik/save_map.hpp
+===================================================================
+--- trunk/include/mapnik/save_map.hpp	2007-01-16 15:22:49 UTC (rev 427)
++++ trunk/include/mapnik/save_map.hpp	2007-01-17 11:43:11 UTC (rev 428)
+@@ -30,7 +30,7 @@
+ 
+ namespace mapnik
+ {
+-    void save_map(Map const& map, std::string const& filename);
++    MAPNIK_DECL void save_map(Map const& map, std::string const& filename);
+ }
+ 
+ #endif // SAVE_MAP_HPP
+
+Modified: trunk/plugins/input/shape/shape.hpp
+===================================================================
+--- trunk/plugins/input/shape/shape.hpp	2007-01-16 15:22:49 UTC (rev 427)
++++ trunk/plugins/input/shape/shape.hpp	2007-01-17 11:43:11 UTC (rev 428)
+@@ -32,7 +32,7 @@
+ 
+ using namespace mapnik;
+ 
+-class MAPNIK_DECL shape_datasource : public datasource
++class shape_datasource : public datasource
+ {
+ public:
+     shape_datasource(const parameters &params);
+
+Modified: trunk/plugins/input/shape/shape_featureset.hpp
+===================================================================
+--- trunk/plugins/input/shape/shape_featureset.hpp	2007-01-16 15:22:49 UTC (rev 427)
++++ trunk/plugins/input/shape/shape_featureset.hpp	2007-01-17 11:43:11 UTC (rev 428)
+@@ -29,7 +29,7 @@
+ using namespace mapnik;
+ 
+ template <typename filterT>
+-class MAPNIK_DECL shape_featureset : public Featureset
++class shape_featureset : public Featureset
+ {
+     filterT filter_;
+     int shape_type_;
+
+Modified: trunk/plugins/input/shape/shape_index_featureset.hpp
+===================================================================
+--- trunk/plugins/input/shape/shape_index_featureset.hpp	2007-01-16 15:22:49 UTC (rev 427)
++++ trunk/plugins/input/shape/shape_index_featureset.hpp	2007-01-17 11:43:11 UTC (rev 428)
+@@ -29,7 +29,7 @@
+ #include "shape_featureset.hpp"
+ 
+ template <typename filterT>
+-class MAPNIK_DECL shape_index_featureset : public Featureset
++class shape_index_featureset : public Featureset
+ {
+     filterT filter_;
+     int shape_type_;
+
+
+
+From pavlenko at mail.berlios.de  Wed Jan 17 12:59:43 2007
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Wed, 17 Jan 2007 12:59:43 +0100
+Subject: [Mapnik-svn] r429 - trunk
+Message-ID: <200701171159.l0HBxhPw024589@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2007-01-17 12:59:41 +0100 (Wed, 17 Jan 2007)
+New Revision: 429
+
+Modified:
+   trunk/SConstruct
+Log:
+Added BOOST_TOOLKIT option (defaults to env['CC']).
+Specify BOOST_TOOLKIT=gcc41 for libboost_***-gcc41-mt.so 
+
+
+
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2007-01-17 11:43:11 UTC (rev 428)
++++ trunk/SConstruct	2007-01-17 11:59:41 UTC (rev 429)
+@@ -31,6 +31,8 @@
+ opts.Add('PREFIX', 'The install path "prefix"', '/usr/local')
+ opts.Add(PathOption('BOOST_INCLUDES', 'Search path for boost include files', '/usr/include'))
+ opts.Add(PathOption('BOOST_LIBS', 'Search path for boost library files', '/usr/' + LIBDIR_SCHEMA))
++opts.Add('BOOST_TOOLKIT','Specify boost toolkit e.g. gcc41.','',False)
++
+ opts.Add(PathOption('FREETYPE_CONFIG', 'The path to the freetype-config executable.', '/usr/bin/freetype-config'))
+ opts.Add(PathOption('FRIBIDI_INCLUDES', 'Search path for fribidi include files', '/usr/include'))
+ opts.Add(PathOption('FRIBIDI_LIBS','Search path for fribidi include files','/usr/' + LIBDIR_SCHEMA))
+@@ -105,7 +107,8 @@
+ 
+ BOOST_LIBSHEADERS = [
+     ['thread', 'boost/thread/mutex.hpp', True],
+-    ['filesystem', 'boost/filesystem/operations.hpp', True],
++    ['system', 'boost/system/system_error.hpp', True],
++    ['filesystem', 'boost/filesystem.hpp', True],
+     ['regex', 'boost/regex.hpp', True],
+     ['program_options', 'boost/program_options.hpp', False]
+ ]
+@@ -117,13 +120,16 @@
+ 
+ env['BOOST_APPEND'] = ''
+ 
++if len(env['BOOST_TOOLKIT']): toolkit = env['BOOST_TOOLKIT']
++else: toolkit = env['CC']
++
+ for count, libinfo in enumerate(BOOST_LIBSHEADERS):
+     if not conf.CheckLibWithHeader('boost_%s%s' % (libinfo[0], env['BOOST_APPEND']), libinfo[1], 'C++'):
+-        if not conf.CheckLibWithHeader('boost_%s-%s-mt' % (libinfo[0], env['CC']), libinfo[1], 'C++') and libinfo[2] and count == 0:
++        if not conf.CheckLibWithHeader('boost_%s-%s-mt' % (libinfo[0], toolkit), libinfo[1], 'C++') and libinfo[2] and count == 0:
+             print 'Could not find header or shared library for boost %s, exiting!' % libinfo[0]
+             Exit(1)
+         else:
+-            env['BOOST_APPEND'] = '-%s-mt' % env['CC']
++            env['BOOST_APPEND'] = '-%s-mt' % toolkit
+ 
+ Export('env')
+ 
+
+
+
+From pavlenko at mail.berlios.de  Wed Jan 17 21:04:27 2007
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Wed, 17 Jan 2007 21:04:27 +0100
+Subject: [Mapnik-svn] r430 - trunk/include/mapnik
+Message-ID: <200701172004.l0HK4RnQ019741@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2007-01-17 21:04:21 +0100 (Wed, 17 Jan 2007)
+New Revision: 430
+
+Modified:
+   trunk/include/mapnik/image_util.hpp
+Log:
+vc-8_0 needs template functions instantiated/defined?? in header file for proper export. gcc on the other hand , chokes with error : can not instantiate undefined function. Added #ifdef/#endif _MSC_VER. 
+
+
+
+Modified: trunk/include/mapnik/image_util.hpp
+===================================================================
+--- trunk/include/mapnik/image_util.hpp	2007-01-17 11:59:41 UTC (rev 429)
++++ trunk/include/mapnik/image_util.hpp	2007-01-17 20:04:21 UTC (rev 430)
+@@ -33,7 +33,7 @@
+ 
+ namespace mapnik {
+     
+-    template <typename T> MAPNIK_DECL
++    template <typename T>
+     void save_to_file(std::string const& filename,
+                       std::string const& type,
+                       T const& image);
+@@ -210,6 +210,15 @@
+             }
+         }
+     }
++#ifdef _MSC_VER
++    template MAPNIK_DECL void save_to_file<ImageData32>(std::string const&,
++                                            std::string const& , 
++                                            ImageData32 const&);
++
++    template MAPNIK_DECL void save_to_file<image_view<ImageData32> > (std::string const&,
++                                                          std::string const& , 
++                                                          image_view<ImageData32> const&);
++#endif
+ }
+ 
+ #endif //IMAGE_UTIL_HPP
+
+
+
+From pavlenko at mail.berlios.de  Wed Jan 17 21:05:25 2007
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Wed, 17 Jan 2007 21:05:25 +0100
+Subject: [Mapnik-svn] r431 - trunk/plugins/input/postgis
+Message-ID: <200701172005.l0HK5PWc019768@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2007-01-17 21:05:23 +0100 (Wed, 17 Jan 2007)
+New Revision: 431
+
+Modified:
+   trunk/plugins/input/postgis/postgis.cpp
+Log:
+corrected cut&paste error 
+
+
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2007-01-17 20:04:21 UTC (rev 430)
++++ trunk/plugins/input/postgis/postgis.cpp	2007-01-17 20:05:23 UTC (rev 431)
+@@ -70,7 +70,7 @@
+     
+     try 
+     {
+-        max_size = boost::lexical_cast<unsigned>(params_.get("initial_size")); 
++        max_size = boost::lexical_cast<unsigned>(params_.get("max_size")); 
+     }
+     catch (bad_lexical_cast&)
+     {
+
+
+
+From pavlenko at mail.berlios.de  Tue Jan 23 23:49:09 2007
+From: pavlenko at mail.berlios.de (pavlenko at BerliOS)
+Date: Tue, 23 Jan 2007 23:49:09 +0100
+Subject: [Mapnik-svn] r432 - trunk
+Message-ID: <200701232249.l0NMn9mn032378@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2007-01-23 23:49:09 +0100 (Tue, 23 Jan 2007)
+New Revision: 432
+
+Modified:
+   trunk/SConstruct
+Log:
+fixed to work with boost-1_33_1
+
+
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2007-01-17 20:05:23 UTC (rev 431)
++++ trunk/SConstruct	2007-01-23 22:49:09 UTC (rev 432)
+@@ -107,8 +107,8 @@
+ 
+ BOOST_LIBSHEADERS = [
+     ['thread', 'boost/thread/mutex.hpp', True],
+-    ['system', 'boost/system/system_error.hpp', True],
+-    ['filesystem', 'boost/filesystem.hpp', True],
++    #['system', 'boost/system/system_error.hpp', True],
++    ['filesystem', 'boost/filesystem/operations.hpp', True],
+     ['regex', 'boost/regex.hpp', True],
+     ['program_options', 'boost/program_options.hpp', False]
+ ]
+
+
+
+From jdoyon at mail.berlios.de  Thu Jan 25 01:44:05 2007
+From: jdoyon at mail.berlios.de (jdoyon at BerliOS)
+Date: Thu, 25 Jan 2007 01:44:05 +0100
+Subject: [Mapnik-svn] r433 - trunk
+Message-ID: <200701250044.l0P0i5OV022026@sheep.berlios.de>
+
+Author: jdoyon
+Date: 2007-01-25 01:44:05 +0100 (Thu, 25 Jan 2007)
+New Revision: 433
+
+Modified:
+   trunk/SConstruct
+Log:
+- Use the multithreaded versions of boost libs by default.
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2007-01-23 22:49:09 UTC (rev 432)
++++ trunk/SConstruct	2007-01-25 00:44:05 UTC (rev 433)
+@@ -107,7 +107,7 @@
+ 
+ BOOST_LIBSHEADERS = [
+     ['thread', 'boost/thread/mutex.hpp', True],
+-    #['system', 'boost/system/system_error.hpp', True],
++#    ['system', 'boost/system/system_error.hpp', True],
+     ['filesystem', 'boost/filesystem/operations.hpp', True],
+     ['regex', 'boost/regex.hpp', True],
+     ['program_options', 'boost/program_options.hpp', False]
+@@ -124,12 +124,14 @@
+ else: toolkit = env['CC']
+ 
+ for count, libinfo in enumerate(BOOST_LIBSHEADERS):
+-    if not conf.CheckLibWithHeader('boost_%s%s' % (libinfo[0], env['BOOST_APPEND']), libinfo[1], 'C++'):
+-        if not conf.CheckLibWithHeader('boost_%s-%s-mt' % (libinfo[0], toolkit), libinfo[1], 'C++') and libinfo[2] and count == 0:
++    if not conf.CheckLibWithHeader('boost_%s-%s-mt' % (libinfo[0], toolkit), libinfo[1], 'C++'):
++        if not conf.CheckLibWithHeader('boost_%s-%s' % (libinfo[0], toolkit), libinfo[1], 'C++') and libinfo[2] and count == 0:
+             print 'Could not find header or shared library for boost %s, exiting!' % libinfo[0]
+             Exit(1)
+         else:
+-            env['BOOST_APPEND'] = '-%s-mt' % toolkit
++            env['BOOST_APPEND'] = '-%s' % toolkit
++    else:
++    	env['BOOST_APPEND'] = '-%s-mt' % toolkit
+ 
+ Export('env')
+ 
+
+
+
+From jdoyon at mail.berlios.de  Thu Jan 25 02:50:13 2007
+From: jdoyon at mail.berlios.de (jdoyon at BerliOS)
+Date: Thu, 25 Jan 2007 02:50:13 +0100
+Subject: [Mapnik-svn] r434 - trunk/bindings/python/mapnik/ogcserver
+Message-ID: <200701250150.l0P1oDUf031167@sheep.berlios.de>
+
+Author: jdoyon
+Date: 2007-01-25 02:50:11 +0100 (Thu, 25 Jan 2007)
+New Revision: 434
+
+Modified:
+   trunk/bindings/python/mapnik/ogcserver/common.py
+   trunk/bindings/python/mapnik/ogcserver/wms111.py
+   trunk/bindings/python/mapnik/ogcserver/wms130.py
+Log:
+- Add support for text/plain GetFeatureInfo!
+
+Modified: trunk/bindings/python/mapnik/ogcserver/common.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/common.py	2007-01-25 00:44:05 UTC (rev 433)
++++ trunk/bindings/python/mapnik/ogcserver/common.py	2007-01-25 01:50:11 UTC (rev 434)
+@@ -280,6 +280,34 @@
+ class WMSBaseServiceHandler(BaseServiceHandler):
+ 
+     def GetMap(self, params):
++        m = self._buildMap(params)
++        im = Image(params['width'], params['height'])
++        render(m, im)
++        im = fromstring('RGBA', (params['width'], params['height']), rawdata(im))
++        fh = StringIO()
++        im.save(fh, PIL_TYPE_MAPPING[params['format']], quality=100)
++        fh.seek(0)
++        return Response(params['format'], fh.read())
++
++    def GetFeatureInfo(self, params, querymethodname='query_point'):
++        m = self._buildMap(params)
++        output = ''
++        for layerindex, layername in enumerate(params['query_layers']):
++            if layername in params['layers']:
++                if m.layers[layerindex].queryable:
++                    for feature in getattr(m, querymethodname)(layerindex, params['i'], params['j']):
++                        output += '[%s]\n' % m.layers[layerindex].name
++                        for prop in feature.properties:
++                            output += '%s=%s\n' % (prop.key(), prop.data())
++                else:
++                    raise OGCException('Requested query layer "%s" is not marked queryable.' % layername, 'LayerNotQueryable')
++            else:
++                raise OGCException('Requested query layer "%s" not in the LAYERS parameter.' % layername)
++        return Response('text/plain', output)
++
++    def _buildMap(self, params):
++        if str(params['crs']) not in self.allowedepsgcodes:
++            raise OGCException('Unsupported CRS "%s" requested.' % str(params['crs']).upper(), 'InvalidCRS')
+         if params['bbox'][0] >= params['bbox'][2]:
+             raise OGCException("BBOX values don't make sense.  minx is greater than maxx.")
+         if params['bbox'][1] >= params['bbox'][3]:
+@@ -316,13 +344,7 @@
+                     raise ServerConfigurationError('Layer "%s" refers to non-existent style "%s".' % (layername, stylename))
+             m.layers.append(layer)
+         m.zoom_to_box(Envelope(params['bbox'][0], params['bbox'][1], params['bbox'][2], params['bbox'][3]))
+-        im = Image(params['width'], params['height'])
+-        render(m, im)
+-        im = fromstring('RGBA', (params['width'], params['height']), rawdata(im))
+-        fh = StringIO()
+-        im.save(fh, PIL_TYPE_MAPPING[params['format']], quality=100)
+-        fh.seek(0)
+-        return Response(params['format'], fh.read())
++        return m
+ 
+ class BaseExceptionHandler:
+ 
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms111.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms111.py	2007-01-25 00:44:05 UTC (rev 433)
++++ trunk/bindings/python/mapnik/ogcserver/wms111.py	2007-01-25 01:50:11 UTC (rev 434)
+@@ -43,7 +43,24 @@
+             'transparent': ParameterDefinition(False, str, 'FALSE', ('TRUE', 'FALSE')),
+             'bgcolor': ParameterDefinition(False, ColorFactory, ColorFactory('0xFFFFFF')),
+             'exceptions': ParameterDefinition(False, str, 'application/vnd.ogc.se_xml', ('application/vnd.ogc.se_xml', 'application/vnd.ogc.se_inimage', 'application/vnd.ogc.se_blank'))
+-        }
++        },
++        'GetFeatureInfo': {
++            'layers': ParameterDefinition(True, ListFactory(str)),
++            'styles': ParameterDefinition(False, ListFactory(str)),
++            'srs': ParameterDefinition(True, CRSFactory(['EPSG'])),
++            'bbox': ParameterDefinition(True, ListFactory(float)),
++            'width': ParameterDefinition(True, int),
++            'height': ParameterDefinition(True, int),
++            'format': ParameterDefinition(False, str, allowedvalues=('image/png', 'image/jpeg')),
++            'transparent': ParameterDefinition(False, str, 'FALSE', ('TRUE', 'FALSE')),
++            'bgcolor': ParameterDefinition(False, ColorFactory, ColorFactory('0xFFFFFF')),
++            'exceptions': ParameterDefinition(False, str, 'application/vnd.ogc.se_xml', ('application/vnd.ogc.se_xml', 'application/vnd.ogc.se_inimage', 'application/vnd.ogc.se_blank')),
++            'query_layers': ParameterDefinition(True, ListFactory(str)),
++            'info_format': ParameterDefinition(True, str, allowedvalues=('text/plain',)),
++            'feature_count': ParameterDefinition(False, int, 1),
++            'x': ParameterDefinition(True, int),
++            'y': ParameterDefinition(True, int)
++        }        
+     }
+ 
+     CONF_SERVICE = [
+@@ -70,9 +87,6 @@
+                 <Get>
+                   <OnlineResource xlink:type="simple"/>
+                 </Get>
+-                <Post>
+-                  <OnlineResource xlink:type="simple"/>
+-                </Post>
+               </HTTP>
+             </DCPType>
+           </GetCapabilities>
+@@ -84,12 +98,19 @@
+                 <Get>
+                   <OnlineResource xlink:type="simple"/>
+                 </Get>
+-                <Post>
++              </HTTP>
++            </DCPType>
++          </GetMap>
++          <GetFeatureInfo>
++            <Format>text/plain</Format>
++            <DCPType>
++              <HTTP>
++                <Get>
+                   <OnlineResource xlink:type="simple"/>
+-                </Post>
++                </Get>
+               </HTTP>
+             </DCPType>
+-          </GetMap>
++          </GetFeatureInfo>
+         </Request>
+         <Exception>
+           <Format>application/vnd.ogc.se_xml</Format>
+@@ -155,6 +176,8 @@
+                 layerabstract = ElementTree.Element('Abstract')
+                 layerabstract.text = layer.abstract
+                 layere.append(layerabstract)
++            if layer.queryable:
++                layere.set('queryable', '1')                
+             layere.append(latlonbb)
+             layere.append(layerbbox)
+             if len(layer.wmsextrastyles) > 0:
+@@ -176,11 +199,15 @@
+         return response
+ 
+     def GetMap(self, params):
+-        if str(params['srs']) not in self.allowedepsgcodes:
+-            raise OGCException('Unsupported SRS "%s" requested.' % str(params['srs']).upper(), 'InvalidSRS')
+         params['crs'] = params['srs']
+         return WMSBaseServiceHandler.GetMap(self, params)
+ 
++    def GetFeatureInfo(self, params):
++        params['crs'] = params['srs']
++        params['i'] = params['x']
++        params['j'] = params['y']
++        return WMSBaseServiceHandler.GetFeatureInfo(self, params, 'query_map_point')        
++
+ class ExceptionHandler(BaseExceptionHandler):
+ 
+     xmlmimetype = "application/vnd.ogc.se_xml"
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms130.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms130.py	2007-01-25 00:44:05 UTC (rev 433)
++++ trunk/bindings/python/mapnik/ogcserver/wms130.py	2007-01-25 01:50:11 UTC (rev 434)
+@@ -44,6 +44,23 @@
+             'transparent': ParameterDefinition(False, str, 'FALSE', ('TRUE', 'FALSE')),
+             'bgcolor': ParameterDefinition(False, ColorFactory, ColorFactory('0xFFFFFF')),
+             'exceptions': ParameterDefinition(False, str, 'XML', ('XML', 'INIMAGE', 'BLANK')),
++        },
++        'GetFeatureInfo': {
++            'layers': ParameterDefinition(True, ListFactory(str)),
++            'styles': ParameterDefinition(False, ListFactory(str)),
++            'crs': ParameterDefinition(True, CRSFactory(['EPSG'])),
++            'bbox': ParameterDefinition(True, ListFactory(float)),
++            'width': ParameterDefinition(True, int),
++            'height': ParameterDefinition(True, int),
++            'format': ParameterDefinition(False, str, allowedvalues=('image/png', 'image/jpeg')),
++            'transparent': ParameterDefinition(False, str, 'FALSE', ('TRUE', 'FALSE')),
++            'bgcolor': ParameterDefinition(False, ColorFactory, ColorFactory('0xFFFFFF')),
++            'exceptions': ParameterDefinition(False, str, 'XML', ('XML', 'INIMAGE', 'BLANK')),
++            'query_layers': ParameterDefinition(True, ListFactory(str)),
++            'info_format': ParameterDefinition(True, str, allowedvalues=('text/plain',)),
++            'feature_count': ParameterDefinition(False, int, 1),
++            'i': ParameterDefinition(True, float),
++            'j': ParameterDefinition(True, float)
+         }
+     }
+ 
+@@ -76,9 +93,6 @@
+                 <Get>
+                   <OnlineResource xlink:type="simple"/>
+                 </Get>
+-                <Post>
+-                  <OnlineResource xlink:type="simple"/>
+-                </Post>
+               </HTTP>
+             </DCPType>
+           </GetCapabilities>
+@@ -90,12 +104,19 @@
+                 <Get>
+                   <OnlineResource xlink:type="simple"/>
+                 </Get>
+-                <Post>
++              </HTTP>
++            </DCPType>
++          </GetMap>
++          <GetFeatureInfo>
++            <Format>text/plain</Format>
++            <DCPType>
++              <HTTP>
++                <Get>
+                   <OnlineResource xlink:type="simple"/>
+-                </Post>
++                </Get>
+               </HTTP>
+             </DCPType>
+-          </GetMap>
++          </GetFeatureInfo>
+         </Request>
+         <Exception>
+           <Format>XML</Format>
+@@ -169,6 +190,8 @@
+                 layerabstract = ElementTree.Element('Abstract')
+                 layerabstract.text = layer.abstract
+                 layere.append(layerabstract)
++            if layer.queryable:
++                layere.set('queryable', '1')
+             layere.append(layerexgbb)
+             layere.append(layerbbox)
+             if len(layer.wmsextrastyles) > 0:
+@@ -192,8 +215,6 @@
+     def GetMap(self, params):
+         if params['width'] > int(self.conf.get('service', 'maxwidth')) or params['height'] > int(self.conf.get('service', 'maxheight')):
+             raise OGCException('Requested map size exceeds limits set by this server.')
+-        if str(params['crs']) not in self.allowedepsgcodes:
+-            raise OGCException('Unsupported CRS "%s" requested.' % str(params['crs']).upper(), 'InvalidCRS')
+         return WMSBaseServiceHandler.GetMap(self, params)
+ 
+ class ExceptionHandler(BaseExceptionHandler):
+
+
+
+From jdoyon at mail.berlios.de  Thu Jan 25 03:07:01 2007
+From: jdoyon at mail.berlios.de (jdoyon at BerliOS)
+Date: Thu, 25 Jan 2007 03:07:01 +0100
+Subject: [Mapnik-svn] r435 - trunk/docs/ogcserver
+Message-ID: <200701250207.l0P2713A032628@sheep.berlios.de>
+
+Author: jdoyon
+Date: 2007-01-25 03:07:00 +0100 (Thu, 25 Jan 2007)
+New Revision: 435
+
+Modified:
+   trunk/docs/ogcserver/readme.txt
+Log:
+- Edit ogcserver docs to mention GetFeatureInfo support.
+
+Modified: trunk/docs/ogcserver/readme.txt
+===================================================================
+--- trunk/docs/ogcserver/readme.txt	2007-01-25 01:50:11 UTC (rev 434)
++++ trunk/docs/ogcserver/readme.txt	2007-01-25 02:07:00 UTC (rev 435)
+@@ -18,7 +18,8 @@
+ 
+ - WMS 1.1.1 and 1.3.0
+ - CGI/FastCGI
+-- GetCapabilities and GetMap support only (NO GetFeatureInfo ... yet)
++- Supports all 3 requests: GetCapabilities, GetMap and GetFeatureInfo
++- GetFeatureInfo supports text/plain output only
+ - JPEG/PNG output
+ - XML/INIMAGE/BLANK error handling
+ - Multiple named styles support
+@@ -116,6 +117,10 @@
+ - No Map() object is used or needed here.
+ - Be sure to call self.finalize() once you've registered everything! This will
+   validate everything and let you know if there's problems.
++- For a layer to be queryable via GetFeatureInfo, simply set the 'queryable'
++  property to True:
++  
++  lyr.queryable = True
+ 
+ 
+ To Do
+@@ -123,10 +128,10 @@
+ 
+ - Investigate moving to cElementTree from lxml.
+ - Add some internal "caching" for performance improvements.
+-- Support GetFeatureInfo (Requires core changes).
+ - Switch to using C/C++ libs for image generation, instead of PIL (also
+   requires core changes). PIL requirement will remain for INIMAGE/BLANK
+   error handling.
++- Implement other connectors than CGI/FastCGI (Such as WSGI, SCGI, etc ...)
+ 
+ 
+ Conclusion
+
+
+
+From pavlenko at mail.berlios.de  Fri Jan 26 16:50:48 2007
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Fri, 26 Jan 2007 16:50:48 +0100
+Subject: [Mapnik-svn] r436 - trunk/include/mapnik
+Message-ID: <200701261550.l0QFomH3004562@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2007-01-26 16:50:39 +0100 (Fri, 26 Jan 2007)
+New Revision: 436
+
+Modified:
+   trunk/include/mapnik/value.hpp
+Log:
+to_string() : added specialization for double values with increased precision.
+
+
+
+
+Modified: trunk/include/mapnik/value.hpp
+===================================================================
+--- trunk/include/mapnik/value.hpp	2007-01-25 02:07:00 UTC (rev 435)
++++ trunk/include/mapnik/value.hpp	2007-01-26 15:50:39 UTC (rev 436)
+@@ -28,425 +28,443 @@
+ #include <iostream>
+ #include <string>
+ #include <sstream>
++#include <iomanip>
+ 
+ // boost
+ #include <boost/variant.hpp>
+ 
+ namespace mapnik  {
+-    typedef boost::variant<int,double,std::string> value_base;
+-    
+-    namespace impl {
+-        struct equals
+-            : public boost::static_visitor<bool>
+-        {
++   typedef boost::variant<int,double,std::string> value_base;
++   
++   namespace impl {
++      struct equals
++	 : public boost::static_visitor<bool>
++      {
+             template <typename T, typename U>
+-            bool operator() (const T &, const U & ) const
+-            {
+-                return false;
+-            }
++	    bool operator() (const T &, const U & ) const
++	    {
++	       return false;
++	    }
+ 	
+             template <typename T>
+             bool operator() (T lhs, T rhs) const
+-            {
+-                return lhs == rhs;
+-            }
++	    {
++	       return lhs == rhs;
++	    }
+ 	
+             bool operator() (int lhs, double rhs) const
+-            {
+-                return  lhs == rhs;
+-            }
++	    {
++	       return  lhs == rhs;
++	    }
+ 	
+             bool operator() (double lhs, int rhs) const
+-            {
+-                return  lhs == rhs;
+-            }
++	    {
++	       return  lhs == rhs;
++	    }
+ 	
+             bool operator() (std::string const& lhs, 
+                              std::string const& rhs) const
+-            {
+-                return  lhs == rhs;
+-            }
+-        };
+-    
+-        struct greater_than
+-            : public boost::static_visitor<bool>
+-        {
++	    {
++	       return  lhs == rhs;
++	    }
++      };
++      
++      struct greater_than
++	 : public boost::static_visitor<bool>
++      {
+             template <typename T, typename U>
+             bool operator()( const T &, const U & ) const
+-            {
+-                return false;
+-            }
++	    {
++	       return false;
++	    }
+ 	
+             template <typename T>
+             bool operator()( T lhs, T rhs ) const
+-            {
+-                return lhs > rhs;
+-            }
++	    {
++	       return lhs > rhs;
++	    }
+ 	
+             bool operator() (int lhs, double rhs) const
+-            {
+-                return  lhs > rhs;
+-            }
++	    {
++	       return  lhs > rhs;
++	    }
+ 	
+             bool operator() (double lhs, int rhs) const
+-            {
+-                return  lhs > rhs;
+-            }
++	    {
++	       return  lhs > rhs;
++	    }
+ 	
+             bool operator() (std::string const& lhs, std::string const& rhs) const
+-            {
+-                return  lhs > rhs;
+-            }
+-        };
++	    {
++	       return  lhs > rhs;
++	    }
++      };
+     
+-        struct greater_or_equal
+-            : public boost::static_visitor<bool>
+-        {	
++      struct greater_or_equal
++	 : public boost::static_visitor<bool>
++      {	
+             template <typename T, typename U>
+             bool operator()( const T &, const U & ) const
+-            {
+-                return false;
+-            }
++	    {
++	       return false;
++	    }
+ 	
+             template <typename T>
+             bool operator() (T lhs, T rhs) const
+-            {
+-                return lhs >= rhs;
+-            }
++	    {
++	       return lhs >= rhs;
++	    }
+       
+             bool operator() (int lhs, double rhs) const
+-            {
+-                return  lhs >= rhs;
+-            }
++	    {
++	       return  lhs >= rhs;
++	    }
+ 	
+             bool operator() (double lhs, int rhs) const
+-            {
+-                return  lhs >= rhs;
+-            }
++	    {
++	       return  lhs >= rhs;
++	    }
+ 	
+             bool operator() (std::string const& lhs, std::string const& rhs ) const
+-            {
+-                return lhs >= rhs;
+-            }
+-        };
++	    {
++	       return lhs >= rhs;
++	    }
++      };
+     
+-        struct less_than
+-            : public boost::static_visitor<bool>
+-        {	
++      struct less_than
++	 : public boost::static_visitor<bool>
++      {	
+             template <typename T, typename U>
+             bool operator()( const T &, const U & ) const
+-            {
+-                return false;
+-            }
++	    {
++	       return false;
++	    }
+ 	
+             template <typename T>
+             bool operator()( T  lhs,T  rhs) const
+-            {
+-                return lhs < rhs;
+-            }
++	    {
++	       return lhs < rhs;
++	    }
+ 	
+             bool operator() (int lhs, double rhs) const
+-            {
+-                return  lhs < rhs;
+-            }
++	    {
++	       return  lhs < rhs;
++	    }
+ 	   
+             bool operator() (double lhs, int rhs) const
+-            {
+-                return  lhs < rhs;
+-            }
++	    {
++	       return  lhs < rhs;
++	    }
+ 	
+             bool operator()( std::string const& lhs, 
+                              std::string const& rhs ) const
+-            {
+-                return lhs < rhs;
+-            }
+-        };
++	    {
++	       return lhs < rhs;
++	    }
++      };
+ 
+-        struct less_or_equal
+-            : public boost::static_visitor<bool>
+-        {	
++      struct less_or_equal
++	 : public boost::static_visitor<bool>
++      {	
+             template <typename T, typename U>
+             bool operator()( const T &, const U & ) const
+-            {
+-                return false;
+-            }
++	    {
++	       return false;
++	    }
+ 	
+             template <typename T>
+             bool operator()(T lhs, T rhs ) const
+-            {
+-                return lhs <= rhs;
+-            }
++	    {
++	       return lhs <= rhs;
++	    }
+ 	    
+             bool operator() (int lhs, double rhs) const
+-            {
+-                return  lhs <= rhs;
+-            }
++	    {
++	       return  lhs <= rhs;
++	    }
+ 	
+             bool operator() (double lhs, int rhs) const
+-            {
+-                return  lhs <= rhs;
+-            }
++	    {
++	       return  lhs <= rhs;
++	    }
+ 	
+             template <typename T>
+             bool operator()( std::string const& lhs, 
+                              std::string const& rhs ) const
+-            {
+-                return lhs <= rhs;
+-            }
+-        };
++	    {
++	       return lhs <= rhs;
++	    }
++      };
+     
+-        template <typename V>
+-        struct add : public boost::static_visitor<V>
+-        { 
++      template <typename V>
++      struct add : public boost::static_visitor<V>
++      { 
+             typedef V value_type;
+             template <typename T1, typename T2>
+             value_type operator() (T1 const& lhs, T2 const&) const
+-            {
+-                return lhs;
+-            }
++	    {
++	       return lhs;
++	    }
+             template <typename T>
+             value_type operator() (T lhs, T rhs) const
+-            {
+-                return lhs + rhs ;
+-            }
++	    {
++	       return lhs + rhs ;
++	    }
+ 	
+             value_type operator() (std::string const& lhs , 
+                                    std::string const& rhs ) const
+-            {
+-                return lhs + rhs;
+-            }
++	    {
++	       return lhs + rhs;
++	    }
+ 	
+             value_type operator() (double lhs, int rhs) const
+-            {
+-                return lhs + rhs;
+-            }
++	    {
++	       return lhs + rhs;
++	    }
+ 	
+             value_type operator() (int lhs, double rhs) const
+-            {
+-                return lhs + rhs;
+-            }
+-        };
+-        template <typename V>
+-        struct sub : public boost::static_visitor<V>
+-        { 
++	    {
++	       return lhs + rhs;
++	    }
++      };
++      template <typename V>
++      struct sub : public boost::static_visitor<V>
++      { 
+             typedef V value_type;
+             template <typename T1, typename T2>
+             value_type operator() (T1 const& lhs, T2 const&) const
+-            {
+-                return lhs;
+-            }
++	    {
++	       return lhs;
++	    }
+ 
+             template <typename T>
+             value_type operator() (T  lhs, T rhs) const
+-            {
+-                return lhs - rhs ;
+-            }
++	    {
++	       return lhs - rhs ;
++	    }
+ 
+             value_type operator() (std::string const& lhs,
+                                    std::string const& ) const
+-            {
+-                return lhs;
+-            }
++	    {
++	       return lhs;
++	    }
+         	
+             value_type operator() (double lhs, int rhs) const
+-            {
+-                return lhs - rhs;
+-            }
++	    {
++	       return lhs - rhs;
++	    }
+ 	
+             value_type operator() (int lhs, double rhs) const
+-            {
+-                return lhs - rhs;
+-            }
+-        };
++	    {
++	       return lhs - rhs;
++	    }
++      };
+     
+-        template <typename V>
+-        struct mult : public boost::static_visitor<V>
+-        { 
++      template <typename V>
++      struct mult : public boost::static_visitor<V>
++      { 
+             typedef V value_type;
+             template <typename T1, typename T2>
+             value_type operator() (T1 const& lhs , T2 const& ) const
+-            {
+-                return lhs;
+-            }
++	    {
++	       return lhs;
++	    }
+             template <typename T>
+             value_type operator() (T lhs, T rhs) const
+-            {
+-                return lhs * rhs;
+-            }
++	    {
++	       return lhs * rhs;
++	    }
+ 	
+             value_type operator() (std::string const& lhs,
+                                    std::string const& ) const
+-            {
+-                return lhs;
+-            }	
++	    {
++	       return lhs;
++	    }	
+ 	
+             value_type operator() (double lhs, int rhs) const
+-            {
+-                return lhs * rhs;
+-            }
++	    {
++	       return lhs * rhs;
++	    }
+ 	
+             value_type operator() (int lhs, double rhs) const
+-            {
+-                return lhs * rhs;
+-            }
+-        };
++	    {
++	       return lhs * rhs;
++	    }
++      };
+ 
+-        template <typename V>
+-        struct div: public boost::static_visitor<V>
+-        { 
++      template <typename V>
++      struct div: public boost::static_visitor<V>
++      { 
+             typedef V value_type;
+             template <typename T1, typename T2>
+             value_type operator() (T1 const& lhs, T2 const&) const
+-            {
+-                return lhs;
+-            }
++	    {
++	       return lhs;
++	    }
+ 	    
+             template <typename T>
+             value_type operator() (T lhs, T rhs) const
+-            {
+-                return lhs / rhs;
+-            }
++	    {
++	       return lhs / rhs;
++	    }
+ 	
+             value_type operator() (std::string const& lhs,
+                                    std::string const&) const
+-            {
+-                return lhs;
+-            }
++	    {
++	       return lhs;
++	    }
+ 	
+             value_type operator() (double lhs, int rhs) const
+-            {
+-                return lhs / rhs;
+-            }
++	    {
++	       return lhs / rhs;
++	    }
+ 	
+             value_type operator() (int lhs, double rhs) const
+-            {
+-                return lhs / rhs;
+-            }
+-        };
++	    {
++	       return lhs / rhs;
++	    }
++      };
+     
+-        struct to_string : public boost::static_visitor<std::string>
+-        {
++      struct to_string : public boost::static_visitor<std::string>
++      {
++                
+             template <typename T>
+             std::string operator() (T val) const
+-            {
+-                std::stringstream ss;
+-                ss << val;
+-                return ss.str();
+-            } 
++	    {
++               std::stringstream ss;
++	       ss << val;
++	       return ss.str();
++	    }
++            // specializations 
+             std::string const& operator() (std::string const& val) const
++	    {
++	       return val;
++	    }
++            
++            std::string operator() (double val) const
+             {
+-                return val;
++               std::stringstream ss;
++	       ss << std::setprecision(16) << val;
++	       return ss.str();
+             }
+-        };
++      };
+ 	
+-        struct to_expression_string : public boost::static_visitor<std::string>
+-        {
++      struct to_expression_string : public boost::static_visitor<std::string>
++      {
++            std::string operator() (std::string const& val) const
++	    {
++	       return "'" + val + "'";
++	    } 
++
+             template <typename T>
+             std::string operator() (T val) const
++	    {
++	       std::stringstream ss;
++	       ss << val;
++	       return ss.str();
++	    }
++            
++            std::string operator() (double val) const
+             {
+-                std::stringstream ss;
+-                ss << val;
+-                return ss.str();
+-            } 
+-            std::string operator() (std::string const& val) const
+-            {
+-                return "'" + val + "'";
++               std::stringstream ss;
++	       ss << std::setprecision(16) << val;
++	       return ss.str();
+             }
+-        };
+-    }
++      };
++   }
+     
+-    class value
+-    {
+-        value_base base_;
+-        friend const value operator+(value const&,value const&);
+-        friend const value operator-(value const&,value const&);
+-        friend const value operator*(value const&,value const&);
+-        friend const value operator/(value const&,value const&);
++   class value
++   {
++	 value_base base_;
++	 friend const value operator+(value const&,value const&);
++	 friend const value operator-(value const&,value const&);
++	 friend const value operator*(value const&,value const&);
++	 friend const value operator/(value const&,value const&);
+         
+-    public:
+-        value ()
++      public:
++	 value ()
+             : base_(0) {}
+ 	
+-        template <typename T> value(T _val_)
++	 template <typename T> value(T _val_)
+             : base_(_val_) {}
+ 
+-        bool operator==(value const& other) const
+-        {
+-            return boost::apply_visitor(impl::equals(),base_,other.base_);
+-        }
++	 bool operator==(value const& other) const
++	 {
++	    return boost::apply_visitor(impl::equals(),base_,other.base_);
++	 }
+ 
+-        bool operator!=(value const& other) const
+-        {
+-            return !(boost::apply_visitor(impl::equals(),base_,other.base_));
+-        }
++	 bool operator!=(value const& other) const
++	 {
++	    return !(boost::apply_visitor(impl::equals(),base_,other.base_));
++	 }
+ 	
+-        bool operator>(value const& other) const
+-        {
+-            return boost::apply_visitor(impl::greater_than(),base_,other.base_);
+-        }
++	 bool operator>(value const& other) const
++	 {
++	    return boost::apply_visitor(impl::greater_than(),base_,other.base_);
++	 }
+ 
+-        bool operator>=(value const& other) const
+-        {
+-            return boost::apply_visitor(impl::greater_or_equal(),base_,other.base_);
+-        }
++	 bool operator>=(value const& other) const
++	 {
++	    return boost::apply_visitor(impl::greater_or_equal(),base_,other.base_);
++	 }
+ 
+-        bool operator<(value const& other) const
+-        {
+-            return boost::apply_visitor(impl::less_than(),base_,other.base_);
+-        }
++	 bool operator<(value const& other) const
++	 {
++	    return boost::apply_visitor(impl::less_than(),base_,other.base_);
++	 }
+ 
+-        bool operator<=(value const& other) const
+-        {
+-            return boost::apply_visitor(impl::less_or_equal(),base_,other.base_);
+-        }
+-        value_base const& base() const
+-        {
+-            return base_;
+-        }
++	 bool operator<=(value const& other) const
++	 {
++	    return boost::apply_visitor(impl::less_or_equal(),base_,other.base_);
++	 }
++	 value_base const& base() const
++	 {
++	    return base_;
++	 }
+ 
+-        std::string to_expression_string() const
+-        {
+-            return boost::apply_visitor(impl::to_expression_string(),base_);
+-        }
++	 std::string to_expression_string() const
++	 {
++	    return boost::apply_visitor(impl::to_expression_string(),base_);
++	 }
+ 
+-        std::string to_string() const
+-        {
+-            return boost::apply_visitor(impl::to_string(),base_);
+-        }
+-    };
++	 std::string to_string() const
++	 {
++	    return boost::apply_visitor(impl::to_string(),base_);
++	 }
++   };
+     
+-    inline const value operator+(value const& p1,value const& p2)
+-    {
++   inline const value operator+(value const& p1,value const& p2)
++   {
+ 
+-        return value(boost::apply_visitor(impl::add<value>(),p1.base_, p2.base_));
+-    }
++      return value(boost::apply_visitor(impl::add<value>(),p1.base_, p2.base_));
++   }
+ 
+-    inline const value operator-(value const& p1,value const& p2)
+-    {
++   inline const value operator-(value const& p1,value const& p2)
++   {
+ 
+-        return value(boost::apply_visitor(impl::sub<value>(),p1.base_, p2.base_));
+-    }
++      return value(boost::apply_visitor(impl::sub<value>(),p1.base_, p2.base_));
++   }
+ 
+-    inline const value operator*(value const& p1,value const& p2)
+-    {
++   inline const value operator*(value const& p1,value const& p2)
++   {
+ 
+-        return value(boost::apply_visitor(impl::mult<value>(),p1.base_, p2.base_));
+-    }
++      return value(boost::apply_visitor(impl::mult<value>(),p1.base_, p2.base_));
++   }
+ 
+-    inline const value operator/(value const& p1,value const& p2)
+-    {
++   inline const value operator/(value const& p1,value const& p2)
++   {
+ 
+-        return value(boost::apply_visitor(impl::div<value>(),p1.base_, p2.base_));
+-    }
++      return value(boost::apply_visitor(impl::div<value>(),p1.base_, p2.base_));
++   }
+ 
+-    template <typename charT, typename traits>
+-    inline std::basic_ostream<charT,traits>& 
+-    operator << (std::basic_ostream<charT,traits>& out,
+-                 value const& v)
+-    {
+-    	out << v.base();
+-    	return out; 
+-    }
++   template <typename charT, typename traits>
++   inline std::basic_ostream<charT,traits>& 
++   operator << (std::basic_ostream<charT,traits>& out,
++		value const& v)
++   {
++      out << v.base();
++      return out; 
++   }
+ }
+ 
+ #endif //VALUE_HPP
+
+
+
+From pavlenko at mail.berlios.de  Mon Jan 29 13:50:27 2007
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Mon, 29 Jan 2007 13:50:27 +0100
+Subject: [Mapnik-svn] r437 - trunk/plugins/input/postgis
+Message-ID: <200701291250.l0TCoR6f026284@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2007-01-29 13:50:26 +0100 (Mon, 29 Jan 2007)
+New Revision: 437
+
+Modified:
+   trunk/plugins/input/postgis/postgis.cpp
+Log:
+append namespace to 'transform' to support buiding with STLport.
+
+
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2007-01-26 15:50:39 UTC (rev 436)
++++ trunk/plugins/input/postgis/postgis.cpp	2007-01-29 12:50:26 UTC (rev 437)
+@@ -169,7 +169,7 @@
+ std::string postgis_datasource::table_from_sql(const std::string& sql)
+ {
+     std::string table_name(sql);
+-    transform(table_name.begin(),table_name.end(),table_name.begin(),tolower);
++    std::transform(table_name.begin(),table_name.end(),table_name.begin(),tolower);
+     std::string::size_type idx=table_name.rfind("from");
+     if (idx!=std::string::npos)
+     {
+
+
+
+From pavlenko at mail.berlios.de  Mon Jan 29 23:29:09 2007
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Mon, 29 Jan 2007 23:29:09 +0100
+Subject: [Mapnik-svn] r438 - trunk/bindings/python
+Message-ID: <200701292229.l0TMT90m014119@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2007-01-29 23:29:06 +0100 (Mon, 29 Jan 2007)
+New Revision: 438
+
+Modified:
+   trunk/bindings/python/mapnik_text_symbolizer.cpp
+Log:
+made text_placement a property.
+
+
+
+Modified: trunk/bindings/python/mapnik_text_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_text_symbolizer.cpp	2007-01-29 12:50:26 UTC (rev 437)
++++ trunk/bindings/python/mapnik_text_symbolizer.cpp	2007-01-29 22:29:06 UTC (rev 438)
+@@ -67,7 +67,10 @@
+         .add_property("avoid_edges",
+                       &text_symbolizer::get_avoid_edges,
+                       &text_symbolizer::set_avoid_edges)
+-        .def("set_label_placement",&text_symbolizer::set_label_placement,
+-             "Set the placement of the label")
++        
++        .add_property("set_label_placement",
++                      &text_symbolizer::get_label_placement,
++                      &text_symbolizer::set_label_placement,
++                      "Set/get the placement of the label")
+ 	;
+ }
+
+
+

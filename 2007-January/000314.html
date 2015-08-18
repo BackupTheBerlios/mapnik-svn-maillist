@@ -1,0 +1,117 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r429 - trunk
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r429%20-%20trunk&In-Reply-To=%3C200701171159.l0HBxhPw024589%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000313.html">
+   <LINK REL="Next"  HREF="000315.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r429 - trunk</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r429%20-%20trunk&In-Reply-To=%3C200701171159.l0HBxhPw024589%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r429 - trunk">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Wed Jan 17 12:59:43 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000313.html">[Mapnik-svn] r428 - in trunk: include/mapnik plugins/input/shape
+</A></li>
+        <LI>Next message: <A HREF="000315.html">[Mapnik-svn] r430 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#314">[ date ]</a>
+              <a href="thread.html#314">[ thread ]</a>
+              <a href="subject.html#314">[ subject ]</a>
+              <a href="author.html#314">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2007-01-17 12:59:41 +0100 (Wed, 17 Jan 2007)
+New Revision: 429
+
+Modified:
+   trunk/SConstruct
+Log:
+Added BOOST_TOOLKIT option (defaults to env['CC']).
+Specify BOOST_TOOLKIT=gcc41 for libboost_***-gcc41-mt.so 
+
+
+
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2007-01-17 11:43:11 UTC (rev 428)
++++ trunk/SConstruct	2007-01-17 11:59:41 UTC (rev 429)
+@@ -31,6 +31,8 @@
+ opts.Add('PREFIX', 'The install path &quot;prefix&quot;', '/usr/local')
+ opts.Add(PathOption('BOOST_INCLUDES', 'Search path for boost include files', '/usr/include'))
+ opts.Add(PathOption('BOOST_LIBS', 'Search path for boost library files', '/usr/' + LIBDIR_SCHEMA))
++opts.Add('BOOST_TOOLKIT','Specify boost toolkit e.g. gcc41.','',False)
++
+ opts.Add(PathOption('FREETYPE_CONFIG', 'The path to the freetype-config executable.', '/usr/bin/freetype-config'))
+ opts.Add(PathOption('FRIBIDI_INCLUDES', 'Search path for fribidi include files', '/usr/include'))
+ opts.Add(PathOption('FRIBIDI_LIBS','Search path for fribidi include files','/usr/' + LIBDIR_SCHEMA))
+@@ -105,7 +107,8 @@
+ 
+ BOOST_LIBSHEADERS = [
+     ['thread', 'boost/thread/mutex.hpp', True],
+-    ['filesystem', 'boost/filesystem/operations.hpp', True],
++    ['system', 'boost/system/system_error.hpp', True],
++    ['filesystem', 'boost/filesystem.hpp', True],
+     ['regex', 'boost/regex.hpp', True],
+     ['program_options', 'boost/program_options.hpp', False]
+ ]
+@@ -117,13 +120,16 @@
+ 
+ env['BOOST_APPEND'] = ''
+ 
++if len(env['BOOST_TOOLKIT']): toolkit = env['BOOST_TOOLKIT']
++else: toolkit = env['CC']
++
+ for count, libinfo in enumerate(BOOST_LIBSHEADERS):
+     if not conf.CheckLibWithHeader('boost_%s%s' % (libinfo[0], env['BOOST_APPEND']), libinfo[1], 'C++'):
+-        if not conf.CheckLibWithHeader('boost_%s-%s-mt' % (libinfo[0], env['CC']), libinfo[1], 'C++') and libinfo[2] and count == 0:
++        if not conf.CheckLibWithHeader('boost_%s-%s-mt' % (libinfo[0], toolkit), libinfo[1], 'C++') and libinfo[2] and count == 0:
+             print 'Could not find header or shared library for boost %s, exiting!' % libinfo[0]
+             Exit(1)
+         else:
+-            env['BOOST_APPEND'] = '-%s-mt' % env['CC']
++            env['BOOST_APPEND'] = '-%s-mt' % toolkit
+ 
+ Export('env')
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000313.html">[Mapnik-svn] r428 - in trunk: include/mapnik plugins/input/shape
+</A></li>
+	<LI>Next message: <A HREF="000315.html">[Mapnik-svn] r430 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#314">[ date ]</a>
+              <a href="thread.html#314">[ thread ]</a>
+              <a href="subject.html#314">[ subject ]</a>
+              <a href="author.html#314">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

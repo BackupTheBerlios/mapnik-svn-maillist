@@ -1,0 +1,113 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r340 - trunk/bindings/python/mapnik/ogcserver
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r340%20-%20trunk/bindings/python/mapnik/ogcserver&In-Reply-To=%3C200610170118.k9H1Is0N002002%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000224.html">
+   <LINK REL="Next"  HREF="000226.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r340 - trunk/bindings/python/mapnik/ogcserver</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r340%20-%20trunk/bindings/python/mapnik/ogcserver&In-Reply-To=%3C200610170118.k9H1Is0N002002%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r340 - trunk/bindings/python/mapnik/ogcserver">jdoyon at mail.berlios.de
+       </A><BR>
+    <I>Tue Oct 17 03:18:54 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000224.html">[Mapnik-svn] r339 - in trunk/bindings/python: . mapnik	mapnik/ogcserver
+</A></li>
+        <LI>Next message: <A HREF="000226.html">[Mapnik-svn] r341 - in trunk: bindings/python include/mapnik src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#225">[ date ]</a>
+              <a href="thread.html#225">[ thread ]</a>
+              <a href="subject.html#225">[ subject ]</a>
+              <a href="author.html#225">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-10-17 03:18:54 +0200 (Tue, 17 Oct 2006)
+New Revision: 340
+
+Modified:
+   trunk/bindings/python/mapnik/ogcserver/wms111.py
+Log:
+- Apply recent changes to WMS 1.1.1
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms111.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms111.py	2006-10-17 01:11:00 UTC (rev 339)
++++ trunk/bindings/python/mapnik/ogcserver/wms111.py	2006-10-17 01:18:54 UTC (rev 340)
+@@ -129,13 +129,13 @@
+             layername = ElementTree.Element('Name')
+             layername.text = layer.name
+             env = layer.envelope()
+-            llp = self.crs.Inverse(env.minx, env.miny)
+-            urp = self.crs.Inverse(env.maxx, env.maxy)
++            llp = self.crs.inverse(env.minx, env.miny)
++            urp = self.crs.inverse(env.maxx, env.maxy)
+             latlonbb = ElementTree.Element('LatLonBoundingBox')
+-            latlonbb.set('minx', str(llp[0]))
+-            latlonbb.set('miny', str(llp[1]))
+-            latlonbb.set('maxx', str(urp[0]))
+-            latlonbb.set('maxy', str(urp[1]))
++            latlonbb.set('minx', str(llp.x))
++            latlonbb.set('miny', str(llp.y))
++            latlonbb.set('maxx', str(urp.x))
++            latlonbb.set('maxy', str(urp.y))
+             layerbbox = ElementTree.Element('BoundingBox')
+             layerbbox.set('SRS', str(self.crs))
+             layerbbox.set('minx', str(env.minx))
+@@ -144,13 +144,13 @@
+             layerbbox.set('maxy', str(env.maxy))
+             layere = ElementTree.Element('Layer')
+             layere.append(layername)
+-            if layer.title():
++            if layer.title:
+                 layertitle = ElementTree.Element('Title')
+-                layertitle.text = layer.title()
++                layertitle.text = layer.title
+                 layere.append(layertitle)
+-            if layer.abstract():
++            if layer.abstract:
+                 layerabstract = ElementTree.Element('Abstract')
+-                layerabstract.text = layer.abstract()
++                layerabstract.text = layer.abstract
+                 layere.append(layerabstract)
+             layere.append(latlonbb)
+             layere.append(layerbbox)
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000224.html">[Mapnik-svn] r339 - in trunk/bindings/python: . mapnik	mapnik/ogcserver
+</A></li>
+	<LI>Next message: <A HREF="000226.html">[Mapnik-svn] r341 - in trunk: bindings/python include/mapnik src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#225">[ date ]</a>
+              <a href="thread.html#225">[ thread ]</a>
+              <a href="subject.html#225">[ subject ]</a>
+              <a href="author.html#225">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

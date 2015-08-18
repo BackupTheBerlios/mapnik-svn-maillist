@@ -1,0 +1,1185 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r227 - trunk/bindings/python/mapnik/ogcserver
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-April/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r227%20-%20trunk/bindings/python/mapnik/ogcserver&In-Reply-To=%3C200604082153.k38LrcB3029254%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000111.html">
+   <LINK REL="Next"  HREF="000113.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r227 - trunk/bindings/python/mapnik/ogcserver</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r227%20-%20trunk/bindings/python/mapnik/ogcserver&In-Reply-To=%3C200604082153.k38LrcB3029254%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r227 - trunk/bindings/python/mapnik/ogcserver">jdoyon at berlios.de
+       </A><BR>
+    <I>Sat Apr  8 23:53:38 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000111.html">[Mapnik-svn] r226 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+        <LI>Next message: <A HREF="000113.html">[Mapnik-svn] r228 - in trunk: bindings/python/mapnik/ogcserver utils utils/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#112">[ date ]</a>
+              <a href="thread.html#112">[ thread ]</a>
+              <a href="subject.html#112">[ subject ]</a>
+              <a href="author.html#112">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-04-08 23:53:36 +0200 (Sat, 08 Apr 2006)
+New Revision: 227
+
+Added:
+   trunk/bindings/python/mapnik/ogcserver/wms111.py
+   trunk/bindings/python/mapnik/ogcserver/wms130.py
+Modified:
+   trunk/bindings/python/mapnik/ogcserver/cgiserver.py
+   trunk/bindings/python/mapnik/ogcserver/common.py
+   trunk/bindings/python/mapnik/ogcserver/exceptions.py
+   trunk/bindings/python/mapnik/ogcserver/wms.py
+Log:
+- Improved error handling and detection
+- Refactored WMS code quite a bit
+- TODO: better map factory.
+
+Modified: trunk/bindings/python/mapnik/ogcserver/cgiserver.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/cgiserver.py	2006-04-08 06:21:26 UTC (rev 226)
++++ trunk/bindings/python/mapnik/ogcserver/cgiserver.py	2006-04-08 21:53:36 UTC (rev 227)
+@@ -19,28 +19,26 @@
+ #
+ # $Id$
+ 
+-import jon.cgi as cgi
+ from os import environ, access
++from tempfile import gettempdir
++environ['PYTHON_EGG_CACHE'] = gettempdir()
++
++import jon.cgi as cgi
+ from exceptions import OGCException
+ import sys
+ from copy import deepcopy
+-from tempfile import gettempdir
+-
+-environ['PYTHON_EGG_CACHE'] = gettempdir()
++from traceback import print_tb
++from StringIO import StringIO
++from wms130 import ExceptionHandler
+ from lxml import etree as ElementTree
+ 
+ class Handler(cgi.DebugHandler):
+ 
+-    ogcexcetree = ElementTree.fromstring(&quot;&quot;&quot;&lt;?xml version='1.0' encoding=&quot;UTF-8&quot;?&gt;
+-    &lt;ServiceExceptionReport version=&quot;1.1.1&quot;&gt;
+-      &lt;ServiceException /&gt;
+-    &lt;/ServiceExceptionReport&gt;
+-    &quot;&quot;&quot;)
+-
+     def __init__(self):
+         self.requesthandlers = {}
+ 
+     def process(self, req):
++        exceptionhandler = ExceptionHandler
+         reqparams = {}
+         for key, value in req.params.items():
+             reqparams[key.lower()] = value
+@@ -60,10 +58,10 @@
+             else:
+                 try:
+                     mapnikmodule = __import__('mapnik.ogcserver.' + service)
+-                except ImportError:
+-                    raise OGCException('Service &quot;%s&quot; not supported.' % service)
++                except:
++                    raise OGCException('Unsupported service &quot;%s&quot;.' % service)
+                 ServiceFactory = getattr(mapnikmodule.ogcserver, service).ServiceFactory
+-                servicehandler = ServiceFactory(self.configpath, self.factory, onlineresource, reqparams.get('version', None))
++                servicehandler, exceptionhandler = ServiceFactory(self.configpath, self.factory, onlineresource, reqparams.get('version', None))
+                 if request not in servicehandler.SERVICE_PARAMS.keys():
+                     raise OGCException('Operation &quot;%s&quot; not supported.' % request, 'OperationNotSupported')
+                 ogcparams = servicehandler.processParameters(request, reqparams)
+@@ -75,13 +73,10 @@
+                     self.requesthandlers[srkey] = requesthandler
+             response = requesthandler(ogcparams)
+         except OGCException:
+-            req.set_header('Content-Type', 'text/xml')
+-            ogcexcetree = deepcopy(self.ogcexcetree)
+-            e = ogcexcetree.find('ServiceException')
+-            e.text = sys.exc_value.args[0]
+-            if len(sys.exc_value.args) == 2:
+-                e.set('code', sys.exc_value.args[1])
+-            req.write(ElementTree.tostring(ogcexcetree))
++            exc_type, exc_value, exc_tb = sys.exc_info()
++            eh = exceptionhandler()
++            req.set_header('Content-Type', eh.mimetype)
++            req.write(ElementTree.tostring(eh.getexcetree(exc_value)))
+         else:
+             req.set_header('Content-Type', response.content_type)
+             req.write(response.content)
+\ No newline at end of file
+
+Modified: trunk/bindings/python/mapnik/ogcserver/common.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/common.py	2006-04-08 06:21:26 UTC (rev 226)
++++ trunk/bindings/python/mapnik/ogcserver/common.py	2006-04-08 21:53:36 UTC (rev 227)
+@@ -20,14 +20,22 @@
+ # $Id$
+ 
+ from exceptions import OGCException, ServerConfigurationError
+-from mapnik import Color
++from mapnik import Map, Color, Envelope, render, rawdata, Image, Projection
++from PIL.Image import fromstring
++from StringIO import StringIO
+ import re
++# from elementtree import ElementTree
++# ElementTree._namespace_map.update({'<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>': 'wms',
++#                                    '<A HREF="http://www.opengis.net/ogc">http://www.opengis.net/ogc</A>': 'ogc',
++#                                    '<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>': 'xlink',
++#                                    '<A HREF="http://www.w3.org/2001/XMLSchema-instance">http://www.w3.org/2001/XMLSchema-instance</A>': 'xsi'
++#                                    })
+ 
+ PIL_TYPE_MAPPING = {'image/jpeg': 'JPEG', 'image/png': 'PNG', 'image/gif': 'GIF'}
+ 
+ class ParameterDefinition:
+ 
+-    def __init__(self, mandatory, default=None, allowedvalues=None, fallback=False, match=None, cast=None):
++    def __init__(self, mandatory, cast, default=None, allowedvalues=None, fallback=False):
+         &quot;&quot;&quot; An OGC request parameter definition.  Used to describe a
+             parameter's characteristics.
+ 
+@@ -50,23 +58,12 @@
+             
+             @return: A L{ParameterDefinition} instance.
+         &quot;&quot;&quot;
+-        if match and cast:
+-            raise ServerConfigurationError(&quot;'cast' and 'match' are mutually exclusive.&quot;)
+-        if not match and not cast:
+-            raise ServerConfigurationError(&quot;One of 'cast' or 'match' MUST be used.&quot;)
+-        if match:
+-            try:
+-                self.pattern = re.compile(match)
+-            except:
+-                raise ServerConfigurationError(&quot;Invalid regular expression.&quot;)
+-        else:
+-            self.pattern = None
+-        if cast and not callable(cast):
+-            raise ServerConfigurationError('Cast parameter definition must be callable.')
+-        self.cast = cast
+         if mandatory not in [True, False]:
+             raise ServerConfigurationError(&quot;Bad value for 'mandatory' parameter, must be True or False.&quot;)
+         self.mandatory = mandatory
++        if not callable(cast):
++            raise ServerConfigurationError('Cast parameter definition must be callable.')
++        self.cast = cast
+         self.default = default
+         if allowedvalues and type(allowedvalues) != type(()):
+             raise ServerConfigurationError(&quot;Bad value for 'allowedvalues' parameter, must be a tuple.&quot;)
+@@ -83,14 +80,12 @@
+             if paramname not in params.keys() and paramdef.mandatory:
+                 raise OGCException(&quot;Mandatory parameter '%s' missing from request.&quot; % paramname)
+             elif paramname in params.keys():
+-                if paramdef.pattern:
+-                    if not paramdef.pattern.match(params[paramname]):
+-                        raise OGCException(&quot;Parameter '%s' has an illegal value.&quot; % paramname)
+-                elif paramdef.cast:
+-                    try:
+-                        params[paramname] = paramdef.cast(params[paramname])
+-                    except:
+-                        raise OGCException(&quot;Parameter '%s' has an illegal value.&quot; % paramname)
++                try:
++                    params[paramname] = paramdef.cast(params[paramname])
++                except OGCException:
++                    raise
++                except:
++                    raise OGCException('Invalid value &quot;%s&quot; for parameter &quot;%s&quot;.' % (params[paramname], paramname))
+                 if paramdef.allowedvalues and params[paramname] not in paramdef.allowedvalues:
+                     if not paramdef.fallback:
+                         raise OGCException(&quot;Parameter '%s' has an illegal value.&quot; % paramname)
+@@ -126,8 +121,6 @@
+     def __cmp__(self, other):
+         if isinstance(other, str):
+             other = Version(other)
+-        if not isinstance(other, Version):
+-            raise TypeError('Version instances can only be compared to each other, or version strings.')
+         if self.version[0] &lt; other.version[0]:
+             return -1
+         elif self.version[0] &gt; other.version[0]:
+@@ -158,4 +151,69 @@
+     if re.match('^0x[a-fA-F0-9]{6}$', colorstring):
+         return Color(eval('0x' + colorstring[2:4]), eval('0x' + colorstring[4:6]), eval('0x' + colorstring[6:8]))
+     else:
+-        raise OGCException(&quot;Invalid color value.&quot;)
+\ No newline at end of file
++        raise OGCException('Invalid color value. Must be of format &quot;0xFFFFFF&quot;.')
++
++class CRS:
++    
++    def __init__(self, namespace, code):
++        self.namespace = namespace
++        self.code = int(code)
++        self.proj = None
++    
++    def __repr__(self):
++        return '%s:%s' % (self.namespace, self.code)
++    
++    def __eq__(self, other):
++        if str(other) == str(self):
++            return True
++        return False
++
++    def Inverse(self, x, y):
++        if not self.proj:
++            self.proj = Projection(['init=%s' % str(self).lower()])
++        return self.proj.Inverse(x, y)
++    
++    def Forward(self, x, y):
++        if not self.proj:
++            self.proj = Projection(['init=%s' % str(self).lower()])
++        return self.proj.Forward(x, y)
++
++class CRSFactory:
++    
++    def __init__(self, allowednamespaces):
++        self.allowednamespaces = allowednamespaces
++    
++    def __call__(self, crsstring):
++        if not re.match('^[A-Z]{3,5}:\d+$', crsstring):
++            raise OGCException('Invalid format for the CRS parameter: %s' % crsstring, 'InvalidCRS')
++        crsparts = crsstring.split(':')
++        if crsparts[0] in self.allowednamespaces:
++            return CRS(crsparts[0], crsparts[1])
++        else:
++            raise OGCException('Invalid CRS Namespace: %s' % crsparts[0], 'InvalidCRS')
++
++class WMSBaseServiceHandler(BaseServiceHandler):
++    
++    def getmap(self, params):
++        if str(params['crs']) != str(self.crs):
++            raise OGCException('Unsupported CRS requested.  Must be &quot;%s&quot; and not &quot;%s&quot;.' % (self.crs, params['crs']), 'InvalidCRS')
++        m = Map(params['width'], params['height'])
++        if params.has_key('transparent') and params['transparent'] == 'FALSE':
++            m.background = params['bgcolor']
++        mo = self.factory()
++        for layername in params['layers']:
++            for layer in mo['layers']:
++                if layer.name() == layername:
++                    for stylename in layer.styles:
++                        if stylename in mo['styles'].keys():
++                            m.append_style(stylename, mo['styles'][stylename])
++                    m.layers.append(layer)
++        m.zoom_to_box(Envelope(params['bbox'][0], params['bbox'][1], params['bbox'][2], params['bbox'][3]))
++        im = Image(params['width'], params['height'])
++        render(m, im)
++        im2 = fromstring('RGBA', (params['width'], params['height']), rawdata(im))
++        fh = StringIO()
++        im2.save(fh, PIL_TYPE_MAPPING[params['format']])
++        fh.seek(0)
++        response = Response(params['format'], fh.read())
++        return response
+\ No newline at end of file
+
+Modified: trunk/bindings/python/mapnik/ogcserver/exceptions.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/exceptions.py	2006-04-08 06:21:26 UTC (rev 226)
++++ trunk/bindings/python/mapnik/ogcserver/exceptions.py	2006-04-08 21:53:36 UTC (rev 227)
+@@ -19,8 +19,21 @@
+ #
+ # $Id$
+ 
++from copy import deepcopy
++
+ class OGCException(Exception):
+     pass
+ 
+ class ServerConfigurationError(Exception):
+-    pass
+\ No newline at end of file
++    pass
++
++class BaseExceptionHandler:
++    
++    def getexcetree(self, exc):
++        ogcexcetree = deepcopy(self.xmltemplate)
++        e = ogcexcetree.find(self.xpath)
++        if len(exc.args) &gt; 0:
++            e.text = exc.args[0]
++            if len(exc.args) &gt; 1:
++                e.set('code', exc.args[1])
++        return ogcexcetree
+\ No newline at end of file
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms.py	2006-04-08 06:21:26 UTC (rev 226)
++++ trunk/bindings/python/mapnik/ogcserver/wms.py	2006-04-08 21:53:36 UTC (rev 227)
+@@ -19,393 +19,23 @@
+ #
+ # $Id$
+ 
+-from common import ParameterDefinition, BaseServiceHandler, Response, \
+-                   PIL_TYPE_MAPPING, Version, ListFactory, ColorFactory
+-from exceptions import OGCException, ServerConfigurationError
+-from ConfigParser import SafeConfigParser
+-from mapnik import Map, Color, Envelope, render, rawdata, Image, Projection, \
+-                   DEGREES
+-from PIL.Image import fromstring
+-from StringIO import StringIO
+-from lxml import etree as ElementTree
++from common import Version
++from exceptions import OGCException
++from wms111 import ServiceHandler as ServiceHandler111, \
++                   ExceptionHandler as ExceptionHandler111
++from wms130 import ServiceHandler as ServiceHandler130, \
++                   ExceptionHandler as ExceptionHandler130
+ 
+-class ServiceHandler111(BaseServiceHandler):
+-
+-    SERVICE_PARAMS = {
+-        'getcapabilities': {
+-            'updatesequence': ParameterDefinition(False, cast=str)
+-        },
+-        'getmap': {
+-            'version': ParameterDefinition(True, allowedvalues=(Version('1.1.1'),), cast=Version),
+-            'layers': ParameterDefinition(True, cast=ListFactory(str)),
+-            'styles': ParameterDefinition(True, cast=ListFactory(str)),
+-            'srs': ParameterDefinition(True, match='^EPSG:\d+$'),
+-            'bbox': ParameterDefinition(True, cast=ListFactory(float)),
+-            'width': ParameterDefinition(True, cast=int),
+-            'height': ParameterDefinition(True, cast=int),
+-            'format': ParameterDefinition(True, allowedvalues=('image/png','image/jpeg','image/gif'), cast=str.lower),
+-            'transparent': ParameterDefinition(False, 'FALSE', allowedvalues=('true','false'), cast=str.lower),
+-            'bgcolor': ParameterDefinition(False, ColorFactory('0xFFFFFF'), cast=ColorFactory),
+-            'exceptions': ParameterDefinition(False, 'application/vnd.ogc.se_xml', ('application/vnd.ogc.se_xml',), cast=str)
+-        }
+-    }
+-
+-    CONF_SERVICE = [
+-        ['title', 'Title', str],
+-        ['abstract', 'Abstract', str],
+-        ['onlineresource', 'OnlineResource', str],
+-        ['fees', 'Fees', str],
+-        ['accessconstraints', 'AccessConstraints', str],
+-    ]
+-
+-    capabilitiesxmltemplate = &quot;&quot;&quot;&lt;?xml version='1.0' encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;
+-    &lt;!DOCTYPE WMT_MS_Capabilities SYSTEM &quot;<A HREF="http://www.digitalearth.gov/wmt/xml/capabilities_1_1_1.dtd">http://www.digitalearth.gov/wmt/xml/capabilities_1_1_1.dtd</A>&quot;&gt;
+-    &lt;WMT_MS_Capabilities version=&quot;1.1.1&quot; updateSequence=&quot;0&quot; xmlns:xlink=&quot;<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>&quot;&gt;
+-      &lt;Service&gt;
+-        &lt;Name&gt;WMS&lt;/Name&gt;
+-      &lt;/Service&gt;
+-      &lt;Capability&gt;
+-        &lt;Request&gt;
+-          &lt;GetCapabilities&gt;
+-            &lt;Format&gt;application/vnd.ogc.wms_xml&lt;/Format&gt;
+-            &lt;DCPType&gt;
+-              &lt;HTTP&gt;
+-                &lt;Get&gt;
+-                  &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
+-                &lt;/Get&gt;
+-                &lt;Post&gt;
+-                  &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
+-                &lt;/Post&gt;
+-              &lt;/HTTP&gt;
+-            &lt;/DCPType&gt;
+-          &lt;/GetCapabilities&gt;
+-          &lt;GetMap&gt;
+-            &lt;Format&gt;image/png&lt;/Format&gt;
+-            &lt;Format&gt;image/jpeg&lt;/Format&gt;
+-            &lt;Format&gt;image/gif&lt;/Format&gt;
+-            &lt;DCPType&gt;
+-              &lt;HTTP&gt;
+-                &lt;Get&gt;
+-                  &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
+-                &lt;/Get&gt;
+-                &lt;Post&gt;
+-                  &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
+-                &lt;/Post&gt;
+-              &lt;/HTTP&gt;
+-            &lt;/DCPType&gt;
+-          &lt;/GetMap&gt;
+-        &lt;/Request&gt;
+-        &lt;Exception&gt;
+-          &lt;Format&gt;application/vnd.ogc.se_xml&lt;/Format&gt;
+-        &lt;/Exception&gt;
+-        &lt;Layer&gt;
+-          &lt;Title&gt;A Mapnik WMS Server&lt;/Title&gt;
+-          &lt;Abstract&gt;A Mapnik WMS Server&lt;/Abstract&gt;
+-          &lt;SRS/&gt;
+-        &lt;/Layer&gt;
+-      &lt;/Capability&gt;
+-    &lt;/WMT_MS_Capabilities&gt;
+-    &quot;&quot;&quot;
+-
+-    def __init__(self, configpath, factory, opsonlineresource):
+-        self.factory = factory
+-        self.conf = SafeConfigParser()
+-        self.conf.readfp(open(configpath))
+-        if self.conf.has_option('service', 'epsg'):
+-            self.epsgcode = self.conf.get('service', 'epsg')
+-            self.proj = Projection(['init=epsg:' + self.epsgcode])
+-        else:
+-            raise &quot;Missing EPSG code&quot;
+-        if not opsonlineresource.endswith('?'): opsonlineresource += '?'
+-
+-        capetree = ElementTree.fromstring(self.capabilitiesxmltemplate)
+-        
+-        elements = capetree.findall('Capability//OnlineResource')
+-        for element in elements:
+-            element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}href', opsonlineresource)
+-
+-        if len(self.conf.items('service')) &gt; 0:
+-            servicee = capetree.find('Service')
+-            for item in self.CONF_SERVICE:
+-                if self.conf.has_option('service', item[0]):
+-                    value = self.conf.get('service', item[0])
+-                    try:
+-                        item[2](value)
+-                    except:
+-                        raise ServerConfigurationError('Configuration parameter [%s]-&gt;%s has an invalid value: %s.' % ('service', item[0], value))
+-                    if item[0] == 'onlineresource':
+-                        element = ElementTree.Element('%s' % item[1])
+-                        servicee.append(element)
+-                        element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}href', value)
+-                        element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}type', 'simple')
+-                    else:
+-                        element = ElementTree.Element('%s' % item[1])
+-                        element.text = value
+-                        servicee.append(element)
+-
+-        rootlayerelem = capetree.find('Capability/Layer')
+-        
+-        rootlayersrs = rootlayerelem.find('SRS')
+-        rootlayersrs.text = 'EPSG:%s' % self.epsgcode
+-
+-        dict = self.factory()
+-
+-        for layer in dict['layers']:
+-            layername = ElementTree.Element('Name')
+-            layername.text = layer.name()
+-            layertitle = ElementTree.Element('Title')
+-            layertitle.text = layer.name()
+-            env = layer.envelope()
+-            llp = self.proj.Inverse(env.minx, env.miny)
+-            urp = self.proj.Inverse(env.maxx, env.maxy)
+-            latlonbb = ElementTree.Element('LatLonBoundingBox')
+-            latlonbb.set('minx', str(llp[0]))
+-            latlonbb.set('miny', str(llp[1]))
+-            latlonbb.set('maxx', str(urp[0]))
+-            latlonbb.set('maxy', str(urp[1]))
+-            layerbbox = ElementTree.Element('BoundingBox')
+-            layerbbox.set('SRS', 'EPSG:%s' % self.epsgcode)
+-            layerbbox.set('minx', str(env.minx))
+-            layerbbox.set('miny', str(env.miny))
+-            layerbbox.set('maxx', str(env.maxx))
+-            layerbbox.set('maxy', str(env.maxy))
+-            layere = ElementTree.Element('Layer')
+-            layere.append(layername)
+-            layere.append(layertitle)
+-            layere.append(latlonbb)
+-            layere.append(layerbbox)
+-            rootlayerelem.append(layere)
+-        
+-        self.capabilities = '&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;\n' + ElementTree.tostring(capetree)
+-
+-    def getcapabilities(self, params):
+-        response = Response('application/vnd.ogc.wms_xml', self.capabilities)
+-        return response
+-        
+-    def getmap(self, params):
+-        m = Map(params['width'], params['height'])
+-        if params['transparent'].lower() == 'false':
+-            m.background = params['bgcolor']
+-        mo = self.factory()
+-        for layername in params['layers']:
+-            for layer in mo['layers']:
+-                if layer.name() == layername:
+-                    for stylename in layer.styles:
+-                        if stylename in mo['styles'].keys():
+-                            m.append_style(stylename, mo['styles'][stylename])
+-                    m.layers.append(layer)
+-        m.zoom_to_box(Envelope(params['bbox'][0], params['bbox'][1], params['bbox'][2], params['bbox'][3]))
+-        im = Image(params['width'], params['height'])
+-        render(m, im)
+-        im2 = fromstring('RGBA', (params['width'], params['height']), rawdata(im))
+-        fh = StringIO()
+-        im2.save(fh, PIL_TYPE_MAPPING[params['format']])
+-        fh.seek(0)
+-        response = Response(params['format'], fh.read())
+-        return response
+-
+-class ServiceHandler130(BaseServiceHandler):
+-
+-    SERVICE_PARAMS = {
+-        'getcapabilities': {
+-            'format': ParameterDefinition(False, 'text/xml', ('text/xml',), True, cast=str),
+-        },
+-        'getmap': {
+-            'version': ParameterDefinition(True, allowedvalues=('1.3.0',), cast=Version),
+-            'layers': ParameterDefinition(True, cast=ListFactory(str)),
+-            'styles': ParameterDefinition(True, cast=ListFactory(str)),
+-            'crs': ParameterDefinition(True, match='^EPSG:\d+$'),
+-            'bbox': ParameterDefinition(True, cast=ListFactory(float)),
+-            'width': ParameterDefinition(True, cast=int),
+-            'height': ParameterDefinition(True, cast=int),
+-            'format': ParameterDefinition(True, allowedvalues=('image/gif','image/png','image/jpeg'), cast=str.lower),
+-            'transparent': ParameterDefinition(False, allowedvalues=('true','false'), cast=str.lower),
+-            'bgcolor': ParameterDefinition(False, ColorFactory('0xFFFFFF'), cast=ColorFactory),
+-            'exceptions': ParameterDefinition(False, 'xml', ('xml',), cast=str.lower),
+-        }
+-    }
+-
+-    CONF_SERVICE = [
+-        ['title', 'Title', str],
+-        ['abstract', 'Abstract', str],
+-        ['onlineresource', 'OnlineResource', str],
+-        ['fees', 'Fees', str],
+-        ['accessconstraints', 'AccessConstraints', str],
+-        ['layerlimit', 'LayerLimit', int],
+-        ['maxwidth', 'MaxWidth', int],
+-        ['maxheight', 'MaxHeight', int]
+-    ]
+-
+-    capabilitiesxmltemplate = &quot;&quot;&quot;&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+-    &lt;WMS_Capabilities version=&quot;1.3.0&quot; xmlns=&quot;<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>&quot;
+-                                      xmlns:xlink=&quot;<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>&quot;
+-                                      xmlns:xsi=&quot;<A HREF="http://www.w3.org/2001/XMLSchema-instance">http://www.w3.org/2001/XMLSchema-instance</A>&quot;
+-                                      xsi:schemaLocation=&quot;<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A> <A HREF="http://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd">http://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd</A>&quot;&gt;
+-      &lt;Service&gt;
+-        &lt;Name&gt;WMS&lt;/Name&gt;
+-      &lt;/Service&gt;
+-      &lt;Capability&gt;
+-        &lt;Request&gt;
+-          &lt;GetCapabilities&gt;
+-            &lt;Format&gt;text/xml&lt;/Format&gt;
+-            &lt;DCPType&gt;
+-              &lt;HTTP&gt;
+-                &lt;Get&gt;
+-                  &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
+-                &lt;/Get&gt;
+-                &lt;Post&gt;
+-                  &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
+-                &lt;/Post&gt;
+-              &lt;/HTTP&gt;
+-            &lt;/DCPType&gt;
+-          &lt;/GetCapabilities&gt;
+-          &lt;GetMap&gt;
+-            &lt;Format&gt;image/png&lt;/Format&gt;
+-            &lt;Format&gt;image/jpeg&lt;/Format&gt;
+-            &lt;Format&gt;image/gif&lt;/Format&gt;
+-            &lt;DCPType&gt;
+-              &lt;HTTP&gt;
+-                &lt;Get&gt;
+-                  &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
+-                &lt;/Get&gt;
+-                &lt;Post&gt;
+-                  &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
+-                &lt;/Post&gt;
+-              &lt;/HTTP&gt;
+-            &lt;/DCPType&gt;
+-          &lt;/GetMap&gt;
+-        &lt;/Request&gt;
+-        &lt;Exception&gt;
+-          &lt;Format&gt;XML&lt;/Format&gt;
+-        &lt;/Exception&gt;
+-        &lt;Layer&gt;
+-          &lt;Title&gt;A Mapnik WMS Server&lt;/Title&gt;
+-          &lt;Abstract&gt;A Mapnik WMS Server&lt;/Abstract&gt;
+-          &lt;CRS/&gt;
+-        &lt;/Layer&gt;
+-      &lt;/Capability&gt;
+-    &lt;/WMS_Capabilities&gt;
+-    &quot;&quot;&quot;
+-
+-    def __init__(self, configpath, factory, opsonlineresource):
+-        self.factory = factory
+-        self.conf = SafeConfigParser()
+-        self.conf.readfp(open(configpath))
+-        if self.conf.has_option('service', 'epsg'):
+-            self.epsgcode = self.conf.get('service', 'epsg')
+-            self.proj = Projection(['init=epsg:' + self.epsgcode])
+-        else:
+-            raise &quot;Missing EPSG code&quot;
+-        if not opsonlineresource.endswith('?'): opsonlineresource += '?'
+-
+-        capetree = ElementTree.fromstring(self.capabilitiesxmltemplate)
+-        
+-        elements = capetree.findall('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Capability//{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}OnlineResource')
+-        for element in elements:
+-            element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}href', opsonlineresource)
+-
+-        if len(self.conf.items('service')) &gt; 0:
+-            servicee = capetree.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Service')
+-            for item in self.CONF_SERVICE:
+-                if self.conf.has_option('service', item[0]):
+-                    value = self.conf.get('service', item[0])
+-                    try:
+-                        item[2](value)
+-                    except:
+-                        raise ServerConfigurationError('Configuration parameter [%s]-&gt;%s has an invalid value: %s.' % ('service', item[0], value))
+-                    if item[0] == 'onlineresource':
+-                        element = ElementTree.Element('%s' % item[1])
+-                        servicee.append(element)
+-                        element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}href', value)
+-                        element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}type', 'simple')
+-                    else:
+-                        element = ElementTree.Element('%s' % item[1])
+-                        element.text = value
+-                        servicee.append(element)
+-
+-        
+-        rootlayerelem = capetree.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Capability/{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Layer')
+-
+-        rootlayercrs = rootlayerelem.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}CRS')
+-        rootlayercrs.text = 'EPSG:%s' % self.epsgcode
+-        
+-        dict = self.factory()
+-        
+-        for layer in dict['layers']:
+-            layername = ElementTree.Element('Name')
+-            layername.text = layer.name()
+-            layertitle = ElementTree.Element('Title')
+-            layertitle.text = layer.name()
+-            env = layer.envelope()
+-            layerexgbb = ElementTree.Element('EX_GeographicBoundingBox')
+-            ll = self.proj.Inverse(env.minx, env.miny)
+-            ur = self.proj.Inverse(env.maxx, env.maxy)
+-            exgbb_wbl = ElementTree.Element('westBoundLongitude')
+-            exgbb_wbl.text = str(ll[0])
+-            layerexgbb.append(exgbb_wbl)
+-            exgbb_ebl = ElementTree.Element('eastBoundLongitude')
+-            exgbb_ebl.text = str(ur[0])
+-            layerexgbb.append(exgbb_ebl)
+-            exgbb_sbl = ElementTree.Element('southBoundLatitude')
+-            exgbb_sbl.text = str(ll[1])
+-            layerexgbb.append(exgbb_sbl)
+-            exgbb_nbl = ElementTree.Element('northBoundLatitude')
+-            exgbb_nbl.text = str(ur[1])
+-            layerexgbb.append(exgbb_nbl)
+-            layerbbox = ElementTree.Element('BoundingBox')
+-            layerbbox.set('CRS', 'EPSG:%s' % self.epsgcode)
+-            layerbbox.set('minx', str(env.minx))
+-            layerbbox.set('miny', str(env.miny))
+-            layerbbox.set('maxx', str(env.maxx))
+-            layerbbox.set('maxy', str(env.maxy))
+-            layere = ElementTree.Element('Layer')
+-            layere.append(layername)
+-            layere.append(layertitle)
+-            layere.append(layerexgbb)
+-            layere.append(layerbbox)
+-            rootlayerelem.append(layere)
+-        
+-        self.capabilities = '&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;\n' + ElementTree.tostring(capetree)
+-
+-    def getcapabilities(self, params):
+-        response = Response('text/xml', self.capabilities)
+-        return response
+-        
+-    def getmap(self, params):
+-        if params['width'] &gt; int(self.conf.get('service', 'maxwidth')) and height &gt; int(self.conf.get('service', 'maxheight')):
+-            raise OGCException('Bad map size.')
+-        m = Map(params['width'], params['height'])
+-        if params.has_key('transparent') and params['transparent'].lower() == 'false':
+-            m.background = params['bgcolor']
+-        mo = self.factory()
+-        for layername in params['layers']:
+-            for layer in mo['layers']:
+-                if layer.name() == layername:
+-                    for stylename in layer.styles:
+-                        if stylename in mo['styles'].keys():
+-                            m.append_style(stylename, mo['styles'][stylename])
+-                    m.layers.append(layer)
+-        m.zoom_to_box(Envelope(params['bbox'][0], params['bbox'][1], params['bbox'][2], params['bbox'][3]))
+-        im = Image(params['width'], params['height'])
+-        render(m, im)
+-        im2 = fromstring('RGBA', (params['width'], params['height']), rawdata(im))
+-        fh = StringIO()
+-        im2.save(fh, PIL_TYPE_MAPPING[params['format']])
+-        fh.seek(0)
+-        response = Response(params['format'], fh.read())
+-        return response
+-
+ def ServiceFactory(configpath, factory, onlineresource, version):
++
+     if not version:
+         version = Version('1.3.0')
+     else:
+         try:
+             version = Version(version)
+         except:
+-            raise OGCException(&quot;Parameter 'version' has an illegal value.&quot;)
++            raise OGCException('Parameter &quot;version&quot; is not properly formatted.  Format must be &quot;x.x.x&quot;.')
+     if version &gt;= '1.3.0':
+-        return ServiceHandler130(configpath, factory, onlineresource)
++        return (ServiceHandler130(configpath, factory, onlineresource), ExceptionHandler130)
+     else:
+-        return ServiceHandler111(configpath, factory, onlineresource)
+-    
+-    
+\ No newline at end of file
++        return (ServiceHandler111(configpath, factory, onlineresource), ExceptionHandler111)
+\ No newline at end of file
+
+Added: trunk/bindings/python/mapnik/ogcserver/wms111.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms111.py	2006-04-08 06:21:26 UTC (rev 226)
++++ trunk/bindings/python/mapnik/ogcserver/wms111.py	2006-04-08 21:53:36 UTC (rev 227)
+@@ -0,0 +1,192 @@
++#
++# This file is part of Mapnik (c++ mapping toolkit)
++#
++# Copyright (C) 2006 Jean-Francois Doyon
++#
++# Mapnik is free software; you can redistribute it and/or
++# modify it under the terms of the GNU Lesser General Public
++# License as published by the Free Software Foundation; either
++# version 2.1 of the License, or (at your option) any later version.
++#
++# This library is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++# Lesser General Public License for more details.
++#
++# You should have received a copy of the GNU Lesser General Public
++# License along with this library; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++#
++# $Id$
++
++from common import ParameterDefinition, BaseServiceHandler, Response, \
++                   PIL_TYPE_MAPPING, Version, ListFactory, ColorFactory, \
++                   CRSFactory, WMSBaseServiceHandler, CRS
++from exceptions import OGCException, ServerConfigurationError, BaseExceptionHandler
++from ConfigParser import SafeConfigParser
++from lxml import etree as ElementTree
++
++class ServiceHandler(WMSBaseServiceHandler):
++
++    SERVICE_PARAMS = {
++        'getcapabilities': {
++            'updatesequence': ParameterDefinition(False, str)
++        },
++        'getmap': {
++            'version': ParameterDefinition(True, Version, allowedvalues=(Version('1.1.1'),)),
++            'layers': ParameterDefinition(True, ListFactory(str)),
++            'styles': ParameterDefinition(True, ListFactory(str)),
++            'srs': ParameterDefinition(True, CRSFactory(['EPSG'])),
++            'bbox': ParameterDefinition(True, ListFactory(float)),
++            'width': ParameterDefinition(True, int),
++            'height': ParameterDefinition(True, int),
++            'format': ParameterDefinition(True, str, allowedvalues=('image/png','image/jpeg','image/gif')),
++            'transparent': ParameterDefinition(False, str, 'FALSE', ('TRUE','FALSE')),
++            'bgcolor': ParameterDefinition(False, ColorFactory, ColorFactory('0xFFFFFF')),
++            'exceptions': ParameterDefinition(False, str, 'application/vnd.ogc.se_xml', ('application/vnd.ogc.se_xml',))
++        }
++    }
++
++    CONF_SERVICE = [
++        ['title', 'Title', str],
++        ['abstract', 'Abstract', str],
++        ['onlineresource', 'OnlineResource', str],
++        ['fees', 'Fees', str],
++        ['accessconstraints', 'AccessConstraints', str],
++    ]
++
++    capabilitiesxmltemplate = &quot;&quot;&quot;&lt;?xml version='1.0' encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;
++    &lt;!DOCTYPE WMT_MS_Capabilities SYSTEM &quot;<A HREF="http://www.digitalearth.gov/wmt/xml/capabilities_1_1_1.dtd">http://www.digitalearth.gov/wmt/xml/capabilities_1_1_1.dtd</A>&quot;&gt;
++    &lt;WMT_MS_Capabilities version=&quot;1.1.1&quot; updateSequence=&quot;0&quot; xmlns:xlink=&quot;<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>&quot;&gt;
++      &lt;Service&gt;
++        &lt;Name&gt;WMS&lt;/Name&gt;
++      &lt;/Service&gt;
++      &lt;Capability&gt;
++        &lt;Request&gt;
++          &lt;GetCapabilities&gt;
++            &lt;Format&gt;application/vnd.ogc.wms_xml&lt;/Format&gt;
++            &lt;DCPType&gt;
++              &lt;HTTP&gt;
++                &lt;Get&gt;
++                  &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
++                &lt;/Get&gt;
++                &lt;Post&gt;
++                  &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
++                &lt;/Post&gt;
++              &lt;/HTTP&gt;
++            &lt;/DCPType&gt;
++          &lt;/GetCapabilities&gt;
++          &lt;GetMap&gt;
++            &lt;Format&gt;image/png&lt;/Format&gt;
++            &lt;Format&gt;image/jpeg&lt;/Format&gt;
++            &lt;Format&gt;image/gif&lt;/Format&gt;
++            &lt;DCPType&gt;
++              &lt;HTTP&gt;
++                &lt;Get&gt;
++                  &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
++                &lt;/Get&gt;
++                &lt;Post&gt;
++                  &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
++                &lt;/Post&gt;
++              &lt;/HTTP&gt;
++            &lt;/DCPType&gt;
++          &lt;/GetMap&gt;
++        &lt;/Request&gt;
++        &lt;Exception&gt;
++          &lt;Format&gt;application/vnd.ogc.se_xml&lt;/Format&gt;
++        &lt;/Exception&gt;
++        &lt;Layer&gt;
++          &lt;Title&gt;A Mapnik WMS Server&lt;/Title&gt;
++          &lt;Abstract&gt;A Mapnik WMS Server&lt;/Abstract&gt;
++          &lt;SRS/&gt;
++        &lt;/Layer&gt;
++      &lt;/Capability&gt;
++    &lt;/WMT_MS_Capabilities&gt;
++    &quot;&quot;&quot;
++
++    def __init__(self, configpath, factory, opsonlineresource):
++        self.factory = factory
++        self.conf = SafeConfigParser()
++        self.conf.readfp(open(configpath))
++        if self.conf.has_option('service', 'epsg'):
++            self.crs = CRS('EPSG', self.conf.get('service', 'epsg'))
++        else:
++            ServerConfigurationError('EPSG code not properly configured.')
++        if not opsonlineresource.endswith('?'): opsonlineresource += '?'
++
++        capetree = ElementTree.fromstring(self.capabilitiesxmltemplate)
++        
++        elements = capetree.findall('Capability//OnlineResource')
++        for element in elements:
++            element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}href', opsonlineresource)
++
++        if len(self.conf.items('service')) &gt; 0:
++            servicee = capetree.find('Service')
++            for item in self.CONF_SERVICE:
++                if self.conf.has_option('service', item[0]):
++                    value = self.conf.get('service', item[0])
++                    try:
++                        item[2](value)
++                    except:
++                        raise ServerConfigurationError('Configuration parameter [%s]-&gt;%s has an invalid value: %s.' % ('service', item[0], value))
++                    if item[0] == 'onlineresource':
++                        element = ElementTree.Element('%s' % item[1])
++                        servicee.append(element)
++                        element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}href', value)
++                        element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}type', 'simple')
++                    else:
++                        element = ElementTree.Element('%s' % item[1])
++                        element.text = value
++                        servicee.append(element)
++
++        rootlayerelem = capetree.find('Capability/Layer')
++        
++        rootlayersrs = rootlayerelem.find('SRS')
++        rootlayersrs.text = str(self.crs)
++
++        dict = self.factory()
++
++        for layer in dict['layers']:
++            layername = ElementTree.Element('Name')
++            layername.text = layer.name()
++            layertitle = ElementTree.Element('Title')
++            layertitle.text = layer.name()
++            env = layer.envelope()
++            llp = self.crs.Inverse(env.minx, env.miny)
++            urp = self.crs.Inverse(env.maxx, env.maxy)
++            latlonbb = ElementTree.Element('LatLonBoundingBox')
++            latlonbb.set('minx', str(llp[0]))
++            latlonbb.set('miny', str(llp[1]))
++            latlonbb.set('maxx', str(urp[0]))
++            latlonbb.set('maxy', str(urp[1]))
++            layerbbox = ElementTree.Element('BoundingBox')
++            layerbbox.set('SRS', str(self.crs))
++            layerbbox.set('minx', str(env.minx))
++            layerbbox.set('miny', str(env.miny))
++            layerbbox.set('maxx', str(env.maxx))
++            layerbbox.set('maxy', str(env.maxy))
++            layere = ElementTree.Element('Layer')
++            layere.append(layername)
++            layere.append(layertitle)
++            layere.append(latlonbb)
++            layere.append(layerbbox)
++            rootlayerelem.append(layere)
++        
++        self.capabilities = '&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;\n' + ElementTree.tostring(capetree)
++
++    def getcapabilities(self, params):
++        response = Response('application/vnd.ogc.wms_xml', self.capabilities)
++        return response
++
++class ExceptionHandler(BaseExceptionHandler):
++    
++    mimetype = &quot;application/vnd.ogc.se_xml&quot;
++    
++    xmltemplate = ElementTree.fromstring(&quot;&quot;&quot;&lt;?xml version='1.0' encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;
++    &lt;!DOCTYPE ServiceExceptionReport SYSTEM &quot;<A HREF="http://www.digitalearth.gov/wmt/xml/exception_1_1_1.dtd">http://www.digitalearth.gov/wmt/xml/exception_1_1_1.dtd</A>&quot;&gt;
++    &lt;ServiceExceptionReport version=&quot;1.1.1&quot;&gt;
++      &lt;ServiceException /&gt;
++    &lt;/ServiceExceptionReport&gt;
++    &quot;&quot;&quot;)
++    
++    xpath = 'ServiceException'
+\ No newline at end of file
+
+
+Property changes on: trunk/bindings/python/mapnik/ogcserver/wms111.py
+___________________________________________________________________
+Name: svn:keywords
+   + Id
+
+Added: trunk/bindings/python/mapnik/ogcserver/wms130.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms130.py	2006-04-08 06:21:26 UTC (rev 226)
++++ trunk/bindings/python/mapnik/ogcserver/wms130.py	2006-04-08 21:53:36 UTC (rev 227)
+@@ -0,0 +1,213 @@
++#
++# This file is part of Mapnik (c++ mapping toolkit)
++#
++# Copyright (C) 2006 Jean-Francois Doyon
++#
++# Mapnik is free software; you can redistribute it and/or
++# modify it under the terms of the GNU Lesser General Public
++# License as published by the Free Software Foundation; either
++# version 2.1 of the License, or (at your option) any later version.
++#
++# This library is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++# Lesser General Public License for more details.
++#
++# You should have received a copy of the GNU Lesser General Public
++# License along with this library; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++#
++# $Id$
++
++from common import ParameterDefinition, Response, PIL_TYPE_MAPPING, Version, \
++                   ListFactory, ColorFactory, CRSFactory, CRS, WMSBaseServiceHandler
++from exceptions import OGCException, ServerConfigurationError, BaseExceptionHandler
++from ConfigParser import SafeConfigParser
++from lxml import etree as ElementTree
++
++class ServiceHandler(WMSBaseServiceHandler):
++
++    SERVICE_PARAMS = {
++        'getcapabilities': {
++            'format': ParameterDefinition(False, str, 'text/xml', ('text/xml',), True),
++            'updatesequence': ParameterDefinition(False, str)
++        },
++        'getmap': {
++            'version': ParameterDefinition(True, Version, allowedvalues=(Version('1.3.0'),)),
++            'layers': ParameterDefinition(True, ListFactory(str)),
++            'styles': ParameterDefinition(True, ListFactory(str)),
++            'crs': ParameterDefinition(True, CRSFactory(['EPSG'])),
++            'bbox': ParameterDefinition(True, ListFactory(float)),
++            'width': ParameterDefinition(True, int),
++            'height': ParameterDefinition(True, int),
++            'format': ParameterDefinition(True, str, allowedvalues=('image/gif','image/png','image/jpeg')),
++            'transparent': ParameterDefinition(False, str, 'FALSE', ('TRUE','FALSE')),
++            'bgcolor': ParameterDefinition(False, ColorFactory, ColorFactory('0xFFFFFF')),
++            'exceptions': ParameterDefinition(False, str, 'XML', ('XML',)),
++        }
++    }
++
++    CONF_SERVICE = [
++        ['title', 'Title', str],
++        ['abstract', 'Abstract', str],
++        ['onlineresource', 'OnlineResource', str],
++        ['fees', 'Fees', str],
++        ['accessconstraints', 'AccessConstraints', str],
++        ['layerlimit', 'LayerLimit', int],
++        ['maxwidth', 'MaxWidth', int],
++        ['maxheight', 'MaxHeight', int]
++    ]
++
++    capabilitiesxmltemplate = &quot;&quot;&quot;&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
++    &lt;WMS_Capabilities version=&quot;1.3.0&quot; xmlns=&quot;<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>&quot;
++                                      xmlns:xlink=&quot;<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>&quot;
++                                      xmlns:xsi=&quot;<A HREF="http://www.w3.org/2001/XMLSchema-instance">http://www.w3.org/2001/XMLSchema-instance</A>&quot;
++                                      xsi:schemaLocation=&quot;<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A> <A HREF="http://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd">http://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd</A>&quot;&gt;
++      &lt;Service&gt;
++        &lt;Name&gt;WMS&lt;/Name&gt;
++      &lt;/Service&gt;
++      &lt;Capability&gt;
++        &lt;Request&gt;
++          &lt;GetCapabilities&gt;
++            &lt;Format&gt;text/xml&lt;/Format&gt;
++            &lt;DCPType&gt;
++              &lt;HTTP&gt;
++                &lt;Get&gt;
++                  &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
++                &lt;/Get&gt;
++                &lt;Post&gt;
++                  &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
++                &lt;/Post&gt;
++              &lt;/HTTP&gt;
++            &lt;/DCPType&gt;
++          &lt;/GetCapabilities&gt;
++          &lt;GetMap&gt;
++            &lt;Format&gt;image/png&lt;/Format&gt;
++            &lt;Format&gt;image/jpeg&lt;/Format&gt;
++            &lt;Format&gt;image/gif&lt;/Format&gt;
++            &lt;DCPType&gt;
++              &lt;HTTP&gt;
++                &lt;Get&gt;
++                  &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
++                &lt;/Get&gt;
++                &lt;Post&gt;
++                  &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
++                &lt;/Post&gt;
++              &lt;/HTTP&gt;
++            &lt;/DCPType&gt;
++          &lt;/GetMap&gt;
++        &lt;/Request&gt;
++        &lt;Exception&gt;
++          &lt;Format&gt;XML&lt;/Format&gt;
++        &lt;/Exception&gt;
++        &lt;Layer&gt;
++          &lt;Title&gt;A Mapnik WMS Server&lt;/Title&gt;
++          &lt;Abstract&gt;A Mapnik WMS Server&lt;/Abstract&gt;
++          &lt;CRS/&gt;
++        &lt;/Layer&gt;
++      &lt;/Capability&gt;
++    &lt;/WMS_Capabilities&gt;
++    &quot;&quot;&quot;
++
++    def __init__(self, configpath, factory, opsonlineresource):
++        self.factory = factory
++        self.conf = SafeConfigParser()
++        self.conf.readfp(open(configpath))
++        if self.conf.has_option('service', 'epsg'):
++            self.crs = CRS('EPSG', self.conf.get('service', 'epsg'))
++        else:
++            raise ServerConfigurationError('EPSG code not properly configured.')
++        if not opsonlineresource.endswith('?'): opsonlineresource += '?'
++
++        capetree = ElementTree.fromstring(self.capabilitiesxmltemplate)
++        
++        elements = capetree.findall('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Capability//{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}OnlineResource')
++        for element in elements:
++            element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}href', opsonlineresource)
++
++        if len(self.conf.items('service')) &gt; 0:
++            servicee = capetree.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Service')
++            for item in self.CONF_SERVICE:
++                if self.conf.has_option('service', item[0]):
++                    value = self.conf.get('service', item[0])
++                    try:
++                        item[2](value)
++                    except:
++                        raise ServerConfigurationError('Configuration parameter [%s]-&gt;%s has an invalid value: %s.' % ('service', item[0], value))
++                    if item[0] == 'onlineresource':
++                        element = ElementTree.Element('%s' % item[1])
++                        servicee.append(element)
++                        element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}href', value)
++                        element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}type', 'simple')
++                    else:
++                        element = ElementTree.Element('%s' % item[1])
++                        element.text = value
++                        servicee.append(element)
++
++        
++        rootlayerelem = capetree.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Capability/{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Layer')
++
++        rootlayercrs = rootlayerelem.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}CRS')
++        rootlayercrs.text = str(self.crs)
++        
++        dict = self.factory()
++        
++        for layer in dict['layers']:
++            layername = ElementTree.Element('Name')
++            layername.text = layer.name()
++            layertitle = ElementTree.Element('Title')
++            layertitle.text = layer.name()
++            env = layer.envelope()
++            layerexgbb = ElementTree.Element('EX_GeographicBoundingBox')
++            ll = self.crs.Inverse(env.minx, env.miny)
++            ur = self.crs.Inverse(env.maxx, env.maxy)
++            exgbb_wbl = ElementTree.Element('westBoundLongitude')
++            exgbb_wbl.text = str(ll[0])
++            layerexgbb.append(exgbb_wbl)
++            exgbb_ebl = ElementTree.Element('eastBoundLongitude')
++            exgbb_ebl.text = str(ur[0])
++            layerexgbb.append(exgbb_ebl)
++            exgbb_sbl = ElementTree.Element('southBoundLatitude')
++            exgbb_sbl.text = str(ll[1])
++            layerexgbb.append(exgbb_sbl)
++            exgbb_nbl = ElementTree.Element('northBoundLatitude')
++            exgbb_nbl.text = str(ur[1])
++            layerexgbb.append(exgbb_nbl)
++            layerbbox = ElementTree.Element('BoundingBox')
++            layerbbox.set('CRS', str(self.crs))
++            layerbbox.set('minx', str(env.minx))
++            layerbbox.set('miny', str(env.miny))
++            layerbbox.set('maxx', str(env.maxx))
++            layerbbox.set('maxy', str(env.maxy))
++            layere = ElementTree.Element('Layer')
++            layere.append(layername)
++            layere.append(layertitle)
++            layere.append(layerexgbb)
++            layere.append(layerbbox)
++            rootlayerelem.append(layere)
++        
++        self.capabilities = '&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;' + ElementTree.tostring(capetree)
++
++    def getcapabilities(self, params):
++        response = Response('text/xml', self.capabilities)
++        return response
++        
++    def getmap(self, params):
++        if params['width'] &gt; int(self.conf.get('service', 'maxwidth')) or params['height'] &gt; int(self.conf.get('service', 'maxheight')):
++            raise OGCException('Requested map size exceeds limits set by this server.')
++        return WMSBaseServiceHandler.getmap(self, params)
++
++class ExceptionHandler(BaseExceptionHandler):
++    
++    mimetype = &quot;text/xml&quot;
++    
++    xmltemplate = ElementTree.fromstring(&quot;&quot;&quot;&lt;?xml version='1.0' encoding=&quot;UTF-8&quot;?&gt;
++    &lt;ServiceExceptionReport version=&quot;1.3.0&quot;
++                            xmlns=&quot;<A HREF="http://www.opengis.net/ogc">http://www.opengis.net/ogc</A>&quot;
++                            xmlns:xsi=&quot;<A HREF="http://www.w3.org/2001/XMLSchema-instance">http://www.w3.org/2001/XMLSchema-instance</A>&quot;
++                            xsi:schemaLocation=&quot;<A HREF="http://www.opengis.net/ogc">http://www.opengis.net/ogc</A> <A HREF="http://schemas.opengis.net/wms/1.3.0/exceptions_1_3_0.xsd">http://schemas.opengis.net/wms/1.3.0/exceptions_1_3_0.xsd</A>&quot;&gt;
++      &lt;ServiceException/&gt;
++    &lt;/ServiceExceptionReport&gt;
++    &quot;&quot;&quot;)
++    
++    xpath = '{<A HREF="http://www.opengis.net/ogc">http://www.opengis.net/ogc</A>}ServiceException'
+\ No newline at end of file
+
+
+Property changes on: trunk/bindings/python/mapnik/ogcserver/wms130.py
+___________________________________________________________________
+Name: svn:keywords
+   + Id
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000111.html">[Mapnik-svn] r226 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+	<LI>Next message: <A HREF="000113.html">[Mapnik-svn] r228 - in trunk: bindings/python/mapnik/ogcserver utils utils/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#112">[ date ]</a>
+              <a href="thread.html#112">[ thread ]</a>
+              <a href="subject.html#112">[ subject ]</a>
+              <a href="author.html#112">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

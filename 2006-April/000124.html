@@ -1,0 +1,141 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r239 - in trunk: include src utils/ogcserver
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-April/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r239%20-%20in%20trunk%3A%20include%20src%20utils/ogcserver&In-Reply-To=%3C200604221938.k3MJcL7n003773%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000123.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r239 - in trunk: include src utils/ogcserver</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r239%20-%20in%20trunk%3A%20include%20src%20utils/ogcserver&In-Reply-To=%3C200604221938.k3MJcL7n003773%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r239 - in trunk: include src utils/ogcserver">pavlenko at berlios.de
+       </A><BR>
+    <I>Sat Apr 22 21:38:21 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000123.html">[Mapnik-svn] r238 - trunk
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#124">[ date ]</a>
+              <a href="thread.html#124">[ thread ]</a>
+              <a href="subject.html#124">[ subject ]</a>
+              <a href="author.html#124">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-04-22 21:37:59 +0200 (Sat, 22 Apr 2006)
+New Revision: 239
+
+Modified:
+   trunk/include/graphics.hpp
+   trunk/src/graphics.cpp
+   trunk/utils/ogcserver/ogcserver.conf
+Log:
+small cleanup
+
+Modified: trunk/include/graphics.hpp
+===================================================================
+--- trunk/include/graphics.hpp	2006-04-21 19:05:23 UTC (rev 238)
++++ trunk/include/graphics.hpp	2006-04-22 19:37:59 UTC (rev 239)
+@@ -42,12 +42,10 @@
+ 	unsigned height_;
+ 	Color background_;
+ 	ImageData32 data_;
+-	//static gamma gammaTable_;
+     public:
+ 	Image32(int width,int height);
+ 	Image32(const Image32&amp; rhs);
+ 	~Image32();
+-	//static void setGamma(double gamma);
+ 	void setBackground(const Color&amp; background);
+ 	const Color&amp; getBackground() const;     
+ 	const ImageData32&amp; data() const;
+@@ -80,26 +78,6 @@
+ 		data_(x,y)=rgba;
+ 	    }
+ 	}
+-    /*
+-	inline int blendColor(int c0,int c1,int t)
+-	{
+-	    int bgRed=(c1&gt;&gt;16)&amp;0xff;
+-	    int bgGreen=(c1&gt;&gt;8)&amp;0xff;
+-	    int bgBlue=c1&amp;0xff;
+-
+-	    int red=(c0&gt;&gt;16)&amp;0xff;
+-	    int green=(c0&gt;&gt;8)&amp;0xff;
+-	    int blue=c0&amp;0xff;
+-
+-	    int alpha=t;
+-
+-	    int r=gammaTable_.l2g[(gammaTable_.g2l[red]*alpha+gammaTable_.g2l[bgRed]*(255-alpha))&gt;&gt;8];
+-	    int g=gammaTable_.l2g[(gammaTable_.g2l[green]*alpha+gammaTable_.g2l[bgGreen]*(255-alpha))&gt;&gt;8];
+-	    int b=gammaTable_.l2g[(gammaTable_.g2l[blue]*alpha+gammaTable_.g2l[bgBlue]*(255-alpha))&gt;&gt;8];
+-	    
+-	    return 0xff &lt;&lt; 24 | r &lt;&lt; 16 | g &lt;&lt; 8 | b;
+-	}
+-*/
+ 	inline void blendPixel(int x,int y,unsigned int rgba1,int t)
+ 	{
+ 	    if (checkBounds(x,y))
+
+Modified: trunk/src/graphics.cpp
+===================================================================
+--- trunk/src/graphics.cpp	2006-04-21 19:05:23 UTC (rev 238)
++++ trunk/src/graphics.cpp	2006-04-22 19:37:59 UTC (rev 239)
+@@ -42,8 +42,6 @@
+ 
+     Image32::~Image32() {}
+ 
+-    //gamma MAPNIK_DECL Image32::gammaTable_;
+-
+     const ImageData32&amp; Image32::data() const
+     {
+         return data_;
+
+Modified: trunk/utils/ogcserver/ogcserver.conf
+===================================================================
+--- trunk/utils/ogcserver/ogcserver.conf	2006-04-21 19:05:23 UTC (rev 238)
++++ trunk/utils/ogcserver/ogcserver.conf	2006-04-22 19:37:59 UTC (rev 239)
+@@ -36,4 +36,4 @@
+ #                  supporting the service for example.  This is NOT the online
+ #                  resource pointing to the CGI.
+ 
+-onlineresource=<A HREF="http://www.mapnik.org/">http://www.mapnik.org/</A>
+\ No newline at end of file
++onlineresource=<A HREF="http://www.mapnik.org/">http://www.mapnik.org/</A>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000123.html">[Mapnik-svn] r238 - trunk
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#124">[ date ]</a>
+              <a href="thread.html#124">[ thread ]</a>
+              <a href="subject.html#124">[ subject ]</a>
+              <a href="author.html#124">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

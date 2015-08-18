@@ -1,0 +1,348 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r286 - in trunk/plugins/input: postgis shape
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-July/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r286%20-%20in%20trunk/plugins/input%3A%20postgis%20shape&In-Reply-To=%3C200607242006.k6OK6a6W023458%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000170.html">
+   <LINK REL="Next"  HREF="000172.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r286 - in trunk/plugins/input: postgis shape</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r286%20-%20in%20trunk/plugins/input%3A%20postgis%20shape&In-Reply-To=%3C200607242006.k6OK6a6W023458%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r286 - in trunk/plugins/input: postgis shape">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Mon Jul 24 22:06:36 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000170.html">[Mapnik-svn] r285 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+        <LI>Next message: <A HREF="000172.html">[Mapnik-svn] r287 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#171">[ date ]</a>
+              <a href="thread.html#171">[ thread ]</a>
+              <a href="subject.html#171">[ subject ]</a>
+              <a href="author.html#171">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-07-24 22:06:09 +0200 (Mon, 24 Jul 2006)
+New Revision: 286
+
+Modified:
+   trunk/plugins/input/postgis/postgis.cpp
+   trunk/plugins/input/shape/shape.cpp
+Log:
+use fully qualified names 
+
+
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2006-07-23 19:56:13 UTC (rev 285)
++++ trunk/plugins/input/postgis/postgis.cpp	2006-07-24 20:06:09 UTC (rev 286)
+@@ -31,7 +31,7 @@
+ 
+ DATASOURCE_PLUGIN(postgis_datasource)
+ 
+-const std::string postgis_datasource::GEOMETRY_COLUMNS=&quot;geometry_columns&quot;;
++    const std::string postgis_datasource::GEOMETRY_COLUMNS=&quot;geometry_columns&quot;;
+ const std::string postgis_datasource::SPATIAL_REF_SYS=&quot;spatial_ref_system&quot;;
+ 
+ using std::clog;
+@@ -48,9 +48,9 @@
+       type_(datasource::Vector), 
+       desc_(params.get(&quot;name&quot;)),
+       creator_(params.get(&quot;host&quot;),
+-	       params.get(&quot;dbname&quot;),
+-	       params.get(&quot;user&quot;),
+-	       params.get(&quot;password&quot;))
++               params.get(&quot;dbname&quot;),
++               params.get(&quot;user&quot;),
++               params.get(&quot;password&quot;))
+       
+ {     
+     ConnectionManager *mgr=ConnectionManager::instance();   
+@@ -59,92 +59,92 @@
+     shared_ptr&lt;Pool&lt;Connection,ConnectionCreator&gt; &gt; pool=mgr-&gt;getPool(creator_.id());
+     if (pool)
+     {
+-	const shared_ptr&lt;Connection&gt;&amp; conn = pool-&gt;borrowObject();
+-	if (conn &amp;&amp; conn-&gt;isOK())
+-	{
+-	    PoolGuard&lt;shared_ptr&lt;Connection&gt;,shared_ptr&lt;Pool&lt;Connection,ConnectionCreator&gt; &gt; &gt; guard(conn,pool);
++        const shared_ptr&lt;Connection&gt;&amp; conn = pool-&gt;borrowObject();
++        if (conn &amp;&amp; conn-&gt;isOK())
++        {
++            PoolGuard&lt;shared_ptr&lt;Connection&gt;,shared_ptr&lt;Pool&lt;Connection,ConnectionCreator&gt; &gt; &gt; guard(conn,pool);
+ 
+-	    std::string table_name=table_from_sql(table_);
++            std::string table_name=table_from_sql(table_);
+ 	    
+-	    std::ostringstream s;
+-	    s &lt;&lt; &quot;select f_geometry_column,srid,type from &quot;;
+-	    s &lt;&lt; GEOMETRY_COLUMNS &lt;&lt;&quot; where f_table_name='&quot;&lt;&lt;table_name&lt;&lt;&quot;'&quot;;
++            std::ostringstream s;
++            s &lt;&lt; &quot;select f_geometry_column,srid,type from &quot;;
++            s &lt;&lt; GEOMETRY_COLUMNS &lt;&lt;&quot; where f_table_name='&quot;&lt;&lt;table_name&lt;&lt;&quot;'&quot;;
+ 	   
+-	    shared_ptr&lt;ResultSet&gt; rs=conn-&gt;executeQuery(s.str());
++            shared_ptr&lt;ResultSet&gt; rs=conn-&gt;executeQuery(s.str());
+ 	    
+-	    if (rs-&gt;next())
+-	    {
+-		try 
+-		{
+-		    srid_ = lexical_cast&lt;int&gt;(rs-&gt;getValue(&quot;srid&quot;));
+-		    desc_.set_srid(srid_);
+-		}
+-		catch (bad_lexical_cast &amp;ex)
+-		{
+-		    clog &lt;&lt; ex.what() &lt;&lt; endl;
+-		}
+-		geometryColumn_=rs-&gt;getValue(&quot;f_geometry_column&quot;);
+-		std::string postgisType=rs-&gt;getValue(&quot;type&quot;);
+-	    }
+-	    rs-&gt;close();
+-	    s.str(&quot;&quot;);
+-	    s &lt;&lt; &quot;select xmin(ext),ymin(ext),xmax(ext),ymax(ext)&quot;;
+-	    s &lt;&lt; &quot; from (select estimated_extent('&quot;&lt;&lt;table_name&lt;&lt;&quot;','&quot;&lt;&lt;geometryColumn_&lt;&lt;&quot;') as ext) as tmp&quot;;
++            if (rs-&gt;next())
++            {
++                try 
++                {
++                    srid_ = lexical_cast&lt;int&gt;(rs-&gt;getValue(&quot;srid&quot;));
++                    desc_.set_srid(srid_);
++                }
++                catch (bad_lexical_cast &amp;ex)
++                {
++                    clog &lt;&lt; ex.what() &lt;&lt; endl;
++                }
++                geometryColumn_=rs-&gt;getValue(&quot;f_geometry_column&quot;);
++                std::string postgisType=rs-&gt;getValue(&quot;type&quot;);
++            }
++            rs-&gt;close();
++            s.str(&quot;&quot;);
++            s &lt;&lt; &quot;select xmin(ext),ymin(ext),xmax(ext),ymax(ext)&quot;;
++            s &lt;&lt; &quot; from (select estimated_extent('&quot;&lt;&lt;table_name&lt;&lt;&quot;','&quot;&lt;&lt;geometryColumn_&lt;&lt;&quot;') as ext) as tmp&quot;;
+ 
+-	    rs=conn-&gt;executeQuery(s.str());
+-	    if (rs-&gt;next())
+-	    {
+-		try 
+-		{
+-		    double lox=lexical_cast&lt;double&gt;(rs-&gt;getValue(0));
+-		    double loy=lexical_cast&lt;double&gt;(rs-&gt;getValue(1));
+-		    double hix=lexical_cast&lt;double&gt;(rs-&gt;getValue(2));
+-		    double hiy=lexical_cast&lt;double&gt;(rs-&gt;getValue(3));		    
+-		    extent_.init(lox,loy,hix,hiy);
+-		}
+-		catch (bad_lexical_cast &amp;ex)
+-		{
+-		    clog &lt;&lt; ex.what() &lt;&lt; endl;
+-		}
+-	    }
+-	    rs-&gt;close();
++            rs=conn-&gt;executeQuery(s.str());
++            if (rs-&gt;next())
++            {
++                try 
++                {
++                    double lox=lexical_cast&lt;double&gt;(rs-&gt;getValue(0));
++                    double loy=lexical_cast&lt;double&gt;(rs-&gt;getValue(1));
++                    double hix=lexical_cast&lt;double&gt;(rs-&gt;getValue(2));
++                    double hiy=lexical_cast&lt;double&gt;(rs-&gt;getValue(3));		    
++                    extent_.init(lox,loy,hix,hiy);
++                }
++                catch (bad_lexical_cast &amp;ex)
++                {
++                    clog &lt;&lt; ex.what() &lt;&lt; endl;
++                }
++            }
++            rs-&gt;close();
+ 
+-	    // collect attribute desc
+-	    s.str(&quot;&quot;);
+-	    s &lt;&lt; &quot;select * from &quot;&lt;&lt;table_&lt;&lt;&quot; limit 1&quot;;
+-	    rs=conn-&gt;executeQuery(s.str());
+-	    if (rs-&gt;next())
+-	    {
+-		int count = rs-&gt;getNumFields();
+-		for (int i=0;i&lt;count;++i)
+-		{
+-		    std::string fld_name=rs-&gt;getFieldName(i);
+-		    int length = rs-&gt;getFieldLength(i);
++            // collect attribute desc
++            s.str(&quot;&quot;);
++            s &lt;&lt; &quot;select * from &quot;&lt;&lt;table_&lt;&lt;&quot; limit 1&quot;;
++            rs=conn-&gt;executeQuery(s.str());
++            if (rs-&gt;next())
++            {
++                int count = rs-&gt;getNumFields();
++                for (int i=0;i&lt;count;++i)
++                {
++                    std::string fld_name=rs-&gt;getFieldName(i);
++                    int length = rs-&gt;getFieldLength(i);
+ 		    
+-		    int type_oid = rs-&gt;getTypeOID(i);
+-		    switch (type_oid)
+-		    {
+-		    case 17285: // geometry
+-			desc_.add_descriptor(attribute_descriptor(fld_name,Geometry));
+-			break;
+-		    case 21:    // int2
+-		    case 23:    // int4
+-			desc_.add_descriptor(attribute_descriptor(fld_name,Integer,false,length));
+- 			break;
++                    int type_oid = rs-&gt;getTypeOID(i);
++                    switch (type_oid)
++                    {
++                    case 17285: // geometry
++                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Geometry));
++                        break;
++                    case 21:    // int2
++                    case 23:    // int4
++                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Integer,false,length));
++                        break;
+                     case 701:  // float8
+- 			desc_.add_descriptor(attribute_descriptor(fld_name,Double,false,length));
+-		    case 1042:  // bpchar
+-		    case 1043:  // varchar
+-			desc_.add_descriptor(attribute_descriptor(fld_name,String));
+-			break;
+-		    default: // shouldn't get here
+-			clog &lt;&lt; &quot;unknown type_oid=&quot;&lt;&lt;type_oid&lt;&lt;endl;
+-			desc_.add_descriptor(attribute_descriptor(fld_name,String));
+-			break;
+-		    }	  
+-		}
+-	    }
+-	}
++                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Double,false,length));
++                    case 1042:  // bpchar
++                    case 1043:  // varchar
++                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::String));
++                        break;
++                    default: // shouldn't get here
++                        clog &lt;&lt; &quot;unknown type_oid=&quot;&lt;&lt;type_oid&lt;&lt;endl;
++                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::String));
++                        break;
++                    }	  
++                }
++            }
++        }
+     }
+ }
+ 
+@@ -188,28 +188,28 @@
+     shared_ptr&lt;Pool&lt;Connection,ConnectionCreator&gt; &gt; pool=mgr-&gt;getPool(creator_.id());
+     if (pool)
+     {
+-	const shared_ptr&lt;Connection&gt;&amp; conn = pool-&gt;borrowObject();
+-	if (conn &amp;&amp; conn-&gt;isOK())
+-	{       
+-	    PoolGuard&lt;shared_ptr&lt;Connection&gt;,shared_ptr&lt;Pool&lt;Connection,ConnectionCreator&gt; &gt; &gt; guard(conn,pool);
+-	    std::ostringstream s;
+-	    // can we rely on 'gid' name???
+-	    s &lt;&lt; &quot;select ogc_fid,asbinary(&quot;&lt;&lt;geometryColumn_&lt;&lt;&quot;) as geom&quot;;
+-	    std::set&lt;std::string&gt; const&amp; props=q.property_names();
+-	    std::set&lt;std::string&gt;::const_iterator pos=props.begin();
+-	    while (pos!=props.end())
+-	    {
+-		s &lt;&lt;&quot;,\&quot;&quot;&lt;&lt;*pos&lt;&lt;&quot;\&quot;&quot;;
+-		++pos;
+-	    }	
++        const shared_ptr&lt;Connection&gt;&amp; conn = pool-&gt;borrowObject();
++        if (conn &amp;&amp; conn-&gt;isOK())
++        {       
++            PoolGuard&lt;shared_ptr&lt;Connection&gt;,shared_ptr&lt;Pool&lt;Connection,ConnectionCreator&gt; &gt; &gt; guard(conn,pool);
++            std::ostringstream s;
++            // can we rely on 'gid' name???
++            s &lt;&lt; &quot;select ogc_fid,asbinary(&quot;&lt;&lt;geometryColumn_&lt;&lt;&quot;) as geom&quot;;
++            std::set&lt;std::string&gt; const&amp; props=q.property_names();
++            std::set&lt;std::string&gt;::const_iterator pos=props.begin();
++            while (pos!=props.end())
++            {
++                s &lt;&lt;&quot;,\&quot;&quot;&lt;&lt;*pos&lt;&lt;&quot;\&quot;&quot;;
++                ++pos;
++            }	
+     
+-	    s &lt;&lt; &quot; from &quot; &lt;&lt; table_&lt;&lt;&quot; where &quot;&lt;&lt;geometryColumn_&lt;&lt;&quot; &amp;&amp; setSRID('BOX3D(&quot;;
+-	    s &lt;&lt; box.minx() &lt;&lt; &quot; &quot; &lt;&lt; box.miny() &lt;&lt; &quot;,&quot;;
+-	    s &lt;&lt; box.maxx() &lt;&lt; &quot; &quot; &lt;&lt; box.maxy() &lt;&lt; &quot;)'::box3d,&quot;&lt;&lt;srid_&lt;&lt;&quot;)&quot;;
+-	    clog &lt;&lt; s.str() &lt;&lt; endl;
+-	    shared_ptr&lt;ResultSet&gt; rs=conn-&gt;executeQuery(s.str(),1);
+-	    fs=new postgis_featureset(rs,props.size());
+-	}
++            s &lt;&lt; &quot; from &quot; &lt;&lt; table_&lt;&lt;&quot; where &quot;&lt;&lt;geometryColumn_&lt;&lt;&quot; &amp;&amp; setSRID('BOX3D(&quot;;
++            s &lt;&lt; box.minx() &lt;&lt; &quot; &quot; &lt;&lt; box.miny() &lt;&lt; &quot;,&quot;;
++            s &lt;&lt; box.maxx() &lt;&lt; &quot; &quot; &lt;&lt; box.maxy() &lt;&lt; &quot;)'::box3d,&quot;&lt;&lt;srid_&lt;&lt;&quot;)&quot;;
++            clog &lt;&lt; s.str() &lt;&lt; endl;
++            shared_ptr&lt;ResultSet&gt; rs=conn-&gt;executeQuery(s.str(),1);
++            fs=new postgis_featureset(rs,props.size());
++        }
+     }
+     return featureset_ptr(fs);
+ }
+
+Modified: trunk/plugins/input/shape/shape.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape.cpp	2006-07-23 19:56:13 UTC (rev 285)
++++ trunk/plugins/input/shape/shape.cpp	2006-07-24 20:06:09 UTC (rev 286)
+@@ -52,18 +52,18 @@
+             case 'D':
+             case 'M':
+             case 'L':		
+-                desc_.add_descriptor(attribute_descriptor(fld_name,String));
++                desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::String));
+                 break;
+             case 'N':
+             case 'F':
+                 {
+                     if (fd.dec_&gt;0)
+                     {   
+-                        desc_.add_descriptor(attribute_descriptor(fld_name,Double,false,8));
++                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Double,false,8));
+                     }
+                     else
+                     {
+-                        desc_.add_descriptor(attribute_descriptor(fld_name,Integer,false,4));
++                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Integer,false,4));
+                     }
+                     break;
+                 }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000170.html">[Mapnik-svn] r285 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+	<LI>Next message: <A HREF="000172.html">[Mapnik-svn] r287 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#171">[ date ]</a>
+              <a href="thread.html#171">[ thread ]</a>
+              <a href="subject.html#171">[ subject ]</a>
+              <a href="author.html#171">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

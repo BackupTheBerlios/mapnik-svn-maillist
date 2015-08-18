@@ -1,0 +1,130 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r208 - in trunk: include plugins/input/shape
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r208%20-%20in%20trunk%3A%20include%20plugins/input/shape&In-Reply-To=%3C200603232145.k2NLjW8G022544%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000092.html">
+   <LINK REL="Next"  HREF="000094.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r208 - in trunk: include plugins/input/shape</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r208%20-%20in%20trunk%3A%20include%20plugins/input/shape&In-Reply-To=%3C200603232145.k2NLjW8G022544%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r208 - in trunk: include plugins/input/shape">pavlenko at berlios.de
+       </A><BR>
+    <I>Thu Mar 23 22:45:32 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000092.html">[Mapnik-svn] r207 - in trunk: include src
+</A></li>
+        <LI>Next message: <A HREF="000094.html">[Mapnik-svn] r209 - in trunk: . fonts/ttf-bitstream-vera-1.10
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#93">[ date ]</a>
+              <a href="thread.html#93">[ thread ]</a>
+              <a href="subject.html#93">[ subject ]</a>
+              <a href="author.html#93">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-23 22:45:32 +0100 (Thu, 23 Mar 2006)
+New Revision: 208
+
+Modified:
+   trunk/include/agg_renderer.hpp
+   trunk/include/font_engine_freetype.hpp
+   trunk/plugins/input/shape/shape.cpp
+Log:
+small cleanup
+
+Modified: trunk/include/agg_renderer.hpp
+===================================================================
+--- trunk/include/agg_renderer.hpp	2006-03-23 11:54:50 UTC (rev 207)
++++ trunk/include/agg_renderer.hpp	2006-03-23 21:45:32 UTC (rev 208)
+@@ -38,7 +38,7 @@
+ 		void end_map_processing(Map const&amp; map);
+ 		void start_layer_processing(Layer const&amp; lay);
+ 		void end_layer_processing(Layer const&amp; lay);
+-		void process(point_symbolizer const&amp; sym,Feature const&amp; feature);	    	       
++		void process(point_symbolizer const&amp; sym,Feature const&amp; feature);
+ 		void process(line_symbolizer const&amp; sym,Feature const&amp; feature);
+ 		void process(line_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
+ 		void process(polygon_symbolizer const&amp; sym,Feature const&amp; feature);
+
+Modified: trunk/include/font_engine_freetype.hpp
+===================================================================
+--- trunk/include/font_engine_freetype.hpp	2006-03-23 11:54:50 UTC (rev 207)
++++ trunk/include/font_engine_freetype.hpp	2006-03-23 21:45:32 UTC (rev 208)
+@@ -248,12 +248,12 @@
+ 	    FT_Face face = face_-&gt;get_face();
+ 	    FT_GlyphSlot slot = face-&gt;glyph;
+ 	    FT_Bool use_kerning;
+-	    FT_UInt previous;
++	    FT_UInt previous = 0;
+ 	    
+ 	    pen.x = 0;
+ 	    pen.y = 0;
+ 	    
+-        use_kerning = FT_HAS_KERNING(face)&gt;0?true:false;
++	    use_kerning = FT_HAS_KERNING(face)&gt;0?true:false;
+ 	    
+ 	    FT_BBox bbox;   
+ 	    bbox.xMin = bbox.yMin = 32000; 
+
+Modified: trunk/plugins/input/shape/shape.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape.cpp	2006-03-23 11:54:50 UTC (rev 207)
++++ trunk/plugins/input/shape/shape.cpp	2006-03-23 21:45:32 UTC (rev 208)
+@@ -26,12 +26,12 @@
+ 
+ DATASOURCE_PLUGIN(shape_datasource)
+ 
+-shape_datasource::shape_datasource(const parameters &amp;params)
+-: shape_name_(params.get(&quot;file&quot;)),
+-type_(datasource::Vector),
+-file_length_(0),
+-indexed_(false),
+-desc_(params.get(&quot;name&quot;))
++    shape_datasource::shape_datasource(const parameters &amp;params)
++	: shape_name_(params.get(&quot;file&quot;)),
++	  type_(datasource::Vector),
++	  file_length_(0),
++	  indexed_(false),
++	  desc_(params.get(&quot;name&quot;))
+ {
+     try
+     {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000092.html">[Mapnik-svn] r207 - in trunk: include src
+</A></li>
+	<LI>Next message: <A HREF="000094.html">[Mapnik-svn] r209 - in trunk: . fonts/ttf-bitstream-vera-1.10
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#93">[ date ]</a>
+              <a href="thread.html#93">[ thread ]</a>
+              <a href="subject.html#93">[ subject ]</a>
+              <a href="author.html#93">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

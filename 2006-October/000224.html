@@ -1,0 +1,178 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r339 - in trunk/bindings/python: . mapnik	mapnik/ogcserver
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r339%20-%20in%20trunk/bindings/python%3A%20.%20mapnik%0A%09mapnik/ogcserver&In-Reply-To=%3C200610170111.k9H1B10j000414%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000223.html">
+   <LINK REL="Next"  HREF="000225.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r339 - in trunk/bindings/python: . mapnik	mapnik/ogcserver</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r339%20-%20in%20trunk/bindings/python%3A%20.%20mapnik%0A%09mapnik/ogcserver&In-Reply-To=%3C200610170111.k9H1B10j000414%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r339 - in trunk/bindings/python: . mapnik	mapnik/ogcserver">jdoyon at mail.berlios.de
+       </A><BR>
+    <I>Tue Oct 17 03:11:01 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000223.html">[Mapnik-svn] r338 - trunk/bindings/python
+</A></li>
+        <LI>Next message: <A HREF="000225.html">[Mapnik-svn] r340 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#224">[ date ]</a>
+              <a href="thread.html#224">[ thread ]</a>
+              <a href="subject.html#224">[ subject ]</a>
+              <a href="author.html#224">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-10-17 03:11:00 +0200 (Tue, 17 Oct 2006)
+New Revision: 339
+
+Removed:
+   trunk/bindings/python/pyprojection/
+Modified:
+   trunk/bindings/python/mapnik/__init__.py
+   trunk/bindings/python/mapnik/ogcserver/common.py
+   trunk/bindings/python/mapnik/ogcserver/wms130.py
+Log:
+- Remove the import of pyprojection
+- Delete pyprojection
+- Modify the WMS to use the new Projection class provided by Mapnik.
+
+Modified: trunk/bindings/python/mapnik/__init__.py
+===================================================================
+--- trunk/bindings/python/mapnik/__init__.py	2006-10-16 23:26:57 UTC (rev 338)
++++ trunk/bindings/python/mapnik/__init__.py	2006-10-17 01:11:00 UTC (rev 339)
+@@ -33,11 +33,6 @@
+ from _mapnik import *
+ from paths import inputpluginspath, fontscollectionpath
+ 
+-try:
+-    from mapnik.Projection import Projection, DEGREES
+-except:
+-    pass
+-
+ # The base Boost.Python class
+ BoostPythonMetaclass = Coord.__class__
+ 
+
+Modified: trunk/bindings/python/mapnik/ogcserver/common.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/common.py	2006-10-16 23:26:57 UTC (rev 338)
++++ trunk/bindings/python/mapnik/ogcserver/common.py	2006-10-17 01:11:00 UTC (rev 339)
+@@ -20,7 +20,7 @@
+ # $Id$
+ 
+ from exceptions import OGCException, ServerConfigurationError
+-from mapnik import Map, Color, Envelope, render, rawdata, Image, Projection, render_to_file
++from mapnik import Map, Color, Envelope, render, rawdata, Image, Projection, render_to_file, Coord
+ from PIL.Image import fromstring, new
+ from PIL.ImageDraw import Draw
+ from StringIO import StringIO
+@@ -253,15 +253,15 @@
+             return True
+         return False
+ 
+-    def Inverse(self, x, y):
++    def inverse(self, x, y):
+         if not self.proj:
+-            self.proj = Projection('init=%s' % str(self).lower())
+-        return self.proj.Inverse(x, y)
++            self.proj = Projection('+init=%s' % str(self).lower())
++        return self.proj.inverse(Coord(x, y))
+ 
+-    def Forward(self, x, y):
++    def forward(self, x, y):
+         if not self.proj:
+-            self.proj = Projection('init=%s' % str(self).lower())
+-        return self.proj.Forward(x, y)
++            self.proj = Projection('+init=%s' % str(self).lower())
++        return self.proj.forward(Coord(x, y))
+ 
+ class CRSFactory:
+ 
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms130.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms130.py	2006-10-16 23:26:57 UTC (rev 338)
++++ trunk/bindings/python/mapnik/ogcserver/wms130.py	2006-10-17 01:11:00 UTC (rev 339)
+@@ -136,19 +136,19 @@
+             layername.text = layer.name
+             env = layer.envelope()
+             layerexgbb = ElementTree.Element('EX_GeographicBoundingBox')
+-            ll = self.crs.Inverse(env.minx, env.miny)
+-            ur = self.crs.Inverse(env.maxx, env.maxy)
++            ll = self.crs.inverse(env.minx, env.miny)
++            ur = self.crs.inverse(env.maxx, env.maxy)
+             exgbb_wbl = ElementTree.Element('westBoundLongitude')
+-            exgbb_wbl.text = str(ll[0])
++            exgbb_wbl.text = str(ll.x)
+             layerexgbb.append(exgbb_wbl)
+             exgbb_ebl = ElementTree.Element('eastBoundLongitude')
+-            exgbb_ebl.text = str(ur[0])
++            exgbb_ebl.text = str(ur.x)
+             layerexgbb.append(exgbb_ebl)
+             exgbb_sbl = ElementTree.Element('southBoundLatitude')
+-            exgbb_sbl.text = str(ll[1])
++            exgbb_sbl.text = str(ll.y)
+             layerexgbb.append(exgbb_sbl)
+             exgbb_nbl = ElementTree.Element('northBoundLatitude')
+-            exgbb_nbl.text = str(ur[1])
++            exgbb_nbl.text = str(ur.y)
+             layerexgbb.append(exgbb_nbl)
+             layerbbox = ElementTree.Element('BoundingBox')
+             layerbbox.set('CRS', str(self.crs))
+@@ -158,13 +158,13 @@
+             layerbbox.set('maxy', str(env.maxy))
+             layere = ElementTree.Element('Layer')
+             layere.append(layername)
+-            if layer.title():
++            if layer.title:
+                 layertitle = ElementTree.Element('Title')
+-                layertitle.text = layer.title()
++                layertitle.text = layer.title
+                 layere.append(layertitle)
+-            if layer.abstract():
++            if layer.abstract:
+                 layerabstract = ElementTree.Element('Abstract')
+-                layerabstract.text = layer.abstract()
++                layerabstract.text = layer.abstract
+                 layere.append(layerabstract)
+             layere.append(layerexgbb)
+             layere.append(layerbbox)
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000223.html">[Mapnik-svn] r338 - trunk/bindings/python
+</A></li>
+	<LI>Next message: <A HREF="000225.html">[Mapnik-svn] r340 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#224">[ date ]</a>
+              <a href="thread.html#224">[ thread ]</a>
+              <a href="subject.html#224">[ subject ]</a>
+              <a href="author.html#224">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

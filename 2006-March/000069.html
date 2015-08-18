@@ -1,0 +1,133 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r183 - in trunk: include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r183%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200603192159.k2JLxGm9000753%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000068.html">
+   <LINK REL="Next"  HREF="000070.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r183 - in trunk: include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r183%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200603192159.k2JLxGm9000753%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r183 - in trunk: include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Sun Mar 19 22:59:16 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000068.html">[Mapnik-svn] r182 - in trunk/bindings/python: . mapnik
+</A></li>
+        <LI>Next message: <A HREF="000070.html">[Mapnik-svn] r184 - trunk/bindings/python
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#69">[ date ]</a>
+              <a href="thread.html#69">[ thread ]</a>
+              <a href="subject.html#69">[ subject ]</a>
+              <a href="author.html#69">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-19 22:59:16 +0100 (Sun, 19 Mar 2006)
+New Revision: 183
+
+Modified:
+   trunk/include/mapnik.hpp
+   trunk/src/mapnik.cpp
+Log:
+removed save and load to text archive functionality to keep x86_64 build happy
+ 
+
+
+Modified: trunk/include/mapnik.hpp
+===================================================================
+--- trunk/include/mapnik.hpp	2006-03-19 21:55:59 UTC (rev 182)
++++ trunk/include/mapnik.hpp	2006-03-19 21:59:16 UTC (rev 183)
+@@ -74,10 +74,7 @@
+ namespace mapnik
+ {
+     void save_to_xml(Map const&amp; map,const char* filename);  
+-    void save_to_text(Map const&amp; map,const char* filename);
+-
+     void load_from_xml(Map &amp; map, const char * filename);
+-    void load_from_text(Map &amp; map, const char * filename);
+ }
+ 
+ #endif //MAPNIK_HPP
+
+Modified: trunk/src/mapnik.cpp
+===================================================================
+--- trunk/src/mapnik.cpp	2006-03-19 21:55:59 UTC (rev 182)
++++ trunk/src/mapnik.cpp	2006-03-19 21:59:16 UTC (rev 183)
+@@ -19,8 +19,6 @@
+ //$Id$
+ 
+ #include &lt;fstream&gt;
+-#include &lt;boost/archive/text_oarchive.hpp&gt;
+-#include &lt;boost/archive/text_iarchive.hpp&gt;
+ #include &lt;boost/archive/xml_iarchive.hpp&gt;
+ #include &lt;boost/archive/xml_oarchive.hpp&gt;
+ #include &quot;mapnik.hpp&quot;
+@@ -34,14 +32,6 @@
+ 	boost::archive::xml_oarchive oa(ofs);
+ 	oa &lt;&lt; boost::serialization::make_nvp(&quot;map&quot;,m);
+     }
+-    
+-    void save_to_text(Map const&amp; m,const char* filename)
+-    {
+-	std::ofstream ofs(filename);
+-	assert(ofs.good());
+-	boost::archive::text_oarchive oa(ofs);
+-	oa &lt;&lt; m;
+-    }
+ 
+     void load_from_xml(Map &amp; m,const char* filename)
+     {
+@@ -50,14 +40,6 @@
+ 	boost::archive::xml_iarchive ia(ifs);
+ 	ia &gt;&gt; boost::serialization::make_nvp(&quot;map&quot;,m);
+     }
+-    
+-    void load_from_text(Map &amp; m,const char* filename)
+-    {
+-	std::ifstream ifs(filename);
+-	assert(ifs.good());
+-	boost::archive::text_iarchive ia(ifs);
+-	ia &gt;&gt; m;
+-    }
+ }
+ 
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000068.html">[Mapnik-svn] r182 - in trunk/bindings/python: . mapnik
+</A></li>
+	<LI>Next message: <A HREF="000070.html">[Mapnik-svn] r184 - trunk/bindings/python
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#69">[ date ]</a>
+              <a href="thread.html#69">[ thread ]</a>
+              <a href="subject.html#69">[ subject ]</a>
+              <a href="author.html#69">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

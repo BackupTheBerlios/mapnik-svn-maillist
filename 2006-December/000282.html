@@ -1,0 +1,133 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r397 - in trunk: plugins/input/postgis src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-December/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r397%20-%20in%20trunk%3A%20plugins/input/postgis%20src&In-Reply-To=%3C200612011037.kB1AbHkC019183%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000281.html">
+   <LINK REL="Next"  HREF="000283.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r397 - in trunk: plugins/input/postgis src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r397%20-%20in%20trunk%3A%20plugins/input/postgis%20src&In-Reply-To=%3C200612011037.kB1AbHkC019183%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r397 - in trunk: plugins/input/postgis src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Fri Dec  1 11:37:17 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000281.html">[Mapnik-svn] r396 - trunk/bindings/python
+</A></li>
+        <LI>Next message: <A HREF="000283.html">[Mapnik-svn] r398 - trunk/plugins/input/postgis
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#282">[ date ]</a>
+              <a href="thread.html#282">[ thread ]</a>
+              <a href="subject.html#282">[ subject ]</a>
+              <a href="author.html#282">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-12-01 11:37:15 +0100 (Fri, 01 Dec 2006)
+New Revision: 397
+
+Modified:
+   trunk/plugins/input/postgis/postgisfs.cpp
+   trunk/src/agg_renderer.cpp
+Log:
+trim strings at data source level
+
+
+
+Modified: trunk/plugins/input/postgis/postgisfs.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgisfs.cpp	2006-12-01 10:08:13 UTC (rev 396)
++++ trunk/plugins/input/postgis/postgisfs.cpp	2006-12-01 10:37:15 UTC (rev 397)
+@@ -22,12 +22,14 @@
+ 
+ //$Id: postgisfs.cc 34 2005-04-04 13:27:23Z pavlenko $
+ 
++#include &lt;boost/algorithm/string.hpp&gt;
+ #include &lt;mapnik/global.hpp&gt;
+ #include &lt;mapnik/wkb.hpp&gt;
+ #include &quot;postgis.hpp&quot;
+ 
+ using boost::lexical_cast;
+ using boost::bad_lexical_cast;
++using boost::trim;
+ using std::string;
+ 
+ postgis_featureset::postgis_featureset(boost::shared_ptr&lt;ResultSet&gt; const&amp; rs,
+@@ -81,7 +83,9 @@
+                 }
+                 else if (oid==25 || oid==1042 || oid==1043) // text or bpchar or varchar
+                 {
+-                    boost::put(*feature,name,buf);
++                    std::string str(buf);
++                    trim(str);
++                    boost::put(*feature,name,str);
+                 }
+                 else 
+                 {
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-12-01 10:08:13 UTC (rev 396)
++++ trunk/src/agg_renderer.cpp	2006-12-01 10:37:15 UTC (rev 397)
+@@ -25,7 +25,6 @@
+ #include &lt;iostream&gt;
+ // boost
+ #include &lt;boost/utility.hpp&gt;
+-#include &lt;boost/algorithm/string.hpp&gt;
+ // agg
+ #include &quot;agg_basics.h&quot;
+ #include &quot;agg_rendering_buffer.h&quot;
+@@ -336,7 +335,6 @@
+         if (geom)
+         {
+             std::wstring text = to_unicode(feature[sym.get_name()].to_string());
+-            boost::trim(text);
+             boost::shared_ptr&lt;ImageData32&gt; const&amp; data = sym.get_data();
+             
+             if (text.length() &gt; 0 &amp;&amp; data)
+@@ -497,7 +495,6 @@
+         if (geom)
+         {
+             std::wstring text = to_unicode(feature[sym.get_name()].to_string());
+-            boost::trim(text);
+             if (text.length() &gt; 0)
+             {
+                 Color const&amp; fill  = sym.get_fill();
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000281.html">[Mapnik-svn] r396 - trunk/bindings/python
+</A></li>
+	<LI>Next message: <A HREF="000283.html">[Mapnik-svn] r398 - trunk/plugins/input/postgis
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#282">[ date ]</a>
+              <a href="thread.html#282">[ thread ]</a>
+              <a href="subject.html#282">[ subject ]</a>
+              <a href="author.html#282">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

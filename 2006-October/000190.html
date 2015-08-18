@@ -1,0 +1,4921 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r305 - in trunk: . boost boost/property_tree	boost/property_tree/detail
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r305%20-%20in%20trunk%3A%20.%20boost%20boost/property_tree%0A%09boost/property_tree/detail&In-Reply-To=%3C200610030849.k938nuqs020266%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000189.html">
+   <LINK REL="Next"  HREF="000191.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r305 - in trunk: . boost boost/property_tree	boost/property_tree/detail</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r305%20-%20in%20trunk%3A%20.%20boost%20boost/property_tree%0A%09boost/property_tree/detail&In-Reply-To=%3C200610030849.k938nuqs020266%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r305 - in trunk: . boost boost/property_tree	boost/property_tree/detail">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Tue Oct  3 10:49:56 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000189.html">[Mapnik-svn] r304 - in trunk: bindings/python demo/c++ demo/python	include src
+</A></li>
+        <LI>Next message: <A HREF="000191.html">[Mapnik-svn] r306 - trunk/boost
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#190">[ date ]</a>
+              <a href="thread.html#190">[ thread ]</a>
+              <a href="subject.html#190">[ subject ]</a>
+              <a href="author.html#190">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-03 10:49:51 +0200 (Tue, 03 Oct 2006)
+New Revision: 305
+
+Added:
+   trunk/boost/
+   trunk/boost/property_tree/
+   trunk/boost/property_tree/cmdline_parser.hpp
+   trunk/boost/property_tree/detail/
+   trunk/boost/property_tree/detail/file_parser_error.hpp
+   trunk/boost/property_tree/detail/info_parser_error.hpp
+   trunk/boost/property_tree/detail/info_parser_read.hpp
+   trunk/boost/property_tree/detail/info_parser_utils.hpp
+   trunk/boost/property_tree/detail/info_parser_write.hpp
+   trunk/boost/property_tree/detail/json_parser_error.hpp
+   trunk/boost/property_tree/detail/json_parser_read.hpp
+   trunk/boost/property_tree/detail/json_parser_write.hpp
+   trunk/boost/property_tree/detail/ptree_implementation.hpp
+   trunk/boost/property_tree/detail/ptree_interface.hpp
+   trunk/boost/property_tree/detail/ptree_utils.hpp
+   trunk/boost/property_tree/detail/xml_parser_error.hpp
+   trunk/boost/property_tree/detail/xml_parser_flags.hpp
+   trunk/boost/property_tree/detail/xml_parser_read_spirit.hpp
+   trunk/boost/property_tree/detail/xml_parser_read_tinyxml.hpp
+   trunk/boost/property_tree/detail/xml_parser_utils.hpp
+   trunk/boost/property_tree/detail/xml_parser_write.hpp
+   trunk/boost/property_tree/info_parser.hpp
+   trunk/boost/property_tree/ini_parser.hpp
+   trunk/boost/property_tree/json_parser.hpp
+   trunk/boost/property_tree/ptree.hpp
+   trunk/boost/property_tree/ptree_fwd.hpp
+   trunk/boost/property_tree/registry_parser.hpp
+   trunk/boost/property_tree/xml_parser.hpp
+Log:
+This is boost::property headers only library. It was accepted into main boost ditribution, but for now we use our own copy.
+
+   
+
+
+Added: trunk/boost/property_tree/cmdline_parser.hpp
+===================================================================
+--- trunk/boost/property_tree/cmdline_parser.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/cmdline_parser.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,85 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_CMDLINE_PARSER_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_CMDLINE_PARSER_HPP_INCLUDED
++
++#include &lt;boost/property_tree/ptree.hpp&gt;
++#include &lt;boost/property_tree/detail/ptree_utils.hpp&gt;
++
++namespace boost { namespace property_tree { namespace cmdline_parser
++{
++
++    template&lt;class Ptree&gt;
++    void read_cmdline(int argc, 
++                      typename Ptree::char_type *argv[], 
++                      const std::basic_string&lt;typename Ptree::char_type&gt; &amp;metachars,
++                      Ptree &amp;pt)
++    {
++
++        typedef typename Ptree::char_type Ch;
++        typedef std::basic_string&lt;Ch&gt; Str;
++
++        Ptree local;
++        
++        // For all arguments
++        for (int i = 0; i &lt; argc; ++i)
++        {
++            Str text = detail::trim&lt;Ch&gt;(argv[i]);
++            if (!text.empty())
++                if (metachars.find(text[0]) != Str::npos)
++                {
++                    if (text.size() == 1)
++                    {
++                        Ptree &amp;child = local.put(text, Str());
++                        Str key; 
++                        if (child.size() &lt; 10) 
++                            key.push_back(typename Ptree::char_type('0' + child.size()));
++                        child.push_back(std::make_pair(key, Ptree(child.data())));
++                    }
++                    else if (text.size() == 2)
++                    {
++                        Ptree &amp;child = local.put(text.substr(1, 1), Str());
++                        Str key; 
++                        if (child.size() &lt; 10) 
++                            key.push_back(typename Ptree::char_type('0' + child.size()));
++                        child.push_back(std::make_pair(key, Ptree(child.data())));
++                    }
++                    else
++                    {
++                        Ptree &amp;child = local.put(text.substr(1, 1), detail::trim&lt;Ch&gt;(text.substr(2, Str::npos)));
++                        Str key; 
++                        if (child.size() &lt; 10) 
++                            key.push_back(typename Ptree::char_type('0' + child.size()));
++                        child.push_back(std::make_pair(key, Ptree(child.data())));
++                    }
++                }
++                else
++                {
++                    Ptree &amp;child = local.put(Str(), detail::trim&lt;Ch&gt;(text));
++                    Str key; 
++                    if (child.size() &lt; 10) 
++                        key.push_back(typename Ptree::char_type('0' + child.size()));
++                    child.push_back(std::make_pair(key, Ptree(child.data())));
++                }
++        }
++
++        // Swap local and pt
++        pt.swap(local);
++
++    }
++
++} } }
++
++namespace boost { namespace property_tree
++{
++    using cmdline_parser::read_cmdline;
++} }
++
++#endif
+
+Added: trunk/boost/property_tree/detail/file_parser_error.hpp
+===================================================================
+--- trunk/boost/property_tree/detail/file_parser_error.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/detail/file_parser_error.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,88 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_DETAIL_FILE_PARSER_ERROR_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_DETAIL_FILE_PARSER_ERROR_HPP_INCLUDED
++
++#include &lt;boost/property_tree/ptree.hpp&gt;
++#include &lt;string&gt;
++
++namespace boost { namespace property_tree
++{
++
++    //! File parse error
++    class file_parser_error: public ptree_error
++    {
++
++    public:
++
++        ///////////////////////////////////////////////////////////////////////
++        // Construction &amp; destruction
++        
++        // Construct error
++        file_parser_error(const std::string &amp;message, 
++                          const std::string &amp;filename, 
++                          unsigned long line): 
++            ptree_error(format_what(message, filename, line)), 
++            m_message(message), m_filename(filename), m_line(line)
++        { 
++        }
++
++        ~file_parser_error() throw()    
++            // gcc 3.4.2 complains about lack of throw specifier on compiler generated dtor
++        {
++        }
++
++        ///////////////////////////////////////////////////////////////////////
++        // Data access
++        
++        // Get error message (without line and file - use what() to get full message)
++        std::string message()
++        {
++            return m_message;
++        }
++        
++        // Get error filename
++        std::string filename()
++        {
++            return m_filename;
++        }
++
++        // Get error line number
++        unsigned long line() 
++        { 
++            return m_line; 
++        }
++
++    private:
++        
++        std::string m_message;
++        std::string m_filename;
++        unsigned long m_line;
++
++        // Format error message to be returned by std::runtime_error::what()
++        std::string format_what(const std::string &amp;message,
++                                const std::string &amp;filename, 
++                                unsigned long line)
++        {
++            std::stringstream stream;
++            if (line &gt; 0)
++                stream &lt;&lt; (filename.empty() ? &quot;&lt;unspecified file&gt;&quot; : filename.c_str()) &lt;&lt; 
++                          '(' &lt;&lt; line &lt;&lt; &quot;): &quot; &lt;&lt; message;
++            else
++                stream &lt;&lt; (filename.empty() ? &quot;&lt;unspecified file&gt;&quot; : filename.c_str()) &lt;&lt; 
++                          &quot;: &quot; &lt;&lt; message;
++            return stream.str();
++        }
++
++    };
++
++} }
++
++#endif
+
+Added: trunk/boost/property_tree/detail/info_parser_error.hpp
+===================================================================
+--- trunk/boost/property_tree/detail/info_parser_error.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/detail/info_parser_error.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,32 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_DETAIL_INFO_PARSER_ERROR_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_DETAIL_INFO_PARSER_ERROR_HPP_INCLUDED
++
++#include &lt;boost/property_tree/detail/file_parser_error.hpp&gt;
++#include &lt;string&gt;
++
++namespace boost { namespace property_tree { namespace info_parser
++{
++
++    class info_parser_error: public file_parser_error
++    {
++    public:
++        info_parser_error(const std::string &amp;message, 
++                          const std::string &amp;filename, 
++                          unsigned long line): 
++            file_parser_error(message, filename, line)
++        { 
++        }
++    };
++
++} } }
++
++#endif
+
+Added: trunk/boost/property_tree/detail/info_parser_read.hpp
+===================================================================
+--- trunk/boost/property_tree/detail/info_parser_read.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/detail/info_parser_read.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,369 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_DETAIL_INFO_PARSER_READ_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_DETAIL_INFO_PARSER_READ_HPP_INCLUDED
++
++#include &quot;boost/property_tree/ptree.hpp&quot;
++#include &quot;boost/property_tree/detail/info_parser_error.hpp&quot;
++#include &quot;boost/property_tree/detail/info_parser_utils.hpp&quot;
++#include &lt;iterator&gt;
++#include &lt;string&gt;
++#include &lt;stack&gt;
++#include &lt;fstream&gt;
++#include &lt;cctype&gt;
++
++namespace boost { namespace property_tree { namespace info_parser
++{
++    
++    // Expand known escape sequences
++    template&lt;class It&gt;
++    std::basic_string&lt;typename std::iterator_traits&lt;It&gt;::value_type&gt; 
++        expand_escapes(It b, It e)
++    {
++        typedef typename std::iterator_traits&lt;It&gt;::value_type Ch;
++        std::basic_string&lt;Ch&gt; result;
++        while (b != e)
++        {
++            if (*b == Ch('\\'))
++            {
++                ++b;
++                if (b == e)
++                    throw info_parser_error(&quot;character expected after backslash&quot;, &quot;&quot;, 0);
++                else if (*b == Ch('0')) result += Ch('\0');
++                else if (*b == Ch('a')) result += Ch('\a');
++                else if (*b == Ch('b')) result += Ch('\b');
++                else if (*b == Ch('f')) result += Ch('\f');
++                else if (*b == Ch('n')) result += Ch('\n');
++                else if (*b == Ch('r')) result += Ch('\r');
++                else if (*b == Ch('t')) result += Ch('\t');
++                else if (*b == Ch('v')) result += Ch('\v');
++                else if (*b == Ch('&quot;')) result += Ch('&quot;');
++                else if (*b == Ch('\'')) result += Ch('\'');
++                else if (*b == Ch('\\')) result += Ch('\\');
++                else
++                    throw info_parser_error(&quot;unknown escape sequence&quot;, &quot;&quot;, 0);
++            }
++            else
++                result += *b;
++            ++b;
++        }
++        return result;
++    }
++    
++    // Advance pointer past whitespace
++    template&lt;class Ch&gt;
++    void skip_whitespace(const Ch *&amp;text)
++    {
++        using namespace std;
++        while (isspace(*text))
++            ++text;
++    }
++    
++    // Extract word (whitespace delimited) and advance pointer accordingly
++    template&lt;class Ch&gt;
++    std::basic_string&lt;Ch&gt; read_word(const Ch *&amp;text)
++    {
++        using namespace std;
++        skip_whitespace(text);
++        const Ch *start = text;
++        while (!isspace(*text) &amp;&amp; *text != Ch(';') &amp;&amp; *text != Ch('\0'))
++            ++text;
++        return expand_escapes(start, text);
++    }
++
++    // Extract line (eol delimited) and advance pointer accordingly
++    template&lt;class Ch&gt;
++    std::basic_string&lt;Ch&gt; read_line(const Ch *&amp;text)
++    {
++        using namespace std;
++        skip_whitespace(text);
++        const Ch *start = text;
++        while (*text != Ch('\0') &amp;&amp; *text != Ch(';'))
++            ++text;
++        while (text &gt; start &amp;&amp; isspace(*(text - 1)))
++            --text;
++        return expand_escapes(start, text);
++    }
++
++    // Extract string (inside &quot;&quot;), and advance pointer accordingly
++    // Set need_more_lines to true if \ continuator found
++    template&lt;class Ch&gt;
++    std::basic_string&lt;Ch&gt; read_string(const Ch *&amp;text, bool *need_more_lines)
++    {
++        skip_whitespace(text);
++        if (*text == Ch('\&quot;'))
++        {
++            
++            // Skip &quot;
++            ++text;
++            
++            // Find end of string, but skip escaped &quot;
++            bool escaped = false;
++            const Ch *start = text;
++            while ((escaped || *text != Ch('\&quot;')) &amp;&amp; *text != Ch('\0'))
++            {
++                escaped = (!escaped &amp;&amp; *text == Ch('\\'));
++                ++text;
++            }
++            
++            // If end of string found
++            if (*text == Ch('\&quot;'))
++            {
++                std::basic_string&lt;Ch&gt; result = expand_escapes(start, text++);
++                skip_whitespace(text);
++                if (*text == Ch('\\'))
++                {
++                    if (!need_more_lines)
++                        throw info_parser_error(&quot;unexpected \\&quot;, &quot;&quot;, 0);
++                    ++text;
++                    skip_whitespace(text);
++                    if (*text == Ch('\0') || *text == Ch(';'))
++                        *need_more_lines = true;
++                    else
++                        throw info_parser_error(&quot;expected end of line after \\&quot;, &quot;&quot;, 0);
++                }
++                else
++                    if (need_more_lines)
++                        *need_more_lines = false;
++                return result;
++            }
++            else
++                throw info_parser_error(&quot;unexpected end of line&quot;, &quot;&quot;, 0);
++
++        }
++        else
++            throw info_parser_error(&quot;expected \&quot;&quot;, &quot;&quot;, 0);
++    }
++    
++    // Extract key
++    template&lt;class Ch&gt;
++    std::basic_string&lt;Ch&gt; read_key(const Ch *&amp;text)
++    {
++        skip_whitespace(text);
++        if (*text == Ch('\&quot;'))
++            return read_string(text, NULL);
++        else
++            return read_word(text);
++    }
++
++    // Extract data
++    template&lt;class Ch&gt;
++    std::basic_string&lt;Ch&gt; read_data(const Ch *&amp;text, bool *need_more_lines)
++    {
++        skip_whitespace(text);
++        if (*text == Ch('\&quot;'))
++            return read_string(text, need_more_lines);
++        else
++        {
++            *need_more_lines = false;
++            return read_word(text);
++        }
++    }
++
++    // Build ptree from info stream
++    template&lt;class Ptree&gt;
++    void read_info_internal(std::basic_istream&lt;typename Ptree::char_type&gt; &amp;stream, 
++                            Ptree &amp;pt, 
++                            const std::string &amp;filename,
++                            int include_depth)
++    {
++        
++        // Character type
++        typedef typename Ptree::char_type Ch;
++        
++        // Possible parser states
++        enum state_t { 
++            s_key,              // Parser expects key
++            s_data,             // Parser expects data
++            s_data_cont         // Parser expects data continuation
++        };
++        
++        unsigned long line_no = 0;
++        state_t state = s_key;          // Parser state
++        Ptree *last = NULL;             // Pointer to last created ptree
++        std::basic_string&lt;Ch&gt; line;     // Define line here to minimize reallocations
++            
++        // Initialize ptree stack (used to handle nesting)
++        std::stack&lt;Ptree *&gt; stack;
++        stack.push(&amp;pt);                // Push root ptree on stack initially
++        
++        try
++        {
++        
++            // While there are characters in the stream
++            while (stream.good())
++            {
++            
++                // Read one line from stream
++                ++line_no;
++                std::getline(stream, line);
++                if (!stream.good() &amp;&amp; !stream.eof())
++                    throw info_parser_error(&quot;read error&quot;, &quot;&quot;, 0);
++                const Ch *text = line.c_str();
++
++                // If directive found
++                skip_whitespace(text);
++                if (*text == Ch('#'))
++                {
++                    
++                    // Determine directive type
++                    ++text;     // skip #
++                    std::basic_string&lt;Ch&gt; directive = read_word(text);
++                    if (directive == convert_chtype&lt;Ch, char&gt;(&quot;include&quot;))     // #include
++                    {
++                        if (include_depth &gt; 100)
++                            throw info_parser_error(&quot;include depth too large, probably recursive include&quot;, &quot;&quot;, 0);
++                        std::basic_string&lt;Ch&gt; s = read_string(text, NULL);
++                        std::string inc_name = convert_chtype&lt;char, Ch&gt;(s.c_str());
++                        std::basic_ifstream&lt;Ch&gt; inc_stream(inc_name.c_str());
++                        if (!inc_stream.good())
++                            throw info_parser_error(&quot;cannot open include file &quot; + inc_name, &quot;&quot;, 0);
++                        read_info_internal(inc_stream, *stack.top(), inc_name, include_depth + 1);
++                    }
++                    else    // Unknown directive
++                        throw info_parser_error(&quot;unknown directive&quot;, &quot;&quot;, 0);
++
++                    // Directive must be followed by end of line
++                    skip_whitespace(text);
++                    if (*text != Ch('\0'))
++                        throw info_parser_error(&quot;expected end of line&quot;, &quot;&quot;, 0);
++
++                    // Go to next line
++                    continue;
++
++                }
++
++                // While there are characters left in line
++                while (1)
++                {
++
++                    // Stop parsing on end of line or comment
++                    skip_whitespace(text);
++                    if (*text == Ch('\0') || *text == Ch(';'))
++                    {
++                        if (state == s_data)    // If there was no data set state to s_key
++                            state = s_key;
++                        break; 
++                    }
++
++                    // Process according to current parser state
++                    switch (state)
++                    {
++
++                        // Parser expects key
++                        case s_key:
++                        {
++
++                            if (*text == Ch('{'))   // Brace opening found
++                            {
++                                if (!last)
++                                    throw info_parser_error(&quot;unexpected {&quot;, &quot;&quot;, 0);
++                                stack.push(last);
++                                last = NULL;
++                                ++text;
++                            }
++                            else if (*text == Ch('}'))  // Brace closing found
++                            {
++                                if (stack.size() &lt;= 1)
++                                    throw info_parser_error(&quot;unmatched }&quot;, &quot;&quot;, 0);
++                                stack.pop();
++                                last = NULL;
++                                ++text;
++                            }
++                            else    // Key text found
++                            {
++                                std::basic_string&lt;Ch&gt; key = read_key(text);
++                                last = &amp;stack.top()-&gt;push_back(std::make_pair(key, Ptree()))-&gt;second;
++                                state = s_data;
++                            }
++
++                        }; break;
++
++                        // Parser expects data
++                        case s_data:
++                        {
++                            
++                            // Last ptree must be defined because we are going to add data to it
++                            BOOST_ASSERT(last);
++                            
++                            if (*text == Ch('{'))   // Brace opening found
++                            {
++                                stack.push(last);
++                                last = NULL;
++                                ++text;
++                                state = s_key;
++                            }
++                            else if (*text == Ch('}'))  // Brace closing found
++                            {
++                                if (stack.size() &lt;= 1)
++                                    throw info_parser_error(&quot;unmatched }&quot;, &quot;&quot;, 0);
++                                stack.pop();
++                                last = NULL;
++                                ++text;
++                                state = s_key;
++                            }
++                            else    // Data text found
++                            {
++                                bool need_more_lines;
++                                std::basic_string&lt;Ch&gt; data = read_data(text, &amp;need_more_lines);
++                                last-&gt;data() = data;
++                                state = need_more_lines ? s_data_cont : s_key;
++                            }
++
++
++                        }; break;
++
++                        // Parser expects continuation of data after \ on previous line
++                        case s_data_cont:
++                        {
++                            
++                            // Last ptree must be defined because we are going to update its data
++                            BOOST_ASSERT(last);
++                            
++                            if (*text == Ch('\&quot;'))  // Continuation must start with &quot;
++                            {
++                                bool need_more_lines;
++                                std::basic_string&lt;Ch&gt; data = read_string(text, &amp;need_more_lines);
++                                last-&gt;put_own(last-&gt;template get_own&lt;std::basic_string&lt;Ch&gt; &gt;() + data);
++                                state = need_more_lines ? s_data_cont : s_key;
++                            }
++                            else
++                                throw info_parser_error(&quot;expected \&quot; after \\ in previous line&quot;, &quot;&quot;, 0);
++
++                        }; break;
++
++                        // Should never happen
++                        default:
++                            BOOST_ASSERT(0);
++
++                    }
++                }
++            }
++
++            // Check if stack has initial size, otherwise some {'s have not been closed
++            if (stack.size() != 1)
++                throw info_parser_error(&quot;unmatched {&quot;, &quot;&quot;, 0);
++
++        }
++        catch (info_parser_error &amp;e)
++        {
++            // If line undefined rethrow error with correct filename and line
++            if (e.line() == 0)
++                throw info_parser_error(e.message(), filename, line_no);
++            else
++                throw e;
++
++        }
++
++    }
++    
++} } }
++
++#endif
+
+Added: trunk/boost/property_tree/detail/info_parser_utils.hpp
+===================================================================
+--- trunk/boost/property_tree/detail/info_parser_utils.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/detail/info_parser_utils.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,32 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_DETAIL_INFO_PARSER_CHCONV_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_DETAIL_INFO_PARSER_CHCONV_HPP_INCLUDED
++
++#include &lt;string&gt;
++
++namespace boost { namespace property_tree { namespace info_parser
++{
++
++    template&lt;class ChDest, class ChSrc&gt;
++    std::basic_string&lt;ChDest&gt; convert_chtype(const ChSrc *text)
++    {
++        std::basic_string&lt;ChDest&gt; result;
++        while (*text)
++        {
++            result += ChDest(*text);
++            ++text;
++        }
++        return result;
++    }
++
++} } }
++
++#endif
+
+Added: trunk/boost/property_tree/detail/info_parser_write.hpp
+===================================================================
+--- trunk/boost/property_tree/detail/info_parser_write.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/detail/info_parser_write.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,131 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_DETAIL_INFO_PARSER_WRITE_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_DETAIL_INFO_PARSER_WRITE_HPP_INCLUDED
++
++#include &quot;boost/property_tree/ptree.hpp&quot;
++#include &quot;boost/property_tree/detail/info_parser_utils.hpp&quot;
++#include &lt;string&gt;
++
++namespace boost { namespace property_tree { namespace info_parser
++{
++    
++    // Create necessary escape sequences from illegal characters
++    template&lt;class Ch&gt;
++    std::basic_string&lt;Ch&gt; create_escapes(const std::basic_string&lt;Ch&gt; &amp;s)
++    {
++        std::basic_string&lt;Ch&gt; result;
++        typename std::basic_string&lt;Ch&gt;::const_iterator b = s.begin();
++        typename std::basic_string&lt;Ch&gt;::const_iterator e = s.end();
++        while (b != e)
++        {
++            if (*b == Ch('\0')) result += Ch('\\'), result += Ch('0');
++            else if (*b == Ch('\a')) result += Ch('\\'), result += Ch('a');
++            else if (*b == Ch('\b')) result += Ch('\\'), result += Ch('b');
++            else if (*b == Ch('\f')) result += Ch('\\'), result += Ch('f');
++            else if (*b == Ch('\n')) result += Ch('\\'), result += Ch('n');
++            else if (*b == Ch('\r')) result += Ch('\\'), result += Ch('r');
++            else if (*b == Ch('\v')) result += Ch('\\'), result += Ch('v');
++            else if (*b == Ch('&quot;')) result += Ch('\\'), result += Ch('&quot;');
++            else if (*b == Ch('\\')) result += Ch('\\'), result += Ch('\\');
++            else
++                result += *b;
++            ++b;
++        }
++        return result;
++    }
++
++    template&lt;class Ch&gt;
++    bool is_simple_key(const std::basic_string&lt;Ch&gt; &amp;key)
++    {
++        const static std::basic_string&lt;Ch&gt; chars = convert_chtype&lt;Ch, char&gt;(&quot; \t{};\n\&quot;&quot;);
++        return !key.empty() &amp;&amp; key.find_first_of(chars) == key.npos;
++    }
++    
++    template&lt;class Ch&gt;
++    bool is_simple_data(const std::basic_string&lt;Ch&gt; &amp;data)
++    {
++        const static std::basic_string&lt;Ch&gt; chars = convert_chtype&lt;Ch, char&gt;(&quot; \t{};\n\&quot;&quot;);
++        return !data.empty() &amp;&amp; data.find_first_of(chars) == data.npos;
++    }
++
++    template&lt;class Ptree&gt;
++    void write_info_helper(std::basic_ostream&lt;typename Ptree::char_type&gt; &amp;stream, 
++                           const Ptree &amp;pt, 
++                           int indent)
++    {
++
++        // Character type
++        typedef typename Ptree::char_type Ch;
++        
++        // Write data
++        if (indent &gt;= 0)
++        {
++            if (!pt.data().empty())
++            {
++                std::basic_string&lt;Ch&gt; data = create_escapes(pt.template get_own&lt;std::basic_string&lt;Ch&gt; &gt;());
++                if (is_simple_data(data))
++                    stream &lt;&lt; Ch(' ') &lt;&lt; data &lt;&lt; Ch('\n');
++                else
++                    stream &lt;&lt; Ch(' ') &lt;&lt; Ch('\&quot;') &lt;&lt; data &lt;&lt; Ch('\&quot;') &lt;&lt; Ch('\n');
++            }
++            else if (pt.empty())
++                stream &lt;&lt; Ch(' ') &lt;&lt; Ch('\&quot;') &lt;&lt; Ch('\&quot;') &lt;&lt; Ch('\n');
++            else
++                stream &lt;&lt; Ch('\n');
++        }
++        
++        // Write keys
++        if (!pt.empty())
++        {
++            
++            // Open brace
++            if (indent &gt;= 0) 
++                stream &lt;&lt; std::basic_string&lt;Ch&gt;(4 * indent, Ch(' ')) &lt;&lt; Ch('{') &lt;&lt; Ch('\n');
++            
++            // Write keys
++            typename Ptree::const_iterator it = pt.begin();
++            for (; it != pt.end(); ++it)
++            {
++
++                // Output key
++                std::basic_string&lt;Ch&gt; key = create_escapes(it-&gt;first);
++                stream &lt;&lt; std::basic_string&lt;Ch&gt;(4 * (indent + 1), Ch(' '));
++                if (is_simple_key(key))
++                    stream &lt;&lt; key;
++                else
++                    stream &lt;&lt; Ch('\&quot;') &lt;&lt; key &lt;&lt; Ch('\&quot;');
++
++                // Output data and children  
++                write_info_helper(stream, it-&gt;second, indent + 1);
++
++            }
++            
++            // Close brace
++            if (indent &gt;= 0) 
++                stream &lt;&lt; std::basic_string&lt;Ch&gt;(4 * indent, Ch(' ')) &lt;&lt; Ch('}') &lt;&lt; Ch('\n');
++
++        }
++    }
++
++    // Write ptree to info stream
++    template&lt;class Ptree&gt;
++    void write_info_internal(std::basic_ostream&lt;typename Ptree::char_type&gt; &amp;stream, 
++                             const Ptree &amp;pt,
++                             const std::string &amp;filename)
++    {
++        write_info_helper(stream, pt, -1);
++        if (!stream.good())
++            throw info_parser_error(&quot;write error&quot;, filename, 0);
++    }
++
++} } }
++
++#endif
+
+Added: trunk/boost/property_tree/detail/json_parser_error.hpp
+===================================================================
+--- trunk/boost/property_tree/detail/json_parser_error.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/detail/json_parser_error.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,33 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_DETAIL_JSON_PARSER_ERROR_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_DETAIL_JSON_PARSER_ERROR_HPP_INCLUDED
++
++#include &lt;boost/property_tree/detail/file_parser_error.hpp&gt;
++#include &lt;string&gt;
++
++namespace boost { namespace property_tree { namespace json_parser
++{
++
++    //! Json parser error
++    class json_parser_error: public file_parser_error
++    {
++    public:
++        json_parser_error(const std::string &amp;message, 
++                          const std::string &amp;filename, 
++                          unsigned long line): 
++            file_parser_error(message, filename, line)
++        { 
++        }
++    };
++
++} } }
++
++#endif
+
+Added: trunk/boost/property_tree/detail/json_parser_read.hpp
+===================================================================
+--- trunk/boost/property_tree/detail/json_parser_read.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/detail/json_parser_read.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,316 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_DETAIL_JSON_PARSER_READ_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_DETAIL_JSON_PARSER_READ_HPP_INCLUDED
++
++//#define BOOST_SPIRIT_DEBUG
++
++#include &lt;boost/property_tree/ptree.hpp&gt;
++#include &lt;boost/property_tree/detail/ptree_utils.hpp&gt;
++#include &lt;boost/property_tree/detail/json_parser_error.hpp&gt;
++#include &lt;boost/spirit.hpp&gt;
++#include &lt;string&gt;
++#include &lt;locale&gt;
++#include &lt;istream&gt;
++#include &lt;vector&gt;
++#include &lt;algorithm&gt;
++
++namespace boost { namespace property_tree { namespace json_parser
++{
++
++    ///////////////////////////////////////////////////////////////////////
++    // Json parser context
++        
++    template&lt;class Ptree&gt;
++    struct context
++    {
++
++        typedef typename Ptree::char_type Ch;
++        typedef std::basic_string&lt;Ch&gt; Str;
++        typedef typename std::vector&lt;Ch&gt;::iterator It;
++        
++        Str string;
++        Str name;
++        Ptree root;
++        std::vector&lt;Ptree *&gt; stack;
++
++        struct a_object_s
++        {
++            context &c;
++            a_object_s(context &amp;c): c(c) { }
++            void operator()(Ch) const
++            {
++                if (c.stack.empty())
++                    c.stack.push_back(&amp;c.root);
++                else
++                {
++                    Ptree *parent = c.stack.back();
++                    Ptree *child = &amp;parent-&gt;push_back(std::make_pair(c.name, Ptree()))-&gt;second;
++                    c.stack.push_back(child);
++                    c.name.clear();
++                }
++            }
++        };
++        
++        struct a_object_e
++        {
++            context &c;
++            a_object_e(context &amp;c): c(c) { }
++            void operator()(Ch) const
++            {
++                BOOST_ASSERT(c.stack.size() &gt;= 1);
++                c.stack.pop_back();
++            }
++        };
++
++        struct a_name
++        {
++            context &c;
++            a_name(context &amp;c): c(c) { }
++            void operator()(It, It) const
++            {
++                c.name.swap(c.string);
++                c.string.clear();
++            }
++        };
++
++        struct a_string_val
++        {
++            context &c;
++            a_string_val(context &amp;c): c(c) { }
++            void operator()(It, It) const
++            {
++                BOOST_ASSERT(c.stack.size() &gt;= 1);
++                c.stack.back()-&gt;push_back(std::make_pair(c.name, Ptree(c.string)));
++                c.name.clear();
++                c.string.clear();
++            }
++        };
++
++        struct a_literal_val
++        {
++            context &c;
++            a_literal_val(context &amp;c): c(c) { }
++            void operator()(It b, It e) const
++            {
++                BOOST_ASSERT(c.stack.size() &gt;= 1);
++                c.stack.back()-&gt;push_back(std::make_pair(c.name, Str(b, e)));
++                c.name.clear();
++                c.string.clear();
++            }
++        };
++
++        struct a_char
++        {
++            context &c;
++            a_char(context &amp;c): c(c) { }
++            void operator()(It b, It e) const
++            {
++                c.string += *b;
++            }
++        };
++
++        struct a_escape
++        {
++            context &c;
++            a_escape(context &amp;c): c(c) { }
++            void operator()(Ch ch) const
++            {
++                switch (ch)
++                {
++                    case Ch('\&quot;'): c.string += Ch('\&quot;'); break;
++                    case Ch('\\'): c.string += Ch('\\'); break;
++                    case Ch('0'): c.string += Ch('\0'); break;
++                    case Ch('b'): c.string += Ch('\b'); break;
++                    case Ch('f'): c.string += Ch('\f'); break;
++                    case Ch('n'): c.string += Ch('\n'); break;
++                    case Ch('r'): c.string += Ch('\r'); break;
++                    case Ch('t'): c.string += Ch('\t'); break;
++                    default: BOOST_ASSERT(0);
++                }
++            }
++        };
++
++        struct a_unicode
++        {
++            context &c;
++            a_unicode(context &amp;c): c(c) { }
++            void operator()(unsigned long u) const
++            {
++                u = (std::min)(u, static_cast&lt;unsigned long&gt;((std::numeric_limits&lt;Ch&gt;::max)()));
++                c.string += Ch(u);
++            }
++        };
++
++    };
++
++    ///////////////////////////////////////////////////////////////////////
++    // Json grammar
++        
++    template&lt;class Ptree&gt;
++    struct json_grammar: public boost::spirit::grammar&lt;json_grammar&lt;Ptree&gt; &gt;
++    {
++        
++        typedef context&lt;Ptree&gt; Context;
++        typedef typename Ptree::char_type Ch;
++
++        mutable Context c;
++        
++        template&lt;class Scanner&gt;
++        struct definition
++        {
++            
++            boost::spirit::rule&lt;Scanner&gt; root, object, member, array, item, value, string, number;
++            boost::spirit::rule&lt;typename boost::spirit::lexeme_scanner&lt;Scanner&gt;::type&gt; character, escape;
++
++            definition(const json_grammar &amp;self)
++            {
++                
++                using namespace boost::spirit;
++
++                // Assertions
++                assertion&lt;std::string&gt; expect_object(&quot;expected object&quot;);
++                assertion&lt;std::string&gt; expect_eoi(&quot;expected end of input&quot;);
++                assertion&lt;std::string&gt; expect_objclose(&quot;expected ',' or '}'&quot;);
++                assertion&lt;std::string&gt; expect_arrclose(&quot;expected ',' or ']'&quot;);
++                assertion&lt;std::string&gt; expect_name(&quot;expected object name&quot;);
++                assertion&lt;std::string&gt; expect_colon(&quot;expected ':'&quot;);
++                assertion&lt;std::string&gt; expect_value(&quot;expected value&quot;);
++                assertion&lt;std::string&gt; expect_escape(&quot;invalid escape sequence&quot;);
++
++                // JSON grammar rules
++                root 
++                    =   expect_object(object) 
++                        &gt;&gt; expect_eoi(end_p)
++                        ;
++                
++                object 
++                    =   ch_p('{')[typename Context::a_object_s(self.c)]
++                        &gt;&gt; (ch_p('}')[typename Context::a_object_e(self.c)] 
++                           | (list_p(member, ch_p(','))
++                              &gt;&gt; expect_objclose(ch_p('}')[typename Context::a_object_e(self.c)])
++                             )
++                           )
++                        ;
++                
++                member 
++                    =   expect_name(string[typename Context::a_name(self.c)]) 
++                        &gt;&gt; expect_colon(ch_p(':')) 
++                        &gt;&gt; expect_value(value)
++                        ;
++                
++                array 
++                    =   ch_p('[')[typename Context::a_object_s(self.c)]
++                        &gt;&gt; (ch_p(']')[typename Context::a_object_e(self.c)] 
++                            | (list_p(item, ch_p(','))
++                               &gt;&gt; expect_arrclose(ch_p(']')[typename Context::a_object_e(self.c)])
++                              )
++                           )
++                    ;
++
++                item 
++                    =   expect_value(value)
++                        ;
++
++                value 
++                    =   string[typename Context::a_string_val(self.c)] 
++                        | (number | str_p(&quot;true&quot;) | &quot;false&quot; | &quot;null&quot;)[typename Context::a_literal_val(self.c)]
++                        | object 
++                        | array
++                        ;
++                
++                number 
++                    =   strict_real_p 
++                        | int_p
++                        ;
++                
++                string 
++                    =   +(lexeme_d[confix_p('\&quot;', *character, '\&quot;')])
++                        ;
++                
++                character 
++                    =   (anychar_p - &quot;\\&quot; - &quot;\&quot;&quot;)[typename Context::a_char(self.c)] 
++                        | ch_p(&quot;\\&quot;) &gt;&gt; expect_escape(escape)
++                        ;
++                
++                escape 
++                    =   chset_p(detail::widen&lt;Ch&gt;(&quot;\&quot;\\0bfnrt&quot;).c_str())[typename Context::a_escape(self.c)] 
++                        | 'u' &gt;&gt; uint_parser&lt;unsigned long, 16, 4, 4&gt;()[typename Context::a_unicode(self.c)]
++                        ;
++                
++                // Debug
++                BOOST_SPIRIT_DEBUG_RULE(root);
++                BOOST_SPIRIT_DEBUG_RULE(object);
++                BOOST_SPIRIT_DEBUG_RULE(member);
++                BOOST_SPIRIT_DEBUG_RULE(array);
++                BOOST_SPIRIT_DEBUG_RULE(item);
++                BOOST_SPIRIT_DEBUG_RULE(value);
++                BOOST_SPIRIT_DEBUG_RULE(string);
++                BOOST_SPIRIT_DEBUG_RULE(number);
++                BOOST_SPIRIT_DEBUG_RULE(escape);
++                BOOST_SPIRIT_DEBUG_RULE(character);
++
++            }
++
++            const boost::spirit::rule&lt;Scanner&gt; &amp;start() const
++            {
++                return root;
++            }
++
++        };
++
++    };
++
++    template&lt;class It, class Ch&gt;
++    unsigned long count_lines(It begin, It end)
++    {
++        return static_cast&lt;unsigned long&gt;(std::count(begin, end, Ch('\n')) + 1);
++    }
++
++    template&lt;class Ptree&gt;
++    void read_json_internal(std::basic_istream&lt;typename Ptree::char_type&gt; &amp;stream,
++                            Ptree &amp;pt,
++                            const std::string &amp;filename)
++    {
++
++        using namespace boost::spirit;
++        typedef typename Ptree::char_type Ch;
++        typedef typename std::vector&lt;Ch&gt;::iterator It;
++
++        // Load data into vector
++        std::vector&lt;Ch&gt; v(std::istreambuf_iterator&lt;Ch&gt;(stream.rdbuf()),
++                          std::istreambuf_iterator&lt;Ch&gt;());
++        if (!stream.good())
++            throw json_parser_error(&quot;read error&quot;, filename, 0);
++        
++        // Prepare grammar
++        json_grammar&lt;Ptree&gt; g;
++
++        // Parse
++        try
++        {
++            parse_info&lt;It&gt; pi = parse(v.begin(), v.end(), g, 
++                                      space_p | comment_p(&quot;//&quot;) | comment_p(&quot;/*&quot;, &quot;*/&quot;));
++            if (!pi.hit || !pi.full)
++                throw parser_error&lt;std::string, It&gt;(v.begin(), &quot;syntax error&quot;);
++        }
++        catch (parser_error&lt;std::string, It&gt; &amp;e)
++        {
++            throw json_parser_error(e.descriptor, filename, count_lines&lt;It, Ch&gt;(v.begin(), e.where));
++        }
++
++        // Swap grammar context root and pt
++        pt.swap(g.c.root);
++
++    }
++
++} } }
++
++#endif
+
+Added: trunk/boost/property_tree/detail/json_parser_write.hpp
+===================================================================
+--- trunk/boost/property_tree/detail/json_parser_write.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/detail/json_parser_write.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,163 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_DETAIL_JSON_PARSER_WRITE_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_DETAIL_JSON_PARSER_WRITE_HPP_INCLUDED
++
++#include &lt;boost/property_tree/ptree.hpp&gt;
++#include &lt;string&gt;
++#include &lt;ostream&gt;
++#include &lt;iomanip&gt;
++
++namespace boost { namespace property_tree { namespace json_parser
++{
++
++    // Create necessary escape sequences from illegal characters
++    template&lt;class Ch&gt;
++    std::basic_string&lt;Ch&gt; create_escapes(const std::basic_string&lt;Ch&gt; &amp;s,
++                                         const std::locale &amp;loc)
++    {
++        std::basic_string&lt;Ch&gt; result;
++        typename std::basic_string&lt;Ch&gt;::const_iterator b = s.begin();
++        typename std::basic_string&lt;Ch&gt;::const_iterator e = s.end();
++        while (b != e)
++        {
++            if (*b == Ch('\0')) result += Ch('\\'), result += Ch('0');
++            else if (*b == Ch('\b')) result += Ch('\\'), result += Ch('b');
++            else if (*b == Ch('\f')) result += Ch('\\'), result += Ch('f');
++            else if (*b == Ch('\n')) result += Ch('\\'), result += Ch('n');
++            else if (*b == Ch('\r')) result += Ch('\\'), result += Ch('r');
++            else if (*b == Ch('&quot;')) result += Ch('\\'), result += Ch('&quot;');
++            else if (*b == Ch('\\')) result += Ch('\\'), result += Ch('\\');
++            else
++            {
++                if (std::isprint(*b, loc))
++                    result += *b;
++                else
++                {   
++                    const char *hexdigits = &quot;0123456789ABCDEF&quot;;
++                    unsigned long u = (std::min)(static_cast&lt;unsigned long&gt;(*b), 0xFFFFul);
++                    int d1 = u / 4096; u -= d1 * 4096;
++                    int d2 = u / 256; u -= d2 * 256;
++                    int d3 = u / 16; u -= d3 * 16;
++                    int d4 = u;
++                    result += Ch('\\'); result += Ch('u');
++                    result += Ch(hexdigits[d1]); result += Ch(hexdigits[d2]);
++                    result += Ch(hexdigits[d3]); result += Ch(hexdigits[d4]);
++                }
++            }
++            ++b;
++        }
++        return result;
++    }
++
++    template&lt;class Ptree&gt;
++    void write_json_helper(std::basic_ostream&lt;typename Ptree::char_type&gt; &amp;stream, 
++                           const Ptree &amp;pt, 
++                           int indent)
++    {
++
++        typedef typename Ptree::char_type Ch;
++        typedef typename std::basic_string&lt;Ch&gt; Str;
++        
++        // Value or object or array
++        if (indent &gt; 0 &amp;&amp; pt.empty())
++        {
++            
++            // Write value
++            Str data = create_escapes(pt.template get_own&lt;Str&gt;(), stream.getloc());
++            stream &lt;&lt; Ch('&quot;') &lt;&lt; data &lt;&lt; Ch('&quot;');
++
++        }
++        else if (indent &gt; 0 &amp;&amp; pt.count(Str()) == pt.size())
++        {
++                
++            // Write array
++            stream &lt;&lt; Ch('[') &lt;&lt; Ch('\n');
++            typename Ptree::const_iterator it = pt.begin();
++            for (; it != pt.end(); ++it)
++            {
++                stream &lt;&lt; Str(4 * (indent + 1), Ch(' '));
++                write_json_helper(stream, it-&gt;second, indent + 1);
++                if (boost::next(it) != pt.end())
++                    stream &lt;&lt; Ch(',');
++                stream &lt;&lt; Ch('\n');
++            }
++            stream &lt;&lt; Str(4 * indent, Ch(' ')) &lt;&lt; Ch(']');
++
++        }
++        else
++        {
++        
++            // Write object
++            stream &lt;&lt; Ch('{') &lt;&lt; Ch('\n');
++            typename Ptree::const_iterator it = pt.begin();
++            for (; it != pt.end(); ++it)
++            {
++                stream &lt;&lt; Str(4 * (indent + 1), Ch(' '));
++                stream &lt;&lt; Ch('&quot;') &lt;&lt; create_escapes(it-&gt;first, stream.getloc()) &lt;&lt; Ch('&quot;') &lt;&lt; Ch(':');
++                if (it-&gt;second.empty())
++                    stream &lt;&lt; Ch(' ');
++                else
++                    stream &lt;&lt; Ch('\n') &lt;&lt; Str(4 * (indent + 1), Ch(' '));
++                write_json_helper(stream, it-&gt;second, indent + 1);
++                if (boost::next(it) != pt.end())
++                    stream &lt;&lt; Ch(',');
++                stream &lt;&lt; Ch('\n');
++            }
++            stream &lt;&lt; Str(4 * indent, Ch(' ')) &lt;&lt; Ch('}');
++
++        }
++
++    }
++
++    // Verify if ptree does not contain information that cannot be written to json
++    template&lt;class Ptree&gt;
++    bool verify_json(const Ptree &amp;pt, int depth)
++    {
++
++        typedef typename Ptree::char_type Ch;
++        typedef typename std::basic_string&lt;Ch&gt; Str;
++
++        // Root ptree cannot have data
++        if (depth == 0 &amp;&amp; !pt.template get_own&lt;Str&gt;().empty())
++            return false;
++        
++        // Ptree cannot have both children and data
++        if (!pt.template get_own&lt;Str&gt;().empty() &amp;&amp; !pt.empty())
++            return false;
++
++        // Check children
++        typename Ptree::const_iterator it = pt.begin();
++        for (; it != pt.end(); ++it)
++            if (!verify_json(it-&gt;second, depth + 1))
++                return false;
++
++        // Success
++        return true;
++
++    }
++    
++    // Write ptree to json stream
++    template&lt;class Ptree&gt;
++    void write_json_internal(std::basic_ostream&lt;typename Ptree::char_type&gt; &amp;stream, 
++                             const Ptree &amp;pt,
++                             const std::string &amp;filename)
++    {
++        if (!verify_json(pt, 0))
++            throw json_parser_error(&quot;ptree contains data that cannot be represented in JSON format&quot;, filename, 0);
++        write_json_helper(stream, pt, 0);
++        stream &lt;&lt; std::endl;
++        if (!stream.good())
++            throw json_parser_error(&quot;write error&quot;, filename, 0);
++    }
++
++} } }
++
++#endif
+
+Added: trunk/boost/property_tree/detail/ptree_implementation.hpp
+===================================================================
+--- trunk/boost/property_tree/detail/ptree_implementation.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/detail/ptree_implementation.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,996 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_DETAIL_PTREE_IMPLEMENTATION_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_DETAIL_PTREE_IMPLEMENTATION_HPP_INCLUDED
++
++#include &lt;sstream&gt;
++#include &lt;locale&gt;
++#include &lt;algorithm&gt;
++#include &lt;limits&gt;
++#include &lt;stdexcept&gt;
++#include &lt;functional&gt;               // for std::less
++#include &lt;memory&gt;                   // for std::auto_ptr
++#include &lt;boost/assert.hpp&gt;
++#include &lt;boost/static_assert.hpp&gt;
++#include &lt;boost/type_traits.hpp&gt;
++#include &lt;boost/utility.hpp&gt;        // for boost::prior
++#include &lt;boost/property_tree/detail/ptree_utils.hpp&gt;
++
++//////////////////////////////////////////////////////////////////////////////
++// Debug macros
++
++#ifdef BOOST_PROPERTY_TREE_DEBUG
++
++    // Increment instances counter
++    #define BOOST_PROPERTY_TREE_DEBUG_INCREMENT_INSTANCES_COUNT()       \
++        {                                                               \
++            typedef boost::detail::lightweight_mutex::scoped_lock lock; \
++            lock l(debug_mutex);                                        \
++            ++debug_instances_count;                                    \
++        }
++
++    // Decrement instances counter
++    #define BOOST_PROPERTY_TREE_DEBUG_DECREMENT_INSTANCES_COUNT()       \
++        {                                                               \
++            typedef boost::detail::lightweight_mutex::scoped_lock lock; \
++            lock l(debug_mutex);                                        \
++            BOOST_ASSERT(debug_instances_count &gt; 0);                    \
++            --debug_instances_count;                                    \
++        }
++
++#else // BOOST_PROPERTY_TREE_DEBUG
++
++    #define BOOST_PROPERTY_TREE_DEBUG_INCREMENT_INSTANCES_COUNT() static_cast&lt;void&gt;(0)
++    #define BOOST_PROPERTY_TREE_DEBUG_DECREMENT_INSTANCES_COUNT() static_cast&lt;void&gt;(0)
++
++#endif // BOOST_PROPERTY_TREE_DEBUG
++
++namespace boost { namespace property_tree
++{
++
++    namespace detail
++    {
++        
++        template&lt;class T&gt;
++        struct array_to_pointer_decay
++        {
++            typedef T type;
++        };
++
++        template&lt;class T, std::size_t N&gt;
++        struct array_to_pointer_decay&lt;T[N]&gt;
++        {
++            typedef const T *type;
++        };
++
++        ////////////////////////////////////////////////////////////////////////////
++        // Extractor and inserter
++
++        template&lt;class Ch, class Type&gt;
++        struct extractor
++        {
++            inline bool operator()(const std::basic_string&lt;Ch&gt; &amp;data, 
++                                   Type &amp;extracted,
++                                   const std::locale &amp;loc) const
++            {
++                std::basic_istringstream&lt;Ch&gt; stream(data);
++                stream.imbue(loc);
++                stream &gt;&gt; extracted &gt;&gt; std::ws;
++                return stream.eof() &amp;&amp; !stream.fail() &amp;&amp; !stream.bad();
++            }
++        };
++
++        template&lt;class Ch&gt;
++        struct extractor&lt;Ch, std::basic_string&lt;Ch&gt; &gt;
++        {
++            inline bool operator()(const std::basic_string&lt;Ch&gt; &amp;data, 
++                                   std::basic_string&lt;Ch&gt; &amp;extracted,
++                                   const std::locale &amp;loc) const
++            {
++                extracted = data;
++                return true;
++            }
++        };
++
++        template&lt;class Ch, class Type&gt;
++        struct inserter
++        {
++            inline bool operator()(std::basic_string&lt;Ch&gt; &amp;data, 
++                                   const Type &amp;to_insert,
++                                   const std::locale &amp;loc) const
++            {
++                typedef typename detail::array_to_pointer_decay&lt;Type&gt;::type Type2;
++                std::basic_ostringstream&lt;Ch&gt; stream;
++                stream.imbue(loc);
++                if (std::numeric_limits&lt;Type2&gt;::is_specialized)
++                    stream.precision(std::numeric_limits&lt;Type2&gt;::digits10 + 1);
++                stream &lt;&lt; to_insert;
++                data = stream.str();
++                return !stream.fail() &amp;&amp; !stream.bad();
++            }
++        };
++
++        template&lt;class Ch&gt;
++        struct inserter&lt;Ch, std::basic_string&lt;Ch&gt; &gt;
++        {
++            inline bool operator()(std::basic_string&lt;Ch&gt; &amp;data, 
++                                   const std::basic_string&lt;Ch&gt; &amp;to_insert,
++                                   const std::locale &amp;loc) const
++            {
++                data = to_insert;
++                return true;
++            }
++        };
++
++    }
++
++    ///////////////////////////////////////////////////////////////////////////
++    // Impl
++
++    template&lt;class Tr&gt;
++    struct basic_ptree&lt;Tr&gt;::impl
++    {
++        data_type m_data;
++        container_type m_container;
++        index_type m_index;
++    };
++
++    ////////////////////////////////////////////////////////////////////////////
++    // Traits
++
++    template&lt;class Ch&gt;
++    struct ptree_traits
++    {
++        typedef Ch char_type;
++        typedef std::basic_string&lt;Ch&gt; key_type;
++        typedef std::basic_string&lt;Ch&gt; data_type;
++        template&lt;class Type&gt;
++        struct extractor: public detail::extractor&lt;Ch, Type&gt; { };
++        template&lt;class Type&gt;
++        struct inserter: public detail::inserter&lt;Ch, Type&gt; { };
++        inline bool operator()(const key_type &amp;key1, 
++                               const key_type &amp;key2) const
++        {
++            return key1 &lt; key2;
++        }
++    };
++
++    template&lt;class Ch&gt;
++    struct iptree_traits
++    {
++        std::locale loc;
++        typedef Ch char_type;
++        typedef std::basic_string&lt;Ch&gt; key_type;
++        typedef std::basic_string&lt;Ch&gt; data_type;
++        template&lt;class Type&gt;
++        struct extractor: public detail::extractor&lt;Ch, Type&gt; { };
++        template&lt;class Type&gt;
++        struct inserter: public detail::inserter&lt;Ch, Type&gt; { };
++        inline bool operator()(Ch c1, Ch c2) const      // Helper for comparing characters
++        {
++            return std::toupper(c1, loc) &lt; std::toupper(c2, loc);
++        }
++        inline bool operator()(const key_type &amp;key1, 
++                               const key_type &amp;key2) const
++        {
++            return std::lexicographical_compare(key1.begin(), key1.end(), key2.begin(), key2.end(), *this);
++        }
++    };
++
++    ///////////////////////////////////////////////////////////////////////////
++    // Exceptions
++
++    class ptree_error: public std::runtime_error
++    {
++    public:
++        ptree_error(const std::string &amp;what): std::runtime_error(what) { }
++        ~ptree_error() throw() { }
++    };
++
++    class ptree_bad_data: public ptree_error
++    {
++    public:
++        ptree_bad_data(const std::string &amp;what): ptree_error(what) { }
++        ~ptree_bad_data() throw() { }
++    };
++    
++    class ptree_bad_path: public ptree_error
++    {
++    public:
++        ptree_bad_path(const std::string &amp;what): ptree_error(what) { }
++        ~ptree_bad_path() throw() { }
++    };
++
++    ///////////////////////////////////////////////////////////////////////////
++    // Construction &amp; destruction
++
++    template&lt;class Tr&gt;
++    basic_ptree&lt;Tr&gt;::basic_ptree()
++    {
++        m_impl = new impl;
++        BOOST_PROPERTY_TREE_DEBUG_INCREMENT_INSTANCES_COUNT();
++    }
++
++    template&lt;class Tr&gt;
++    basic_ptree&lt;Tr&gt;::basic_ptree(const data_type &amp;rhs)
++    {
++        std::auto_ptr&lt;impl&gt; tmp(new impl);
++        tmp-&gt;m_data = rhs;
++        m_impl = tmp.release();
++        BOOST_PROPERTY_TREE_DEBUG_INCREMENT_INSTANCES_COUNT();
++    }
++
++    template&lt;class Tr&gt;
++    basic_ptree&lt;Tr&gt;::basic_ptree(const basic_ptree&lt;Tr&gt; &amp;rhs)
++    {
++        std::auto_ptr&lt;impl&gt; tmp(new impl);
++        tmp-&gt;m_data = rhs.data();
++        m_impl = tmp.get();
++        insert(end(), rhs.begin(), rhs.end());
++        tmp.release();
++        BOOST_PROPERTY_TREE_DEBUG_INCREMENT_INSTANCES_COUNT();
++    }
++
++    template&lt;class Tr&gt;
++    basic_ptree&lt;Tr&gt;::~basic_ptree()
++    {
++        BOOST_PROPERTY_TREE_DEBUG_DECREMENT_INSTANCES_COUNT();
++        delete m_impl;
++    }
++
++    ///////////////////////////////////////////////////////////////////////////
++    // Iterator access
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::iterator 
++        basic_ptree&lt;Tr&gt;::begin()
++    {
++        return m_impl-&gt;m_container.begin();
++    }
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::const_iterator 
++        basic_ptree&lt;Tr&gt;::begin() const
++    {
++        return m_impl-&gt;m_container.begin();
++    }
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::iterator 
++        basic_ptree&lt;Tr&gt;::end()
++    {
++        return m_impl-&gt;m_container.end();
++    }
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::const_iterator 
++        basic_ptree&lt;Tr&gt;::end() const
++    {
++        return m_impl-&gt;m_container.end();
++    }
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::reverse_iterator 
++        basic_ptree&lt;Tr&gt;::rbegin()
++    {
++        return m_impl-&gt;m_container.rbegin();
++    }
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::const_reverse_iterator 
++        basic_ptree&lt;Tr&gt;::rbegin() const
++    {
++        return m_impl-&gt;m_container.rbegin();
++    }
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::reverse_iterator 
++        basic_ptree&lt;Tr&gt;::rend()
++    {
++        return m_impl-&gt;m_container.rend();
++    }
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::const_reverse_iterator 
++        basic_ptree&lt;Tr&gt;::rend() const
++    {
++        return m_impl-&gt;m_container.rend();
++    }
++
++    ///////////////////////////////////////////////////////////////////////////
++    // Data access
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::size_type 
++        basic_ptree&lt;Tr&gt;::size() const
++    {
++        return m_impl-&gt;m_index.size();
++    }
++
++    template&lt;class Tr&gt;
++    bool basic_ptree&lt;Tr&gt;::empty() const
++    {
++        return m_impl-&gt;m_index.empty();
++    }
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::data_type &amp;
++        basic_ptree&lt;Tr&gt;::data()
++    {
++        return m_impl-&gt;m_data;
++    }
++
++    template&lt;class Tr&gt;
++    const typename basic_ptree&lt;Tr&gt;::data_type &amp;
++        basic_ptree&lt;Tr&gt;::data() const
++    {
++        return m_impl-&gt;m_data;
++    }
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::value_type &amp;
++        basic_ptree&lt;Tr&gt;::front()
++    {
++        return m_impl-&gt;m_container.front();
++    }
++    
++    template&lt;class Tr&gt;
++    const typename basic_ptree&lt;Tr&gt;::value_type &amp;
++        basic_ptree&lt;Tr&gt;::front() const
++    {
++        return m_impl-&gt;m_container.front();
++    }
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::value_type &amp;
++        basic_ptree&lt;Tr&gt;::back()
++    {
++        return m_impl-&gt;m_container.back();
++    }
++
++    template&lt;class Tr&gt;
++    const typename basic_ptree&lt;Tr&gt;::value_type &amp;
++        basic_ptree&lt;Tr&gt;::back() const
++    {
++        return m_impl-&gt;m_container.back();
++    }
++
++    ///////////////////////////////////////////////////////////////////////////
++    // Operators
++
++    template&lt;class Tr&gt;
++    basic_ptree&lt;Tr&gt; &amp;
++        basic_ptree&lt;Tr&gt;::operator =(const basic_ptree&lt;Tr&gt; &amp;rhs)
++    {
++        if (&amp;rhs != this)
++        {
++            clear();
++            data() = rhs.data();
++            insert(end(), rhs.begin(), rhs.end());
++        }
++        return *this;
++    }
++
++    template&lt;class Tr&gt;
++    bool basic_ptree&lt;Tr&gt;::operator ==(const basic_ptree&lt;Tr&gt; &amp;rhs) const
++    {
++        
++        // Data and sizes must be equal
++        if (size() != rhs.size() || data() != rhs.data())
++            return false;
++
++        // Keys and children must be equal
++        Tr tr;
++        const_iterator it = begin();
++        const_iterator it_rhs = rhs.begin();
++        const_iterator it_end = end();
++        for (; it != it_end; ++it, ++it_rhs)
++            if (tr(it-&gt;first, it_rhs-&gt;first) || 
++                tr(it_rhs-&gt;first, it-&gt;first) || 
++                it-&gt;second != it_rhs-&gt;second)
++                return false;
++
++        // Equal
++        return true;
++
++    }
++
++    template&lt;class Tr&gt;
++    bool basic_ptree&lt;Tr&gt;::operator !=(const basic_ptree&lt;Tr&gt; &amp;rhs) const
++    {
++        return !operator ==(rhs);
++    }
++
++    ///////////////////////////////////////////////////////////////////////////
++    // Container operations
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::iterator 
++        basic_ptree&lt;Tr&gt;::find(const key_type &amp;key)
++    {
++        typename index_type::iterator it = m_impl-&gt;m_index.find(key);
++        return it == m_impl-&gt;m_index.end() ? end() : it-&gt;second;
++    }
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::const_iterator 
++        basic_ptree&lt;Tr&gt;::find(const key_type &amp;key) const
++    {
++        typename index_type::const_iterator it = m_impl-&gt;m_index.find(key);
++        return it == m_impl-&gt;m_index.end() ? end() : it-&gt;second;
++    }
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::size_type 
++        basic_ptree&lt;Tr&gt;::count(const key_type &amp;key) const
++    {
++        return m_impl-&gt;m_index.count(key);
++    }
++
++    template&lt;class Tr&gt;
++    void basic_ptree&lt;Tr&gt;::clear()
++    {
++        m_impl-&gt;m_data = data_type();
++        m_impl-&gt;m_container.clear();
++        m_impl-&gt;m_index.clear();
++    }
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::iterator 
++    basic_ptree&lt;Tr&gt;::insert(iterator where, 
++                                const value_type &amp;value)
++    {
++
++        // Insert new value into container. If that throws nothing needs to be rolled back
++        where = m_impl-&gt;m_container.insert(where, value);
++
++        // Update index. If that throws we need to rollback the insert
++        try {
++            m_impl-&gt;m_index.insert(typename index_type::value_type(where-&gt;first, where));
++        } 
++        catch (...) {
++            m_impl-&gt;m_container.erase(where);   // rollback the insert
++            throw;
++        }
++
++        return where;
++    }
++
++    template&lt;class Tr&gt;
++    template&lt;class It&gt;
++    void basic_ptree&lt;Tr&gt;::insert(iterator where, 
++                                     It first, 
++                                     It last)
++    {
++        for (; first != last; ++first, ++where)
++            where = insert(where, value_type(first-&gt;first, first-&gt;second));
++    }
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::iterator 
++        basic_ptree&lt;Tr&gt;::erase(iterator where)
++    {
++
++        // Remove from index
++        typename index_type::iterator lo = m_impl-&gt;m_index.lower_bound(where-&gt;first);
++        typename index_type::iterator hi = m_impl-&gt;m_index.upper_bound(where-&gt;first);
++        for (; lo != hi; ++lo)
++            if (lo-&gt;second == where)
++            {
++                m_impl-&gt;m_index.erase(lo);
++                break;
++            }
++        
++        // Remove from container    
++        return m_impl-&gt;m_container.erase(where);
++
++    }
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::size_type 
++        basic_ptree&lt;Tr&gt;::erase(const key_type &amp;key)
++    {
++        size_type count = 0;
++        typename index_type::iterator lo = m_impl-&gt;m_index.lower_bound(key);
++        if (lo != m_impl-&gt;m_index.end())
++        {
++            typename index_type::iterator hi = m_impl-&gt;m_index.upper_bound(key);
++            while (lo != hi)
++            {
++                typename index_type::iterator it = lo++;
++                erase(it-&gt;second);
++                ++count;
++            }
++        }
++        return count;
++    }
++
++    template&lt;class Tr&gt;
++    template&lt;class It&gt; 
++    typename basic_ptree&lt;Tr&gt;::iterator 
++        basic_ptree&lt;Tr&gt;::erase(It first, 
++                                   It last)
++    {
++        while (first != last)
++            first = erase(first);
++        return first;
++    }
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::iterator
++        basic_ptree&lt;Tr&gt;::push_front(const value_type &amp;value)
++    {
++        return insert(begin(), value);
++    }
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::iterator
++        basic_ptree&lt;Tr&gt;::push_back(const value_type &amp;value)
++    {
++        return insert(end(), value);
++    }
++
++    template&lt;class Tr&gt;
++    void basic_ptree&lt;Tr&gt;::pop_front()
++    {
++        erase(begin());
++    }
++
++    template&lt;class Tr&gt;
++    void basic_ptree&lt;Tr&gt;::pop_back()
++    {
++        erase(boost::prior(end()));
++    }
++        
++    template&lt;class Tr&gt;
++    void basic_ptree&lt;Tr&gt;::swap(basic_ptree&lt;Tr&gt; &amp;rhs)
++    {
++        std::swap(m_impl, rhs.m_impl);
++    }
++
++    template&lt;class Tr&gt;
++    void basic_ptree&lt;Tr&gt;::reverse()
++    {
++        m_impl-&gt;m_container.reverse();
++    }
++    
++    template&lt;class Tr&gt;
++    template&lt;class SortTr&gt; 
++    void basic_ptree&lt;Tr&gt;::sort(SortTr tr)
++    {
++        m_impl-&gt;m_container.sort(tr);
++    }
++
++    ///////////////////////////////////////////////////////////////////////////
++    // ptree operations
++
++    // Get child ptree with custom separator
++    template&lt;class Tr&gt;
++    basic_ptree&lt;Tr&gt; &amp;
++        basic_ptree&lt;Tr&gt;::get_child(char_type separator, 
++                                       const key_type &amp;path)
++    {
++        if (optional&lt;basic_ptree&lt;Tr&gt; &amp;&gt; result = get_child_optional(separator, path))
++            return result.get();
++        else
++            throw ptree_bad_path(&quot;key \&quot;&quot; + detail::narrow(path.c_str()) + &quot;\&quot; does not exist&quot;);
++    }
++
++    // Get child ptree with custom separator
++    template&lt;class Tr&gt;
++    const basic_ptree&lt;Tr&gt; &amp;
++        basic_ptree&lt;Tr&gt;::get_child(char_type separator, 
++                                       const key_type &amp;path) const
++    {
++        basic_ptree&lt;Tr&gt; *nc_this = const_cast&lt;basic_ptree&lt;Tr&gt; *&gt;(this);
++        return nc_this-&gt;get_child(separator, path);
++    }
++
++    // Get child ptree with custom separator
++    template&lt;class Tr&gt;
++    basic_ptree&lt;Tr&gt; &amp;
++        basic_ptree&lt;Tr&gt;::get_child(char_type separator, 
++                                       const key_type &amp;path, 
++                                       basic_ptree&lt;Tr&gt; &amp;default_value)
++    {
++        if (optional&lt;basic_ptree&lt;Tr&gt; &amp;&gt; result = get_child_optional(separator, path))
++            return result.get();
++        else
++            return default_value;
++    }
++
++    // Get child ptree with custom separator
++    template&lt;class Tr&gt;
++    const basic_ptree&lt;Tr&gt; &amp;
++        basic_ptree&lt;Tr&gt;::get_child(char_type separator, 
++                                       const key_type &amp;path, 
++                                       const basic_ptree&lt;Tr&gt; &amp;default_value) const
++    {
++        basic_ptree&lt;Tr&gt; *nc_this = const_cast&lt;basic_ptree&lt;Tr&gt; *&gt;(this);
++        basic_ptree&lt;Tr&gt; &amp;nc_default_value = const_cast&lt;basic_ptree&lt;Tr&gt; &amp;&gt;(default_value);
++        return nc_this-&gt;get_child(separator, path, nc_default_value);
++    }
++
++
++    // Get child ptree with custom separator
++    template&lt;class Tr&gt;
++    optional&lt;basic_ptree&lt;Tr&gt; &amp;&gt; 
++        basic_ptree&lt;Tr&gt;::get_child_optional(char_type separator, 
++                                                const key_type &amp;path)
++    {
++        typename key_type::size_type n = path.find(separator);
++        if (n != key_type::npos)
++        {
++            key_type head = path.substr(0, n);
++            key_type tail = path.substr(n + 1, key_type::npos);
++            iterator it = find(head);
++            if (it != end())
++                return it-&gt;second.get_child_optional(separator, tail);
++            else
++                return optional&lt;basic_ptree&lt;Tr&gt; &amp;&gt;();
++        }
++        else
++        {
++            iterator it = find(path);
++            if (it != end())
++                return it-&gt;second;
++            else
++                return optional&lt;basic_ptree&lt;Tr&gt; &amp;&gt;();
++        }
++    }
++
++    // Get child ptree with custom separator
++    template&lt;class Tr&gt;
++    optional&lt;const basic_ptree&lt;Tr&gt; &amp;&gt; 
++        basic_ptree&lt;Tr&gt;::get_child_optional(char_type separator, const key_type &amp;path) const
++    {
++        basic_ptree&lt;Tr&gt; *nc_this = const_cast&lt;basic_ptree&lt;Tr&gt; *&gt;(this);
++        optional&lt;basic_ptree&lt;Tr&gt; &amp;&gt; tmp = nc_this-&gt;get_child_optional(separator, path);
++        if (tmp)
++            return optional&lt;const basic_ptree&lt;Tr&gt; &amp;&gt;(tmp.get());
++        else
++            return optional&lt;const basic_ptree&lt;Tr&gt; &amp;&gt;();
++    }
++
++    // Get child ptree with default separator
++    template&lt;class Tr&gt;
++    basic_ptree&lt;Tr&gt; &amp;
++        basic_ptree&lt;Tr&gt;::get_child(const key_type &amp;path)
++    {
++        return get_child(char_type('.'), path);
++    }
++
++    // Get child ptree with default separator
++    template&lt;class Tr&gt;
++    const basic_ptree&lt;Tr&gt; &amp;
++        basic_ptree&lt;Tr&gt;::get_child(const key_type &amp;path) const
++    {
++        return get_child(char_type('.'), path);
++    }
++
++    // Get child ptree with default separator
++    template&lt;class Tr&gt;
++    basic_ptree&lt;Tr&gt; &amp;
++        basic_ptree&lt;Tr&gt;::get_child(const key_type &amp;path, 
++                                       basic_ptree&lt;Tr&gt; &amp;default_value)
++    {
++        return get_child(char_type('.'), path, default_value);
++    }
++    
++    // Get child ptree with default separator
++    template&lt;class Tr&gt;
++    const basic_ptree&lt;Tr&gt; &amp;
++        basic_ptree&lt;Tr&gt;::get_child(const key_type &amp;path, 
++                                       const basic_ptree&lt;Tr&gt; &amp;default_value) const
++    {
++        return get_child(char_type('.'), path, default_value);
++    }
++    
++    // Get child ptree with default separator
++    template&lt;class Tr&gt;
++    optional&lt;basic_ptree&lt;Tr&gt; &amp;&gt; 
++        basic_ptree&lt;Tr&gt;::get_child_optional(const key_type &amp;path)
++    {
++        return get_child_optional(char_type('.'), path);
++    }
++
++    // Get child ptree with default separator
++    template&lt;class Tr&gt;
++    optional&lt;const basic_ptree&lt;Tr&gt; &amp;&gt; 
++        basic_ptree&lt;Tr&gt;::get_child_optional(const key_type &amp;path) const
++    {
++        return get_child_optional(char_type('.'), path);
++    }
++
++    // Put child ptree with custom separator
++    template&lt;class Tr&gt;
++    basic_ptree&lt;Tr&gt; &amp;
++        basic_ptree&lt;Tr&gt;::put_child(char_type separator, 
++                                   const key_type &amp;path, 
++                                   const basic_ptree&lt;Tr&gt; &amp;value,
++                                   bool do_not_replace)
++    {
++        typename key_type::size_type n = path.find(separator);
++        if (n == key_type::npos)
++        {
++            if (do_not_replace)
++                return push_back(value_type(path, value))-&gt;second;
++            else
++            {
++                iterator it = find(path);
++                if (it == end())
++                    return push_back(value_type(path, value))-&gt;second;
++                else
++                {
++                    it-&gt;second = value;
++                    return it-&gt;second;
++                }
++            }
++        }
++        else
++        {
++            key_type head = path.substr(0, n);
++            key_type tail = path.substr(n + 1, key_type::npos);
++            iterator it = find(head);
++            if (it == end())
++                it = push_back(value_type(head, basic_ptree&lt;Tr&gt;()));
++            return it-&gt;second.put_child(separator, tail, value, do_not_replace);
++        }
++    }
++
++    // Put child ptree with default separator
++    template&lt;class Tr&gt;
++    basic_ptree&lt;Tr&gt; &amp;
++        basic_ptree&lt;Tr&gt;::put_child(const key_type &amp;path,
++                                   const basic_ptree&lt;Tr&gt; &amp;value,
++                                   bool do_not_replace)
++    {
++        return put_child(char_type('.'), path, value, do_not_replace);
++    }
++
++    // Get value from data of ptree
++    template&lt;class Tr&gt;
++    template&lt;class Type&gt;
++    Type basic_ptree&lt;Tr&gt;::get_own(const std::locale &amp;loc) const
++    {
++        if (optional&lt;Type&gt; result = get_own_optional&lt;Type&gt;(loc))
++            return result.get();
++        else
++            throw ptree_bad_data(std::string(&quot;conversion of data into type '&quot;) + 
++                                 typeid(Type).name() + &quot;' failed&quot;);
++    }
++
++    // Get value from data of ptree
++    template&lt;class Tr&gt;
++    template&lt;class Type&gt;
++    Type basic_ptree&lt;Tr&gt;::get_own(const Type &amp;default_value, 
++                                      const std::locale &amp;loc) const
++    {
++        if (optional&lt;Type&gt; result = get_own_optional&lt;Type&gt;(loc))
++            return result.get();
++        else
++            return default_value;
++    }
++
++    // Get value from data of ptree
++    template&lt;class Tr&gt;
++    template&lt;class CharType&gt;
++    std::basic_string&lt;CharType&gt; 
++        basic_ptree&lt;Tr&gt;::get_own(const CharType *default_value, 
++                                     const std::locale &amp;loc) const
++    {
++        BOOST_STATIC_ASSERT((boost::is_same&lt;char_type, CharType&gt;::value == true)); // Character types must match
++        return get_own(std::basic_string&lt;CharType&gt;(default_value), loc);
++    }
++
++    // Get value from data of ptree
++    template&lt;class Tr&gt;
++    template&lt;class Type&gt;
++    optional&lt;Type&gt; 
++        basic_ptree&lt;Tr&gt;::get_own_optional(const std::locale &amp;loc) const
++    {
++        BOOST_STATIC_ASSERT(boost::is_pointer&lt;Type&gt;::value == false);   // Disallow pointer types, they are unsafe
++        Type tmp;
++        if (typename traits_type::template extractor&lt;Type&gt;()(m_impl-&gt;m_data, tmp, loc))
++        {
++            return optional&lt;Type&gt;(tmp);
++        }
++        else
++            return optional&lt;Type&gt;();
++    }
++
++    // Get value from data of child ptree (custom path separator)
++    template&lt;class Tr&gt;
++    template&lt;class Type&gt;
++    Type basic_ptree&lt;Tr&gt;::get(char_type separator,
++                                  const key_type &amp;path,
++                                  const std::locale &amp;loc) const
++    {
++        return get_child(separator, path).get_own&lt;Type&gt;(loc);
++    }
++
++    // Get value from data of child ptree (custom path separator)
++    template&lt;class Tr&gt;
++    template&lt;class Type&gt;
++    Type basic_ptree&lt;Tr&gt;::get(char_type separator,
++                                  const key_type &amp;path, 
++                                  const Type &amp;default_value, 
++                                  const std::locale &amp;loc) const
++    {
++        if (optional&lt;Type&gt; result = get_optional&lt;Type&gt;(separator, path, loc))
++            return *result;
++        else
++            return default_value;
++    }
++
++    // Get value from data of child ptree (custom path separator)
++    template&lt;class Tr&gt;
++    template&lt;class CharType&gt;
++    std::basic_string&lt;CharType&gt; 
++        basic_ptree&lt;Tr&gt;::get(char_type separator,
++                                 const key_type &amp;path, 
++                                 const CharType *default_value,
++                                 const std::locale &amp;loc) const
++    {
++        BOOST_STATIC_ASSERT((boost::is_same&lt;char_type, CharType&gt;::value == true)); // Character types must match
++        return get(separator, path, std::basic_string&lt;CharType&gt;(default_value), loc);
++    }
++
++    // Get value from data of child ptree (custom path separator)
++    template&lt;class Tr&gt;
++    template&lt;class Type&gt;
++    optional&lt;Type&gt; 
++        basic_ptree&lt;Tr&gt;::get_optional(char_type separator,
++                                          const key_type &amp;path, 
++                                          const std::locale &amp;loc) const
++    {
++        if (optional&lt;const basic_ptree&lt;Tr&gt; &amp;&gt; child = get_child_optional(separator, path))
++            return child.get().get_own_optional&lt;Type&gt;(loc);
++        else
++            return optional&lt;Type&gt;();
++    }
++
++    // Get value from data of child ptree (default path separator)
++    template&lt;class Tr&gt;
++    template&lt;class Type&gt;
++    Type basic_ptree&lt;Tr&gt;::get(const key_type &amp;path,
++                                  const std::locale &amp;loc) const
++    {
++        return get&lt;Type&gt;(char_type('.'), path, loc);
++    }
++
++    // Get value from data of child ptree (default path separator)
++    template&lt;class Tr&gt;
++    template&lt;class Type&gt;
++    Type basic_ptree&lt;Tr&gt;::get(const key_type &amp;path, 
++                                  const Type &amp;default_value,
++                                  const std::locale &amp;loc) const
++    {
++        return get(char_type('.'), path, default_value, loc);
++    }
++
++    // Get value from data of child ptree (default path separator)
++    template&lt;class Tr&gt;
++    template&lt;class CharType&gt;
++    std::basic_string&lt;CharType&gt; 
++        basic_ptree&lt;Tr&gt;::get(const key_type &amp;path, 
++                                 const CharType *default_value,
++                                 const std::locale &amp;loc) const
++    {
++        return get(char_type('.'), path, default_value, loc);
++    }
++
++    // Get value from data of child ptree (default path separator)
++    template&lt;class Tr&gt;
++    template&lt;class Type&gt;
++    optional&lt;Type&gt; 
++        basic_ptree&lt;Tr&gt;::get_optional(const key_type &amp;path, 
++                                          const std::locale &amp;loc) const
++    {
++        return get_optional&lt;Type&gt;(char_type('.'), path, loc);
++    }
++
++    // Put value in data of ptree
++    template&lt;class Tr&gt;
++    template&lt;class Type&gt; 
++    void basic_ptree&lt;Tr&gt;::put_own(const Type &amp;value, const std::locale &amp;loc)
++    {
++        using namespace boost;
++        // Make sure that no pointer other than char_type * is allowed
++        BOOST_STATIC_ASSERT((is_pointer&lt;Type&gt;::value == false ||
++                             is_same&lt;char_type, typename remove_const&lt;typename remove_pointer&lt;Type&gt;::type&gt;::type&gt;::value == true));
++        typename traits_type::template inserter&lt;Type&gt;()(m_impl-&gt;m_data, value, loc);
++    }
++
++    // Put value in data of child ptree (custom path separator)
++    template&lt;class Tr&gt;
++    template&lt;class Type&gt; 
++    basic_ptree&lt;Tr&gt; &amp;
++        basic_ptree&lt;Tr&gt;::put(char_type separator,
++                             const key_type &amp;path, 
++                             const Type &amp;value,
++                             bool do_not_replace,
++                             const std::locale &amp;loc)
++    {
++        optional&lt;basic_ptree&lt;Tr&gt; &amp;&gt; child;
++        if (!do_not_replace &amp;&amp;
++            (child = get_child_optional(separator, path)))
++        {
++            child.get().put_own(value, loc);
++            return *child;
++        }
++        else
++        {
++            basic_ptree&lt;Tr&gt; &amp;child2 = put_child(separator, path, empty_ptree&lt;basic_ptree&lt;Tr&gt; &gt;(), do_not_replace);
++            child2.put_own(value, loc);
++            return child2;
++        }
++    }
++
++    // Put value in data of child ptree (default path separator)
++    template&lt;class Tr&gt;
++    template&lt;class Type&gt; 
++    basic_ptree&lt;Tr&gt; &amp;
++        basic_ptree&lt;Tr&gt;::put(const key_type &amp;path, 
++                             const Type &amp;value,
++                             bool do_not_replace,
++                             const std::locale &amp;loc)
++    {
++        return put(char_type('.'), path, value, do_not_replace, loc);
++    }
++
++    ////////////////////////////////////////////////////////////////////////////
++    // Debugging
++
++#ifdef BOOST_PROPERTY_TREE_DEBUG
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::size_type 
++        basic_ptree&lt;Tr&gt;::debug_get_instances_count() 
++    { 
++        empty_ptree&lt;basic_ptree&lt;Tr&gt; &gt;();    // Make sure empty ptree exists
++        return debug_instances_count - 1;       // Do not count empty ptree
++    }
++
++    template&lt;class Tr&gt;
++    typename basic_ptree&lt;Tr&gt;::size_type 
++        basic_ptree&lt;Tr&gt;::debug_instances_count;
++
++    template&lt;class Tr&gt;
++    boost::detail::lightweight_mutex 
++        basic_ptree&lt;Tr&gt;::debug_mutex;
++
++#endif
++
++    ///////////////////////////////////////////////////////////////////////////
++    // Free functions
++
++    template&lt;class Ptree&gt; 
++    inline const Ptree &amp;empty_ptree()
++    {
++        static Ptree pt;
++        return pt;
++    }
++
++    template&lt;class Tr&gt;
++    inline void swap(basic_ptree&lt;Tr&gt; &amp;pt1, basic_ptree&lt;Tr&gt; &amp;pt2)
++    {
++        pt1.swap(pt2);
++    }
++
++} }
++
++// Undefine debug macros
++#ifdef BOOST_PROPERTY_TREE_DEBUG
++#   undef BOOST_PROPERTY_TREE_DEBUG_INCREMENT_INSTANCES_COUNT
++#   undef BOOST_PROPERTY_TREE_DEBUG_DECREMENT_INSTANCES_COUNT
++#endif
++
++#endif
+
+Added: trunk/boost/property_tree/detail/ptree_interface.hpp
+===================================================================
+--- trunk/boost/property_tree/detail/ptree_interface.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/detail/ptree_interface.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,198 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_DETAIL_PTREE_INTERFACE_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_DETAIL_PTREE_INTERFACE_HPP_INCLUDED
++
++#include &lt;boost/config.hpp&gt;
++#include &lt;boost/optional.hpp&gt;
++#include &lt;string&gt;
++#include &lt;list&gt;
++#include &lt;map&gt;
++#include &lt;utility&gt;          // For std::pair
++#include &lt;locale&gt;
++
++#include &quot;boost/property_tree/ptree_fwd.hpp&quot;
++
++#ifdef BOOST_PROPERTY_TREE_DEBUG
++#   include &lt;boost/detail/lightweight_mutex.hpp&gt;   // For syncing debug instances counter
++#endif
++
++namespace boost { namespace property_tree
++{
++
++    ///////////////////////////////////////////////////////////////////////////
++    // basic_ptree class template
++
++    template&lt;class Tr&gt;
++    class basic_ptree
++    {
++
++    public:
++
++        // Basic types
++        typedef Tr traits_type;
++        typedef typename traits_type::char_type char_type;
++        typedef typename traits_type::key_type key_type;
++        typedef typename traits_type::data_type data_type;
++        
++        // Container-related types
++        typedef std::pair&lt;key_type, basic_ptree&lt;Tr&gt; &gt; value_type;
++        typedef std::list&lt;value_type&gt; container_type;
++        typedef typename container_type::size_type size_type;
++        typedef typename container_type::iterator iterator;
++        typedef typename container_type::const_iterator const_iterator;
++        typedef typename container_type::reverse_iterator reverse_iterator;
++        typedef typename container_type::const_reverse_iterator const_reverse_iterator;
++        
++        ///////////////////////////////////////////////////////////////////////////
++        // Construction &amp; destruction
++
++        basic_ptree();
++        explicit basic_ptree(const data_type &amp;data);
++        basic_ptree(const basic_ptree&lt;Tr&gt; &amp;rhs);
++        ~basic_ptree();
++
++        ///////////////////////////////////////////////////////////////////////////
++        // Iterator access
++
++        iterator begin();
++        const_iterator begin() const;
++        iterator end();
++        const_iterator end() const;
++        reverse_iterator rbegin();
++        const_reverse_iterator rbegin() const;
++        reverse_iterator rend();
++        const_reverse_iterator rend() const;
++        
++        ///////////////////////////////////////////////////////////////////////////
++        // Data access
++
++        size_type size() const;
++        bool empty() const;
++        
++        data_type &amp;data();
++        const data_type &amp;data() const;
++
++        value_type &amp;front();
++        const value_type &amp;front() const;
++        value_type &amp;back();
++        const value_type &amp;back() const;
++
++        ///////////////////////////////////////////////////////////////////////////
++        // Operators
++
++        basic_ptree&lt;Tr&gt; &amp;operator =(const basic_ptree&lt;Tr&gt; &amp;rhs);
++
++        bool operator ==(const basic_ptree&lt;Tr&gt; &amp;rhs) const;
++        bool operator !=(const basic_ptree&lt;Tr&gt; &amp;rhs) const;
++
++        ///////////////////////////////////////////////////////////////////////////
++        // Container operations
++
++        iterator find(const key_type &amp;key);
++        const_iterator find(const key_type &amp;key) const;
++
++        size_type count(const key_type &amp;key) const;
++
++        void clear();
++
++        iterator insert(iterator where, const value_type &amp;value);
++        template&lt;class It&gt; void insert(iterator where, It first, It last);
++
++        iterator erase(iterator where);
++        size_type erase(const key_type &amp;key);
++        template&lt;class It&gt; iterator erase(It first, It last);
++
++        iterator push_front(const value_type &amp;value);
++        iterator push_back(const value_type &amp;value);
++
++        void pop_front();
++        void pop_back();
++
++        void swap(basic_ptree&lt;Tr&gt; &amp;rhs);
++
++        void reverse();
++        template&lt;class SortTr&gt; void sort(SortTr tr);
++
++        ///////////////////////////////////////////////////////////////////////////
++        // ptree operations
++
++        // Get child ptree with custom separator
++        basic_ptree&lt;Tr&gt; &amp;get_child(char_type separator, const key_type &amp;path);
++        const basic_ptree&lt;Tr&gt; &amp;get_child(char_type separator, const key_type &amp;path) const;
++        basic_ptree&lt;Tr&gt; &amp;get_child(char_type separator, const key_type &amp;path, basic_ptree&lt;Tr&gt; &amp;default_value);
++        const basic_ptree&lt;Tr&gt; &amp;get_child(char_type separator, const key_type &amp;path, const basic_ptree&lt;Tr&gt; &amp;default_value) const;
++        optional&lt;basic_ptree&lt;Tr&gt; &amp;&gt; get_child_optional(char_type separator, const key_type &amp;path);
++        optional&lt;const basic_ptree&lt;Tr&gt; &amp;&gt; get_child_optional(char_type separator, const key_type &amp;path) const;
++
++        // Get child ptree with default separator
++        basic_ptree&lt;Tr&gt; &amp;get_child(const key_type &amp;path);
++        const basic_ptree&lt;Tr&gt; &amp;get_child(const key_type &amp;path) const;
++        basic_ptree&lt;Tr&gt; &amp;get_child(const key_type &amp;path, basic_ptree&lt;Tr&gt; &amp;default_value);
++        const basic_ptree&lt;Tr&gt; &amp;get_child(const key_type &amp;path, const basic_ptree&lt;Tr&gt; &amp;default_value) const;
++        optional&lt;basic_ptree&lt;Tr&gt; &amp;&gt; get_child_optional(const key_type &amp;path);
++        optional&lt;const basic_ptree&lt;Tr&gt; &amp;&gt; get_child_optional(const key_type &amp;path) const;
++
++        // Put child ptree with custom separator
++        basic_ptree&lt;Tr&gt; &amp;put_child(char_type separator, const key_type &amp;path, const basic_ptree&lt;Tr&gt; &amp;value, bool do_not_replace = false);
++
++        // Put child ptree with default separator
++        basic_ptree&lt;Tr&gt; &amp;put_child(const key_type &amp;path, const basic_ptree&lt;Tr&gt; &amp;value, bool do_not_replace = false);
++
++        // Get value from data of ptree
++        template&lt;class Type&gt; Type get_own(const std::locale &amp;loc = std::locale()) const;
++        template&lt;class Type&gt; Type get_own(const Type &amp;default_value, const std::locale &amp;loc = std::locale()) const;
++        template&lt;class CharType&gt; std::basic_string&lt;CharType&gt; get_own(const CharType *default_value, const std::locale &amp;loc = std::locale()) const;
++        template&lt;class Type&gt; optional&lt;Type&gt; get_own_optional(const std::locale &amp;loc = std::locale()) const;
++
++        // Get value from data of child ptree (custom path separator)
++        template&lt;class Type&gt; Type get(char_type separator, const key_type &amp;path, const std::locale &amp;loc = std::locale()) const;
++        template&lt;class Type&gt; Type get(char_type separator, const key_type &amp;path, const Type &amp;default_value, const std::locale &amp;loc = std::locale()) const;
++        template&lt;class CharType&gt; std::basic_string&lt;CharType&gt; get(char_type separator, const key_type &amp;path, const CharType *default_value, const std::locale &amp;loc = std::locale()) const;
++        template&lt;class Type&gt; optional&lt;Type&gt; get_optional(char_type separator, const key_type &amp;path, const std::locale &amp;loc = std::locale()) const;
++
++        // Get value from data of child ptree (default path separator)
++        template&lt;class Type&gt; Type get(const key_type &amp;path, const std::locale &amp;loc = std::locale()) const;
++        template&lt;class Type&gt; Type get(const key_type &amp;path, const Type &amp;default_value, const std::locale &amp;loc = std::locale()) const;
++        template&lt;class CharType&gt; std::basic_string&lt;CharType&gt; get(const key_type &amp;path, const CharType *default_value, const std::locale &amp;loc = std::locale()) const;
++        template&lt;class Type&gt; optional&lt;Type&gt; get_optional(const key_type &amp;path, const std::locale &amp;loc = std::locale()) const;
++
++        // Put value in data of ptree
++        template&lt;class Type&gt; void put_own(const Type &amp;value, const std::locale &amp;loc = std::locale());
++
++        // Put value in data of child ptree (custom path separator)
++        template&lt;class Type&gt; basic_ptree&lt;Tr&gt; &amp;put(char_type separator, const key_type &amp;path, const Type &amp;value, bool do_not_replace = false, const std::locale &amp;loc = std::locale());
++
++        // Put value in data of child ptree (default path separator)
++        template&lt;class Type&gt; basic_ptree&lt;Tr&gt; &amp;put(const key_type &amp;path, const Type &amp;value, bool do_not_replace = false, const std::locale &amp;loc = std::locale());
++
++    private:
++
++        typedef std::multimap&lt;key_type, iterator, Tr&gt; index_type;
++        
++        struct impl;
++        impl *m_impl;
++
++        ////////////////////////////////////////////////////////////////////////////
++        // Debugging
++
++#ifdef BOOST_PROPERTY_TREE_DEBUG
++    private:
++        static boost::detail::lightweight_mutex debug_mutex;    // Mutex for syncing instances counter
++        static size_type debug_instances_count;                 // Total number of instances of this ptree class
++    public:
++        static size_type debug_get_instances_count();
++#endif
++
++    };
++
++} }
++
++#endif
+
+Added: trunk/boost/property_tree/detail/ptree_utils.hpp
+===================================================================
+--- trunk/boost/property_tree/detail/ptree_utils.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/detail/ptree_utils.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,72 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_DETAIL_PTREE_UTILS_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_DETAIL_PTREE_UTILS_HPP_INCLUDED
++
++#include &lt;boost/property_tree/ptree.hpp&gt;
++#include &lt;string&gt;
++#include &lt;locale&gt;
++
++namespace boost { namespace property_tree { namespace detail
++{
++
++    // Naively convert narrow string to another character type
++    template&lt;class Ch&gt;
++    std::basic_string&lt;Ch&gt; widen(const char *text)
++    {
++        std::locale loc;
++        std::basic_string&lt;Ch&gt; result;
++        while (*text)
++        {
++            result += Ch(*text);
++            ++text;
++        }
++        return result;
++    }
++
++    // Naively convert string to narrow character type
++    template&lt;class Ch&gt;
++    std::string narrow(const Ch *text)
++    {
++        std::locale loc;
++        std::string result;
++        while (*text)
++        {
++            if (*text &lt; 0 || *text &gt; (std::numeric_limits&lt;char&gt;::max)())
++                result += '*';
++            else
++                result += char(*text);
++            ++text;
++        }
++        return result;
++    }
++
++    // Remove trailing and leading spaces
++    template&lt;class Ch&gt;
++    std::basic_string&lt;Ch&gt; trim(const std::basic_string&lt;Ch&gt; &amp;s, 
++                               const std::locale &amp;loc = std::locale())
++    {
++        typename std::basic_string&lt;Ch&gt;::const_iterator first = s.begin();
++        typename std::basic_string&lt;Ch&gt;::const_iterator end = s.end();
++        while (first != end &amp;&amp; std::isspace(*first, loc)) 
++            ++first;
++        if (first == end)
++            return std::basic_string&lt;Ch&gt;();
++        typename std::basic_string&lt;Ch&gt;::const_iterator last = end;
++        do --last; while (std::isspace(*last, loc)); 
++        if (first != s.begin() || last + 1 != end)
++            return std::basic_string&lt;Ch&gt;(first, last + 1);
++        else
++            return s;
++    }
++
++} } }
++
++#endif
+
+Added: trunk/boost/property_tree/detail/xml_parser_error.hpp
+===================================================================
+--- trunk/boost/property_tree/detail/xml_parser_error.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/detail/xml_parser_error.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,33 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_DETAIL_XML_PARSER_ERROR_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_DETAIL_XML_PARSER_ERROR_HPP_INCLUDED
++
++#include &lt;boost/property_tree/detail/file_parser_error.hpp&gt;
++#include &lt;string&gt;
++
++namespace boost { namespace property_tree { namespace xml_parser
++{
++
++    //! Xml parser error
++    class xml_parser_error: public file_parser_error
++    {
++    public:
++        xml_parser_error(const std::string &amp;message, 
++                         const std::string &amp;filename, 
++                         unsigned long line): 
++            file_parser_error(message, filename, line)
++        { 
++        }
++    };
++
++} } }
++
++#endif
+
+Added: trunk/boost/property_tree/detail/xml_parser_flags.hpp
+===================================================================
+--- trunk/boost/property_tree/detail/xml_parser_flags.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/detail/xml_parser_flags.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,26 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_DETAIL_XML_PARSER_FLAGS_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_DETAIL_XML_PARSER_FLAGS_HPP_INCLUDED
++
++namespace boost { namespace property_tree { namespace xml_parser
++{
++    
++    static const int no_concat_text = 1;     // Text elements should be put in separate keys, not concatenated in parent data
++    static const int no_comments = 2;        // Comments should be omitted
++
++    inline bool validate_flags(int flags)
++    {
++        return (flags &amp; ~(no_concat_text | no_comments)) == 0;
++    }
++
++} } }
++
++#endif
+
+Added: trunk/boost/property_tree/detail/xml_parser_read_spirit.hpp
+===================================================================
+--- trunk/boost/property_tree/detail/xml_parser_read_spirit.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/detail/xml_parser_read_spirit.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,729 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// Based on XML grammar by Daniel C. Nuffer 
++// <A HREF="http://spirit.sourceforge.net/repository/applications/xml.zip">http://spirit.sourceforge.net/repository/applications/xml.zip</A>
++// 
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_DETAIL_XML_PARSER_READ_SPIRIT_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_DETAIL_XML_PARSER_READ_SPIRIT_HPP_INCLUDED
++
++//#define BOOST_SPIRIT_DEBUG
++
++#include &lt;boost/property_tree/ptree.hpp&gt;
++#include &lt;boost/property_tree/detail/xml_parser_error.hpp&gt;
++#include &lt;boost/property_tree/detail/xml_parser_flags.hpp&gt;
++#include &lt;boost/property_tree/detail/xml_parser_utils.hpp&gt;
++#include &lt;boost/spirit.hpp&gt;
++#include &lt;boost/spirit/iterator/position_iterator.hpp&gt;
++#include &lt;string&gt;
++#include &lt;locale&gt;
++#include &lt;istream&gt;
++#include &lt;vector&gt;
++
++namespace boost { namespace property_tree { namespace xml_parser
++{
++
++    // XML parser context
++    template&lt;class Ptree&gt;
++    struct context
++    {
++        
++        typedef typename Ptree::char_type Ch;
++        typedef std::basic_string&lt;Ch&gt; Str;
++        typedef boost::spirit::position_iterator&lt;typename std::vector&lt;Ch&gt;::const_iterator&gt; It;
++
++        int flags;
++        std::vector&lt;Ptree *&gt; stack;
++
++        ///////////////////////////////////////////////////////////////////////
++        // Actions
++        
++        struct a_key_s
++        {
++            context &c;
++            a_key_s(context &amp;c): c(c) { }
++            void operator()(It b, It e) const
++            {
++                if (c.stack.empty())
++                    throw xml_parser_error(&quot;xml parse error&quot;, 
++                                           b.get_position().file, 
++                                           b.get_position().line);
++                Str name(b, e);
++                Ptree *child = &amp;c.stack.back()-&gt;push_back(std::make_pair(name, Ptree()))-&gt;second;
++                c.stack.push_back(child);
++            }
++        };
++
++        struct a_key_e
++        {
++            context &c;
++            a_key_e(context &amp;c): c(c) { }
++            void operator()(It b, It e) const
++            {
++                if (c.stack.size() &lt;= 1)
++                    throw xml_parser_error(&quot;xml parse error&quot;, 
++                                           b.get_position().file, 
++                                           b.get_position().line);
++                c.stack.pop_back();
++            }
++        };
++
++        struct a_content
++        {
++            context &c;
++            a_content(context &amp;c): c(c) { }
++            void operator()(It b, It e) const
++            {
++                Str s = decode_char_entities(detail::trim(condense(Str(b, e))));
++                if (!s.empty())
++                {
++                    if (c.flags &amp; no_concat_text)
++                        c.stack.back()-&gt;push_back(std::make_pair(xmltext&lt;Ch&gt;(), Ptree(s)));
++                    else
++                        c.stack.back()-&gt;put_own(c.stack.back()-&gt;template get_own&lt;std::basic_string&lt;Ch&gt; &gt;() + s);
++                }
++            }
++        };
++
++        struct a_attr_key
++        {
++            context &c;
++            a_attr_key(context &amp;c): c(c) { }
++            void operator()(It b, It e) const
++            {
++                c.stack.back()-&gt;put_child(Ch('/'), xmlattr&lt;Ch&gt;() + Ch('/') + Str(b, e), empty_ptree&lt;Ptree&gt;());
++            }
++        };
++
++        struct a_attr_data
++        {
++            context &c;
++            a_attr_data(context &amp;c): c(c) { }
++            void operator()(It b, It e) const
++            {
++                Ptree &amp;attr = c.stack.back()-&gt;get_child(xmlattr&lt;Ch&gt;());
++                attr.back().second.put_own(Str(b + 1, e - 1));
++            }
++        };
++
++        struct a_comment
++        {
++            context &c;
++            a_comment(context &amp;c): c(c) { }
++            void operator()(It b, It e) const
++            {
++                c.stack.back()-&gt;push_back(std::make_pair(xmlcomment&lt;Ch&gt;(), Ptree(Str(b, e))));
++            }
++        };
++
++    };
++
++    ///////////////////////////////////////////////////////////////////////
++    // Grammar
++        
++    template&lt;class Ptree&gt;
++    struct xml_grammar: public boost::spirit::grammar&lt;xml_grammar&lt;Ptree&gt; &gt;
++    {
++        
++        typedef context&lt;Ptree&gt; context_t;
++        
++        mutable context_t c;
++        
++        template&lt;class ScannerT&gt;
++        struct definition
++        {
++            
++            typedef typename ScannerT::value_t char_t;
++            typedef boost::spirit::chset&lt;char_t&gt; chset_t;
++
++            boost::spirit::rule&lt;ScannerT&gt;
++                prolog, element, Misc, PEReference, Reference, PITarget, CData,
++                doctypedecl, XMLDecl, SDDecl, VersionInfo, EncodingDecl, VersionNum,
++                Eq, DeclSep, ExternalID, markupdecl, NotationDecl, EntityDecl,
++                AttlistDecl, elementdecl, TextDecl, extSubsetDecl, conditionalSect,
++                EmptyElemTag, STag, content, ETag, Attribute, contentspec, Mixed,
++                children, choice, seq, cp, AttDef, AttType, DefaultDecl, StringType,
++                TokenizedType, EnumeratedType, NotationType, Enumeration, EntityValue,
++                AttValue, SystemLiteral, PubidLiteral, CharDataChar, CharData, Comment,
++                PI, CDSect, extSubset, includeSect, ignoreSect, ignoreSectContents,
++                Ignore, CharRef, EntityRef, GEDecl, PEDecl, EntityDef, PEDef,
++                NDataDecl, extParsedEnt, EncName, PublicID, document, S, Name, Names,
++                Nmtoken, Nmtokens, STagB, STagE1, STagE2;
++
++            definition(const xml_grammar &amp;self)
++            {
++                
++                using namespace boost::spirit;
++                
++                // XML Char sets
++                chset_t Char(&quot;\x9\xA\xD\x20-\x7F&quot;);
++                chset_t Sch(&quot;\x20\x9\xD\xA&quot;);
++                chset_t Letter(&quot;\x41-\x5A\x61-\x7A&quot;);
++                chset_t Digit(&quot;0-9&quot;);
++                chset_t XDigit(&quot;0-9A-Fa-f&quot;);
++                chset_t Extender(&quot;\xB7&quot;);
++                chset_t NameChar =
++                    Letter 
++                    | Digit 
++                    | (char_t)'.'
++                    | (char_t)'-'
++                    | (char_t)'_'
++                    | (char_t)':'
++                    | Extender;
++
++                document =
++                    prolog &gt;&gt; element &gt;&gt; *Misc
++                ;
++
++                S = 
++                    +(Sch)
++                ;
++
++                Name =
++                    (Letter | '_' | ':') 
++                    &gt;&gt; *(NameChar)
++                ;
++
++                Names =
++                    Name &gt;&gt; *(S &gt;&gt; Name)
++                ;
++
++                Nmtoken =
++                    +NameChar
++                ;
++
++                Nmtokens =
++                    Nmtoken &gt;&gt; *(S &gt;&gt; Nmtoken)
++                ;
++
++                EntityValue =
++                    '&quot;'  &gt;&gt; *(  (anychar_p - (chset_t(detail::widen&lt;char_t&gt;(&quot;%&amp;\&quot;&quot;).c_str()))) 
++                                | PEReference
++                                | Reference) 
++                        &gt;&gt; '&quot;'
++                    | '\'' &gt;&gt; *(  (anychar_p - (chset_t(&quot;%&amp;'&quot;))) 
++                                | PEReference
++                                | Reference) 
++                            &gt;&gt; '\''
++                ;
++
++                AttValue = 
++                    '&quot;' &gt;&gt; *(  (anychar_p - (chset_t(&quot;&lt;&amp;\&quot;&quot;))) 
++                                | Reference) 
++                        &gt;&gt; '&quot;'
++                    | '\'' &gt;&gt; *(  (anychar_p - (chset_t(&quot;&lt;&amp;'&quot;))) 
++                                | Reference) 
++                            &gt;&gt; '\''
++                ;
++
++                SystemLiteral= 
++                    ('&quot;' &gt;&gt; *(anychar_p - '&quot;') &gt;&gt; '&quot;')
++                    | ('\'' &gt;&gt; *(anychar_p - '\'') &gt;&gt; '\'')
++                ;
++
++                chset_t PubidChar(&quot;\x20\xD\xA'a-zA-Z0-9()+,./:=?;!*#@$_%-&quot;);
++
++                PubidLiteral = 
++                    '&quot;' &gt;&gt; *PubidChar &gt;&gt; '&quot;' 
++                    | '\'' &gt;&gt; *(PubidChar - '\'') &gt;&gt; '\''
++                ;
++
++                CharDataChar = 
++                    //anychar_p - (chset_t(&quot;&lt;&amp;&quot;))
++                    anychar_p - (chset_t(&quot;&lt;&quot;))
++                ;
++
++                CharData =
++                    *(CharDataChar - &quot;]]&gt;&quot;)
++                ;
++
++                Comment = 
++                    &quot;&lt;!--&quot; &gt;&gt; 
++                    (
++                        *(
++                            (Char - '-')
++                            | ('-' &gt;&gt; (Char - '-'))
++                        )
++                    )[typename context_t::a_comment(self.c)] 
++                    &gt;&gt; &quot;--&gt;&quot;
++                ;
++
++                PI = 
++                    &quot;&lt;?&quot; &gt;&gt; PITarget &gt;&gt; !(S &gt;&gt; (*(Char - &quot;?&gt;&quot;))) &gt;&gt; &quot;?&gt;&quot;
++                ;
++
++                PITarget =
++                    Name - (as_lower_d[&quot;xml&quot;])
++                ;
++
++                CDSect =
++                    &quot;&lt;![CDATA[&quot; &gt;&gt; CData &gt;&gt; &quot;]]&gt;&quot;
++                ;
++
++                CData =
++                    *(Char - &quot;]]&gt;&quot;)
++                ;
++
++                prolog =
++                    !XMLDecl &gt;&gt; *Misc &gt;&gt; !(doctypedecl &gt;&gt; *Misc)
++                ;
++
++                XMLDecl =
++                    &quot;&lt;?xml&quot; &gt;&gt; VersionInfo &gt;&gt; !EncodingDecl &gt;&gt; !SDDecl 
++                    &gt;&gt; !S &gt;&gt; &quot;?&gt;&quot;
++                ;
++
++                VersionInfo = 
++                    S &gt;&gt; &quot;version&quot; &gt;&gt; Eq &gt;&gt; 
++                    (
++                    '\'' &gt;&gt; VersionNum &gt;&gt; '\''
++                    | '&quot;' &gt;&gt; VersionNum &gt;&gt; '&quot;'
++                    )
++                ;
++
++                Eq =
++                    !S &gt;&gt; '=' &gt;&gt; !S
++                ;
++
++                chset_t VersionNumCh(&quot;a-zA-Z0-9_.:-&quot;);
++
++                VersionNum =
++                    +(VersionNumCh)
++                ;
++
++                Misc =
++                    Comment 
++                    | PI 
++                    | S
++                ;
++
++                doctypedecl =
++                    &quot;&lt;!DOCTYPE&quot; &gt;&gt; S &gt;&gt; Name &gt;&gt; !(S &gt;&gt; ExternalID) &gt;&gt; !S &gt;&gt; 
++                    !(
++                    '[' &gt;&gt; *(markupdecl | DeclSep) &gt;&gt; ']' &gt;&gt; !S
++                    ) 
++                    &gt;&gt; '&gt;'
++                ;
++
++                DeclSep =
++                    PEReference 
++                    | S
++                ;
++
++                markupdecl =
++                    elementdecl 
++                    | AttlistDecl 
++                    | EntityDecl 
++                    | NotationDecl 
++                    | PI 
++                    | Comment
++                ;
++
++                extSubset =
++                    !TextDecl &gt;&gt; extSubsetDecl
++                ;
++
++                extSubsetDecl =
++                    *(
++                        markupdecl 
++                    | conditionalSect 
++                    | DeclSep
++                    )
++                ;
++
++                SDDecl = 
++                    S &gt;&gt; &quot;standalone&quot; &gt;&gt; Eq &gt;&gt; 
++                    (
++                    ('\'' &gt;&gt; (str_p(&quot;yes&quot;) | &quot;no&quot;) &gt;&gt; '\'')
++                    | ('&quot;' &gt;&gt; (str_p(&quot;yes&quot;) | &quot;no&quot;) &gt;&gt; '&quot;')
++                    )
++                ;
++
++                /*
++                element =
++                    EmptyElemTag
++                    | STag &gt;&gt; content &gt;&gt; ETag
++                ;
++                */
++                element =
++                    STagB &gt;&gt; (STagE2 | (STagE1 &gt;&gt; content &gt;&gt; ETag))[typename context_t::a_key_e(self.c)]
++                ;
++
++                STag =
++                    '&lt;' &gt;&gt; Name &gt;&gt; *(S &gt;&gt; Attribute) &gt;&gt; !S &gt;&gt; '&gt;'
++                ;
++
++                STagB =
++                    '&lt;'
++                    &gt;&gt; Name[typename context_t::a_key_s(self.c)]
++                    &gt;&gt; *(S &gt;&gt; Attribute)
++                    &gt;&gt; !S
++                ;
++
++                STagE1 = 
++                    ch_p(&quot;&gt;&quot;)
++                ;
++
++                STagE2 = 
++                    str_p(&quot;/&gt;&quot;)
++                ;
++
++                Attribute =
++                    Name[typename context_t::a_attr_key(self.c)]
++                    &gt;&gt; Eq
++                    &gt;&gt; AttValue[typename context_t::a_attr_data(self.c)]
++                ;
++
++                ETag =
++                    &quot;&lt;/&quot; &gt;&gt; Name &gt;&gt; !S &gt;&gt; '&gt;'
++                ;
++
++                content =
++                   !(CharData[typename context_t::a_content(self.c)]) &gt;&gt; 
++                   *(
++                     (
++                          element 
++                        // | Reference
++                        | CDSect 
++                        | PI 
++                        | Comment
++                     ) &gt;&gt; 
++                     !(CharData[typename context_t::a_content(self.c)])
++                    )
++                ;
++
++                EmptyElemTag =
++                    '&lt;' &gt;&gt; Name &gt;&gt; *(S &gt;&gt; Attribute) &gt;&gt; !S &gt;&gt; &quot;/&gt;&quot;
++                ;
++
++                elementdecl = 
++                    &quot;&lt;!ELEMENT&quot; &gt;&gt; S &gt;&gt; Name &gt;&gt; S &gt;&gt; contentspec &gt;&gt; !S &gt;&gt; '&gt;'
++                ;
++
++                contentspec = 
++                    str_p(&quot;EMPTY&quot;) 
++                    | &quot;ANY&quot; 
++                    | Mixed 
++                    | children
++                ;
++
++                children =
++                    (choice | seq) &gt;&gt; !(ch_p('?') | '*' | '+')
++                ;
++
++                cp = 
++                    (Name | choice | seq) &gt;&gt; !(ch_p('?') | '*' | '+')
++                ;
++
++                choice = 
++                    '(' &gt;&gt; !S &gt;&gt; cp 
++                    &gt;&gt; +(!S &gt;&gt; '|' &gt;&gt; !S &gt;&gt; cp) 
++                    &gt;&gt; !S &gt;&gt; ')'
++                ;
++
++                seq =
++                    '(' &gt;&gt; !S &gt;&gt; cp &gt;&gt; 
++                    *(!S &gt;&gt; ',' &gt;&gt; !S &gt;&gt; cp) 
++                    &gt;&gt; !S &gt;&gt; ')'
++                ;
++
++                Mixed =
++                    '(' &gt;&gt; !S &gt;&gt; &quot;#PCDATA&quot; 
++                        &gt;&gt; *(!S &gt;&gt; '|' &gt;&gt; !S &gt;&gt; Name) 
++                        &gt;&gt; !S &gt;&gt; &quot;)*&quot;
++                    | '(' &gt;&gt; !S &gt;&gt; &quot;#PCDATA&quot; &gt;&gt; !S &gt;&gt; ')'
++                ;
++
++                AttlistDecl =
++                    &quot;&lt;!ATTLIST&quot; &gt;&gt; S &gt;&gt; Name &gt;&gt; *AttDef &gt;&gt; !S &gt;&gt; '&gt;'
++                ;
++
++                AttDef =
++                    S &gt;&gt; Name &gt;&gt; S &gt;&gt; AttType &gt;&gt; S &gt;&gt; DefaultDecl
++                ;
++
++                AttType =
++                    StringType 
++                    | TokenizedType 
++                    | EnumeratedType
++                ;
++
++                StringType =
++                    str_p(&quot;CDATA&quot;)
++                ;
++
++                TokenizedType =
++                    longest_d[ 
++                        str_p(&quot;ID&quot;) 
++                        | &quot;IDREF&quot; 
++                        | &quot;IDREFS&quot; 
++                        | &quot;ENTITY&quot; 
++                        | &quot;ENTITIES&quot; 
++                        | &quot;NMTOKEN&quot;
++                        | &quot;NMTOKENS&quot; 
++                    ]
++                ;
++
++                EnumeratedType =
++                    NotationType 
++                    | Enumeration
++                ;
++
++                NotationType =
++                    &quot;NOTATION&quot; &gt;&gt; S &gt;&gt; '(' &gt;&gt; !S &gt;&gt; Name 
++                    &gt;&gt; *(!S &gt;&gt; '|' &gt;&gt; !S &gt;&gt; Name) 
++                    &gt;&gt; !S &gt;&gt; ')'
++                ;
++
++                Enumeration = 
++                    '(' &gt;&gt; !S &gt;&gt; Nmtoken 
++                    &gt;&gt; *(!S &gt;&gt; '|' &gt;&gt; !S &gt;&gt; Nmtoken) 
++                    &gt;&gt; !S &gt;&gt; ')'
++                ;
++
++                DefaultDecl =
++                    str_p(&quot;#REQUIRED&quot;) 
++                    | &quot;#IMPLIED&quot; 
++                    | !(&quot;#FIXED&quot; &gt;&gt; S) &gt;&gt; AttValue
++                ;
++
++                conditionalSect =
++                    includeSect 
++                    | ignoreSect
++                ;
++
++                includeSect =
++                    &quot;&lt;![&quot; &gt;&gt; !S &gt;&gt; &quot;INCLUDE&quot; &gt;&gt; !S 
++                    &gt;&gt; '[' &gt;&gt; extSubsetDecl &gt;&gt; &quot;]]&gt;&quot;
++                ;
++
++                ignoreSect = 
++                    &quot;&lt;![&quot; &gt;&gt; !S &gt;&gt; &quot;IGNORE&quot;  &gt;&gt; !S 
++                    &gt;&gt; '[' &gt;&gt; *ignoreSectContents &gt;&gt; &quot;]]&gt;&quot;
++                ;
++
++                ignoreSectContents = 
++                    Ignore &gt;&gt; *(&quot;&lt;![&quot; &gt;&gt; ignoreSectContents &gt;&gt; &quot;]]&gt;&quot; &gt;&gt; Ignore)
++                ;
++
++                Ignore = 
++                    *(Char - (str_p(&quot;&lt;![&quot;) | &quot;]]&gt;&quot;))
++                ;
++
++                CharRef = 
++                    &quot;&amp;#&quot;  &gt;&gt; +Digit  &gt;&gt; ';'
++                    | &quot;&amp;#x&quot; &gt;&gt; +XDigit &gt;&gt; ';'
++                ;
++
++                Reference =
++                    EntityRef 
++                    | CharRef
++                ;
++
++                EntityRef =
++                    '&amp;' &gt;&gt; Name &gt;&gt; ';'
++                ;
++
++                PEReference =
++                    '%' &gt;&gt; Name &gt;&gt; ';'
++                ;
++
++                EntityDecl =
++                    GEDecl 
++                    | PEDecl
++                ;
++
++                GEDecl =
++                    &quot;&lt;!ENTITY&quot; &gt;&gt; S &gt;&gt; Name &gt;&gt; S &gt;&gt; EntityDef &gt;&gt; !S &gt;&gt; '&gt;'
++                ;
++
++                PEDecl =
++                    &quot;&lt;!ENTITY&quot; &gt;&gt; S &gt;&gt; '%' &gt;&gt; S &gt;&gt; Name &gt;&gt; S &gt;&gt; PEDef 
++                    &gt;&gt; !S &gt;&gt; '&gt;'
++                ;
++
++                EntityDef =
++                    EntityValue
++                    | ExternalID &gt;&gt; !NDataDecl
++                ;
++
++                PEDef =
++                    EntityValue 
++                    | ExternalID
++                ;
++
++                ExternalID =
++                    &quot;SYSTEM&quot; &gt;&gt; S &gt;&gt; SystemLiteral
++                    | &quot;PUBLIC&quot; &gt;&gt; S &gt;&gt; PubidLiteral &gt;&gt; S &gt;&gt; SystemLiteral
++                ;
++
++                NDataDecl =
++                    S &gt;&gt; &quot;NDATA&quot; &gt;&gt; S &gt;&gt; Name
++                ;
++
++                TextDecl =
++                    &quot;&lt;?xml&quot; &gt;&gt; !VersionInfo &gt;&gt; EncodingDecl &gt;&gt; !S &gt;&gt; &quot;?&gt;&quot;
++                ;
++
++                extParsedEnt =
++                    !TextDecl &gt;&gt; content
++                ;
++
++                EncodingDecl =
++                    S &gt;&gt; &quot;encoding&quot; &gt;&gt; Eq 
++                    &gt;&gt; (  '&quot;' &gt;&gt; EncName &gt;&gt; '&quot;' 
++                        | '\'' &gt;&gt; EncName &gt;&gt; '\''
++                    )
++                ;
++
++                EncName =
++                    Letter &gt;&gt; *(Letter | Digit | '.' | '_' | '-')
++                ;
++
++                NotationDecl =
++                    &quot;&lt;!NOTATION&quot; &gt;&gt; S &gt;&gt; Name &gt;&gt; S 
++                    &gt;&gt; (ExternalID | PublicID) &gt;&gt; !S &gt;&gt; '&gt;'
++                ;
++
++                PublicID =
++                    &quot;PUBLIC&quot; &gt;&gt; S &gt;&gt; PubidLiteral
++                ;
++
++                BOOST_SPIRIT_DEBUG_RULE(document);
++                BOOST_SPIRIT_DEBUG_RULE(prolog);
++                BOOST_SPIRIT_DEBUG_RULE(element);
++                BOOST_SPIRIT_DEBUG_RULE(Misc);
++                BOOST_SPIRIT_DEBUG_RULE(PEReference);
++                BOOST_SPIRIT_DEBUG_RULE(Reference);
++                BOOST_SPIRIT_DEBUG_RULE(PITarget);
++                BOOST_SPIRIT_DEBUG_RULE(CData);
++                BOOST_SPIRIT_DEBUG_RULE(doctypedecl);
++                BOOST_SPIRIT_DEBUG_RULE(XMLDecl);
++                BOOST_SPIRIT_DEBUG_RULE(SDDecl);
++                BOOST_SPIRIT_DEBUG_RULE(VersionInfo);
++                BOOST_SPIRIT_DEBUG_RULE(EncodingDecl);
++                BOOST_SPIRIT_DEBUG_RULE(VersionNum);
++                BOOST_SPIRIT_DEBUG_RULE(Eq);
++                BOOST_SPIRIT_DEBUG_RULE(DeclSep);
++                BOOST_SPIRIT_DEBUG_RULE(ExternalID);
++                BOOST_SPIRIT_DEBUG_RULE(markupdecl);
++                BOOST_SPIRIT_DEBUG_RULE(NotationDecl);
++                BOOST_SPIRIT_DEBUG_RULE(EntityDecl);
++                BOOST_SPIRIT_DEBUG_RULE(AttlistDecl);
++                BOOST_SPIRIT_DEBUG_RULE(elementdecl);
++                BOOST_SPIRIT_DEBUG_RULE(TextDecl);
++                BOOST_SPIRIT_DEBUG_RULE(extSubsetDecl);
++                BOOST_SPIRIT_DEBUG_RULE(conditionalSect);
++                BOOST_SPIRIT_DEBUG_RULE(EmptyElemTag);
++                BOOST_SPIRIT_DEBUG_RULE(STag);
++                BOOST_SPIRIT_DEBUG_RULE(content);
++                BOOST_SPIRIT_DEBUG_RULE(ETag);
++                BOOST_SPIRIT_DEBUG_RULE(Attribute);
++                BOOST_SPIRIT_DEBUG_RULE(contentspec);
++                BOOST_SPIRIT_DEBUG_RULE(Mixed);
++                BOOST_SPIRIT_DEBUG_RULE(children);
++                BOOST_SPIRIT_DEBUG_RULE(choice);
++                BOOST_SPIRIT_DEBUG_RULE(seq);
++                BOOST_SPIRIT_DEBUG_RULE(cp);
++                BOOST_SPIRIT_DEBUG_RULE(AttDef);
++                BOOST_SPIRIT_DEBUG_RULE(AttType);
++                BOOST_SPIRIT_DEBUG_RULE(DefaultDecl);
++                BOOST_SPIRIT_DEBUG_RULE(StringType);
++                BOOST_SPIRIT_DEBUG_RULE(TokenizedType);
++                BOOST_SPIRIT_DEBUG_RULE(EnumeratedType);
++                BOOST_SPIRIT_DEBUG_RULE(NotationType);
++                BOOST_SPIRIT_DEBUG_RULE(Enumeration);
++                BOOST_SPIRIT_DEBUG_RULE(EntityValue);
++                BOOST_SPIRIT_DEBUG_RULE(AttValue);
++                BOOST_SPIRIT_DEBUG_RULE(SystemLiteral);
++                BOOST_SPIRIT_DEBUG_RULE(PubidLiteral);
++                BOOST_SPIRIT_DEBUG_RULE(CharDataChar);
++                BOOST_SPIRIT_DEBUG_RULE(CharData);
++                BOOST_SPIRIT_DEBUG_RULE(Comment);
++                BOOST_SPIRIT_DEBUG_RULE(PI);
++                BOOST_SPIRIT_DEBUG_RULE(CDSect);
++                BOOST_SPIRIT_DEBUG_RULE(extSubset);
++                BOOST_SPIRIT_DEBUG_RULE(includeSect);
++                BOOST_SPIRIT_DEBUG_RULE(ignoreSect);
++                BOOST_SPIRIT_DEBUG_RULE(ignoreSectContents);
++                BOOST_SPIRIT_DEBUG_RULE(Ignore);
++                BOOST_SPIRIT_DEBUG_RULE(CharRef);
++                BOOST_SPIRIT_DEBUG_RULE(EntityRef);
++                BOOST_SPIRIT_DEBUG_RULE(GEDecl);
++                BOOST_SPIRIT_DEBUG_RULE(PEDecl);
++                BOOST_SPIRIT_DEBUG_RULE(EntityDef);
++                BOOST_SPIRIT_DEBUG_RULE(PEDef);
++                BOOST_SPIRIT_DEBUG_RULE(NDataDecl);
++                BOOST_SPIRIT_DEBUG_RULE(extParsedEnt);
++                BOOST_SPIRIT_DEBUG_RULE(EncName);
++                BOOST_SPIRIT_DEBUG_RULE(PublicID);
++                BOOST_SPIRIT_DEBUG_RULE(document);
++                BOOST_SPIRIT_DEBUG_RULE(S);
++                BOOST_SPIRIT_DEBUG_RULE(Name);
++                BOOST_SPIRIT_DEBUG_RULE(Names);
++                BOOST_SPIRIT_DEBUG_RULE(Nmtoken);
++                BOOST_SPIRIT_DEBUG_RULE(Nmtokens);
++                BOOST_SPIRIT_DEBUG_RULE(STagB);
++                BOOST_SPIRIT_DEBUG_RULE(STagE1);
++                BOOST_SPIRIT_DEBUG_RULE(STagE2);
++
++            }
++
++            const boost::spirit::rule&lt;ScannerT&gt; &amp;start() const
++            {
++                return document;
++            }
++
++        };
++
++    };
++
++    template&lt;class Ptree&gt;
++    void read_xml_internal(std::basic_istream&lt;typename Ptree::char_type&gt; &amp;stream,
++                           Ptree &amp;pt,
++                           int flags,
++                           const std::string &amp;filename)
++    {
++
++        typedef typename Ptree::char_type Ch;
++        typedef boost::spirit::position_iterator&lt;typename std::vector&lt;Ch&gt;::const_iterator&gt; It;
++
++        BOOST_ASSERT(validate_flags(flags));
++
++        // Load data into vector
++        std::vector&lt;Ch&gt; v(std::istreambuf_iterator&lt;Ch&gt;(stream.rdbuf()),
++                          std::istreambuf_iterator&lt;Ch&gt;());
++        if (!stream.good())
++            throw xml_parser_error(&quot;read error&quot;, filename, 0);
++        
++        // Initialize iterators
++        It begin(v.begin(), v.end());
++        It end;
++        begin.set_position(filename);
++        
++        // Prepare grammar
++        Ptree local;
++        xml_grammar&lt;Ptree&gt; g;
++        g.c.stack.push_back(&amp;local);       // Push root ptree on context stack
++        g.c.flags = flags;
++
++        // Parse into local
++        boost::spirit::parse_info&lt;It&gt; result = boost::spirit::parse(begin, end, g);
++        if (!result.full || g.c.stack.size() != 1)
++            throw xml_parser_error(&quot;xml parse error&quot;, 
++                                   result.stop.get_position().file, 
++                                   result.stop.get_position().line);
++
++        // Swap local and pt
++        pt.swap(local);
++    }
++
++} } }
++
++#endif
+
+Added: trunk/boost/property_tree/detail/xml_parser_read_tinyxml.hpp
+===================================================================
+--- trunk/boost/property_tree/detail/xml_parser_read_tinyxml.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/detail/xml_parser_read_tinyxml.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,79 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_DETAIL_XML_PARSER_READ_TINYXML_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_DETAIL_XML_PARSER_READ_TINYXML_HPP_INCLUDED
++
++#include &lt;boost/property_tree/ptree.hpp&gt;
++#include &lt;boost/property_tree/detail/xml_parser_error.hpp&gt;
++#include &lt;boost/property_tree/detail/xml_parser_flags.hpp&gt;
++#include &lt;boost/property_tree/detail/xml_parser_utils.hpp&gt;
++
++#define TIXML_USE_STL
++#include &lt;tinyxml.h&gt;
++
++namespace boost { namespace property_tree { namespace xml_parser
++{
++
++    template&lt;class Ptree&gt;
++    void read_xml_node(TiXmlNode *node, Ptree &amp;pt, int flags)
++    {
++
++        typedef typename Ptree::char_type Ch;
++
++        if (TiXmlElement *elem = node-&gt;ToElement())
++        {
++            Ptree &amp;tmp = pt.push_back(std::make_pair(elem-&gt;Value(), Ptree()))-&gt;second;
++            for (TiXmlAttribute *attr = elem-&gt;FirstAttribute(); attr; attr = attr-&gt;Next())
++                tmp.put(Ch('/'), xmlattr&lt;Ch&gt;() + &quot;/&quot; + attr-&gt;Name(), attr-&gt;Value());
++            for (TiXmlNode *child = node-&gt;FirstChild(); child; child = child-&gt;NextSibling())
++                read_xml_node(child, tmp, flags);
++        }
++        else if (TiXmlText *text = node-&gt;ToText())
++        {
++            if (flags &amp; no_concat_text)
++                pt.push_back(std::make_pair(xmltext&lt;Ch&gt;(), Ptree(text-&gt;Value())));
++            else
++                pt.data() += text-&gt;Value();
++        }
++        else if (TiXmlComment *comment = node-&gt;ToComment())
++        {
++            if (!(flags &amp; no_comments))
++                pt.push_back(std::make_pair(xmlcomment&lt;Ch&gt;(), Ptree(comment-&gt;Value())));
++        }
++    }
++
++    template&lt;class Ptree&gt;
++    void read_xml_internal(std::basic_istream&lt;typename Ptree::char_type&gt; &amp;stream,
++                           Ptree &amp;pt,
++                           int flags,
++                           const std::string &amp;filename)
++    {
++
++        // Create and load document from stream
++        TiXmlDocument doc;
++        stream &gt;&gt; doc;
++        if (!stream.good())
++            throw xml_parser_error(&quot;read error&quot;, filename, 0);
++        if (doc.Error())
++            throw xml_parser_error(doc.ErrorDesc(), filename, doc.ErrorRow());
++
++        // Create ptree from nodes
++        Ptree local;
++        for (TiXmlNode *child = doc.FirstChild(); child; child = child-&gt;NextSibling())
++            read_xml_node(child, local, flags);
++
++        // Swap local and result ptrees
++        pt.swap(local);
++
++    }
++
++} } }
++
++#endif
+
+Added: trunk/boost/property_tree/detail/xml_parser_utils.hpp
+===================================================================
+--- trunk/boost/property_tree/detail/xml_parser_utils.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/detail/xml_parser_utils.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,119 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_DETAIL_XML_PARSER_UTILS_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_DETAIL_XML_PARSER_UTILS_HPP_INCLUDED
++
++#include &lt;boost/property_tree/detail/ptree_utils.hpp&gt;
++#include &lt;boost/property_tree/detail/xml_parser_error.hpp&gt;
++#include &lt;string&gt;
++#include &lt;algorithm&gt;
++#include &lt;locale&gt;
++
++namespace boost { namespace property_tree { namespace xml_parser
++{
++
++    template&lt;class Ch&gt;
++    std::basic_string&lt;Ch&gt; condense(const std::basic_string&lt;Ch&gt; &amp;s)
++    {
++        std::basic_string&lt;Ch&gt; r;
++        std::locale loc;
++        bool space = false;
++        typename std::basic_string&lt;Ch&gt;::const_iterator end = s.end();
++        for (typename std::basic_string&lt;Ch&gt;::const_iterator it = s.begin();
++             it != end; ++it)
++        {
++            if (isspace(*it, loc) || *it == Ch('\n'))
++            {
++                if (!space)
++                    r += Ch(' '), space = true;
++            }
++            else
++                r += *it, space = false;
++        }
++        return r;
++    }
++
++    template&lt;class Ch&gt;
++    std::basic_string&lt;Ch&gt; encode_char_entities(const std::basic_string&lt;Ch&gt; &amp;s)
++    {
++        typedef typename std::basic_string&lt;Ch&gt; Str;
++        Str r;
++        typename Str::const_iterator end = s.end();
++        for (typename Str::const_iterator it = s.begin(); it != end; ++it)
++        {
++            switch (*it)
++            {
++                case Ch('&lt;'): r += detail::widen&lt;Ch&gt;(&quot;&lt;&quot;); break;
++                case Ch('&gt;'): r += detail::widen&lt;Ch&gt;(&quot;&gt;&quot;); break;
++                case Ch('&amp;'): r += detail::widen&lt;Ch&gt;(&quot;&amp;&quot;); break;
++                default: r += *it; break;
++            }
++        }
++        return r;
++    }
++    
++    template&lt;class Ch&gt;
++    std::basic_string&lt;Ch&gt; decode_char_entities(const std::basic_string&lt;Ch&gt; &amp;s)
++    {
++        typedef typename std::basic_string&lt;Ch&gt; Str;
++        Str r;
++        typename Str::const_iterator end = s.end();
++        for (typename Str::const_iterator it = s.begin(); it != end; ++it)
++        {
++            if (*it == Ch('&amp;'))
++            {
++                typename Str::const_iterator semicolon = std::find(it + 1, end, Ch(';'));
++                if (semicolon == end)
++                    throw xml_parser_error(&quot;invalid character entity&quot;, &quot;&quot;, 0);
++                Str ent(it + 1, semicolon);
++                if (ent == detail::widen&lt;Ch&gt;(&quot;lt&quot;)) r += Ch('&lt;');
++                else if (ent == detail::widen&lt;Ch&gt;(&quot;gt&quot;)) r += Ch('&gt;');
++                else if (ent == detail::widen&lt;Ch&gt;(&quot;amp&quot;)) r += Ch('&amp;');
++                else
++                    throw xml_parser_error(&quot;invalid character entity&quot;, &quot;&quot;, 0);
++                it = semicolon;
++            }
++            else
++                r += *it;
++        }
++        return r;
++    }
++    
++    template&lt;class Ch&gt;
++    const std::basic_string&lt;Ch&gt; &amp;xmldecl()
++    {
++        static std::basic_string&lt;Ch&gt; s = detail::widen&lt;Ch&gt;(&quot;&lt;?xml&gt;&quot;);
++        return s;
++    }
++
++    template&lt;class Ch&gt;
++    const std::basic_string&lt;Ch&gt; &amp;xmlattr()
++    {
++        static std::basic_string&lt;Ch&gt; s = detail::widen&lt;Ch&gt;(&quot;&lt;xmlattr&gt;&quot;);
++        return s;
++    }
++
++    template&lt;class Ch&gt;
++    const std::basic_string&lt;Ch&gt; &amp;xmlcomment()
++    {
++        static std::basic_string&lt;Ch&gt; s = detail::widen&lt;Ch&gt;(&quot;&lt;xmlcomment&gt;&quot;);
++        return s;
++    }
++
++    template&lt;class Ch&gt;
++    const std::basic_string&lt;Ch&gt; &amp;xmltext()
++    {
++        static std::basic_string&lt;Ch&gt; s = detail::widen&lt;Ch&gt;(&quot;&lt;xmltext&gt;&quot;);
++        return s;
++    }
++
++} } }
++
++#endif
+
+Added: trunk/boost/property_tree/detail/xml_parser_write.hpp
+===================================================================
+--- trunk/boost/property_tree/detail/xml_parser_write.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/detail/xml_parser_write.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,145 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_DETAIL_XML_PARSER_WRITE_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_DETAIL_XML_PARSER_WRITE_HPP_INCLUDED
++
++#include &lt;boost/property_tree/ptree.hpp&gt;
++#include &lt;boost/property_tree/detail/xml_parser_utils.hpp&gt;
++#include &lt;string&gt;
++#include &lt;ostream&gt;
++#include &lt;iomanip&gt;
++
++namespace boost { namespace property_tree { namespace xml_parser
++{
++
++    template&lt;class Ch&gt;
++    void write_xml_comment(std::basic_ostream&lt;Ch&gt; &amp;stream,
++                           const std::basic_string&lt;Ch&gt; &amp;s, 
++                           int indent)
++    {
++        typedef typename std::basic_string&lt;Ch&gt; Str;
++        stream &lt;&lt; Str(4 * indent, Ch(' '));
++        stream &lt;&lt; Ch('&lt;') &lt;&lt; Ch('!') &lt;&lt; Ch('-') &lt;&lt; Ch('-');
++        stream &lt;&lt; s;
++        stream &lt;&lt; Ch('-') &lt;&lt; Ch('-') &lt;&lt; Ch('&gt;') &lt;&lt; std::endl;
++    }
++    
++    template&lt;class Ch&gt;
++    void write_xml_text(std::basic_ostream&lt;Ch&gt; &amp;stream,
++                        const std::basic_string&lt;Ch&gt; &amp;s, 
++                        int indent, 
++                        bool separate_line)
++    {
++        typedef typename std::basic_string&lt;Ch&gt; Str;
++        if (separate_line)    
++            stream &lt;&lt; Str(4 * indent, Ch(' '));
++        stream &lt;&lt; encode_char_entities(s);
++        if (separate_line)    
++            stream &lt;&lt; Ch('\n');
++    }
++
++    template&lt;class Ptree&gt;
++    void write_xml_element(std::basic_ostream&lt;typename Ptree::char_type&gt; &amp;stream, 
++                           const std::basic_string&lt;typename Ptree::char_type&gt; &amp;key,
++                           const Ptree &amp;pt, 
++                           int indent)
++    {
++
++        typedef typename Ptree::char_type Ch;
++        typedef typename std::basic_string&lt;Ch&gt; Str;
++        typedef typename Ptree::const_iterator It;
++
++        // Find if elements present
++        bool has_elements = false;
++        for (It it = pt.begin(), end = pt.end(); it != end; ++it)
++            if (it-&gt;first != xmlattr&lt;Ch&gt;() &amp;&amp;
++                it-&gt;first != xmltext&lt;Ch&gt;())
++            {
++                has_elements = true;
++                break;
++            }
++        
++        // Write element
++        if (pt.data().empty() &amp;&amp; pt.empty())    // Empty key
++        {
++            if (indent &gt;= 0)
++                stream &lt;&lt; Str(4 * indent, Ch(' ')) &lt;&lt; Ch('&lt;') &lt;&lt; key &lt;&lt; 
++                          Ch('/') &lt;&lt; Ch('&gt;') &lt;&lt; std::endl;
++        }
++        else    // Nonempty key
++        {
++        
++            // Write opening tag, attributes and data
++            if (indent &gt;= 0)
++            {
++            
++                // Write opening brace and key
++                stream &lt;&lt; Str(4 * indent, Ch(' '));
++                stream &lt;&lt; Ch('&lt;') &lt;&lt; key;
++
++                // Write attributes
++                if (optional&lt;const Ptree &amp;&gt; attribs = pt.get_child_optional(xmlattr&lt;Ch&gt;()))
++                    for (It it = attribs.get().begin(); it != attribs.get().end(); ++it)
++                        stream &lt;&lt; Ch(' ') &lt;&lt; it-&gt;first &lt;&lt; Ch('=') &lt;&lt; 
++                                  Ch('&quot;') &lt;&lt; it-&gt;second.template get_own&lt;std::basic_string&lt;Ch&gt; &gt;() &lt;&lt; Ch('&quot;');
++
++                // Write closing brace
++                stream &lt;&lt; Ch('&gt;');
++
++                // Break line if needed
++                if (has_elements)
++                    stream &lt;&lt; Ch('\n');
++
++            }
++            
++            // Write data text, if present
++            if (!pt.data().empty())
++                write_xml_text(stream, pt.template get_own&lt;std::basic_string&lt;Ch&gt; &gt;(), indent + 1, has_elements);
++            
++            // Write elements, comments and texts
++            for (It it = pt.begin(); it != pt.end(); ++it)
++            {
++                if (it-&gt;first == xmlattr&lt;Ch&gt;())
++                    continue;
++                else if (it-&gt;first == xmlcomment&lt;Ch&gt;())
++                    write_xml_comment(stream, it-&gt;second.template get_own&lt;std::basic_string&lt;Ch&gt; &gt;(), indent + 1);
++                else if (it-&gt;first == xmltext&lt;Ch&gt;())
++                    write_xml_text(stream, it-&gt;second.template get_own&lt;std::basic_string&lt;Ch&gt; &gt;(), indent + 1, has_elements);
++                else
++                    write_xml_element(stream, it-&gt;first, it-&gt;second, indent + 1);
++            }
++            
++            // Write closing tag
++            if (indent &gt;= 0)
++            {
++                if (has_elements)
++                    stream &lt;&lt; Str(4 * indent, Ch(' '));
++                stream &lt;&lt; Ch('&lt;') &lt;&lt; Ch('/') &lt;&lt; key &lt;&lt; Ch('&gt;') &lt;&lt; std::endl;
++            }
++
++        }
++    }
++
++    template&lt;class Ptree&gt;
++    void write_xml_internal(std::basic_ostream&lt;typename Ptree::char_type&gt; &amp;stream, 
++                            const Ptree &amp;pt,
++                            const std::string &amp;filename)
++    {
++        typedef typename Ptree::char_type Ch;
++        typedef typename std::basic_string&lt;Ch&gt; Str;
++        stream &lt;&lt; detail::widen&lt;Ch&gt;(&quot;&lt;?xml version=\&quot;1.0\&quot; encoding=\&quot;utf-8\&quot;?&gt;\n&quot;);
++        write_xml_element(stream, Str(), pt, -1);
++        if (!stream)
++            throw xml_parser_error(&quot;write error&quot;, filename, 0);
++    }
++
++} } }
++
++#endif
+
+Added: trunk/boost/property_tree/info_parser.hpp
+===================================================================
+--- trunk/boost/property_tree/info_parser.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/info_parser.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,77 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_INFO_PARSER_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_INFO_PARSER_HPP_INCLUDED
++
++#include &lt;boost/property_tree/ptree.hpp&gt;
++#include &lt;boost/property_tree/detail/info_parser_error.hpp&gt;
++#include &lt;boost/property_tree/detail/info_parser_read.hpp&gt;
++#include &lt;boost/property_tree/detail/info_parser_write.hpp&gt;
++#include &lt;istream&gt;
++
++namespace boost { namespace property_tree { namespace info_parser
++{
++
++    // Read info from stream
++    template&lt;class Ptree&gt;
++    void read_info(std::basic_istream&lt;typename Ptree::char_type&gt; &amp;stream, 
++                   Ptree &amp;pt)
++    {
++        Ptree local;
++        read_info_internal(stream, local, std::string(), 0);
++        pt.swap(local);
++    }
++
++    // Read info from file
++    template&lt;class Ptree&gt;
++    void read_info(const std::string &amp;filename,
++                   Ptree &amp;pt,
++                   const std::locale &amp;loc = std::locale())
++    {
++        std::basic_ifstream&lt;typename Ptree::char_type&gt; stream(filename.c_str());
++        if (!stream)
++            throw info_parser_error(&quot;cannot open file for reading&quot;, filename, 0);
++        stream.imbue(loc);
++        Ptree local;
++        read_info_internal(stream, local, filename, 0);
++        pt.swap(local);
++    }
++
++    // Write info to stream
++    template&lt;class Ptree&gt;
++    void write_info(std::basic_ostream&lt;typename Ptree::char_type&gt; &amp;stream, 
++                    const Ptree &amp;pt)
++    {
++        write_info_internal(stream, pt, std::string());
++    }
++
++    // Write info to file
++    template&lt;class Ptree&gt;
++    void write_info(const std::string &amp;filename,
++                    const Ptree &amp;pt,
++                    const std::locale &amp;loc = std::locale())
++    {
++        std::basic_ofstream&lt;typename Ptree::char_type&gt; stream(filename.c_str());
++        if (!stream)
++            throw info_parser_error(&quot;cannot open file for writing&quot;, filename, 0);
++        stream.imbue(loc);
++        write_info_internal(stream, pt, filename);
++    }
++
++} } }
++
++namespace boost { namespace property_tree
++{
++    using info_parser::info_parser_error;
++    using info_parser::read_info;
++    using info_parser::write_info;
++} }
++
++#endif
+
+Added: trunk/boost/property_tree/ini_parser.hpp
+===================================================================
+--- trunk/boost/property_tree/ini_parser.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/ini_parser.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,196 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_INI_PARSER_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_INI_PARSER_HPP_INCLUDED
++
++#include &lt;boost/property_tree/ptree.hpp&gt;
++#include &lt;boost/property_tree/detail/ptree_utils.hpp&gt;
++#include &lt;boost/property_tree/detail/file_parser_error.hpp&gt;
++#include &lt;istream&gt;
++#include &lt;string&gt;
++#include &lt;sstream&gt;
++#include &lt;stdexcept&gt;
++#include &lt;locale&gt;
++
++namespace boost { namespace property_tree { namespace ini_parser
++{
++
++    static const int skip_ini_validity_check = 1;     // Skip check if ptree is a valid ini
++
++    inline bool validate_flags(int flags)
++    {
++        return (flags &amp; ~skip_ini_validity_check) == 0;
++    }
++
++    //! Ini parser error
++    class ini_parser_error: public file_parser_error
++    {
++    public:
++        ini_parser_error(const std::string &amp;message, 
++                         const std::string &amp;filename, 
++                         unsigned long line): 
++            file_parser_error(message, filename, line)
++        { 
++        }
++    };
++
++    //! Read ini from stream
++    template&lt;class Ptree&gt;
++    void read_ini(std::basic_istream&lt;typename Ptree::char_type&gt; &amp;stream, 
++                  Ptree &amp;pt)
++    {
++
++        typedef typename Ptree::char_type Ch;
++        typedef std::basic_string&lt;Ch&gt; Str;
++
++        Ptree local;
++        unsigned long line_no = 0;
++        Ptree *section = 0;
++        Str line;
++
++        // For all lines
++        while (stream.good())
++        {
++
++            // Get line from stream
++            ++line_no;
++            std::getline(stream, line);
++            if (!stream.good() &amp;&amp; !stream.eof())
++                throw ini_parser_error(&quot;read error&quot;, &quot;&quot;, line_no);
++
++            // If line is non-empty
++            line = detail::trim(line, stream.getloc());
++            if (!line.empty())
++            {
++            
++                // Comment, section or key?
++                if (line[0] == Ch(';'))
++                {
++                    // Ignore comments
++                }
++                else if (line[0] == Ch('['))
++                {
++                    typename Str::size_type end = line.find(Ch(']'));
++                    if (end == Str::npos)
++                        throw ini_parser_error(&quot;unmatched '['&quot;, &quot;&quot;, line_no);
++                    Str key = detail::trim(line.substr(1, end - 1), stream.getloc());
++                    if (local.find(key) != local.end())
++                        throw ini_parser_error(&quot;duplicate section name&quot;, &quot;&quot;, line_no);
++                    section = &amp;local.push_back(std::make_pair(key, Ptree()))-&gt;second;
++                }
++                else
++                {
++                    if (!section)
++                        throw ini_parser_error(&quot;section expected&quot;, &quot;&quot;, line_no);
++                    typename Str::size_type eqpos = line.find(Ch('='));
++                    if (eqpos == Str::npos)
++                        throw ini_parser_error(&quot;'=' character not found in line&quot;, &quot;&quot;, line_no);
++                    if (eqpos == 0)
++                        throw ini_parser_error(&quot;key expected&quot;, &quot;&quot;, line_no);
++                    Str key = detail::trim(line.substr(0, eqpos), stream.getloc());
++                    Str data = detail::trim(line.substr(eqpos + 1, Str::npos), stream.getloc());
++                    if (section-&gt;find(key) != section-&gt;end())
++                        throw ini_parser_error(&quot;duplicate key name&quot;, &quot;&quot;, line_no);
++                    section-&gt;push_back(std::make_pair(key, Ptree(data)));
++                }
++            }
++        }
++
++        // Swap local ptree with result ptree
++        pt.swap(local);
++
++    }
++
++    //! Read ini from file
++    template&lt;class Ptree&gt;
++    void read_ini(const std::string &amp;filename, 
++                  Ptree &amp;pt,
++                  const std::locale &amp;loc = std::locale())
++    {
++        std::basic_ifstream&lt;typename Ptree::char_type&gt; stream(filename.c_str());
++        if (!stream)
++            throw ini_parser_error(&quot;cannot open file&quot;, filename, 0);
++        stream.imbue(loc);
++        try {
++            read_ini(stream, pt);
++        }
++        catch (ini_parser_error &amp;e) {
++            throw ini_parser_error(e.message(), filename, e.line());
++        }
++    }
++
++    //! Write ini to stream
++    template&lt;class Ptree&gt;
++    void write_ini(std::basic_ostream&lt;typename Ptree::char_type&gt; &amp;stream, 
++                   const Ptree &amp;pt,
++                   int flags = 0)
++    {
++
++        typedef typename Ptree::char_type Ch;
++        typedef std::basic_string&lt;Ch&gt; Str;
++
++        BOOST_ASSERT(validate_flags(flags));
++        
++        // Verify if ptree is not too rich to be saved as ini
++        if (!(flags &amp; skip_ini_validity_check))
++            for (typename Ptree::const_iterator it = pt.begin(), end = pt.end(); it != end; ++it)
++            {
++                if (!it-&gt;second.data().empty())
++                    throw ini_parser_error(&quot;ptree has data on root level keys&quot;, &quot;&quot;, 0);
++                if (pt.count(it-&gt;first) &gt; 1)
++                    throw ini_parser_error(&quot;duplicate section name&quot;, &quot;&quot;, 0);
++                for (typename Ptree::const_iterator it2 = it-&gt;second.begin(), end2 = it-&gt;second.end(); it2 != end2; ++it2)
++                {
++                    if (!it2-&gt;second.empty())
++                        throw ini_parser_error(&quot;ptree is too deep&quot;, &quot;&quot;, 0);
++                    if (it-&gt;second.count(it2-&gt;first) &gt; 1)
++                        throw ini_parser_error(&quot;duplicate key name&quot;, &quot;&quot;, 0);
++                }
++            }
++
++        // Write ini
++        for (typename Ptree::const_iterator it = pt.begin(), end = pt.end(); it != end; ++it)
++        {
++            stream &lt;&lt; Ch('[') &lt;&lt; it-&gt;first &lt;&lt; Ch(']') &lt;&lt; Ch('\n');
++            for (typename Ptree::const_iterator it2 = it-&gt;second.begin(), end2 = it-&gt;second.end(); it2 != end2; ++it2)
++                stream &lt;&lt; it2-&gt;first &lt;&lt; Ch('=') &lt;&lt; it2-&gt;second.template get_own&lt;std::basic_string&lt;Ch&gt; &gt;() &lt;&lt; Ch('\n');
++        }
++
++    }
++
++    // Write ini to file
++    template&lt;class Ptree&gt;
++    void write_ini(const std::string &amp;filename,
++                   const Ptree &amp;pt,
++                   int flags = 0,
++                   const std::locale &amp;loc = std::locale())
++    {
++        std::basic_ofstream&lt;typename Ptree::char_type&gt; stream(filename.c_str());
++        if (!stream)
++            throw ini_parser_error(&quot;cannot open file&quot;, filename, 0);
++        stream.imbue(loc);
++        try {
++            write_ini(stream, pt, flags);
++        }
++        catch (ini_parser_error &amp;e) {
++            throw ini_parser_error(e.message(), filename, e.line());
++        }
++    }
++
++} } }
++
++namespace boost { namespace property_tree
++{
++    using ini_parser::ini_parser_error;
++    using ini_parser::read_ini;
++    using ini_parser::write_ini;
++} }
++
++#endif
+
+Added: trunk/boost/property_tree/json_parser.hpp
+===================================================================
+--- trunk/boost/property_tree/json_parser.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/json_parser.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,76 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_JSON_PARSER_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_JSON_PARSER_HPP_INCLUDED
++
++#include &lt;boost/property_tree/ptree.hpp&gt;
++#include &lt;boost/property_tree/detail/json_parser_read.hpp&gt;
++#include &lt;boost/property_tree/detail/json_parser_write.hpp&gt;
++#include &lt;boost/property_tree/detail/json_parser_error.hpp&gt;
++
++#include &lt;fstream&gt;
++#include &lt;string&gt;
++#include &lt;locale&gt;
++
++namespace boost { namespace property_tree { namespace json_parser
++{
++
++    // Read json from stream
++    template&lt;class Ptree&gt;
++    void read_json(std::basic_istream&lt;typename Ptree::char_type&gt; &amp;stream,
++                   Ptree &amp;pt)
++    {
++        read_json_internal(stream, pt, std::string());
++    }
++
++    // Read json from file
++    template&lt;class Ptree&gt;
++    void read_json(const std::string &amp;filename,
++                   Ptree &amp;pt,
++                   const std::locale &amp;loc = std::locale())
++    {
++        std::basic_ifstream&lt;typename Ptree::char_type&gt; stream(filename.c_str());
++        if (!stream)
++            throw json_parser_error(&quot;cannot open file&quot;, filename, 0);
++        stream.imbue(loc);
++        read_json_internal(stream, pt, filename);
++    }
++
++    // Write json to stream
++    template&lt;class Ptree&gt;
++    void write_json(std::basic_ostream&lt;typename Ptree::char_type&gt; &amp;stream, 
++                    const Ptree &amp;pt)
++    {
++        write_json_internal(stream, pt, std::string());
++    }
++
++    // Write json to file
++    template&lt;class Ptree&gt;
++    void write_json(const std::string &amp;filename,
++                    const Ptree &amp;pt,
++                    const std::locale &amp;loc = std::locale())
++    {
++        std::basic_ofstream&lt;typename Ptree::char_type&gt; stream(filename.c_str());
++        if (!stream)
++            throw json_parser_error(&quot;cannot open file&quot;, filename, 0);
++        stream.imbue(loc);
++        write_json_internal(stream, pt, filename);
++    }
++
++} } }
++
++namespace boost { namespace property_tree
++{
++    using json_parser::read_json;
++    using json_parser::write_json;
++    using json_parser::json_parser_error;
++} }
++
++#endif
+
+Added: trunk/boost/property_tree/ptree.hpp
+===================================================================
+--- trunk/boost/property_tree/ptree.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/ptree.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,16 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_PTREE_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_PTREE_HPP_INCLUDED
++
++#include &lt;boost/property_tree/detail/ptree_interface.hpp&gt;
++#include &lt;boost/property_tree/detail/ptree_implementation.hpp&gt;
++
++#endif                                                
+
+Added: trunk/boost/property_tree/ptree_fwd.hpp
+===================================================================
+--- trunk/boost/property_tree/ptree_fwd.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/ptree_fwd.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,54 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_PTREE_FWD_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_PTREE_FWD_HPP_INCLUDED
++
++#include &lt;boost/config.hpp&gt;
++
++namespace boost { namespace property_tree
++{
++
++    ////////////////////////////////////////////////////////////////////////////
++    // Traits
++
++    template&lt;class Ch&gt; struct ptree_traits;
++    template&lt;class Ch&gt; struct iptree_traits;
++
++    ///////////////////////////////////////////////////////////////////////////
++    // Exceptions
++
++    class ptree_error;
++    class bad_ptree_data;
++    class bad_ptree_path;
++
++    ///////////////////////////////////////////////////////////////////////////
++    // basic_ptree class template
++
++    template&lt;class Tr&gt; class basic_ptree;
++
++    ////////////////////////////////////////////////////////////////////////////
++    // Typedefs
++
++    typedef basic_ptree&lt;ptree_traits&lt;char&gt; &gt; ptree;       // case sensitive, narrow char
++    typedef basic_ptree&lt;iptree_traits&lt;char&gt; &gt; iptree;     // case insensitive, narrow char
++#ifndef BOOST_NO_CWCHAR
++    typedef basic_ptree&lt;ptree_traits&lt;wchar_t&gt; &gt; wptree;    // case sensitive, wide char
++    typedef basic_ptree&lt;iptree_traits&lt;wchar_t&gt; &gt; wiptree;  // case insensitive, wide char
++#endif
++
++    ///////////////////////////////////////////////////////////////////////////
++    // Free functions
++
++    template&lt;class Tr&gt; void swap(basic_ptree&lt;Tr&gt; &amp;pt1, basic_ptree&lt;Tr&gt; &amp;pt2);
++    template&lt;class Ptree&gt; const Ptree &amp;empty_ptree();
++
++} }
++
++#endif
+
+Added: trunk/boost/property_tree/registry_parser.hpp
+===================================================================
+--- trunk/boost/property_tree/registry_parser.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/registry_parser.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,520 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_REGISTRY_PARSER_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_REGISTRY_PARSER_HPP_INCLUDED
++
++// Include minimal version of windows.h if not included yet
++#ifndef _WINDOWS_
++#ifndef NOMINMAX
++    #define NOMINMAX
++#endif
++#define STRICT
++#define WIN32_LEAN_AND_MEAN
++#define VC_EXTRALEAN
++#define NOGDICAPMASKS
++#define NOVIRTUALKEYCODES
++#define NOWINMESSAGES
++#define NOWINSTYLES
++#define NOSYSMETRICS
++#define NOMENUS
++#define NOICONS
++#define NOKEYSTATES
++#define NOSYSCOMMANDS
++#define NORASTEROPS
++#define NOSHOWWINDOW
++#define OEMRESOURCE
++#define NOATOM
++#define NOCLIPBOARD
++#define NOCOLOR
++#define NOCTLMGR
++#define NODRAWTEXT
++#define NOGDI
++#define NOKERNEL
++#define NOUSER
++#define NONLS
++#define NOMB 
++#define NOMEMMGR
++#define NOMETAFILE
++#define NOMSG
++#define NOOPENFILE
++#define NOSCROLL
++#define NOSERVICE
++#define NOSOUND
++#define NOTEXTMETRIC
++#define NOWH
++#define NOWINOFFSETS
++#define NOCOMM
++#define NOKANJI
++#define NOHELP
++#define NOPROFILER
++#define NODEFERWINDOWPOS
++#define NOMCX
++#include &lt;windows.h&gt;
++#endif
++
++#include &lt;boost/property_tree/ptree.hpp&gt;
++#include &lt;boost/property_tree/detail/ptree_utils.hpp&gt;
++#include &lt;boost/cstdint.hpp&gt;                // for 64 bit int
++#include &lt;sstream&gt;
++#include &lt;iomanip&gt;
++#include &lt;string&gt;
++#include &lt;vector&gt;
++#include &lt;stdexcept&gt;
++
++namespace boost { namespace property_tree { namespace registry_parser
++{
++
++    //! Registry parser error
++    class registry_parser_error: public ptree_error
++    {
++    public:
++    
++        // Construct error 
++        registry_parser_error(const std::string &amp;message, DWORD windows_error): 
++            ptree_error(format_what(message, windows_error)), 
++            m_windows_error(windows_error)
++        { 
++        }
++    
++        // Get windows error
++        DWORD windows_error()
++        {
++            return m_windows_error;
++        }
++    
++    private:
++
++        DWORD m_windows_error;
++
++        // Format error message to be returned by std::runtime_error::what()
++        std::string format_what(const std::string &amp;message,
++                                DWORD windows_error)
++        {
++            std::stringstream stream;
++            if (windows_error)
++                stream &lt;&lt; message &lt;&lt; &quot; (windows error 0x&quot; &lt;&lt; std::hex &lt;&lt; windows_error &lt;&lt; &quot;)&quot;;
++            else
++                stream &lt;&lt; message;
++            return stream.str();
++        }
++
++    };
++
++    // Translate from binary buffer to string
++    template&lt;class Ch&gt;
++    std::basic_string&lt;Ch&gt; translate(DWORD type, const std::vector&lt;BYTE&gt; &amp;data)
++    {
++
++        typedef std::basic_string&lt;Ch&gt; Str;
++        typedef std::basic_stringstream&lt;Ch&gt; Stream;
++
++        Str value;
++        switch (type)
++        {
++        
++            // No data
++            case REG_NONE:
++                break;
++            
++            // Binary data
++            case REG_BINARY: 
++                if (!data.empty())
++                {
++                    Stream stream;
++                    stream &lt;&lt; std::hex &lt;&lt; std::setfill(Ch('0'));
++                    for (std::vector&lt;BYTE&gt;::const_iterator it = data.begin(), end = data.end(); 
++                         it != end; ++it)
++                        stream &lt;&lt; std::setw(2) &lt;&lt; static_cast&lt;int&gt;(*it) &lt;&lt; Ch(' ');
++                    value = stream.str();
++                    value.resize(value.size() - 1); // remove final space
++                }
++                break;
++            
++            // DWORD value
++            case REG_DWORD: 
++                if (!data.empty())
++                {
++                    Stream stream;
++                    stream &lt;&lt; *reinterpret_cast&lt;const DWORD *&gt;(&amp;data.front());
++                    value = stream.str();
++                }
++                break;
++
++            // QWORD value
++            case REG_QWORD: 
++                if (!data.empty())
++                {
++                    Stream stream;
++                    stream &lt;&lt; *reinterpret_cast&lt;const boost::uint64_t *&gt;(&amp;data.front());
++                    value = stream.str();
++                }
++                break;
++            
++            // Zero terminated string
++            case REG_SZ: case REG_EXPAND_SZ: 
++                if (!data.empty())
++                    value.assign(reinterpret_cast&lt;const Ch *&gt;(&amp;data.front()));
++                break;
++            
++            // Unknown data type
++            default:
++                throw registry_parser_error(&quot;unsupported data type&quot;, 0);
++
++        };
++        return value;
++    }
++
++    // Translate from string to binary buffer
++    template&lt;class Ch&gt;
++    std::vector&lt;BYTE&gt; translate(DWORD type, const std::basic_string&lt;Ch&gt; &amp;s)
++    {
++
++        typedef std::basic_string&lt;Ch&gt; Str;
++        typedef std::basic_stringstream&lt;Ch&gt; Stream;
++
++        std::vector&lt;BYTE&gt; data;
++        switch (type)
++        {
++        
++            // No data
++            case REG_NONE:
++                break;
++            
++            // Binary data
++            case REG_BINARY:
++                {
++                    int v;
++                    Stream stream(s);
++                    stream &gt;&gt; std::hex;
++                    while (1)
++                    {
++                        stream &gt;&gt; v &gt;&gt; std::ws;
++                        if (stream.fail() || stream.bad())
++                            throw registry_parser_error(&quot;bad REG_BINARY value&quot;, 0);
++                        data.push_back(v);
++                        if (stream.eof())
++                            break;
++                    }
++                }
++                break;
++            
++            // DWORD value
++            case REG_DWORD: 
++                {
++                    DWORD v;
++                    Stream stream(s);
++                    stream &gt;&gt; v &gt;&gt; std::ws;
++                    if (!stream.eof() || stream.fail() || stream.bad())
++                        throw registry_parser_error(&quot;bad REG_DWORD value&quot;, 0);
++                    for (size_t i = 0; i &lt; sizeof(v); ++i)
++                        data.push_back(*(reinterpret_cast&lt;BYTE *&gt;(&amp;v) + i));
++                }
++                break;
++
++            // QWORD value
++            case REG_QWORD: 
++                {
++                    boost::uint64_t v;
++                    Stream stream(s);
++                    stream &gt;&gt; v;
++                    if (!stream.eof() || stream.fail() || stream.bad())
++                        throw registry_parser_error(&quot;bad REG_QWORD value&quot;, 0);
++                    for (size_t i = 0; i &lt; sizeof(v); ++i)
++                        data.push_back(*(reinterpret_cast&lt;BYTE *&gt;(&amp;v) + i));
++                }
++                break;
++            
++            // Zero terminated string
++            case REG_SZ: case REG_EXPAND_SZ:
++                {
++                    const Ch *sz = s.c_str();
++                    size_t len = (s.size() + 1) * sizeof(Ch);
++                    for (size_t i = 0; i &lt; len; ++i)
++                        data.push_back(*(reinterpret_cast&lt;const BYTE *&gt;(sz) + i));
++                }
++                break;
++            
++            // Unknown data type
++            default:
++                throw registry_parser_error(&quot;unsupported data type&quot;, 0);
++
++        };
++        return data;
++    }
++
++    /////////////////////////////////////////////////////////////////////////////
++    // Registry functions wrappers
++    
++    template&lt;class Ch&gt; 
++    inline LONG reg_create_key_ex(HKEY hkey, const Ch *subkey, REGSAM sam, HKEY *result);
++
++    template&lt;&gt; 
++    inline LONG reg_create_key_ex&lt;char&gt;(HKEY hkey, const char *subkey, REGSAM sam, HKEY *result)
++    {
++        return RegCreateKeyExA(hkey, subkey, 0, NULL, REG_OPTION_NON_VOLATILE, sam, NULL, result, NULL);
++    }
++    
++    template&lt;&gt; 
++    inline LONG reg_create_key_ex&lt;wchar_t&gt;(HKEY hkey, const wchar_t *subkey, REGSAM sam, HKEY *result)
++    {
++        return RegCreateKeyExW(hkey, subkey, 0, NULL, REG_OPTION_NON_VOLATILE, sam, NULL, result, NULL);
++    }
++
++    template&lt;class Ch&gt; 
++    inline LONG reg_set_value_ex(HKEY hkey, const Ch *name, DWORD type, const BYTE *data, DWORD size);
++
++    template&lt;&gt; 
++    inline LONG reg_set_value_ex&lt;char&gt;(HKEY hkey, const char *name, DWORD type, const BYTE *data, DWORD size)
++    {
++        return RegSetValueExA(hkey, name, 0, type, data, size);
++    }
++
++    template&lt;&gt; 
++    inline LONG reg_set_value_ex&lt;wchar_t&gt;(HKEY hkey, const wchar_t *name, DWORD type, const BYTE *data, DWORD size)
++    {
++        return RegSetValueExW(hkey, name, 0, type, data, size);
++    }
++
++    template&lt;class Ch&gt; 
++    inline LONG reg_open_key_ex(HKEY hkey, const Ch *subkey, REGSAM sam, HKEY *result);
++
++    template&lt;&gt; 
++    inline LONG reg_open_key_ex&lt;char&gt;(HKEY hkey, const char *subkey, REGSAM sam, HKEY *result)
++    {
++        return RegOpenKeyExA(hkey, subkey, 0, sam, result);
++    }
++    
++    template&lt;&gt; 
++    inline LONG reg_open_key_ex&lt;wchar_t&gt;(HKEY hkey, const wchar_t *subkey, REGSAM sam, HKEY *result)
++    {
++        return RegOpenKeyExW(hkey, subkey, 0, sam, result);
++    }
++
++    template&lt;class Ch&gt; 
++    inline LONG reg_enum_key_ex(HKEY hkey, DWORD index, Ch *name, DWORD *size);
++
++    template&lt;&gt; 
++    inline LONG reg_enum_key_ex&lt;char&gt;(HKEY hkey, DWORD index, char *name, DWORD *size)
++    {
++        FILETIME ft;
++        return RegEnumKeyExA(hkey, index, name, size, 0, NULL, NULL, &amp;ft);
++    }
++
++    template&lt;&gt; 
++    inline LONG reg_enum_key_ex&lt;wchar_t&gt;(HKEY hkey, DWORD index, wchar_t *name, DWORD *size)
++    {
++        FILETIME ft;
++        return RegEnumKeyExW(hkey, index, name, size, 0, NULL, NULL, &amp;ft);
++    }
++
++    template&lt;class Ch&gt; 
++    inline LONG reg_enum_value(HKEY hkey, DWORD index, Ch *name, DWORD *name_size, DWORD *type, BYTE *data, DWORD *data_size);
++
++    template&lt;&gt; 
++    inline LONG reg_enum_value&lt;char&gt;(HKEY hkey, DWORD index, char *name, DWORD *name_size, DWORD *type, BYTE *data, DWORD *data_size)
++    {
++        return RegEnumValueA(hkey, index, name, name_size, NULL, type, data, data_size);
++    }
++
++    template&lt;&gt; 
++    inline LONG reg_enum_value&lt;wchar_t&gt;(HKEY hkey, DWORD index, wchar_t *name, DWORD *name_size, DWORD *type, BYTE *data, DWORD *data_size)
++    {
++        return RegEnumValueW(hkey, index, name, name_size, NULL, type, data, data_size);
++    }
++
++    template&lt;class Ch&gt; 
++    inline LONG reg_query_info_key(HKEY hkey, DWORD *max_subkey_len, DWORD *max_name_len, DWORD *max_value_len);
++
++    template&lt;&gt; 
++    inline LONG reg_query_info_key&lt;char&gt;(HKEY hkey, DWORD *max_subkey_len, DWORD *max_name_len, DWORD *max_value_len)
++    {
++        return RegQueryInfoKeyA(hkey, NULL, NULL, NULL, NULL, max_subkey_len, NULL, NULL, max_name_len, max_value_len, NULL, NULL);
++    }
++
++    template&lt;&gt; 
++    inline LONG reg_query_info_key&lt;wchar_t&gt;(HKEY hkey, DWORD *max_subkey_len, DWORD *max_name_len, DWORD *max_value_len)
++    {
++        return RegQueryInfoKeyW(hkey, NULL, NULL, NULL, NULL, max_subkey_len, NULL, NULL, max_name_len, max_value_len, NULL, NULL);
++    }
++
++    /////////////////////////////////////////////////////////////////////////////
++    // Registry key handle wrapper
++    
++    template&lt;class Ch&gt;
++    class reg_key
++    {
++    public:
++        typedef std::basic_string&lt;Ch&gt; Str;
++        reg_key(HKEY root, const std::basic_string&lt;Ch&gt; &amp;key, bool create):
++            hkey(0)
++        {
++            if (create)
++            {
++                LONG result = reg_create_key_ex(root, key.c_str(), KEY_WRITE, &amp;hkey);
++                if (result != ERROR_SUCCESS)
++                    throw registry_parser_error(&quot;RegCreateKeyEx failed&quot;, result);
++            }
++            else
++            {
++                LONG result = reg_open_key_ex(root, key.c_str(), KEY_READ, &amp;hkey);
++                if (result != ERROR_SUCCESS)
++                    throw registry_parser_error(&quot;RegOpenKeyEx failed&quot;, result);
++            }
++            BOOST_ASSERT(hkey);
++        }
++        ~reg_key()
++        {
++            BOOST_ASSERT(hkey);
++            RegCloseKey(hkey);
++        }
++        HKEY handle()
++        {
++            BOOST_ASSERT(hkey);
++            return hkey;
++        }
++    private:
++        HKEY hkey;
++    };
++    
++    /////////////////////////////////////////////////////////////////////////////
++    // Registry parser
++    
++    //! Read registry
++    template&lt;class Ptree&gt;
++    void read_registry(HKEY root, 
++                       const std::basic_string&lt;typename Ptree::char_type&gt; &amp;key, 
++                       Ptree &amp;pt)
++    {
++
++        typedef typename Ptree::char_type Ch;
++        typedef std::basic_string&lt;Ch&gt; Str;
++        typedef std::basic_stringstream&lt;Ch&gt; Stream;
++        
++        Ptree local;
++        
++        // Open key
++        reg_key&lt;Ch&gt; rk(root, key, false);
++        
++        // Query key info
++        DWORD max_subkey_len, max_name_len, max_value_len;
++        LONG result = reg_query_info_key&lt;Ch&gt;(rk.handle(), &amp;max_subkey_len, &amp;max_name_len, &amp;max_value_len);
++        if (result != ERROR_SUCCESS)
++            throw registry_parser_error(&quot;RegQueryInfoKey failed&quot;, result);
++
++        // For all subkeys
++        std::vector&lt;Ch&gt; subkey(max_subkey_len + 1);
++        for (DWORD index = 0; true; ++index)
++        {
++            
++            // Get subkey name
++            DWORD size = static_cast&lt;DWORD&gt;(subkey.size());
++            LONG result = reg_enum_key_ex(rk.handle(), index, &amp;subkey.front(), &amp;size);
++            if (result == ERROR_NO_MORE_ITEMS)
++                break;
++            if (result != ERROR_SUCCESS)
++                throw registry_parser_error(&quot;RegEnumKeyEx failed&quot;, result);
++            
++            // Parse recursively
++            Ptree &amp;child = local.push_back(typename Ptree::value_type(&amp;subkey.front(), Ptree()))-&gt;second;
++            read_registry&lt;Ptree&gt;(rk.handle(), &amp;subkey.front(), child);
++
++        }
++
++        // For all values
++        for (DWORD index = 0; true; ++index)
++        {
++
++            // Resize data to max size
++            std::vector&lt;Ch&gt; name(max_name_len + 1);
++            std::vector&lt;BYTE&gt; data(max_value_len + 1);
++            
++            // Get name and value from registry
++            DWORD name_size = static_cast&lt;DWORD&gt;(name.size());
++            DWORD data_size = static_cast&lt;DWORD&gt;(data.size());
++            DWORD type;
++            result = reg_enum_value&lt;Ch&gt;(rk.handle(), index, &amp;name.front(), &amp;name_size, &amp;type, &amp;data.front(), &amp;data_size);
++            if (result == ERROR_NO_MORE_ITEMS)
++                break;
++            if (result != ERROR_SUCCESS)
++                throw registry_parser_error(&quot;RegEnumValue failed&quot;, result);
++
++            // Truncate data to actual size
++            name.resize(name_size + 1);
++            data.resize(data_size);
++
++            // Translate and put value in tree
++            Str value = translate&lt;Ch&gt;(type, data);
++            if (name_size &gt; 0)
++            {
++                local.put(Str(detail::widen&lt;Ch&gt;(&quot;\\values.&quot;) + &amp;name.front()), value);
++                local.put(Str(detail::widen&lt;Ch&gt;(&quot;\\types.&quot;) + &amp;name.front()), type);
++            }
++            else
++                local.data() = value;
++
++        }
++
++        // Swap pt and local
++        pt.swap(local);
++
++    }
++
++    //! Write registry
++    template&lt;class Ptree&gt;
++    void write_registry(HKEY root, 
++                        const std::basic_string&lt;typename Ptree::char_type&gt; &amp;key, 
++                        const Ptree &amp;pt)
++    {
++
++        typedef typename Ptree::char_type Ch;
++        typedef std::basic_string&lt;Ch&gt; Str;
++        typedef std::basic_stringstream&lt;Ch&gt; Stream;
++        
++        // Create key
++        reg_key&lt;Ch&gt; rk(root, key, true);
++
++        // Set default key value
++        if (!pt.data().empty())
++        {
++            std::vector&lt;BYTE&gt; data = translate&lt;Ch&gt;(REG_SZ, pt.data());
++            reg_set_value_ex&lt;Ch&gt;(rk.handle(), NULL, REG_SZ, 
++                                 data.empty() ? NULL : &amp;data.front(), 
++                                 static_cast&lt;DWORD&gt;(data.size()));
++        }
++
++        // Create values
++        const Ptree &amp;values = pt.get_child(detail::widen&lt;Ch&gt;(&quot;\\values&quot;), empty_ptree&lt;Ptree&gt;());
++        const Ptree &amp;types = pt.get_child(detail::widen&lt;Ch&gt;(&quot;\\types&quot;), empty_ptree&lt;Ptree&gt;());
++        for (typename Ptree::const_iterator it = values.begin(), end = values.end(); it != end; ++it)
++        {
++            DWORD type = types.get(it-&gt;first, REG_SZ);
++            std::vector&lt;BYTE&gt; data = translate&lt;Ch&gt;(type, it-&gt;second.data());
++            reg_set_value_ex&lt;Ch&gt;(rk.handle(), it-&gt;first.c_str(), type, 
++                                 data.empty() ? NULL : &amp;data.front(), 
++                                 static_cast&lt;DWORD&gt;(data.size()));
++        }
++
++        // Create subkeys
++        for (typename Ptree::const_iterator it = pt.begin(), end = pt.end(); it != end; ++it)
++            if (&amp;it-&gt;second != &amp;values &amp;&amp; &amp;it-&gt;second != &amp;types)
++                write_registry(rk.handle(), it-&gt;first, it-&gt;second);
++
++    }
++
++} } }
++
++namespace boost { namespace property_tree
++{
++    using registry_parser::read_registry;
++    using registry_parser::write_registry;
++    using registry_parser::registry_parser_error;
++} }
++
++#endif
+
+Added: trunk/boost/property_tree/xml_parser.hpp
+===================================================================
+--- trunk/boost/property_tree/xml_parser.hpp	2006-10-03 08:44:04 UTC (rev 304)
++++ trunk/boost/property_tree/xml_parser.hpp	2006-10-03 08:49:51 UTC (rev 305)
+@@ -0,0 +1,86 @@
++// ----------------------------------------------------------------------------
++// Copyright (C) 2002-2005 Marcin Kalicinski
++//
++// Distributed under the Boost Software License, Version 1.0. 
++// (See accompanying file LICENSE_1_0.txt or copy at 
++// <A HREF="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</A>)
++//
++// For more information, see www.boost.org
++// ----------------------------------------------------------------------------
++#ifndef BOOST_PROPERTY_TREE_XML_PARSER_HPP_INCLUDED
++#define BOOST_PROPERTY_TREE_XML_PARSER_HPP_INCLUDED
++
++#include &lt;boost/property_tree/ptree.hpp&gt;
++#include &lt;boost/property_tree/detail/xml_parser_write.hpp&gt;
++#include &lt;boost/property_tree/detail/xml_parser_error.hpp&gt;
++#include &lt;boost/property_tree/detail/xml_parser_flags.hpp&gt;
++
++// Include proper parser
++#ifdef BOOST_PROPERTY_TREE_XML_PARSER_TINYXML
++#include &lt;boost/property_tree/detail/xml_parser_read_tinyxml.hpp&gt;
++#else
++#include &lt;boost/property_tree/detail/xml_parser_read_spirit.hpp&gt;
++#endif
++
++#include &lt;fstream&gt;
++#include &lt;string&gt;
++#include &lt;locale&gt;
++
++namespace boost { namespace property_tree { namespace xml_parser
++{
++
++    // Read XML from stream
++    template&lt;class Ptree&gt;
++    void read_xml(std::basic_istream&lt;typename Ptree::char_type&gt; &amp;stream,
++                  Ptree &amp;pt,
++                  int flags = 0)
++    {
++        read_xml_internal(stream, pt, flags, std::string());
++    }
++
++    // Read XML from file
++    template&lt;class Ptree&gt;
++    void read_xml(const std::string &amp;filename,
++                  Ptree &amp;pt,
++                  int flags = 0,
++                  const std::locale &amp;loc = std::locale())
++    {
++        BOOST_ASSERT(validate_flags(flags));
++        std::basic_ifstream&lt;typename Ptree::char_type&gt; stream(filename.c_str());
++        if (!stream)
++            throw xml_parser_error(&quot;cannot open file&quot;, filename, 0);
++        stream.imbue(loc);
++        read_xml_internal(stream, pt, flags, filename);
++    }
++
++    // Write XML to stream
++    template&lt;class Ptree&gt;
++    void write_xml(std::basic_ostream&lt;typename Ptree::char_type&gt; &amp;stream, 
++                   const Ptree &amp;pt)
++    {
++        write_xml_internal(stream, pt, std::string());
++    }
++
++    // Write XML to file
++    template&lt;class Ptree&gt;
++    void write_xml(const std::string &amp;filename,
++                   const Ptree &amp;pt,
++                   const std::locale &amp;loc = std::locale())
++    {
++        std::basic_ofstream&lt;typename Ptree::char_type&gt; stream(filename.c_str());
++        if (!stream)
++            throw xml_parser_error(&quot;cannot open file&quot;, filename, 0);
++        stream.imbue(loc);
++        write_xml_internal(stream, pt, filename);
++    }
++
++} } }
++
++namespace boost { namespace property_tree
++{
++    using xml_parser::read_xml;
++    using xml_parser::write_xml;
++    using xml_parser::xml_parser_error;
++} }
++
++#endif
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000189.html">[Mapnik-svn] r304 - in trunk: bindings/python demo/c++ demo/python	include src
+</A></li>
+	<LI>Next message: <A HREF="000191.html">[Mapnik-svn] r306 - trunk/boost
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#190">[ date ]</a>
+              <a href="thread.html#190">[ thread ]</a>
+              <a href="subject.html#190">[ subject ]</a>
+              <a href="author.html#190">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

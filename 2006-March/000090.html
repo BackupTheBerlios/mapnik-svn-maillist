@@ -1,0 +1,225 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r204 - trunk/include
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r204%20-%20trunk/include&In-Reply-To=%3C200603222031.k2MKVTTs026462%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000089.html">
+   <LINK REL="Next"  HREF="000091.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r204 - trunk/include</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r204%20-%20trunk/include&In-Reply-To=%3C200603222031.k2MKVTTs026462%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r204 - trunk/include">pavlenko at berlios.de
+       </A><BR>
+    <I>Wed Mar 22 21:31:29 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000089.html">[Mapnik-svn] r203 - trunk/agg
+</A></li>
+        <LI>Next message: <A HREF="000091.html">[Mapnik-svn] r206 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#90">[ date ]</a>
+              <a href="thread.html#90">[ thread ]</a>
+              <a href="subject.html#90">[ subject ]</a>
+              <a href="author.html#90">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-22 21:31:02 +0100 (Wed, 22 Mar 2006)
+New Revision: 204
+
+Modified:
+   trunk/include/value.hpp
+Log:
+code cleanup
+
+
+
+Modified: trunk/include/value.hpp
+===================================================================
+--- trunk/include/value.hpp	2006-03-22 20:20:44 UTC (rev 203)
++++ trunk/include/value.hpp	2006-03-22 20:31:02 UTC (rev 204)
+@@ -327,20 +327,20 @@
+ 	    }
+ 	};
+ 	
+-    struct to_expression_string : public boost::static_visitor&lt;std::string&gt;
+-    {
+-        template &lt;typename T&gt;
+-        std::string operator() (T val) const
+-        {
+-            std::stringstream ss;
+-            ss &lt;&lt; val;
+-            return ss.str();
+-        } 
+-        std::string operator() (std::string const&amp; val) const
+-        {
+-            return &quot;'&quot; + val + &quot;'&quot;;
+-        }
+-    };
++	struct to_expression_string : public boost::static_visitor&lt;std::string&gt;
++	{
++	    template &lt;typename T&gt;
++	    std::string operator() (T val) const
++	    {
++		std::stringstream ss;
++		ss &lt;&lt; val;
++		return ss.str();
++	    } 
++	    std::string operator() (std::string const&amp; val) const
++	    {
++		return &quot;'&quot; + val + &quot;'&quot;;
++	    }
++	};
+     }
+     
+     class value
+@@ -350,26 +350,14 @@
+         friend const value operator-(value const&amp;,value const&amp;);
+         friend const value operator*(value const&amp;,value const&amp;);
+         friend const value operator/(value const&amp;,value const&amp;);
+-        //friend template &lt;typename charT, typename traits&gt; 
+-          //      std::basic_ostream&lt;charT,traits&gt;&amp;  operator &lt;&lt; (std::basic_ostream&lt;charT,traits&gt;&amp;,
+-    		//                                                       value const&amp; );     
++
+     public:
+ 	value ()
+ 	    : base_(0) {}
+ 	
+ 	template &lt;typename T&gt; value(T _val_)
+ 	    : base_(_val_) {}
+-	
+-    //value (std::string const&amp; str)
+-     //   : base(str) {}
+-    
+-	//value&amp; operator=(value const&amp; rhs)
+-	//{
+-	//	if (this == &amp;rhs)
+-	//		return  *this;
+-//		//TODO!!!!!	
+-//		return *this;	
+-	//}
++
+ 	bool operator==(value const&amp; other) const
+ 	{
+ 	    return boost::apply_visitor(impl::equals(),base_,other.base_);
+@@ -399,35 +387,11 @@
+ 	{
+ 	    return boost::apply_visitor(impl::less_or_equal(),base_,other.base_);
+ 	}
+-    value_base const&amp; base() const
+-    {
+-        return base_;
+-    }
+-/*
+-	value&amp; operator+=(value const&amp; other)
++	value_base const&amp; base() const
+ 	{
+-	    *this = boost::apply_visitor(impl::add&lt;value&gt;(),*this,other);
+-	    return *this;
++	    return base_;
+ 	}
+ 
+-	value&amp; operator-=(value const&amp; other)
+-	{
+-	    *this = boost::apply_visitor(impl::sub&lt;value&gt;(),*this,other);
+-	    return *this;
+-	}
+-
+-	value&amp; operator*=(value const&amp; other)
+-	{
+-	    *this = boost::apply_visitor(impl::mult&lt;value&gt;(),*this,other);
+-	    return *this;
+-	}
+-	
+-	value&amp; operator/=(value const&amp; other)
+-	{
+-	    *this = boost::apply_visitor(impl::div&lt;value&gt;(),*this,other);
+-	    return *this;
+-	}
+-*/
+ 	std::string to_expression_string() const
+ 	{
+ 	    return boost::apply_visitor(impl::to_expression_string(),base_);
+@@ -441,36 +405,28 @@
+     
+     inline const value operator+(value const&amp; p1,value const&amp; p2)
+     {
+-	//value tmp(p1);
+-	//tmp+=p2;
+-	//return tmp;
+-		return value(boost::apply_visitor(impl::add&lt;value&gt;(),p1.base_, p2.base_));
++
++	return value(boost::apply_visitor(impl::add&lt;value&gt;(),p1.base_, p2.base_));
+     }
+ 
+     inline const value operator-(value const&amp; p1,value const&amp; p2)
+     {
+-	//value tmp(p1);
+-	//tmp-=p2;
+-	//return tmp;
+-		return value(boost::apply_visitor(impl::sub&lt;value&gt;(),p1.base_, p2.base_));
++
++	return value(boost::apply_visitor(impl::sub&lt;value&gt;(),p1.base_, p2.base_));
+     }
+ 
+     inline const value operator*(value const&amp; p1,value const&amp; p2)
+     {
+-	//value tmp(p1);
+-	//tmp*=p2;
+-	//return tmp;
+-		return value(boost::apply_visitor(impl::mult&lt;value&gt;(),p1.base_, p2.base_));
++
++	return value(boost::apply_visitor(impl::mult&lt;value&gt;(),p1.base_, p2.base_));
+     }
+ 
+     inline const value operator/(value const&amp; p1,value const&amp; p2)
+     {
+-	//value tmp(p1);
+-	//tmp/=p2;
+-	//return tmp;
+-	    return value(boost::apply_visitor(impl::div&lt;value&gt;(),p1.base_, p2.base_));
+-	}
+ 
++	return value(boost::apply_visitor(impl::div&lt;value&gt;(),p1.base_, p2.base_));
++    }
++
+     template &lt;typename charT, typename traits&gt;
+     inline std::basic_ostream&lt;charT,traits&gt;&amp; 
+     operator &lt;&lt; (std::basic_ostream&lt;charT,traits&gt;&amp; out,
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000089.html">[Mapnik-svn] r203 - trunk/agg
+</A></li>
+	<LI>Next message: <A HREF="000091.html">[Mapnik-svn] r206 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#90">[ date ]</a>
+              <a href="thread.html#90">[ thread ]</a>
+              <a href="subject.html#90">[ subject ]</a>
+              <a href="author.html#90">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

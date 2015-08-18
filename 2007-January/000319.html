@@ -1,0 +1,298 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r434 - trunk/bindings/python/mapnik/ogcserver
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r434%20-%20trunk/bindings/python/mapnik/ogcserver&In-Reply-To=%3C200701250150.l0P1oDUf031167%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000318.html">
+   <LINK REL="Next"  HREF="000320.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r434 - trunk/bindings/python/mapnik/ogcserver</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r434%20-%20trunk/bindings/python/mapnik/ogcserver&In-Reply-To=%3C200701250150.l0P1oDUf031167%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r434 - trunk/bindings/python/mapnik/ogcserver">jdoyon at mail.berlios.de
+       </A><BR>
+    <I>Thu Jan 25 02:50:13 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000318.html">[Mapnik-svn] r433 - trunk
+</A></li>
+        <LI>Next message: <A HREF="000320.html">[Mapnik-svn] r435 - trunk/docs/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#319">[ date ]</a>
+              <a href="thread.html#319">[ thread ]</a>
+              <a href="subject.html#319">[ subject ]</a>
+              <a href="author.html#319">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2007-01-25 02:50:11 +0100 (Thu, 25 Jan 2007)
+New Revision: 434
+
+Modified:
+   trunk/bindings/python/mapnik/ogcserver/common.py
+   trunk/bindings/python/mapnik/ogcserver/wms111.py
+   trunk/bindings/python/mapnik/ogcserver/wms130.py
+Log:
+- Add support for text/plain GetFeatureInfo!
+
+Modified: trunk/bindings/python/mapnik/ogcserver/common.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/common.py	2007-01-25 00:44:05 UTC (rev 433)
++++ trunk/bindings/python/mapnik/ogcserver/common.py	2007-01-25 01:50:11 UTC (rev 434)
+@@ -280,6 +280,34 @@
+ class WMSBaseServiceHandler(BaseServiceHandler):
+ 
+     def GetMap(self, params):
++        m = self._buildMap(params)
++        im = Image(params['width'], params['height'])
++        render(m, im)
++        im = fromstring('RGBA', (params['width'], params['height']), rawdata(im))
++        fh = StringIO()
++        im.save(fh, PIL_TYPE_MAPPING[params['format']], quality=100)
++        fh.seek(0)
++        return Response(params['format'], fh.read())
++
++    def GetFeatureInfo(self, params, querymethodname='query_point'):
++        m = self._buildMap(params)
++        output = ''
++        for layerindex, layername in enumerate(params['query_layers']):
++            if layername in params['layers']:
++                if m.layers[layerindex].queryable:
++                    for feature in getattr(m, querymethodname)(layerindex, params['i'], params['j']):
++                        output += '[%s]\n' % m.layers[layerindex].name
++                        for prop in feature.properties:
++                            output += '%s=%s\n' % (prop.key(), prop.data())
++                else:
++                    raise OGCException('Requested query layer &quot;%s&quot; is not marked queryable.' % layername, 'LayerNotQueryable')
++            else:
++                raise OGCException('Requested query layer &quot;%s&quot; not in the LAYERS parameter.' % layername)
++        return Response('text/plain', output)
++
++    def _buildMap(self, params):
++        if str(params['crs']) not in self.allowedepsgcodes:
++            raise OGCException('Unsupported CRS &quot;%s&quot; requested.' % str(params['crs']).upper(), 'InvalidCRS')
+         if params['bbox'][0] &gt;= params['bbox'][2]:
+             raise OGCException(&quot;BBOX values don't make sense.  minx is greater than maxx.&quot;)
+         if params['bbox'][1] &gt;= params['bbox'][3]:
+@@ -316,13 +344,7 @@
+                     raise ServerConfigurationError('Layer &quot;%s&quot; refers to non-existent style &quot;%s&quot;.' % (layername, stylename))
+             m.layers.append(layer)
+         m.zoom_to_box(Envelope(params['bbox'][0], params['bbox'][1], params['bbox'][2], params['bbox'][3]))
+-        im = Image(params['width'], params['height'])
+-        render(m, im)
+-        im = fromstring('RGBA', (params['width'], params['height']), rawdata(im))
+-        fh = StringIO()
+-        im.save(fh, PIL_TYPE_MAPPING[params['format']], quality=100)
+-        fh.seek(0)
+-        return Response(params['format'], fh.read())
++        return m
+ 
+ class BaseExceptionHandler:
+ 
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms111.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms111.py	2007-01-25 00:44:05 UTC (rev 433)
++++ trunk/bindings/python/mapnik/ogcserver/wms111.py	2007-01-25 01:50:11 UTC (rev 434)
+@@ -43,7 +43,24 @@
+             'transparent': ParameterDefinition(False, str, 'FALSE', ('TRUE', 'FALSE')),
+             'bgcolor': ParameterDefinition(False, ColorFactory, ColorFactory('0xFFFFFF')),
+             'exceptions': ParameterDefinition(False, str, 'application/vnd.ogc.se_xml', ('application/vnd.ogc.se_xml', 'application/vnd.ogc.se_inimage', 'application/vnd.ogc.se_blank'))
+-        }
++        },
++        'GetFeatureInfo': {
++            'layers': ParameterDefinition(True, ListFactory(str)),
++            'styles': ParameterDefinition(False, ListFactory(str)),
++            'srs': ParameterDefinition(True, CRSFactory(['EPSG'])),
++            'bbox': ParameterDefinition(True, ListFactory(float)),
++            'width': ParameterDefinition(True, int),
++            'height': ParameterDefinition(True, int),
++            'format': ParameterDefinition(False, str, allowedvalues=('image/png', 'image/jpeg')),
++            'transparent': ParameterDefinition(False, str, 'FALSE', ('TRUE', 'FALSE')),
++            'bgcolor': ParameterDefinition(False, ColorFactory, ColorFactory('0xFFFFFF')),
++            'exceptions': ParameterDefinition(False, str, 'application/vnd.ogc.se_xml', ('application/vnd.ogc.se_xml', 'application/vnd.ogc.se_inimage', 'application/vnd.ogc.se_blank')),
++            'query_layers': ParameterDefinition(True, ListFactory(str)),
++            'info_format': ParameterDefinition(True, str, allowedvalues=('text/plain',)),
++            'feature_count': ParameterDefinition(False, int, 1),
++            'x': ParameterDefinition(True, int),
++            'y': ParameterDefinition(True, int)
++        }        
+     }
+ 
+     CONF_SERVICE = [
+@@ -70,9 +87,6 @@
+                 &lt;Get&gt;
+                   &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
+                 &lt;/Get&gt;
+-                &lt;Post&gt;
+-                  &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
+-                &lt;/Post&gt;
+               &lt;/HTTP&gt;
+             &lt;/DCPType&gt;
+           &lt;/GetCapabilities&gt;
+@@ -84,12 +98,19 @@
+                 &lt;Get&gt;
+                   &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
+                 &lt;/Get&gt;
+-                &lt;Post&gt;
++              &lt;/HTTP&gt;
++            &lt;/DCPType&gt;
++          &lt;/GetMap&gt;
++          &lt;GetFeatureInfo&gt;
++            &lt;Format&gt;text/plain&lt;/Format&gt;
++            &lt;DCPType&gt;
++              &lt;HTTP&gt;
++                &lt;Get&gt;
+                   &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
+-                &lt;/Post&gt;
++                &lt;/Get&gt;
+               &lt;/HTTP&gt;
+             &lt;/DCPType&gt;
+-          &lt;/GetMap&gt;
++          &lt;/GetFeatureInfo&gt;
+         &lt;/Request&gt;
+         &lt;Exception&gt;
+           &lt;Format&gt;application/vnd.ogc.se_xml&lt;/Format&gt;
+@@ -155,6 +176,8 @@
+                 layerabstract = ElementTree.Element('Abstract')
+                 layerabstract.text = layer.abstract
+                 layere.append(layerabstract)
++            if layer.queryable:
++                layere.set('queryable', '1')                
+             layere.append(latlonbb)
+             layere.append(layerbbox)
+             if len(layer.wmsextrastyles) &gt; 0:
+@@ -176,11 +199,15 @@
+         return response
+ 
+     def GetMap(self, params):
+-        if str(params['srs']) not in self.allowedepsgcodes:
+-            raise OGCException('Unsupported SRS &quot;%s&quot; requested.' % str(params['srs']).upper(), 'InvalidSRS')
+         params['crs'] = params['srs']
+         return WMSBaseServiceHandler.GetMap(self, params)
+ 
++    def GetFeatureInfo(self, params):
++        params['crs'] = params['srs']
++        params['i'] = params['x']
++        params['j'] = params['y']
++        return WMSBaseServiceHandler.GetFeatureInfo(self, params, 'query_map_point')        
++
+ class ExceptionHandler(BaseExceptionHandler):
+ 
+     xmlmimetype = &quot;application/vnd.ogc.se_xml&quot;
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms130.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms130.py	2007-01-25 00:44:05 UTC (rev 433)
++++ trunk/bindings/python/mapnik/ogcserver/wms130.py	2007-01-25 01:50:11 UTC (rev 434)
+@@ -44,6 +44,23 @@
+             'transparent': ParameterDefinition(False, str, 'FALSE', ('TRUE', 'FALSE')),
+             'bgcolor': ParameterDefinition(False, ColorFactory, ColorFactory('0xFFFFFF')),
+             'exceptions': ParameterDefinition(False, str, 'XML', ('XML', 'INIMAGE', 'BLANK')),
++        },
++        'GetFeatureInfo': {
++            'layers': ParameterDefinition(True, ListFactory(str)),
++            'styles': ParameterDefinition(False, ListFactory(str)),
++            'crs': ParameterDefinition(True, CRSFactory(['EPSG'])),
++            'bbox': ParameterDefinition(True, ListFactory(float)),
++            'width': ParameterDefinition(True, int),
++            'height': ParameterDefinition(True, int),
++            'format': ParameterDefinition(False, str, allowedvalues=('image/png', 'image/jpeg')),
++            'transparent': ParameterDefinition(False, str, 'FALSE', ('TRUE', 'FALSE')),
++            'bgcolor': ParameterDefinition(False, ColorFactory, ColorFactory('0xFFFFFF')),
++            'exceptions': ParameterDefinition(False, str, 'XML', ('XML', 'INIMAGE', 'BLANK')),
++            'query_layers': ParameterDefinition(True, ListFactory(str)),
++            'info_format': ParameterDefinition(True, str, allowedvalues=('text/plain',)),
++            'feature_count': ParameterDefinition(False, int, 1),
++            'i': ParameterDefinition(True, float),
++            'j': ParameterDefinition(True, float)
+         }
+     }
+ 
+@@ -76,9 +93,6 @@
+                 &lt;Get&gt;
+                   &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
+                 &lt;/Get&gt;
+-                &lt;Post&gt;
+-                  &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
+-                &lt;/Post&gt;
+               &lt;/HTTP&gt;
+             &lt;/DCPType&gt;
+           &lt;/GetCapabilities&gt;
+@@ -90,12 +104,19 @@
+                 &lt;Get&gt;
+                   &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
+                 &lt;/Get&gt;
+-                &lt;Post&gt;
++              &lt;/HTTP&gt;
++            &lt;/DCPType&gt;
++          &lt;/GetMap&gt;
++          &lt;GetFeatureInfo&gt;
++            &lt;Format&gt;text/plain&lt;/Format&gt;
++            &lt;DCPType&gt;
++              &lt;HTTP&gt;
++                &lt;Get&gt;
+                   &lt;OnlineResource xlink:type=&quot;simple&quot;/&gt;
+-                &lt;/Post&gt;
++                &lt;/Get&gt;
+               &lt;/HTTP&gt;
+             &lt;/DCPType&gt;
+-          &lt;/GetMap&gt;
++          &lt;/GetFeatureInfo&gt;
+         &lt;/Request&gt;
+         &lt;Exception&gt;
+           &lt;Format&gt;XML&lt;/Format&gt;
+@@ -169,6 +190,8 @@
+                 layerabstract = ElementTree.Element('Abstract')
+                 layerabstract.text = layer.abstract
+                 layere.append(layerabstract)
++            if layer.queryable:
++                layere.set('queryable', '1')
+             layere.append(layerexgbb)
+             layere.append(layerbbox)
+             if len(layer.wmsextrastyles) &gt; 0:
+@@ -192,8 +215,6 @@
+     def GetMap(self, params):
+         if params['width'] &gt; int(self.conf.get('service', 'maxwidth')) or params['height'] &gt; int(self.conf.get('service', 'maxheight')):
+             raise OGCException('Requested map size exceeds limits set by this server.')
+-        if str(params['crs']) not in self.allowedepsgcodes:
+-            raise OGCException('Unsupported CRS &quot;%s&quot; requested.' % str(params['crs']).upper(), 'InvalidCRS')
+         return WMSBaseServiceHandler.GetMap(self, params)
+ 
+ class ExceptionHandler(BaseExceptionHandler):
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000318.html">[Mapnik-svn] r433 - trunk
+</A></li>
+	<LI>Next message: <A HREF="000320.html">[Mapnik-svn] r435 - trunk/docs/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#319">[ date ]</a>
+              <a href="thread.html#319">[ thread ]</a>
+              <a href="subject.html#319">[ subject ]</a>
+              <a href="author.html#319">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

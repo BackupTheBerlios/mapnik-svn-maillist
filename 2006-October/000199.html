@@ -1,0 +1,186 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r314 - trunk/src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r314%20-%20trunk/src&In-Reply-To=%3C200610041357.k94DvACc028881%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000198.html">
+   <LINK REL="Next"  HREF="000200.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r314 - trunk/src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r314%20-%20trunk/src&In-Reply-To=%3C200610041357.k94DvACc028881%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r314 - trunk/src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Wed Oct  4 15:57:10 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000198.html">[Mapnik-svn] r313 - in trunk: . bindings/python	bindings/python/mapnik demo/c++ fonts include include/mapnik	plugins/input/postgis plugins/input/raster	plugins/input/shape src utils/shapeindex
+</A></li>
+        <LI>Next message: <A HREF="000200.html">[Mapnik-svn] r315 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#199">[ date ]</a>
+              <a href="thread.html#199">[ thread ]</a>
+              <a href="subject.html#199">[ subject ]</a>
+              <a href="author.html#199">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-04 15:57:08 +0200 (Wed, 04 Oct 2006)
+New Revision: 314
+
+Modified:
+   trunk/src/load_map.cpp
+Log:
+BOOST_FOREACH is not released yet, revert to std::const_iterator
+
+
+
+Modified: trunk/src/load_map.cpp
+===================================================================
+--- trunk/src/load_map.cpp	2006-10-04 11:22:18 UTC (rev 313)
++++ trunk/src/load_map.cpp	2006-10-04 13:57:08 UTC (rev 314)
+@@ -22,7 +22,6 @@
+ // stl
+ #include &lt;iostream&gt;
+ // boost
+-#include &lt;boost/foreach.hpp&gt;
+ #include &lt;boost/optional.hpp&gt;
+ #include &lt;boost/algorithm/string.hpp&gt;
+ #include &lt;boost/lexical_cast.hpp&gt;
+@@ -59,15 +58,23 @@
+             map.setBackground(bg);
+         }
+         
+-        BOOST_FOREACH (ptree::value_type &amp; v, pt.get_child(&quot;Map&quot;))
++        ptree::const_iterator itr = pt.get_child(&quot;Map&quot;).begin();
++        ptree::const_iterator end = pt.get_child(&quot;Map&quot;).end();
++        for (; itr != end; ++itr)
+         {
++            ptree::value_type const&amp; v = *itr;
++            
+             if (v.first == &quot;Style&quot;)
+             {
+                 std::string name = v.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.name&quot;);
+                 feature_type_style style;
+                 
+-                BOOST_FOREACH(ptree::value_type &amp; rule_tag, v.second)
++                ptree::const_iterator ruleIter = v.second.begin();
++                ptree::const_iterator endRule = v.second.end();
++                
++                for (; ruleIter!=endRule; ++ruleIter)    
+                 {
++                    ptree::value_type const&amp; rule_tag = *ruleIter;
+                     if (rule_tag.first == &quot;Rule&quot;)
+                     {
+                         std::string name = 
+@@ -98,8 +105,13 @@
+                             rule.set_max_scale(*max_scale);   
+                         }    
+                         
+-                        BOOST_FOREACH(ptree::value_type &amp; sym, rule_tag.second)
++                        ptree::const_iterator symIter = rule_tag.second.begin();
++                        ptree::const_iterator endSym = rule_tag.second.end();
++                        
++                        for( ;symIter != endSym; ++symIter)
+                         {
++                            ptree::value_type const&amp; sym = *symIter;
++                            
+                             if ( sym.first == &quot;PointSymbolizer&quot;)
+                             {
+                                 std::cout &lt;&lt; sym.first &lt;&lt; &quot;\n&quot;;
+@@ -107,8 +119,12 @@
+                             else  if ( sym.first == &quot;LineSymbolizer&quot;)
+                             {
+                                 stroke strk;
+-                                BOOST_FOREACH (ptree::value_type &amp; css, sym.second)
++                                ptree::const_iterator cssIter = sym.second.begin();
++                                ptree::const_iterator endCss = sym.second.end();
++                                
++                                for(; cssIter != endCss; ++cssIter)
+                                 {
++                                    ptree::value_type const&amp; css = * cssIter;
+                                     std::string css_name  = 
+                                         css.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.name&quot;);
+                                     std::string data = css.second.data();
+@@ -211,8 +227,14 @@
+                             else if ( sym.first == &quot;PolygonSymbolizer&quot;)
+                             {
+                                 polygon_symbolizer poly_sym;
+-                                BOOST_FOREACH (ptree::value_type &amp; css, sym.second)
++                                
++                                ptree::const_iterator cssIter = sym.second.begin();
++                                ptree::const_iterator endCss = sym.second.end();
++                                
++                                for(; cssIter != endCss; ++cssIter)
+                                 {
++                                    ptree::value_type const&amp; css = * cssIter;
++                                    
+                                     std::string css_name  = 
+                                         css.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.name&quot;);
+                                     std::string data = css.second.data();
+@@ -268,8 +290,13 @@
+                 }
+                 
+                 
+-                BOOST_FOREACH (ptree::value_type &amp; child, v.second)
++                ptree::const_iterator itr2 = v.second.begin();
++                ptree::const_iterator end2 = v.second.end();
++                
++                for(; itr2 != end2; ++itr2)
+                 {
++                    ptree::value_type const&amp; child = *itr2;
++                    
+                     if (child.first == &quot;StyleName&quot;)
+                     {
+                         lyr.add_style(child.second.data());
+@@ -277,9 +304,12 @@
+                     else if (child.first == &quot;Datasource&quot;)
+                     {
+                         parameters params;
+-                        BOOST_FOREACH (ptree::value_type &amp; param_tag, child.second)
++                        ptree::const_iterator paramIter = child.second.begin();
++                        ptree::const_iterator endParam = child.second.end();
++                        for (; paramIter != endParam; ++paramIter)
+                         {
+-
++                            ptree::value_type const&amp; param_tag=*paramIter;
++                            
+                             if (param_tag.first == &quot;Parameter&quot;)
+                             {
+                                 std::string name = param_tag.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.name&quot;);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000198.html">[Mapnik-svn] r313 - in trunk: . bindings/python	bindings/python/mapnik demo/c++ fonts include include/mapnik	plugins/input/postgis plugins/input/raster	plugins/input/shape src utils/shapeindex
+</A></li>
+	<LI>Next message: <A HREF="000200.html">[Mapnik-svn] r315 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#199">[ date ]</a>
+              <a href="thread.html#199">[ thread ]</a>
+              <a href="subject.html#199">[ subject ]</a>
+              <a href="author.html#199">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

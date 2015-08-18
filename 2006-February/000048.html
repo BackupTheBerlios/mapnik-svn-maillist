@@ -1,0 +1,895 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r162 - in trunk: . include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-February/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r162%20-%20in%20trunk%3A%20.%20include%20src&In-Reply-To=%3C200602211956.k1LJu080015873%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000047.html">
+   <LINK REL="Next"  HREF="000049.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r162 - in trunk: . include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r162%20-%20in%20trunk%3A%20.%20include%20src&In-Reply-To=%3C200602211956.k1LJu080015873%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r162 - in trunk: . include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Tue Feb 21 20:56:00 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000047.html">[Mapnik-svn] r161 - trunk/bindings/python
+</A></li>
+        <LI>Next message: <A HREF="000049.html">[Mapnik-svn] r163 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#48">[ date ]</a>
+              <a href="thread.html#48">[ thread ]</a>
+              <a href="subject.html#48">[ subject ]</a>
+              <a href="author.html#48">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-02-21 20:55:24 +0100 (Tue, 21 Feb 2006)
+New Revision: 162
+
+Added:
+   trunk/include/font_engine_freetype.hpp
+   trunk/src/font_engine_freetype.cpp
+Modified:
+   trunk/SConstruct
+   trunk/include/agg_renderer.hpp
+   trunk/include/expression.hpp
+   trunk/include/graphics.hpp
+   trunk/include/text_symbolizer.hpp
+   trunk/include/value.hpp
+   trunk/src/SConscript
+   trunk/src/agg_renderer.cpp
+   trunk/src/text.cpp
+Log:
+added font_engine impl - work in progress:)
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2006-02-20 01:34:02 UTC (rev 161)
++++ trunk/SConstruct	2006-02-21 19:55:24 UTC (rev 162)
+@@ -24,8 +24,8 @@
+ opts.Add('PREFIX', 'The install path &quot;prefix&quot;', '/usr/local')
+ opts.Add(PathOption('BOOST_INCLUDES', 'Search path for boost include files', '/usr/include'))
+ opts.Add(PathOption('BOOST_LIBS', 'Search path for boost library files', '/usr/lib'))
+-opts.Add(PathOption('FREETYPE_INCLUDES', 'Search path for FreeType include files', '/usr/include'))
+-opts.Add(PathOption('FREETYPE_LIBS', 'Search path for FreeType library files', '/usr/lib'))
++opts.Add(PathOption('FREETYPE_INCLUDES', 'Search path for FreeType include files', '/opt/freetype/include/freetype2'))
++opts.Add(PathOption('FREETYPE_LIBS', 'Search path for FreeType library files', '/opt/freetype/lib'))
+ opts.Add(PathOption('PNG_INCLUDES', 'Search path for libpng include files', '/usr/include'))
+ opts.Add(PathOption('PNG_LIBS', 'Search path for libpng include files', '/usr/lib'))
+ opts.Add(PathOption('JPEG_INCLUDES', 'Search path for libjpeg include files', '/usr/include'))
+@@ -63,6 +63,7 @@
+     ['tiff', 'tiff.h', True],
+     ['z', 'zlib.h', True],
+     ['jpeg', ['stdio.h','jpeglib.h'], True],
++    #['freetype', 'ft2build.h', True],
+     ['pq', 'libpq-fe.h', False]
+ ]
+ 
+
+Modified: trunk/include/agg_renderer.hpp
+===================================================================
+--- trunk/include/agg_renderer.hpp	2006-02-20 01:34:02 UTC (rev 161)
++++ trunk/include/agg_renderer.hpp	2006-02-21 19:55:24 UTC (rev 162)
+@@ -23,6 +23,8 @@
+ 
+ #include &quot;feature_style_processor.hpp&quot;
+ #include &lt;boost/utility.hpp&gt;
++//#include &quot;agg_font_freetype.h&quot;
++#include &quot;font_engine_freetype.hpp&quot;
+ 
+ namespace mapnik
+ {
+@@ -31,6 +33,10 @@
+ 			  private boost::noncopyable
+     {
+ 	agg_renderer(Map const&amp; m, T &amp; pixmap);
++	void start_map_processing();
++	void end_map_processing();
++	void start_layer_processing();
++	void end_layer_processing();
+ 	void process(point_symbolizer const&amp; sym,Feature const&amp; feature);	    	       
+ 	void process(line_symbolizer const&amp; sym,Feature const&amp; feature);
+ 	void process(line_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
+@@ -41,6 +47,7 @@
+     private:
+ 	T &amp; pixmap_;
+ 	CoordTransform t_;
++	face_manager&lt;freetype_engine&gt; font_manager_;
+     };
+ }
+ 
+
+Modified: trunk/include/expression.hpp
+===================================================================
+--- trunk/include/expression.hpp	2006-02-20 01:34:02 UTC (rev 161)
++++ trunk/include/expression.hpp	2006-02-21 19:55:24 UTC (rev 162)
+@@ -68,7 +68,7 @@
+ 	}
+ 	std::string to_string() const
+ 	{
+-	    return value_.to_string();
++	    return value_.to_expression_string();
+ 	}
+         ~literal() {}
+     private:
+@@ -88,8 +88,6 @@
+ 	property(property const&amp; other)
+ 	    : expression&lt;FeatureT&gt;(),
+ 	      name_(other.name_)
+-	      //index_(other.index_),
+-	      //valid_(other.valid_)
+ 	{}
+ 
+ 	value get_value(FeatureT const&amp; feature) const
+@@ -108,11 +106,7 @@
+ 	{
+ 	    return name_;
+ 	}
+-	void set_index(size_t index) 
+-	{
+-	    //index_=index;
+-	    //valid_=true;
+-	}
++
+ 	std::string to_string() const
+ 	{
+ 	    return &quot;[&quot;+name_+&quot;]&quot;;
+@@ -120,8 +114,7 @@
+         ~property() {}
+     private:
+ 	std::string name_;
+-	//size_t index_;
+-	//bool valid_;
++
+     };
+ }
+ 
+
+Added: trunk/include/font_engine_freetype.hpp
+===================================================================
+--- trunk/include/font_engine_freetype.hpp	2006-02-20 01:34:02 UTC (rev 161)
++++ trunk/include/font_engine_freetype.hpp	2006-02-21 19:55:24 UTC (rev 162)
+@@ -0,0 +1,395 @@
++ /* This file is part of Mapnik (c++ mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++#if !defined FONT_ENGINE_FREETYPE_HPP
++#define FONT_ENGINE_FREETYPE_HPP
++
++#include &lt;ft2build.h&gt;
++#include FT_FREETYPE_H
++#include FT_GLYPH_H
++
++#include &lt;boost/shared_ptr.hpp&gt;
++#include &lt;boost/utility.hpp&gt;
++#include &lt;boost/thread/mutex.hpp&gt;
++
++#include &lt;string&gt;
++#include &lt;vector&gt;
++#include &lt;map&gt;
++#include &lt;iostream&gt;
++
++#include &lt;color.hpp&gt;
++#include &lt;utils.hpp&gt;
++
++namespace mapnik
++{
++
++  class font_face : boost::noncopyable
++    {
++    public:
++    	font_face(FT_Face face)
++	    : face_(face) {}
++	
++    	std::string  family_name() const
++    	{
++    	    return std::string(face_-&gt;family_name);
++    	}
++
++	std::string  style_name() const
++    	{
++    	    return std::string(face_-&gt;style_name);
++    	}
++	
++	unsigned num_glyphs() const
++	{
++	    return face_-&gt;num_glyphs;
++	}
++
++	FT_GlyphSlot glyph() const
++	{
++	    return face_-&gt;glyph;
++	}
++
++	/*
++	unsigned glyph_index(unsigned charcode) const
++	{
++	    return FT_Get_Char_Index(face_, charcode );
++	}
++	
++	void set_transform (FT_Matrix * m,FT_Vector *v)
++	{
++	    FT_Set_Transform(face_,m,v);
++	}
++	
++	bool render_glyph (unsigned charcode) const
++	{
++	    unsigned glyph_index = FT_Get_Char_Index(face_, charcode );
++	    FT_Error  error;
++	    error = FT_Load_Glyph(face_,glyph_index,FT_LOAD_DEFAULT);
++	    if (error == 0 )
++	    {
++		error = FT_Render_Glyph(face_-&gt;glyph, FT_RENDER_MODE_NORMAL );
++		if (error == 0)
++		{
++		    return true;
++		}
++	    }
++	    return false;
++	}
++	*/
++	
++	FT_Face get_face() const
++	{
++	    return face_;
++	}
++	
++	bool set_pixel_sizes(unsigned size)
++	{
++	    if (! FT_Set_Pixel_Sizes( face_, 0, size ))
++		return true;
++	    return false;
++	}
++        
++	
++    	~font_face()
++    	{
++    	    std::cout &lt;&lt; &quot;clean up face:&quot; &lt;&lt; family_name()&lt;&lt;&quot;:&quot; &lt;&lt; style_name() &lt;&lt; std::endl;
++    	    FT_Done_Face(face_);
++    	}
++	
++    private:
++    	FT_Face face_;
++    };
++    
++    typedef boost::shared_ptr&lt;font_face&gt; face_ptr;
++    
++    class freetype_engine : public mapnik::singleton&lt;freetype_engine,mapnik::CreateStatic&gt;,
++		       private boost::noncopyable
++    {
++	friend class mapnik::CreateStatic&lt;freetype_engine&gt;;
++    public:
++	
++	static bool register_font(std::string const&amp; file_name)
++	{
++	    mutex::scoped_lock lock(mapnik::singleton&lt;freetype_engine, 
++				    mapnik::CreateStatic&gt;::mutex_);
++	    FT_Face face;
++	    FT_Error error = FT_New_Face (library_,file_name.c_str(),0,&amp;face);
++	    if ( !error )
++	    {
++		std::string name = std::string(face-&gt;family_name) + &quot; &quot; + std::string(face-&gt;style_name);
++		name2file_.insert(std::make_pair(name,file_name));
++		FT_Done_Face(face );
++		return true;
++	    }
++	    return false;
++	}
++	
++	static std::vector&lt;std::string&gt; face_names ()
++	{
++	    std::vector&lt;std::string&gt; names;
++	    std::map&lt;std::string,std::string&gt;::const_iterator itr;
++	    for (itr = name2file_.begin();itr!=name2file_.end();++itr)
++	    {
++		names.push_back(itr-&gt;first);
++	    }
++	    return names;
++	}
++	
++	static face_ptr create_face(std::string const&amp; family_name)
++	{
++	    mutex::scoped_lock lock(mapnik::singleton&lt;freetype_engine, 
++				    mapnik::CreateStatic&gt;::mutex_);
++
++	    std::map&lt;std::string,std::string&gt;::iterator itr;
++	    itr = name2file_.find(family_name);
++	    if (itr != name2file_.end())
++	    {
++		FT_Face face;
++		FT_Error error = FT_New_Face (library_,itr-&gt;second.c_str(),0,&amp;face);
++		
++		if (!error)
++		{
++		    return face_ptr (new font_face(face));
++		}
++	    }
++	    return face_ptr();
++	}
++	
++    private:
++	freetype_engine()
++	{
++	    FT_Error error = FT_Init_FreeType( &amp;library_ );
++	    if (error)
++	    {
++		throw std::runtime_error(&quot;can not load FreeType2 library&quot;);
++	    }
++	}
++	virtual ~freetype_engine()
++	{   
++	    FT_Done_FreeType(library_);   
++	}
++	
++        static FT_Library library_;
++	static std::map&lt;std::string,std::string&gt; name2file_;
++    }; 
++    
++    
++    template &lt;typename T&gt;
++    class face_manager : private boost::noncopyable
++    {
++	typedef T font_engine_type;
++	typedef std::map&lt;std::string,face_ptr&gt; faces;
++	
++    public:
++	face_ptr get_face(std::string const&amp; name)
++	{
++	    typename faces::iterator itr;
++	    itr = faces_.find(name);
++	    if (itr != faces_.end())
++	    {
++		return itr-&gt;second;
++	    }
++	    else
++	    {
++		face_ptr face = font_engine_type::instance()-&gt;create_face(name);
++		if (face)
++		{
++		    faces_.insert(make_pair(name,face));
++		}
++		return face;	
++	    }
++	}
++    private:
++	faces faces_;
++    };
++
++    template &lt;typename T&gt;
++    struct text_renderer : private boost::noncopyable
++    {
++	typedef T pixmap_type;
++    
++	text_renderer (pixmap_type &amp; pixmap, face_ptr face)
++	    : pixmap_(pixmap),
++	      face_(face),
++	      fill_(0,0,0), 
++	      halo_fill_(255,255,255),
++	      halo_radius_(0),
++	      angle_(0.0) {}
++    
++	void set_pixel_size(unsigned size)
++	{
++	    face_-&gt;set_pixel_sizes(size);
++	}
++    
++	void set_angle(float angle)
++	{
++	    angle_=angle;
++	}
++
++	void set_fill(mapnik::Color const&amp; fill)
++	{
++	    fill_=fill;
++	}
++    
++	void set_halo_fill(mapnik::Color const&amp; halo)
++	{
++	    halo_fill_=halo;
++	}
++    
++	void set_halo_radius( int radius=1)
++	{
++	    halo_radius_=radius;
++	}
++    
++	void render(std::string const&amp; text, double x0, double y0)
++	{
++	    FT_Matrix matrix;
++	    FT_Vector origin;
++	    FT_Vector pen;
++	    FT_Error  error;	
++	    FT_Glyph glyph;
++	
++	    FT_Face face = face_-&gt;get_face();
++	    FT_GlyphSlot slot = face-&gt;glyph;
++	    FT_UInt glyph_index;
++	    FT_Bool use_kerning;
++	    FT_UInt previous;
++	
++	    unsigned height = pixmap_.height();
++	
++	    origin.x = 0;
++	    origin.y = 0;
++	    pen.x = unsigned(x0 * 64);
++	    pen.y = unsigned((height - y0) * 64);
++        
++	    use_kerning = FT_HAS_KERNING(face);
++	
++	    //unsigned count=1;
++	
++	    for (std::string::const_iterator i=text.begin();i!=text.end();++i)
++	    {
++	    
++		matrix.xx = (FT_Fixed)( cos( angle_ ) * 0x10000L ); 
++		matrix.xy = (FT_Fixed)(-sin( angle_ ) * 0x10000L ); 
++		matrix.yx = (FT_Fixed)( sin( angle_ ) * 0x10000L ); 
++		matrix.yy = (FT_Fixed)( cos( angle_ ) * 0x10000L );
++	    	     
++		FT_Set_Transform (face,&amp;matrix,&amp;pen);
++	    
++		glyph_index = FT_Get_Char_Index( face, *i );
++		if ( use_kerning &amp;&amp; previous &amp;&amp; glyph_index)
++		{
++		    FT_Vector delta;
++		    FT_Get_Kerning(face,previous,glyph_index,
++				   FT_KERNING_DEFAULT,&amp;delta);
++		    pen.x += delta.x;
++		    pen.y += delta.y;
++		    std::cout&lt;&lt; &quot;use kerning &quot;&lt;&lt; std::endl;
++		}
++	    
++		error = FT_Load_Glyph (face,glyph_index,FT_LOAD_DEFAULT); 
++		if ( error )
++		    continue;
++
++		error = FT_Get_Glyph( face-&gt;glyph, &amp;glyph );
++		if ( error )
++		    continue;
++	  
++		//FT_Glyph_Transform(glyph,&amp;matrix,&amp;pen);
++	    
++		error = FT_Glyph_To_Bitmap( &amp;glyph,FT_RENDER_MODE_NORMAL,0,1);
++		if ( error )
++		    continue;
++
++		FT_BitmapGlyph bit = (FT_BitmapGlyph)glyph;
++		if (halo_radius_)
++		{
++		    render_halo(&amp;bit-&gt;bitmap, halo_fill_.rgba(), 
++				bit-&gt;left,
++				height - bit-&gt;top,halo_radius_);
++		}
++            	    
++		render_bitmap(&amp;bit-&gt;bitmap, fill_.rgba(), 
++			      bit-&gt;left,
++			      height - bit-&gt;top);
++
++		FT_Done_Glyph(glyph);   
++		pen.x += slot-&gt;advance.x;
++		pen.y += slot-&gt;advance.y;
++	    
++		previous = glyph_index;
++	    
++		//angle_ = sin ( 0.1 * count++);
++	    
++	    }
++	}
++    private:
++    
++	void render_halo(FT_Bitmap *bitmap,unsigned rgba,int x,int y,int radius)
++	{
++	    int x_max=x+bitmap-&gt;width;
++	    int y_max=y+bitmap-&gt;rows;
++	    int i,p,j,q;
++	
++	    for (i=x,p=0;i&lt;x_max;++i,++p)
++	    {
++		for (j=y,q=0;j&lt;y_max;++j,++q)
++		{
++		    int gray = bitmap-&gt;buffer[q*bitmap-&gt;width+p];
++		    if (gray)
++		    {
++			for (int n=-halo_radius_; n &lt;=halo_radius_; ++n)
++			    for (int m=-halo_radius_;m &lt;= halo_radius_; ++m)
++				pixmap_.blendPixel(i+m,j+n,rgba,gray);		        
++		    }
++		}
++	    }
++	}
++    
++	void render_bitmap(FT_Bitmap *bitmap,unsigned rgba,int x,int y)
++	{
++	    int x_max=x+bitmap-&gt;width;
++	    int y_max=y+bitmap-&gt;rows;
++	    int i,p,j,q;
++	
++	    for (i=x,p=0;i&lt;x_max;++i,++p)
++	    {
++		for (j=y,q=0;j&lt;y_max;++j,++q)
++		{
++		    int gray=bitmap-&gt;buffer[q*bitmap-&gt;width+p];
++		    if (gray)
++		    {
++			pixmap_.blendPixel(i,j,rgba,gray);
++		    }
++		}
++	    }
++	}
++    
++	pixmap_type &amp; pixmap_;
++	face_ptr face_;
++	mapnik::Color fill_;
++	mapnik::Color halo_fill_;
++	int halo_radius_;
++	float angle_;
++    }; 
++}
++
++
++#endif // FONT_ENGINE_FREETYPE_HPP
+
+Modified: trunk/include/graphics.hpp
+===================================================================
+--- trunk/include/graphics.hpp	2006-02-20 01:34:02 UTC (rev 161)
++++ trunk/include/graphics.hpp	2006-02-21 19:55:24 UTC (rev 162)
+@@ -95,13 +95,30 @@
+ 	    return 0xff &lt;&lt; 24 | r &lt;&lt; 16 | g &lt;&lt; 8 | b;
+ 	}
+ 
+-	inline void blendPixel(int x,int y,unsigned int rgba,int t)
++	inline void blendPixel(int x,int y,unsigned int rgba1,int t)
+ 	{
+ 	    if (checkBounds(x,y))
+ 	    {
+-		int bg=data_(x,y);
+-		int nc=blendColor(rgba,bg,t);
+-		data_(x,y)=nc;
++		unsigned rgba0 = data_(x,y);	
++		unsigned a1 = t;//(rgba1 &gt;&gt; 24) &amp; 0xff;
++		if (a1 == 0) return;
++		unsigned r1 = rgba1 &amp; 0xff;
++		unsigned g1 = (rgba1 &gt;&gt; 8 ) &amp; 0xff;
++		unsigned b1 = (rgba1 &gt;&gt; 16) &amp; 0xff;
++		
++		unsigned a0 = (rgba0 &gt;&gt; 24) &amp; 0xff;
++		unsigned r0 = (rgba0 &amp; 0xff) * a0;
++		unsigned g0 = ((rgba0 &gt;&gt; 8 ) &amp; 0xff) * a0;
++		unsigned b0 = ((rgba0 &gt;&gt; 16) &amp; 0xff) * a0;
++		
++		
++		a0 = ((a1 + a0) &lt;&lt; 8) - a0*a1;
++		
++		r0 = ((((r1 &lt;&lt; 8) - r0) * a1 + (r0 &lt;&lt; 8)) / a0);
++		g0 = ((((g1 &lt;&lt; 8) - g0) * a1 + (g0 &lt;&lt; 8)) / a0);
++		b0 = ((((b1 &lt;&lt; 8) - b0) * a1 + (b0 &lt;&lt; 8)) / a0);
++		a0 = a0 &gt;&gt; 8;
++		data_(x,y)= (a0 &lt;&lt; 24)| (b0 &lt;&lt; 16) |  (g0 &lt;&lt; 8) | (r0) ;
+ 	    }
+ 	}
+ 
+
+Modified: trunk/include/text_symbolizer.hpp
+===================================================================
+--- trunk/include/text_symbolizer.hpp	2006-02-20 01:34:02 UTC (rev 161)
++++ trunk/include/text_symbolizer.hpp	2006-02-21 19:55:24 UTC (rev 162)
+@@ -27,15 +27,22 @@
+ 
+ namespace mapnik
+ {
++    enum label_placement_e {
++	point_placement=1,
++	line_placement=2
++    };
++        
+     struct text_symbolizer
+-    {
++    {		
+ 	text_symbolizer(std::string const&amp; name,Color const&amp; fill)
+ 	    : name_(name),
+-	      fill_(fill) {}
+-
++	      fill_(fill),
++	      label_p_(point_placement){}
++	
+ 	text_symbolizer(text_symbolizer const&amp; rhs)
+ 	    : name_(rhs.name_),
+-	      fill_(rhs.fill_) {}
++	      fill_(rhs.fill_),
++	      label_p_(rhs.label_p_) {}
+ 	
+ 	~text_symbolizer()
+ 	{
+@@ -45,9 +52,25 @@
+ 	{
+ 	    return name_;
+ 	}
++	Color const&amp; get_fill() const
++	{
++	    return fill_;
++	}
++	
++	void set_label_placement(label_placement_e label_p)
++	{
++	    label_p_ = label_p;
++	}
++	
++	label_placement_e get_label_placement() const
++	{
++	    return label_p_;
++	}
++	
+     private:
+ 	std::string name_;
+-	Color fill_;		    
++	Color fill_;
++	label_placement_e label_p_;
+     };
+ }
+ 
+
+Modified: trunk/include/value.hpp
+===================================================================
+--- trunk/include/value.hpp	2006-02-20 01:34:02 UTC (rev 161)
++++ trunk/include/value.hpp	2006-02-21 19:55:24 UTC (rev 162)
+@@ -321,6 +321,21 @@
+ 		ss &lt;&lt; val;
+ 		return ss.str();
+ 	    } 
++	    std::string const&amp; operator() (std::string const&amp; val) const
++	    {
++		return val;
++	    }
++	};
++	
++	struct to_expression_string : public boost::static_visitor&lt;std::string&gt;
++	{
++	    template &lt;typename T&gt;
++	    std::string operator() (T val) const
++	    {
++		std::stringstream ss;
++		ss &lt;&lt; val;
++		return ss.str();
++	    } 
+ 	    std::string operator() (std::string const&amp; val) const
+ 	    {
+ 		return &quot;'&quot; + val + &quot;'&quot;;
+@@ -390,7 +405,12 @@
+ 	    *this = boost::apply_visitor(impl::div&lt;value&gt;(),*this,other);
+ 	    return *this;
+ 	}
+-	
++
++	std::string to_expression_string() const
++	{
++	    return boost::apply_visitor(impl::to_expression_string(),*this);
++	}
++
+ 	std::string to_string() const
+ 	{
+ 	    return boost::apply_visitor(impl::to_string(),*this);
+
+Modified: trunk/src/SConscript
+===================================================================
+--- trunk/src/SConscript	2006-02-20 01:34:02 UTC (rev 161)
++++ trunk/src/SConscript	2006-02-21 19:55:24 UTC (rev 162)
+@@ -24,6 +24,8 @@
+ prefix = env['PREFIX']
+ 
+ libraries = ['agg'] + env['LIBS']
++libraries += ['freetype']
++
+ linkflags = '-Wl,-rpath-link,. -Wl,-soname,libmapnik.so'
+ 
+ source = Split(
+@@ -47,6 +49,7 @@
+     point_symbolizer.cpp
+     polygon_pattern_symbolizer.cpp
+     line_pattern_symbolizer.cpp
++    font_engine_freetype.cpp
+     &quot;&quot;&quot;
+     )
+ #render.cpp
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-02-20 01:34:02 UTC (rev 161)
++++ trunk/src/agg_renderer.cpp	2006-02-21 19:55:24 UTC (rev 162)
+@@ -51,7 +51,6 @@
+ #include &quot;agg_renderer_outline_image.h&quot;
+ 
+ #include &lt;boost/utility.hpp&gt;
+-
+ #include &lt;iostream&gt;
+ 
+ namespace mapnik
+@@ -89,6 +88,31 @@
+ 	pixmap_.setBackground(bg);
+ 	std::cout &lt;&lt; &quot;scale=&quot;&lt;&lt;m.scale()&lt;&lt;std::endl;
+     }
++    
++    template &lt;typename T&gt;
++    void agg_renderer&lt;T&gt;::start_map_processing()
++    {
++	std::cout &lt;&lt; &quot;start map processing&quot; &lt;&lt; std::endl;
++    }
++
++    template &lt;typename T&gt;
++    void agg_renderer&lt;T&gt;::end_map_processing()
++    {
++	std::cout &lt;&lt; &quot;end map processing&quot; &lt;&lt; std::endl;
++    }
++    
++    template &lt;typename T&gt;
++    void agg_renderer&lt;T&gt;::start_layer_processing()
++    {
++	std::cout &lt;&lt; &quot;start layer processing&quot; &lt;&lt; std::endl;
++    }
++    
++    template &lt;typename T&gt;
++    void agg_renderer&lt;T&gt;::end_layer_processing()
++    {
++	std::cout &lt;&lt; &quot;end layer processing&quot; &lt;&lt; std::endl;
++    }
++    
+     template &lt;typename T&gt;	
+     void agg_renderer&lt;T&gt;::process(polygon_symbolizer const&amp; sym,Feature const&amp; feature)
+     {
+@@ -356,10 +380,51 @@
+     template &lt;typename T&gt;
+     void agg_renderer&lt;T&gt;::process(text_symbolizer const&amp; sym ,Feature const&amp; feature)
+     {
+-	//TODO - implement text
+-	//std::cout &lt;&lt; feature &lt;&lt; std::endl;
+-	std::cout &lt;&lt; sym.get_name() &lt;&lt;&quot;:&quot; &lt;&lt; feature[sym.get_name()] &lt;&lt; std::endl;
++	typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
++	geometry_ptr const&amp; geom=feature.get_geometry();
++	if (geom)
++	{
++	    double angle = 0.0;	    
++	    if (sym.get_label_placement() == line_placement &amp;&amp; 
++		geom-&gt;num_points() &gt; 1)
++	    {
++	       
++		path_type path(t_,*geom);
++		double x0,y0,x1,y1;
++		path.vertex(&amp;x0,&amp;y0);
++		path.vertex(&amp;x1,&amp;y1);
++		double dx = x1 - x0;
++		double dy = y1 - y0;
++		angle = atan( dx/ dy ) - 0.5 * 3.1459;
++		
++		//TODO!!!!!!!!!!!!!!!!!!!!
++	    }   
++	    
++	    std::string text = feature[sym.get_name()].to_string();
++	    if (text.length() &gt; 0)
++	    {
++		Color const&amp; fill  = sym.get_fill();
++	
++		double x;
++		double y;
++		geom-&gt;label_position(&amp;x,&amp;y);
++		t_.forward_x(&amp;x);
++		t_.forward_y(&amp;y);
++		
++		face_ptr face = font_manager_.get_face(&quot;Bitstream Vera Sans Roman&quot;);//TODO
++		
++		if (face)
++		{
++		    text_renderer&lt;mapnik::Image32&gt; ren(pixmap_,face);
++		    ren.set_pixel_size(12);
++		    ren.set_fill(fill);
++		    ren.set_halo_radius(1);
++		    ren.set_angle(angle);
++		    ren.render(text,x,y);
++		}
++	    }  
++	}
+     }
+-
++    
+     template class agg_renderer&lt;Image32&gt;;
+ }
+
+Added: trunk/src/font_engine_freetype.cpp
+===================================================================
+--- trunk/src/font_engine_freetype.cpp	2006-02-20 01:34:02 UTC (rev 161)
++++ trunk/src/font_engine_freetype.cpp	2006-02-21 19:55:24 UTC (rev 162)
+@@ -0,0 +1,27 @@
++/* This file is part of Mapnik (c++ mapping toolkit)
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++#include &quot;font_engine_freetype.hpp&quot;
++
++namespace mapnik
++{
++    FT_Library freetype_engine::library_;
++    std::map&lt;std::string,std::string&gt; freetype_engine::name2file_;
++}
+
+Modified: trunk/src/text.cpp
+===================================================================
+--- trunk/src/text.cpp	2006-02-20 01:34:02 UTC (rev 161)
++++ trunk/src/text.cpp	2006-02-21 19:55:24 UTC (rev 162)
+@@ -69,7 +69,7 @@
+     }
+ 
+     template &lt;class PixBuffer&gt;
+-        void TextRasterizer&lt;PixBuffer&gt;::render_bitmap(FT_Bitmap *bitmap,int x,int y)
++    void TextRasterizer&lt;PixBuffer&gt;::render_bitmap(FT_Bitmap *bitmap,int x,int y)
+     {
+         int x_max=x+bitmap-&gt;width;
+         int y_max=y+bitmap-&gt;rows;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000047.html">[Mapnik-svn] r161 - trunk/bindings/python
+</A></li>
+	<LI>Next message: <A HREF="000049.html">[Mapnik-svn] r163 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#48">[ date ]</a>
+              <a href="thread.html#48">[ thread ]</a>
+              <a href="subject.html#48">[ subject ]</a>
+              <a href="author.html#48">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

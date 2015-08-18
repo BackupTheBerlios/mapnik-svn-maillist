@@ -1,0 +1,783 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r249 - trunk/utils/shapeindex
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-May/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r249%20-%20trunk/utils/shapeindex&In-Reply-To=%3C200605121635.k4CGZclQ007217%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000133.html">
+   <LINK REL="Next"  HREF="000135.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r249 - trunk/utils/shapeindex</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r249%20-%20trunk/utils/shapeindex&In-Reply-To=%3C200605121635.k4CGZclQ007217%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r249 - trunk/utils/shapeindex">pavlenko at berlios.de
+       </A><BR>
+    <I>Fri May 12 18:35:38 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000133.html">[Mapnik-svn] r248 - in trunk: bindings/python/mapnik/ogcserver bindings/python/pyprojection docs/ogcserver
+</A></li>
+        <LI>Next message: <A HREF="000135.html">[Mapnik-svn] r250 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#134">[ date ]</a>
+              <a href="thread.html#134">[ thread ]</a>
+              <a href="subject.html#134">[ subject ]</a>
+              <a href="author.html#134">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-05-12 18:35:36 +0200 (Fri, 12 May 2006)
+New Revision: 249
+
+Modified:
+   trunk/utils/shapeindex/quadtree.hpp
+   trunk/utils/shapeindex/shapeindex.cpp
+Log:
+fixed
+
+
+
+Modified: trunk/utils/shapeindex/quadtree.hpp
+===================================================================
+--- trunk/utils/shapeindex/quadtree.hpp	2006-05-11 04:24:51 UTC (rev 248)
++++ trunk/utils/shapeindex/quadtree.hpp	2006-05-12 16:35:36 UTC (rev 249)
+@@ -44,26 +44,26 @@
+ 
+     ~quadtree_node() 
+     {
+-	for (int i=0;i&lt;4;++i) 
+-	{
+-	    if (children_[i]) 
+-	    {
+-		delete children_[i],children_[i]=0;
+-	    }
+-	}
++        for (int i=0;i&lt;4;++i) 
++        {
++            if (children_[i]) 
++            {
++                delete children_[i],children_[i]=0;
++            }
++        }
+     }
+ 
+     int num_subnodes() const 
+     {
+-	int count=0;
+-	for (int i=0;i&lt;4;++i) 
+-	{
+-	    if (children_[i]) 
+-	    {
+-		++count;
+-	    }
+-	}
+-	return count;
++        int count=0;
++        for (int i=0;i&lt;4;++i) 
++        {
++            if (children_[i]) 
++            {
++                ++count;
++            }
++        }
++        return count;
+     }     
+ };
+ 
+@@ -76,215 +76,221 @@
+     const double ratio_;
+ public:
+     quadtree(const Envelope&lt;double&gt;&amp; extent,int maxdepth,double ratio)
+-	: root_(new quadtree_node&lt;T&gt;(extent)),
+-	  maxdepth_(maxdepth),
+-	  ratio_(ratio){}
++        : root_(new quadtree_node&lt;T&gt;(extent)),
++          maxdepth_(maxdepth),
++          ratio_(ratio) {}
++
+     ~quadtree()
+     {
+-	if (root_) delete root_;
++        if (root_) delete root_;
+     }
++    
+     void insert(const T&amp; data,const Envelope&lt;double&gt;&amp; item_ext)
+     {
+-	insert(data,item_ext,root_,maxdepth_);
++        insert(data,item_ext,root_,maxdepth_);
+     }
++    
+     int count() const
+     {
+-	return count_nodes(root_);
++        return count_nodes(root_);
+     }
++    
+     int count_items() const 
+     {
+-	int count=0;
+-	count_items(root_,count);
+-	return count;
++        int count=0;
++        count_items(root_,count);
++        return count;
+     }
++    
+     void print() const
+     {
+-	print(root_);
++        print(root_);
+     }
++    
+     void trim() 
+     {
+-	trim_tree(root_);
++        trim_tree(root_);
+     }     
+     
+     void write(std::ostream&amp; out)
+     {
+-	char header[16];
+-	memset(header,0,16);
+-	header[0]='m';
+-	header[1]='a';
+-	header[2]='p';
+-	header[4]='n';
+-	header[5]='i';
+-	header[6]='k';
+-	out.write(header,16);
+-	write_node(out,root_);
++        char header[16];
++        memset(header,0,16);
++        header[0]='m';
++        header[1]='a';
++        header[2]='p';
++        header[4]='n';
++        header[5]='i';
++        header[6]='k';
++        out.write(header,16);
++        write_node(out,root_);
+     }
+ 
+ private:
+ 
+     void trim_tree(quadtree_node&lt;T&gt;*&amp;  node)
+     {   
+-	if (node) 
+-	{
+-	    for (int i=0;i&lt;4;++i)
+-	    {	
+-		trim_tree(node-&gt;children_[i]);	
+-	    }
++        if (node) 
++        {
++            for (int i=0;i&lt;4;++i)
++            {	
++                trim_tree(node-&gt;children_[i]);	
++            }
+ 
+-	    if (node-&gt;num_subnodes()==1 &amp;&amp; node-&gt;data_.size()==0)
+-	    {
+-		for (int i=0;i&lt;4;++i) 
+-		{
+-		    if (node-&gt;children_[i])
+-		    {   
+-			node=node-&gt;children_[i];
+-			break;	
+-		    }
+-		}
+-	    }	
+-	}
++            if (node-&gt;num_subnodes()==1 &amp;&amp; node-&gt;data_.size()==0)
++            {
++                for (int i=0;i&lt;4;++i) 
++                {
++                    if (node-&gt;children_[i])
++                    {   
++                        node=node-&gt;children_[i];
++                        break;	
++                    }
++                }
++            }	
++        }
+     }
+ 
+     int count_nodes(const quadtree_node&lt;T&gt;*  node) const
+     {
+-	if (!node)
+-	{
+-	    return 0;
+-	}
+-	else
+-	{
+-	    int count = 1;
+-	    for (int i=0;i&lt;4;++i)
+-	    {
+-		count += count_nodes(node-&gt;children_[i]);
+-	    }
+-	    return count;
+-	}
++        if (!node)
++        {
++            return 0;
++        }
++        else
++        {
++            int count = 1;
++            for (int i=0;i&lt;4;++i)
++            {
++                count += count_nodes(node-&gt;children_[i]);
++            }
++            return count;
++        }
+     }
+ 
+     void count_items(const quadtree_node&lt;T&gt;* node,int&amp; count) const
+     {
+-	if (node)
+-	{
+-	    count += node-&gt;data_.size();    
+-	    for (int i=0;i&lt;4;++i)
+-	    {
+-		count_items(node-&gt;children_[i],count);
+-	    }    
+-	}
++        if (node)
++        {
++            count += node-&gt;data_.size();    
++            for (int i=0;i&lt;4;++i)
++            {
++                count_items(node-&gt;children_[i],count);
++            }    
++        }
+     }
+ 
+     int subnode_offset(const quadtree_node&lt;T&gt;* node) const
+     {
+-	int offset=0;
+-	for (int i=0;i&lt;4;i++)
+-	{
+-	    if (node-&gt;children_[i])
+-	    {
+-		offset +=sizeof(Envelope&lt;double&gt;)+(node-&gt;children_[i]-&gt;data_.size()*sizeof(T))+3*sizeof(int);
+-		offset +=subnode_offset(node-&gt;children_[i]);
+-	    }
+-	}
+-	return offset;
++        int offset=0;
++        for (int i=0;i&lt;4;i++)
++        {
++            if (node-&gt;children_[i])
++            {
++                offset +=sizeof(Envelope&lt;double&gt;)+(node-&gt;children_[i]-&gt;data_.size()*sizeof(T))+3*sizeof(int);
++                offset +=subnode_offset(node-&gt;children_[i]);
++            }
++        }
++        return offset;
+     }
+ 
+     void write_node(std::ostream&amp; out,const quadtree_node&lt;T&gt;* node) const
+     {
+-	if (node)
+-	{
+-	    int offset=subnode_offset(node);
+-	    int shape_count=node-&gt;data_.size();
+-	    int recsize=sizeof(Envelope&lt;double&gt;) + 3 * sizeof(int) + shape_count * sizeof(T);
+-	    char* node_record=new char[recsize];
+-	    memset(node_record,0,recsize);
+-	    memcpy(node_record,&amp;offset,4);
+-	    memcpy(node_record+4,&amp;node-&gt;ext_,sizeof(Envelope&lt;double&gt;));
+-	    memcpy(node_record+36,&amp;shape_count,4);
+-	    for (int i=0;i&lt;shape_count;++i)
+-	    {
+-		memcpy(node_record + 40 + i * sizeof(T),&amp;(node-&gt;data_[i]),sizeof(T));
+-	    }
+-	    int num_subnodes=0;
+-	    for (int i=0;i&lt;4;++i)
+-	    {
+-		if (node-&gt;children_[i])
+-		{
+-		    ++num_subnodes;
+-		}
+-	    }
+-	    memcpy(node_record + 40 + shape_count * sizeof(T),&amp;num_subnodes,4);
+-	    out.write(node_record,recsize);
+-	    delete [] node_record;
++        if (node)
++        {
++            int offset=subnode_offset(node);
++            int shape_count=node-&gt;data_.size();
++            int recsize=sizeof(Envelope&lt;double&gt;) + 3 * sizeof(int) + shape_count * sizeof(T);
++            char* node_record=new char[recsize];
++            memset(node_record,0,recsize);
++            memcpy(node_record,&amp;offset,4);
++            memcpy(node_record+4,&amp;node-&gt;ext_,sizeof(Envelope&lt;double&gt;));
++            memcpy(node_record+36,&amp;shape_count,4);
++            for (int i=0;i&lt;shape_count;++i)
++            {
++                memcpy(node_record + 40 + i * sizeof(T),&amp;(node-&gt;data_[i]),sizeof(T));
++            }
++            int num_subnodes=0;
++            for (int i=0;i&lt;4;++i)
++            {
++                if (node-&gt;children_[i])
++                {
++                    ++num_subnodes;
++                }
++            }
++            memcpy(node_record + 40 + shape_count * sizeof(T),&amp;num_subnodes,4);
++            out.write(node_record,recsize);
++            delete [] node_record;
+ 
+-	    for (int i=0;i&lt;4;++i)
+-	    {
+-		write_node(out,node-&gt;children_[i]);
+-	    }
+-	}
++            for (int i=0;i&lt;4;++i)
++            {
++                write_node(out,node-&gt;children_[i]);
++            }
++        }
+     }
+ 
+     void print(const quadtree_node&lt;T&gt;* node,int level=0) const
+     {
+-	if (node)
+-	{
+-	    typename std::vector&lt;T&gt;::const_iterator itr=node-&gt;data_.begin();
+-	    std::string pad;
+-	    for (int i=0;i&lt;level;++i)
+-	    {
+-		pad+=&quot; &quot;;
+-	    }
+-	    std::clog&lt;&lt;pad&lt;&lt;&quot;node &quot;&lt;&lt;node&lt;&lt;&quot; extent:&quot;&lt;&lt;node-&gt;ext_&lt;&lt;std::endl;
+-	    std::clog&lt;&lt;pad;
+-	    while(itr!=node-&gt;data_.end())
+-	    {
+-		std::clog&lt;&lt;*itr&lt;&lt;&quot; &quot;;
+-		++itr;
+-	    }
+-	    std::clog&lt;&lt;std::endl;
+-	    for (int i=0;i&lt;4;++i)
+-	    {
+-		print(node-&gt;children_[i],level+4);
+-	    }
+-	}
++        if (node)
++        {
++            typename std::vector&lt;T&gt;::const_iterator itr=node-&gt;data_.begin();
++            std::string pad;
++            for (int i=0;i&lt;level;++i)
++            {
++                pad+=&quot; &quot;;
++            }
++            std::clog&lt;&lt;pad&lt;&lt;&quot;node &quot;&lt;&lt;node&lt;&lt;&quot; extent:&quot;&lt;&lt;node-&gt;ext_&lt;&lt;std::endl;
++            std::clog&lt;&lt;pad;
++            while(itr!=node-&gt;data_.end())
++            {
++                std::clog&lt;&lt;*itr&lt;&lt;&quot; &quot;;
++                ++itr;
++            }
++            std::clog&lt;&lt;std::endl;
++            for (int i=0;i&lt;4;++i)
++            {
++                print(node-&gt;children_[i],level+4);
++            }
++        }
+     }
+ 
+     void insert(const T&amp; data,const Envelope&lt;double&gt;&amp; item_ext,quadtree_node&lt;T&gt;*  node,int maxdepth)
+     {
+-	if (node &amp;&amp; node-&gt;ext_.contains(item_ext))
+-	{
+-	    coord2d c=node-&gt;ext_.center();
++        if (node &amp;&amp; node-&gt;ext_.contains(item_ext))
++        {
++            coord2d c=node-&gt;ext_.center();
+ 
+-	    double width=node-&gt;ext_.width();
+-	    double height=node-&gt;ext_.height();
++            double width=node-&gt;ext_.width();
++            double height=node-&gt;ext_.height();
+ 
+-	    double lox=node-&gt;ext_.minx();
+-	    double loy=node-&gt;ext_.miny();
+-	    double hix=node-&gt;ext_.maxx();
+-	    double hiy=node-&gt;ext_.maxy();
++            double lox=node-&gt;ext_.minx();
++            double loy=node-&gt;ext_.miny();
++            double hix=node-&gt;ext_.maxx();
++            double hiy=node-&gt;ext_.maxy();
+ 
+-	    Envelope&lt;double&gt; ext[4];
+-	    ext[0]=Envelope&lt;double&gt;(lox,loy,lox + width * ratio_,loy + height * ratio_);
+-	    ext[1]=Envelope&lt;double&gt;(hix - width * ratio_,loy,hix,loy + height * ratio_);
+-	    ext[2]=Envelope&lt;double&gt;(lox,hiy - height*ratio_,lox + width * ratio_,hiy);
+-	    ext[3]=Envelope&lt;double&gt;(hix - width * ratio_,hiy - height*ratio_,hix,hiy);
++            Envelope&lt;double&gt; ext[4];
++            ext[0]=Envelope&lt;double&gt;(lox,loy,lox + width * ratio_,loy + height * ratio_);
++            ext[1]=Envelope&lt;double&gt;(hix - width * ratio_,loy,hix,loy + height * ratio_);
++            ext[2]=Envelope&lt;double&gt;(lox,hiy - height*ratio_,lox + width * ratio_,hiy);
++            ext[3]=Envelope&lt;double&gt;(hix - width * ratio_,hiy - height*ratio_,hix,hiy);
+ 
+-	    if (maxdepth &gt; 1)
+-	    {
+-		for (int i=0;i&lt;4;++i)
+-		{
+-		    if (ext[i].contains(item_ext))
+-		    {
+-			if (!node-&gt;children_[i])
+-			{
+-			    node-&gt;children_[i]=new quadtree_node&lt;T&gt;(ext[i]);
+-			}
+-			insert(data,item_ext,node-&gt;children_[i],maxdepth-1);
+-			return;
+-		    }
+-		}
+-	    }
+-	    node-&gt;data_.push_back(data);
+-	}
++            if (maxdepth &gt; 1)
++            {
++                for (int i=0;i&lt;4;++i)
++                {
++                    if (ext[i].contains(item_ext))
++                    {
++                        if (!node-&gt;children_[i])
++                        {
++                            node-&gt;children_[i]=new quadtree_node&lt;T&gt;(ext[i]);
++                        }
++                        insert(data,item_ext,node-&gt;children_[i],maxdepth-1);
++                        return;
++                    }
++                }
++            }
++            node-&gt;data_.push_back(data);
++        }
+     }
+ };
+ #endif                                            //QUADTREE_HH
+
+Modified: trunk/utils/shapeindex/shapeindex.cpp
+===================================================================
+--- trunk/utils/shapeindex/shapeindex.cpp	2006-05-11 04:24:51 UTC (rev 248)
++++ trunk/utils/shapeindex/shapeindex.cpp	2006-05-12 16:35:36 UTC (rev 249)
+@@ -52,51 +52,51 @@
+     
+     try
+     {
+-	po::options_description desc(&quot;shapeindex utility&quot;);
+-	desc.add_options()
+-	    (&quot;help,h&quot;, &quot;produce usage message&quot;)
+-	    (&quot;version,V&quot;,&quot;print version string&quot;)
+-	    (&quot;verbose,v&quot;,&quot;verbose output&quot;)
+-	    (&quot;depth,d&quot;, po::value&lt;unsigned int&gt;(), &quot;max tree depth\n(default 8)&quot;)   
+-	    (&quot;ratio,r&quot;,po::value&lt;double&gt;(),&quot;split ratio (default 0.55)&quot;)
+-	    (&quot;shape_files&quot;,po::value&lt;vector&lt;string&gt; &gt;(),&quot;shape files to index file1 file2 ...fileN&quot;)
+-	    ;
++        po::options_description desc(&quot;shapeindex utility&quot;);
++        desc.add_options()
++            (&quot;help,h&quot;, &quot;produce usage message&quot;)
++            (&quot;version,V&quot;,&quot;print version string&quot;)
++            (&quot;verbose,v&quot;,&quot;verbose output&quot;)
++            (&quot;depth,d&quot;, po::value&lt;unsigned int&gt;(), &quot;max tree depth\n(default 8)&quot;)   
++            (&quot;ratio,r&quot;,po::value&lt;double&gt;(),&quot;split ratio (default 0.55)&quot;)
++            (&quot;shape_files&quot;,po::value&lt;vector&lt;string&gt; &gt;(),&quot;shape files to index file1 file2 ...fileN&quot;)
++            ;
+ 	
+-	po::positional_options_description p;
+-	p.add(&quot;shape_files&quot;,-1);
+-	po::variables_map vm;        
+-	po::store(po::command_line_parser(argc, argv).options(desc).positional(p).run(), vm);
+-	po::notify(vm);
++        po::positional_options_description p;
++        p.add(&quot;shape_files&quot;,-1);
++        po::variables_map vm;        
++        po::store(po::command_line_parser(argc, argv).options(desc).positional(p).run(), vm);
++        po::notify(vm);
+ 	
+-	if (vm.count(&quot;version&quot;))
+-	{
+-	    clog&lt;&lt;&quot;version 0.2.0a&quot; &lt;&lt;endl;
+-	    return 1;
+-	}
++        if (vm.count(&quot;version&quot;))
++        {
++            clog&lt;&lt;&quot;version 0.2.0a&quot; &lt;&lt;endl;
++            return 1;
++        }
+ 
+-	if (vm.count(&quot;help&quot;)) 
+-	{
+-	    clog &lt;&lt; desc &lt;&lt; &quot;\n&quot;;
+-	    return 1;
+-	}
+-	if (vm.count(&quot;depth&quot;))
+-	{
+-	    depth = vm[&quot;depth&quot;].as&lt;unsigned int&gt;();
+-	}
+-	if (vm.count(&quot;ratio&quot;))
+-	{
+-	    ratio = vm[&quot;ratio&quot;].as&lt;double&gt;();
+-	}
++        if (vm.count(&quot;help&quot;)) 
++        {
++            clog &lt;&lt; desc &lt;&lt; &quot;\n&quot;;
++            return 1;
++        }
++        if (vm.count(&quot;depth&quot;))
++        {
++            depth = vm[&quot;depth&quot;].as&lt;unsigned int&gt;();
++        }
++        if (vm.count(&quot;ratio&quot;))
++        {
++            ratio = vm[&quot;ratio&quot;].as&lt;double&gt;();
++        }
+ 	
+         if (vm.count(&quot;shape_files&quot;))
+-	{
+-	    shape_files=vm[&quot;shape_files&quot;].as&lt; vector&lt;string&gt; &gt;();
+-	}
++        {
++            shape_files=vm[&quot;shape_files&quot;].as&lt; vector&lt;string&gt; &gt;();
++        }
+     }
+     catch (...)
+     {
+-	clog &lt;&lt; &quot;Exception of unknown type!&quot;&lt;&lt;endl;
+-	return -1;
++        clog &lt;&lt; &quot;Exception of unknown type!&quot;&lt;&lt;endl;
++        return -1;
+     }
+     
+     std::clog&lt;&lt;&quot;max tree depth:&quot;&lt;&lt;depth&lt;&lt;std::endl;
+@@ -105,107 +105,108 @@
+     vector&lt;string&gt;::const_iterator itr=shape_files.begin();
+     if (itr==shape_files.end())
+     {
+-	std::clog &lt;&lt; &quot;no shape files to index&quot;&lt;&lt;std::endl;
+-	return 0;
++        std::clog &lt;&lt; &quot;no shape files to index&quot;&lt;&lt;std::endl;
++        return 0;
+     }
+     while (itr != shape_files.end())
+     {
+-	std::clog&lt;&lt;&quot;processing &quot;&lt;&lt;*itr &lt;&lt; std::endl;
+-	shape_file shp;
+-	std::string shapename(*itr++);
+-	if (!shp.open(shapename+&quot;.shp&quot;)) {
+-	    std::clog&lt;&lt;&quot;error : cannot open &quot;&lt;&lt; (shapename+&quot;.shp&quot;) &lt;&lt;&quot;\n&quot;;
+-	    continue;
+-	}
++        std::clog&lt;&lt;&quot;processing &quot;&lt;&lt;*itr &lt;&lt; std::endl;
++        shape_file shp;
++        std::string shapename(*itr++);
++        if (!shp.open(shapename+&quot;.shp&quot;)) {
++            std::clog&lt;&lt;&quot;error : cannot open &quot;&lt;&lt; (shapename+&quot;.shp&quot;) &lt;&lt;&quot;\n&quot;;
++            continue;
++        }
+ 
+-	shp.read_xdr_integer(); //file_code == 9994
+-	shp.skip(5*4); 
++        shp.read_xdr_integer(); //file_code == 9994
++        shp.skip(5*4); 
+ 	
+-	int file_length=shp.read_xdr_integer();
+-	int version=shp.read_ndr_integer();
+-	int shape_type=shp.read_ndr_integer();
+-	Envelope&lt;double&gt; extent;
+-	shp.read_envelope(extent);
++        int file_length=shp.read_xdr_integer();
++        int version=shp.read_ndr_integer();
++        int shape_type=shp.read_ndr_integer();
++        Envelope&lt;double&gt; extent;
++        shp.read_envelope(extent);
+ 	
+ 	
+-	std::clog&lt;&lt;&quot;length=&quot;&lt;&lt;file_length&lt;&lt;std::endl;
+-	std::clog&lt;&lt;&quot;version=&quot;&lt;&lt;version&lt;&lt;std::endl;
+-	std::clog&lt;&lt;&quot;type=&quot;&lt;&lt;shape_type&lt;&lt;std::endl;
+-	std::clog&lt;&lt;&quot;extent:&quot;&lt;&lt;extent&lt;&lt;std::endl;
++        std::clog&lt;&lt;&quot;length=&quot;&lt;&lt;file_length&lt;&lt;std::endl;
++        std::clog&lt;&lt;&quot;version=&quot;&lt;&lt;version&lt;&lt;std::endl;
++        std::clog&lt;&lt;&quot;type=&quot;&lt;&lt;shape_type&lt;&lt;std::endl;
++        std::clog&lt;&lt;&quot;extent:&quot;&lt;&lt;extent&lt;&lt;std::endl;
+ 	  
+-	int pos=50;
+-	shp.seek(pos*2);  
+-	quadtree&lt;int&gt; tree(extent,depth,ratio);
+-	int count=0;
+-	while (true) {
++        int pos=50;
++        shp.seek(pos*2);  
++        quadtree&lt;int&gt; tree(extent,depth,ratio);
++        int count=0;
++        while (true) {
+ 	    
+-	    int offset=shp.pos();
+-	    int record_number=shp.read_xdr_integer();
+-	    int content_length=shp.read_xdr_integer();
+-	    
+-	    shp.skip(4);
+-	    std::cout &lt;&lt; &quot;offset= &quot;&lt;&lt; offset &lt;&lt; std::endl;
+-	    
+-	    Envelope&lt;double&gt; item_ext;
+-	    if (shape_type==shape_io::shape_point)
+-	    {
+-		double x=shp.read_double();
+-		double y=shp.read_double();
+-		item_ext=Envelope&lt;double&gt;(x,y,x,y);
++            long offset=shp.pos();
++            int record_number=shp.read_xdr_integer();
++            int content_length=shp.read_xdr_integer();
++            
++            //std::clog &lt;&lt; &quot;rec number = &quot;&lt;&lt; record_number &lt;&lt; &quot;\n&quot;;
++            //std::clog &lt;&lt; &quot;content length = &quot;&lt;&lt; content_length &lt;&lt; &quot;\n&quot;;
++           
++            shp.skip(4);
++            //std::clog &lt;&lt; &quot;offset= &quot;&lt;&lt; offset &lt;&lt; std::endl;
++	        
++            Envelope&lt;double&gt; item_ext;
++            if (shape_type==shape_io::shape_point)
++            {
++                double x=shp.read_double();
++                double y=shp.read_double();
++                item_ext=Envelope&lt;double&gt;(x,y,x,y);
+ 	
+-	    }
+-	    if (shape_type==shape_io::shape_pointm)
+-	    {
+-		double x=shp.read_double();
+-		double y=shp.read_double();
+-		shp.read_double();
+-		item_ext=Envelope&lt;double&gt;(x,y,x,y);
++            }
++            else if (shape_type==shape_io::shape_pointm)
++            {
++                double x=shp.read_double();
++                double y=shp.read_double();
++                shp.read_double();
++                item_ext=Envelope&lt;double&gt;(x,y,x,y);
+ 	
+-	    }
+-	    else if (shape_type==shape_io::shape_pointz)
+-	    {
+-		double x=shp.read_double();
+-		double y=shp.read_double();
+-		shp.read_double();
+-		shp.read_double();
+-		item_ext=Envelope&lt;double&gt;(x,y,x,y);
+-	    }
++            }
++            else if (shape_type==shape_io::shape_pointz)
++            {
++                double x=shp.read_double();
++                double y=shp.read_double();
++                shp.read_double();
++                shp.read_double();
++                item_ext=Envelope&lt;double&gt;(x,y,x,y);
++            }
+ 	
+-	    else 
+-	    {
+-      
+-		shp.read_envelope(item_ext);
+-		shp.skip(2*content_length-4*8-4);
++            else 
++            {   
++                shp.read_envelope(item_ext);
++                shp.skip(2*content_length-4*8-4);
++            }
++            
++            tree.insert(offset,item_ext);
++            if (verbose) {
++                std::clog&lt;&lt;&quot;record number &quot;&lt;&lt;record_number&lt;&lt;&quot; box=&quot;&lt;&lt;item_ext&lt;&lt;std::endl;
++            }
+ 
+-	    }
++            pos+=4+content_length;
++            ++count;
+ 
+-	    tree.insert(offset,item_ext);
+-	    if (verbose) {
+-		std::clog&lt;&lt;&quot;record number &quot;&lt;&lt;record_number&lt;&lt;&quot; box=&quot;&lt;&lt;item_ext&lt;&lt;std::endl;
+-	    }
+-
+-	    pos+=4+content_length;
+-	    ++count;
+-
+-	    if (pos&gt;=file_length) {
+-		break;
+-	    }  
+-	} 
+-	shp.close();
++            if (pos&gt;=file_length) {
++                break;
++            }  
++        } 
++        shp.close();
+   
+-	std::clog&lt;&lt;&quot; number shapes=&quot;&lt;&lt;count&lt;&lt;std::endl;  
++        std::clog&lt;&lt;&quot; number shapes=&quot;&lt;&lt;count&lt;&lt;std::endl;  
+     
+-	std::fstream file((shapename+&quot;.index&quot;).c_str(),
+-			  std::ios::in | std::ios::out | std::ios::trunc | std::ios::binary);
+-	if (!file) {
+-	    std::clog &lt;&lt; &quot;cannot open index file for writing file \&quot;&quot;
+-		      &lt;&lt;(shapename+&quot;.index&quot;)&lt;&lt;&quot;\&quot;&quot;&lt;&lt;std::endl;
+-	} else {
+-	    tree.trim();
+-	    std::clog&lt;&lt;&quot; number nodes=&quot;&lt;&lt;tree.count()&lt;&lt;std::endl;
+-	    tree.write(file);
+-	    file.close();
+-	}
++        std::fstream file((shapename+&quot;.index&quot;).c_str(),
++                          std::ios::in | std::ios::out | std::ios::trunc | std::ios::binary);
++        if (!file) {
++            std::clog &lt;&lt; &quot;cannot open index file for writing file \&quot;&quot;
++                      &lt;&lt;(shapename+&quot;.index&quot;)&lt;&lt;&quot;\&quot;&quot;&lt;&lt;std::endl;
++        } else {
++            tree.trim();
++            std::clog&lt;&lt;&quot; number nodes=&quot;&lt;&lt;tree.count()&lt;&lt;std::endl;
++            tree.write(file);
++            file.close();
++        }
+     }
+     std::clog&lt;&lt;&quot;done!&quot;&lt;&lt;std::endl;
+     return 0;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000133.html">[Mapnik-svn] r248 - in trunk: bindings/python/mapnik/ogcserver bindings/python/pyprojection docs/ogcserver
+</A></li>
+	<LI>Next message: <A HREF="000135.html">[Mapnik-svn] r250 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#134">[ date ]</a>
+              <a href="thread.html#134">[ thread ]</a>
+              <a href="subject.html#134">[ subject ]</a>
+              <a href="author.html#134">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

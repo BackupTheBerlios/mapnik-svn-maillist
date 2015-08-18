@@ -1,0 +1,226 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r294 - in trunk: include plugins/input/postgis src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-August/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r294%20-%20in%20trunk%3A%20include%20plugins/input/postgis%20src&In-Reply-To=%3C200608312132.k7VLW8H3019446%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000178.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r294 - in trunk: include plugins/input/postgis src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r294%20-%20in%20trunk%3A%20include%20plugins/input/postgis%20src&In-Reply-To=%3C200608312132.k7VLW8H3019446%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r294 - in trunk: include plugins/input/postgis src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Thu Aug 31 23:32:08 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000178.html">[Mapnik-svn] r293 - trunk/bindings/python
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#179">[ date ]</a>
+              <a href="thread.html#179">[ thread ]</a>
+              <a href="subject.html#179">[ subject ]</a>
+              <a href="author.html#179">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-08-31 23:32:07 +0200 (Thu, 31 Aug 2006)
+New Revision: 294
+
+Modified:
+   trunk/include/font_engine_freetype.hpp
+   trunk/plugins/input/postgis/connection.hpp
+   trunk/src/image_util.cpp
+   trunk/src/png_reader.cpp
+   trunk/src/tiff_reader.cpp
+Log:
+wrap C headers with :
+
+extern &quot;C&quot; 
+{
+ // 
+}
+
+
+
+
+Modified: trunk/include/font_engine_freetype.hpp
+===================================================================
+--- trunk/include/font_engine_freetype.hpp	2006-08-23 20:35:01 UTC (rev 293)
++++ trunk/include/font_engine_freetype.hpp	2006-08-31 21:32:07 UTC (rev 294)
+@@ -25,9 +25,12 @@
+ #if !defined FONT_ENGINE_FREETYPE_HPP
+ #define FONT_ENGINE_FREETYPE_HPP
+ 
+-#include &lt;ft2build.h&gt;
+-#include FT_FREETYPE_H
+-#include FT_GLYPH_H
++extern &quot;C&quot;
++{
++  #include &lt;ft2build.h&gt;
++  #include FT_FREETYPE_H
++  #include FT_GLYPH_H
++}
+ 
+ #include &lt;boost/shared_ptr.hpp&gt;
+ #include &lt;boost/utility.hpp&gt;
+
+Modified: trunk/plugins/input/postgis/connection.hpp
+===================================================================
+--- trunk/plugins/input/postgis/connection.hpp	2006-08-23 20:35:01 UTC (rev 293)
++++ trunk/plugins/input/postgis/connection.hpp	2006-08-31 21:32:07 UTC (rev 294)
+@@ -25,8 +25,11 @@
+ #ifndef CONNECTION_HPP
+ #define CONNECTION_HPP
+ 
++extern &quot;C&quot; 
++{
++   #include &quot;libpq-fe.h&quot;
++}
+ 
+-#include &quot;libpq-fe.h&quot;
+ #include &quot;resultset.hpp&quot;
+ 
+ using namespace mapnik;
+
+Modified: trunk/src/image_util.cpp
+===================================================================
+--- trunk/src/image_util.cpp	2006-08-23 20:35:01 UTC (rev 293)
++++ trunk/src/image_util.cpp	2006-08-31 21:32:07 UTC (rev 294)
+@@ -23,12 +23,16 @@
+ //$Id: image_util.cpp 36 2005-04-05 14:32:18Z pavlenko $
+ 
+ #include &lt;string&gt;
+-#include &lt;png.h&gt;
+-#include &lt;jpeglib.h&gt;
+ #include &quot;graphics.hpp&quot;
++#include &quot;memory.hpp&quot;
+ #include &quot;image_util.hpp&quot;
+-#include &quot;memory.hpp&quot;
+ 
++extern &quot;C&quot;
++{
++  #include &lt;png.h&gt;
++  #include &lt;jpeglib.h&gt;
++}
++
+ namespace mapnik
+ {
+ 
+
+Modified: trunk/src/png_reader.cpp
+===================================================================
+--- trunk/src/png_reader.cpp	2006-08-23 20:35:01 UTC (rev 293)
++++ trunk/src/png_reader.cpp	2006-08-31 21:32:07 UTC (rev 294)
+@@ -22,10 +22,15 @@
+ 
+ //$Id: png_reader.cpp 33 2005-04-04 13:01:03Z pavlenko $
+ 
++
++#include &lt;iostream&gt;
+ #include &quot;image_reader.hpp&quot;
+-#include &lt;png.h&gt;
+-#include &lt;iostream&gt;
+ 
++extern &quot;C&quot;
++{
++   #include &lt;png.h&gt;
++}
++
+ namespace mapnik
+ {
+     class PngReader : public ImageReader 
+
+Modified: trunk/src/tiff_reader.cpp
+===================================================================
+--- trunk/src/tiff_reader.cpp	2006-08-23 20:35:01 UTC (rev 293)
++++ trunk/src/tiff_reader.cpp	2006-08-31 21:32:07 UTC (rev 294)
+@@ -22,10 +22,14 @@
+ 
+ //$Id: tiff_reader.cpp 17 2005-03-08 23:58:43Z pavlenko $
+ 
++#include &lt;iostream&gt;
+ #include &quot;image_reader.hpp&quot;
+-#include &lt;tiffio.h&gt;
+-#include &lt;iostream&gt;
++extern &quot;C&quot; 
++{
++   #include &lt;tiffio.h&gt;    
++}
+ 
++
+ namespace mapnik 
+ {
+ 
+@@ -43,12 +47,11 @@
+         int tile_width_;
+         int tile_height_;
+     public:
+-        enum
+-	    {
+-		generic=1,
+-		stripped,
+-		tiled
+-	    };
++        enum {
++            generic=1,
++            stripped,
++            tiled
++        };
+         explicit TiffReader(const std::string&amp; file_name);
+         virtual ~TiffReader();
+         unsigned width() const;
+@@ -75,12 +78,12 @@
+ 
+     TiffReader::TiffReader(const std::string&amp; file_name)
+         : file_name_(file_name),
+-	  read_method_(generic),
+-	  width_(0),
+-	  height_(0),
+-	  rows_per_strip_(0),
+-	  tile_width_(0),
+-	  tile_height_(0)
++          read_method_(generic),
++          width_(0),
++          height_(0),
++          rows_per_strip_(0),
++          tile_width_(0),
++          tile_height_(0)
+     {
+         try
+         {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000178.html">[Mapnik-svn] r293 - trunk/bindings/python
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#179">[ date ]</a>
+              <a href="thread.html#179">[ thread ]</a>
+              <a href="subject.html#179">[ subject ]</a>
+              <a href="author.html#179">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

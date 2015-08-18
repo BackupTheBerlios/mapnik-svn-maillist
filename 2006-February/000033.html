@@ -1,0 +1,383 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r147 - in trunk: . agg agg/include agg/src bindings bindings/python bindings/python/mapnik docs include plugins plugins/input plugins/input/postgis plugins/input/raster plugins/input/shape scons scons/scons-local-0.96.1 scons/scons-local-0.96.1/SCons scons/scons-local-0.96.1/SCons/Node scons/scons-local-0.96.1/SCons/Optik scons/scons-local-0.96.1/SCons/Options scons/scons-local-0.96.1/SCons/Platform scons/scons-local-0.96.1/SCons/Scanner scons/scons-local-0.96.1/SCons/Script scons/scons-local-0.96.1/SCons/Sig scons/scons-local-0.96.1/SCons/Tool src utils utils/shapeindex
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-February/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r147%20-%20in%20trunk%3A%20.%20agg%20agg/include%20agg/src%20bindings%20bindings/python%20bindings/python/mapnik%20docs%20include%20plugins%20plugins/input%20plugins/input/postgis%20plugins/input/raster%20plugins/input/shape%20scons%20scons/scons-local-0.96.1%20scons/scons-local-0.96.1/SCons%20scons/scons-local-0.96.1/SCons/Node%20scons/scons-local-0.96.1/SCons/Optik%20scons/scons-local-0.96.1/SCons/Options%20scons/scons-local-0.96.1/SCons/Platform%20scons/scons-local-0.96.1/SCons/Scanner%20scons/scons-local-0.96.1/SCons/Script%20scons/scons-local-0.96.1/SCons/Sig%20scons/scons-local-0.96.1/SCons/Tool%20src%20utils%20utils/shapeindex&In-Reply-To=%3C200602052225.k15MPY9B025728%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000032.html">
+   <LINK REL="Next"  HREF="000034.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r147 - in trunk: . agg agg/include agg/src bindings bindings/python bindings/python/mapnik docs include plugins plugins/input plugins/input/postgis plugins/input/raster plugins/input/shape scons scons/scons-local-0.96.1 scons/scons-local-0.96.1/SCons scons/scons-local-0.96.1/SCons/Node scons/scons-local-0.96.1/SCons/Optik scons/scons-local-0.96.1/SCons/Options scons/scons-local-0.96.1/SCons/Platform scons/scons-local-0.96.1/SCons/Scanner scons/scons-local-0.96.1/SCons/Script scons/scons-local-0.96.1/SCons/Sig scons/scons-local-0.96.1/SCons/Tool src utils utils/shapeindex</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r147%20-%20in%20trunk%3A%20.%20agg%20agg/include%20agg/src%20bindings%20bindings/python%20bindings/python/mapnik%20docs%20include%20plugins%20plugins/input%20plugins/input/postgis%20plugins/input/raster%20plugins/input/shape%20scons%20scons/scons-local-0.96.1%20scons/scons-local-0.96.1/SCons%20scons/scons-local-0.96.1/SCons/Node%20scons/scons-local-0.96.1/SCons/Optik%20scons/scons-local-0.96.1/SCons/Options%20scons/scons-local-0.96.1/SCons/Platform%20scons/scons-local-0.96.1/SCons/Scanner%20scons/scons-local-0.96.1/SCons/Script%20scons/scons-local-0.96.1/SCons/Sig%20scons/scons-local-0.96.1/SCons/Tool%20src%20utils%20utils/shapeindex&In-Reply-To=%3C200602052225.k15MPY9B025728%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r147 - in trunk: . agg agg/include agg/src bindings bindings/python bindings/python/mapnik docs include plugins plugins/input plugins/input/postgis plugins/input/raster plugins/input/shape scons scons/scons-local-0.96.1 scons/scons-local-0.96.1/SCons scons/scons-local-0.96.1/SCons/Node scons/scons-local-0.96.1/SCons/Optik scons/scons-local-0.96.1/SCons/Options scons/scons-local-0.96.1/SCons/Platform scons/scons-local-0.96.1/SCons/Scanner scons/scons-local-0.96.1/SCons/Script scons/scons-local-0.96.1/SCons/Sig scons/scons-local-0.96.1/SCons/Tool src utils utils/shapeindex">jdoyon at berlios.de
+       </A><BR>
+    <I>Sun Feb  5 23:25:34 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000032.html">[Mapnik-svn] r146 - trunk
+</A></li>
+        <LI>Next message: <A HREF="000034.html">[Mapnik-svn] r148 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#33">[ date ]</a>
+              <a href="thread.html#33">[ thread ]</a>
+              <a href="subject.html#33">[ subject ]</a>
+              <a href="author.html#33">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-02-05 23:25:34 +0100 (Sun, 05 Feb 2006)
+New Revision: 147
+
+Modified:
+   trunk/
+   trunk/agg/
+   trunk/agg/include/
+   trunk/agg/src/
+   trunk/bindings/
+   trunk/bindings/python/
+   trunk/bindings/python/mapnik/
+   trunk/docs/
+   trunk/include/
+   trunk/plugins/
+   trunk/plugins/input/
+   trunk/plugins/input/postgis/
+   trunk/plugins/input/raster/
+   trunk/plugins/input/shape/
+   trunk/scons/
+   trunk/scons/scons-local-0.96.1/
+   trunk/scons/scons-local-0.96.1/SCons/
+   trunk/scons/scons-local-0.96.1/SCons/Node/
+   trunk/scons/scons-local-0.96.1/SCons/Optik/
+   trunk/scons/scons-local-0.96.1/SCons/Options/
+   trunk/scons/scons-local-0.96.1/SCons/Platform/
+   trunk/scons/scons-local-0.96.1/SCons/Scanner/
+   trunk/scons/scons-local-0.96.1/SCons/Script/
+   trunk/scons/scons-local-0.96.1/SCons/Sig/
+   trunk/scons/scons-local-0.96.1/SCons/Tool/
+   trunk/src/
+   trunk/utils/
+   trunk/utils/shapeindex/
+Log:
+Add .sconsign to be ignored, make filter recursive in the source tree.
+
+
+
+
+Property changes on: trunk
+___________________________________________________________________
+Name: svn:ignore
+   - *.pyc
+*.os
+*.so
+
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/agg
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/agg/include
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/agg/src
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/bindings
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/bindings/python
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/bindings/python/mapnik
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/docs
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/include
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/plugins
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/plugins/input
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/plugins/input/postgis
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/plugins/input/raster
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/plugins/input/shape
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/scons
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/scons/scons-local-0.96.1
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/scons/scons-local-0.96.1/SCons
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/scons/scons-local-0.96.1/SCons/Node
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/scons/scons-local-0.96.1/SCons/Optik
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/scons/scons-local-0.96.1/SCons/Options
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/scons/scons-local-0.96.1/SCons/Platform
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/scons/scons-local-0.96.1/SCons/Scanner
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/scons/scons-local-0.96.1/SCons/Script
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/scons/scons-local-0.96.1/SCons/Sig
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/scons/scons-local-0.96.1/SCons/Tool
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/src
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/utils
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+Property changes on: trunk/utils/shapeindex
+___________________________________________________________________
+Name: svn:ignore
+   + *.pyc
+*.os
+*.so
+.sconsign
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000032.html">[Mapnik-svn] r146 - trunk
+</A></li>
+	<LI>Next message: <A HREF="000034.html">[Mapnik-svn] r148 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#33">[ date ]</a>
+              <a href="thread.html#33">[ thread ]</a>
+              <a href="subject.html#33">[ subject ]</a>
+              <a href="author.html#33">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

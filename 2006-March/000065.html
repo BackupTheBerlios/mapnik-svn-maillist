@@ -1,0 +1,229 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r179 - in trunk: include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r179%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200603192151.k2JLpeah000165%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000064.html">
+   <LINK REL="Next"  HREF="000066.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r179 - in trunk: include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r179%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200603192151.k2JLpeah000165%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r179 - in trunk: include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Sun Mar 19 22:51:40 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000064.html">[Mapnik-svn] r178 - in trunk: include src
+</A></li>
+        <LI>Next message: <A HREF="000066.html">[Mapnik-svn] r180 - in trunk: include plugins/input/postgis plugins/input/raster plugins/input/shape src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#65">[ date ]</a>
+              <a href="thread.html#65">[ thread ]</a>
+              <a href="subject.html#65">[ subject ]</a>
+              <a href="author.html#65">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-19 22:51:40 +0100 (Sun, 19 Mar 2006)
+New Revision: 179
+
+Removed:
+   trunk/include/text.hpp
+   trunk/src/text.cpp
+Log:
+removed unused text.{hpp,cpp}
+
+Deleted: trunk/include/text.hpp
+===================================================================
+--- trunk/include/text.hpp	2006-03-10 12:08:55 UTC (rev 178)
++++ trunk/include/text.hpp	2006-03-19 21:51:40 UTC (rev 179)
+@@ -1,51 +0,0 @@
+-/* This file is part of Mapnik (c++ mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
+- *
+- * Mapnik is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version 2
+- * of the License, or any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+- */
+-
+-//$Id: text.hpp 39 2005-04-10 20:39:53Z pavlenko $
+-
+-#ifndef TEXT_HPP
+-#define TEXT_HPP
+-
+-#ifdef __HAVE_FREETYPE2__ //TODO:: fix configure.ac AP_CHECK_FREETYPE2
+- 
+-#include &lt;ft2build.h&gt;
+-#include FT_FREETYPE_H
+-#include &lt;iostream&gt;
+-#include &lt;string&gt;
+-#include &quot;graphics.hpp&quot;
+-
+-namespace mapnik
+-{
+-    template &lt;typename PixBuffer&gt; class TextRasterizer
+-    {
+-        private:
+-            PixBuffer* pixbuf_;
+-            std::string fontName_;
+-        public:
+-            TextRasterizer(PixBuffer&amp; pixbuf,const char* fontName)
+-		: pixbuf_(&amp;pixbuf),
+-		  fontName_(fontName) {}
+-            void render(const char* text);
+-        private:
+-            TextRasterizer(const TextRasterizer&amp;);
+-            TextRasterizer&amp; operator=(const TextRasterizer&amp;);
+-            void render_bitmap(FT_Bitmap *bitmap,int x,int y);
+-    };
+-}
+-#endif
+-#endif                                            //TEXT_HPP
+
+Deleted: trunk/src/text.cpp
+===================================================================
+--- trunk/src/text.cpp	2006-03-10 12:08:55 UTC (rev 178)
++++ trunk/src/text.cpp	2006-03-19 21:51:40 UTC (rev 179)
+@@ -1,95 +0,0 @@
+-/* This file is part of Mapnik (c++ mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
+- *
+- * Mapnik is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version 2
+- * of the License, or any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+- */
+-
+-//$Id: text.cpp 17 2005-03-08 23:58:43Z pavlenko $
+-
+-#include &quot;text.hpp&quot;
+-
+-#ifdef __HAVE_FREETYPE2__
+-namespace mapnik
+-{
+-    using namespace std;
+-    template &lt;class PixBuffer&gt;
+-        void TextRasterizer&lt;PixBuffer&gt;::render(const char* text)
+-    {
+-        FT_Library library;
+-        FT_Face face;
+-        FT_Error  error;
+-        error = FT_Init_FreeType( &amp;library );
+-        if (error)
+-        {
+-            cout&lt;&lt;&quot;an error occurred during library initialization\n&quot;;
+-            return;
+-        }
+-        error = FT_New_Face( library, fontName_.c_str(), 0, &amp;face );
+-        if (error == FT_Err_Unknown_File_Format )
+-        {
+-            cout&lt;&lt;&quot;the font file could be opened and read, but it appears\n&quot;;
+-            cout&lt;&lt;&quot;that its font format is unsupported&quot;&lt;&lt;endl;
+-            return;
+-        }
+-        else if ( error )
+-        {
+-            cout&lt;&lt;&quot;font file could not be opened or read, or simply that it is broken\n&quot;;
+-            return;
+-        }
+-        error = FT_Set_Pixel_Sizes(face,24,0);
+-        FT_GlyphSlot slot = face-&gt;glyph;
+-        int x=40,y=200;
+-        int len=strlen(text);
+-        for (int i=0;i&lt;len;++i)
+-        {
+-            FT_UInt glyph_index;
+-            glyph_index = FT_Get_Char_Index(face,text[i]);
+-            error=FT_Load_Glyph(face,glyph_index,FT_LOAD_DEFAULT);
+-            if (error) continue;
+-            error=FT_Render_Glyph( face-&gt;glyph,FT_RENDER_MODE_NORMAL);
+-            if (error) continue;
+-            render_bitmap(&amp;slot-&gt;bitmap,x+slot-&gt;bitmap_left,y-slot-&gt;bitmap_top);
+-            x+=slot-&gt;advance.x&gt;&gt;6;
+-            y+=slot-&gt;advance.y&gt;&gt;6;
+-        }
+-        FT_Done_Face(face);
+-        FT_Done_FreeType(library);
+-    }
+-
+-    template &lt;class PixBuffer&gt;
+-    void TextRasterizer&lt;PixBuffer&gt;::render_bitmap(FT_Bitmap *bitmap,int x,int y)
+-    {
+-        int x_max=x+bitmap-&gt;width;
+-        int y_max=y+bitmap-&gt;rows;
+-        int i,p,j,q;
+-
+-        Color c(255,200,120);
+-        for (i=x,p=0;i&lt;x_max;++i,++p)
+-        {
+-            for (j=y,q=0;j&lt;y_max;++j,++q)
+-            {
+-                int gray=bitmap-&gt;buffer[q*bitmap-&gt;width+p];
+-                if (gray)
+-                {
+-                    pixbuf_-&gt;blendPixel(i,j,c.rgba(),gray);
+-                }
+-            }
+-        }
+-    }
+-
+-    template class TextRasterizer&lt;Image32&gt;;
+-}
+-
+-#endif
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000064.html">[Mapnik-svn] r178 - in trunk: include src
+</A></li>
+	<LI>Next message: <A HREF="000066.html">[Mapnik-svn] r180 - in trunk: include plugins/input/postgis plugins/input/raster plugins/input/shape src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#65">[ date ]</a>
+              <a href="thread.html#65">[ thread ]</a>
+              <a href="subject.html#65">[ subject ]</a>
+              <a href="author.html#65">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

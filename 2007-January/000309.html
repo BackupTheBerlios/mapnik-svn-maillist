@@ -1,0 +1,209 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r424 - in trunk: bindings/python include/mapnik src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r424%20-%20in%20trunk%3A%20bindings/python%20include/mapnik%20src&In-Reply-To=%3C200701091123.l09BNaIc028838%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="000310.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r424 - in trunk: bindings/python include/mapnik src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r424%20-%20in%20trunk%3A%20bindings/python%20include/mapnik%20src&In-Reply-To=%3C200701091123.l09BNaIc028838%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r424 - in trunk: bindings/python include/mapnik src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Tue Jan  9 12:23:36 CET 2007</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="000310.html">[Mapnik-svn] r425 - in trunk: include/mapnik src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#309">[ date ]</a>
+              <a href="thread.html#309">[ thread ]</a>
+              <a href="subject.html#309">[ subject ]</a>
+              <a href="author.html#309">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2007-01-09 12:23:19 +0100 (Tue, 09 Jan 2007)
+New Revision: 424
+
+Modified:
+   trunk/bindings/python/mapnik_feature.cpp
+   trunk/bindings/python/mapnik_layer.cpp
+   trunk/include/mapnik/feature.hpp
+   trunk/include/mapnik/layer.hpp
+   trunk/src/layer.cpp
+Log:
+added queryable property and visible method to Layer (Python)
+
+
+
+Modified: trunk/bindings/python/mapnik_feature.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_feature.cpp	2006-12-31 11:44:34 UTC (rev 423)
++++ trunk/bindings/python/mapnik_feature.cpp	2007-01-09 11:23:19 UTC (rev 424)
+@@ -35,16 +35,15 @@
+         boost::noncopyable&gt;(&quot;Feature&quot;,no_init)
+         .def(&quot;id&quot;,&amp;Feature::id)
+         .def(&quot;__str__&quot;,&amp;Feature::to_string)
++      //.def(map_indexing_suite&lt;mapnik::Feature&gt;())
+ 	.add_property(&quot;properties&quot;, 
+ 		      make_function(&amp;Feature::props,return_value_policy&lt;reference_existing_object&gt;()))
+         ;
+     
+-    //implicitly_convertible&lt;std::string,mapnik::value&gt;();
+-    
+     class_&lt;std::map&lt;std::string, mapnik::value&gt; &gt;(&quot;Properties&quot;)
+-	.def(map_indexing_suite&lt;std::map&lt;std::string, mapnik::value
+-	     &gt; &gt;())
+-	;
++      .def(map_indexing_suite&lt;std::map&lt;std::string, mapnik::value
++	   &gt; &gt;())
++      ;
+     
+     class_&lt;mapnik::value&gt;(&quot;Value&quot;)
+ 	.def(&quot;__str__&quot;,&amp;mapnik::value::to_string)
+
+Modified: trunk/bindings/python/mapnik_layer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_layer.cpp	2006-12-31 11:44:34 UTC (rev 423)
++++ trunk/bindings/python/mapnik_layer.cpp	2007-01-09 11:23:19 UTC (rev 424)
+@@ -80,7 +80,10 @@
+         .add_property(&quot;active&quot;,
+                       &amp;Layer::isActive,
+                       &amp;Layer::setActive)
+-        
++        .add_property(&quot;queryable&quot;,
++		      &amp;Layer::isQueryable,
++		      &amp;Layer::setQueryable)
++        .def(&quot;visible&quot;, &amp;Layer::isVisible)
+         .def(&quot;envelope&quot;,&amp;Layer::envelope, 
+              &quot;Return the geographic envelope/bounding box &quot;
+              &quot;of the data in the layer.&quot;)
+
+Modified: trunk/include/mapnik/feature.hpp
+===================================================================
+--- trunk/include/mapnik/feature.hpp	2006-12-31 11:44:34 UTC (rev 423)
++++ trunk/include/mapnik/feature.hpp	2007-01-09 11:23:19 UTC (rev 424)
+@@ -48,7 +48,9 @@
+     public:
+         typedef T1 geometry_type;
+         typedef T2 raster_type;
+-       
++      typedef std::map&lt;std::string,value&gt;::value_type value_type;
++      typedef std::map&lt;std::string,value&gt;::size_type size_type;
++      
+     private:
+         int id_;
+         geometry_type geom_;
+
+Modified: trunk/include/mapnik/layer.hpp
+===================================================================
+--- trunk/include/mapnik/layer.hpp	2006-12-31 11:44:34 UTC (rev 423)
++++ trunk/include/mapnik/layer.hpp	2007-01-09 11:23:19 UTC (rev 424)
+@@ -43,7 +43,7 @@
+         double minZoom_;
+         double maxZoom_;
+         bool active_;
+-        bool selectable_;
++        bool queryable_;
+         std::vector&lt;std::string&gt;  styles_;
+         std::string selection_style_;
+         datasource_ptr ds_;
+@@ -74,8 +74,8 @@
+         double getMaxZoom() const;
+         void setActive(bool active);
+         bool isActive() const;
+-        void setSelectable(bool selectable);
+-        bool isSelectable() const;
++        void setQueryable(bool queryable);
++        bool isQueryable() const;
+         bool isVisible(double scale) const;
+         void add_to_selection(boost::shared_ptr&lt;Feature&gt;&amp; feature) const;
+         std::vector&lt;boost::shared_ptr&lt;Feature&gt; &gt;&amp; selection() const;
+
+Modified: trunk/src/layer.cpp
+===================================================================
+--- trunk/src/layer.cpp	2006-12-31 11:44:34 UTC (rev 423)
++++ trunk/src/layer.cpp	2007-01-09 11:23:19 UTC (rev 424)
+@@ -46,7 +46,7 @@
+           minZoom_(0),
+           maxZoom_(std::numeric_limits&lt;double&gt;::max()),
+           active_(true),
+-          selectable_(false),
++          queryable_(false),
+           selection_style_(&quot;default_selection&quot;),
+           ds_() {}
+     
+@@ -58,7 +58,7 @@
+           minZoom_(rhs.minZoom_),
+           maxZoom_(rhs.maxZoom_),
+           active_(rhs.active_),
+-          selectable_(rhs.selectable_),
++          queryable_(rhs.queryable_),
+           styles_(rhs.styles_),
+           selection_style_(rhs.selection_style_),
+           ds_(rhs.ds_) {}
+@@ -83,7 +83,7 @@
+         minZoom_=rhs.minZoom_;
+         maxZoom_=rhs.maxZoom_;
+         active_=rhs.active_;
+-        selectable_=rhs.selectable_;
++        queryable_=rhs.queryable_;
+         styles_=rhs.styles_;
+         selection_style_=rhs.selection_style_;
+         ds_=rhs.ds_;
+@@ -181,14 +181,14 @@
+         return isActive() &amp;&amp; scale &gt;= minZoom_ - 1e-6 &amp;&amp; scale &lt; maxZoom_ + 1e-6;
+     }
+ 
+-    void Layer::setSelectable(bool selectable)
++    void Layer::setQueryable(bool queryable)
+     {
+-        selectable_=selectable;
++        queryable_=queryable;
+     }
+ 
+-    bool Layer::isSelectable() const
++    bool Layer::isQueryable() const
+     {
+-        return selectable_;
++        return queryable_;
+     }
+ 
+     datasource_ptr Layer::datasource() const
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="000310.html">[Mapnik-svn] r425 - in trunk: include/mapnik src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#309">[ date ]</a>
+              <a href="thread.html#309">[ thread ]</a>
+              <a href="subject.html#309">[ subject ]</a>
+              <a href="author.html#309">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

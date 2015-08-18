@@ -1,0 +1,152 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r329 - trunk/include/mapnik
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r329%20-%20trunk/include/mapnik&In-Reply-To=%3C200610161332.k9GDWkhv015222%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000213.html">
+   <LINK REL="Next"  HREF="000215.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r329 - trunk/include/mapnik</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r329%20-%20trunk/include/mapnik&In-Reply-To=%3C200610161332.k9GDWkhv015222%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r329 - trunk/include/mapnik">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Mon Oct 16 15:32:46 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000213.html">[Mapnik-svn] r328 - in trunk: include/mapnik src
+</A></li>
+        <LI>Next message: <A HREF="000215.html">[Mapnik-svn] r330 - in trunk: . agg bindings/python	bindings/python/mapnik demo/python include/mapnik src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#214">[ date ]</a>
+              <a href="thread.html#214">[ thread ]</a>
+              <a href="subject.html#214">[ subject ]</a>
+              <a href="author.html#214">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-16 15:32:45 +0200 (Mon, 16 Oct 2006)
+New Revision: 329
+
+Modified:
+   trunk/include/mapnik/coord.hpp
+Log:
+added operators +,-,*,/
+
+
+
+Modified: trunk/include/mapnik/coord.hpp
+===================================================================
+--- trunk/include/mapnik/coord.hpp	2006-10-16 13:31:52 UTC (rev 328)
++++ trunk/include/mapnik/coord.hpp	2006-10-16 13:32:45 UTC (rev 329)
+@@ -27,6 +27,7 @@
+ 
+ #include &lt;iomanip&gt;
+ #include &lt;sstream&gt;
++#include &lt;boost/operators.hpp&gt;
+ 
+ namespace mapnik {   
+     template &lt;typename T,int dim&gt;
+@@ -36,6 +37,13 @@
+     
+     template &lt;typename T&gt;
+     struct coord&lt;T,2&gt; 
++        : boost::addable&lt;coord&lt;T,2&gt;,
++          boost::addable2&lt;coord&lt;T,2&gt;,T,
++          boost::subtractable&lt;coord&lt;T,2&gt;,
++          boost::subtractable2&lt;coord&lt;T,2&gt;,T,
++          boost::dividable2&lt;coord&lt;T,2&gt;, T,
++          boost::multipliable2&lt;coord&lt;T,2&gt;, T &gt; &gt; &gt; &gt; &gt; &gt;
++                    
+     {
+         typedef T type;
+         T x;
+@@ -61,6 +69,52 @@
+             y=type(rhs.y);
+             return *this;
+         }
++        template &lt;typename T2&gt;
++        bool operator==(coord&lt;T2,2&gt; const&amp; rhs)
++        {
++            return x == rhs.x &amp;&amp; y == rhs.y;
++        }
++
++        coord&lt;T,2&gt;&amp; operator+=(coord&lt;T,2&gt; const&amp; rhs)
++        {
++            x+=rhs.x;
++            y+=rhs.y;
++            return *this;
++        }
++        
++        coord&lt;T,2&gt;&amp; operator+=(T rhs)
++        {
++            x+=rhs;
++            y+=rhs;
++            return *this;
++        }
++        
++        coord&lt;T,2&gt;&amp; operator-=(coord&lt;T,2&gt; const&amp; rhs)
++        {
++            x-=rhs.x;
++            y-=rhs.y;
++            return *this;
++        }
++        
++        coord&lt;T,2&gt;&amp; operator-=(T rhs)
++        {
++            x-=rhs;
++            y-=rhs;
++            return *this;
++        }
++        
++        coord&lt;T,2&gt;&amp; operator*=(T t)
++        {
++            x*=t;
++            y*=t;
++            return *this;
++        }
++        coord&lt;T,2&gt;&amp; operator/=(T t)
++        {
++            x/=t;
++            y/=t;
++            return *this;
++        }
+     };
+ 
+     template &lt;typename T&gt;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000213.html">[Mapnik-svn] r328 - in trunk: include/mapnik src
+</A></li>
+	<LI>Next message: <A HREF="000215.html">[Mapnik-svn] r330 - in trunk: . agg bindings/python	bindings/python/mapnik demo/python include/mapnik src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#214">[ date ]</a>
+              <a href="thread.html#214">[ thread ]</a>
+              <a href="subject.html#214">[ subject ]</a>
+              <a href="author.html#214">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,288 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r389 - in trunk: include/mapnik src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-November/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r389%20-%20in%20trunk%3A%20include/mapnik%20src&In-Reply-To=%3C200611291044.kATAijcv031304%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000273.html">
+   <LINK REL="Next"  HREF="000275.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r389 - in trunk: include/mapnik src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r389%20-%20in%20trunk%3A%20include/mapnik%20src&In-Reply-To=%3C200611291044.kATAijcv031304%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r389 - in trunk: include/mapnik src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Wed Nov 29 11:44:45 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000273.html">[Mapnik-svn] r388 - trunk/include/mapnik
+</A></li>
+        <LI>Next message: <A HREF="000275.html">[Mapnik-svn] r390 - in trunk/plugins/input: postgis shape
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#274">[ date ]</a>
+              <a href="thread.html#274">[ thread ]</a>
+              <a href="subject.html#274">[ subject ]</a>
+              <a href="author.html#274">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-11-29 11:44:42 +0100 (Wed, 29 Nov 2006)
+New Revision: 389
+
+Modified:
+   trunk/include/mapnik/placement_finder.hpp
+   trunk/include/mapnik/text_symbolizer.hpp
+   trunk/src/agg_renderer.cpp
+   trunk/src/placement_finder.cpp
+   trunk/src/text_symbolizer.cpp
+Log:
+Label position tolerance and text spacing patch from David Leaver. Thanks!
+
+
+
+Modified: trunk/include/mapnik/placement_finder.hpp
+===================================================================
+--- trunk/include/mapnik/placement_finder.hpp	2006-11-29 00:14:25 UTC (rev 388)
++++ trunk/include/mapnik/placement_finder.hpp	2006-11-29 10:44:42 UTC (rev 389)
+@@ -89,6 +89,8 @@
+     int text_ratio;
+ 
+     int label_spacing; // distance between repeated labels on a single geometry
++    unsigned label_position_tolerance; //distance the label can be moved on the line to fit, if 0 the default is used
++	bool force_odd_labels; //Always try render an odd amount of labels
+ 
+     double max_char_angle_delta;
+     
+
+Modified: trunk/include/mapnik/text_symbolizer.hpp
+===================================================================
+--- trunk/include/mapnik/text_symbolizer.hpp	2006-11-29 00:14:25 UTC (rev 388)
++++ trunk/include/mapnik/text_symbolizer.hpp	2006-11-29 10:44:42 UTC (rev 389)
+@@ -53,6 +53,10 @@
+         void set_wrap_width(unsigned ratio);
+         unsigned get_label_spacing() const; // spacing between repeated labels on lines
+         void set_label_spacing(unsigned spacing);
++        unsigned get_label_position_tolerance() const; //distance the label can be moved on the line to fit, if 0 the default is used
++        void set_label_position_tolerance(unsigned tolerance);
++		bool get_force_odd_labels() const; // try render an odd amount of labels
++		void set_force_odd_labels(bool force);
+         double get_max_char_angle_delta() const; // maximum change in angle between adjacent characters
+         void set_max_char_angle_delta(double angle);
+         unsigned get_text_size() const;
+@@ -78,6 +82,8 @@
+         unsigned text_ratio_;
+         unsigned wrap_width_;
+         unsigned label_spacing_;
++        unsigned label_position_tolerance_;
++        bool force_odd_labels_;
+         double max_char_angle_delta_;
+         Color fill_;
+         Color halo_fill_;
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-11-29 00:14:25 UTC (rev 388)
++++ trunk/src/agg_renderer.cpp	2006-11-29 10:44:42 UTC (rev 389)
+@@ -256,7 +256,6 @@
+             //    ren_oaa.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
+             //    ren_oaa.clip_box(0,0,pixmap_.width(),pixmap_.height());
+             //    ras_oaa.add_path(path);		
+-		 
+             //    }
+             else 
+             {
+@@ -520,6 +519,8 @@
+                     text_placement.text_ratio = sym.get_text_ratio();
+                     text_placement.wrap_width = sym.get_wrap_width();
+                     text_placement.label_spacing = sym.get_label_spacing();
++                    text_placement.label_position_tolerance = sym.get_label_position_tolerance();
++                    text_placement.force_odd_labels = sym.get_force_odd_labels();
+                     text_placement.max_char_angle_delta = sym.get_max_char_angle_delta();
+                     text_placement.avoid_edges = sym.get_avoid_edges();
+                   
+
+Modified: trunk/src/placement_finder.cpp
+===================================================================
+--- trunk/src/placement_finder.cpp	2006-11-29 00:14:25 UTC (rev 388)
++++ trunk/src/placement_finder.cpp	2006-11-29 10:44:42 UTC (rev 389)
+@@ -46,13 +46,13 @@
+ {
+     //For shields
+     placement::placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, std::pair&lt;double, double&gt; dimensions_)
+-        : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(point_placement), dimensions(dimensions_), has_dimensions(true), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0), wrap_width(0), text_ratio(0), label_spacing(0), max_char_angle_delta(0.0), avoid_edges(false)
++        : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(point_placement), dimensions(dimensions_), has_dimensions(true), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0), wrap_width(0), text_ratio(0), label_spacing(0), label_position_tolerance(0), force_odd_labels(false), max_char_angle_delta(0.0), avoid_edges(false)
+     {
+     }
+ 
+     //For text
+     placement::placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, label_placement_e placement_)
+-        : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(placement_), has_dimensions(false), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0), wrap_width(0), text_ratio(0), label_spacing(0), max_char_angle_delta(0.0), avoid_edges(false)
++        : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(placement_), has_dimensions(false), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0), wrap_width(0), text_ratio(0), label_spacing(0), label_position_tolerance(0), force_odd_labels(false), max_char_angle_delta(0.0), avoid_edges(false)
+     {
+     }
+   
+@@ -183,20 +183,55 @@
+         int num_labels = 0;
+         if (p-&gt;label_spacing)
+             num_labels = static_cast&lt;int&gt; (floor(distance / (p-&gt;label_spacing + string_width)));
+-        if (num_labels == 0)
++		if (p-&gt;force_odd_labels &amp;&amp; num_labels%2 == 0)
++			num_labels--;
++        if (num_labels &lt;= 0)
+             num_labels = 1;
+ 
+         double ideal_spacing = distance/num_labels;
+         std::vector&lt;double&gt; ideal_label_distances;
+-        for (double label_pos = string_width/2.0; label_pos &lt; distance - string_width/2.0; label_pos += ideal_spacing)
+-            ideal_label_distances.push_back(label_pos);
++		
++		double middle = (distance / 2.0) - (string_width/2.0); //try draw text centered
++		
++		if (num_labels % 2) //odd amount of labels
++		{
++			for (int a = 0; a &lt; (num_labels+1)/2; a++)
++			{
++				ideal_label_distances.push_back(middle - (a*ideal_spacing));
++	
++				if (a != 0)
++					ideal_label_distances.push_back(middle + (a*ideal_spacing));
++			}
++		}
++		else //even amount of labels
++		{
++			for (int a = 0; a &lt; num_labels/2; a++)
++			{
++				ideal_label_distances.push_back(middle - (ideal_spacing/2.0) - (a*ideal_spacing));
++				ideal_label_distances.push_back(middle + (ideal_spacing/2.0) + (a*ideal_spacing));
++			}
++		}
+ 
+-        double delta = ideal_spacing/100.0;
++        double delta;
++		double tolerance;
++
++		if (p-&gt;label_position_tolerance &gt; 0)
++		{
++			tolerance = p-&gt;label_position_tolerance;
++			delta = std::max ( 1.0, p-&gt;label_position_tolerance/100.0);
++		}
++		else
++		{
++			tolerance = ideal_spacing/2.0;
++			delta = ideal_spacing/100.0;
++		}
++
++
+         bool FoundPlacement = false;
+         for (std::vector&lt;double&gt;::const_iterator itr = ideal_label_distances.begin(); itr &lt; ideal_label_distances.end(); ++itr)
+         {
+             //std::clog &lt;&lt; &quot;Trying to find txt placement at distance: &quot; &lt;&lt; *itr &lt;&lt; std::endl;
+-            for (double i = 0; i &lt; ideal_spacing/2.0; i += delta)
++            for (double i = 0; i &lt; tolerance; i += delta)
+             {
+                 p-&gt;clear_envelopes();
+         
+@@ -431,8 +466,8 @@
+                 render_y -= ci.width*sin(render_angle) + (string_height-2)*cos(render_angle);
+                 render_angle += M_PI;
+             }
+-
+         
++        
+             p-&gt;current_placement.path.add_node(c, render_x - p-&gt;current_placement.starting_x, -render_y + p-&gt;current_placement.starting_y, render_angle);
+             x += next_char_x;
+             y -= next_char_y;
+
+Modified: trunk/src/text_symbolizer.cpp
+===================================================================
+--- trunk/src/text_symbolizer.cpp	2006-11-29 00:14:25 UTC (rev 388)
++++ trunk/src/text_symbolizer.cpp	2006-11-29 10:44:42 UTC (rev 389)
+@@ -36,6 +36,8 @@
+           text_ratio_(0),
+           wrap_width_(0),
+           label_spacing_(0),
++          label_position_tolerance_(0),
++          force_odd_labels_(false),
+           max_char_angle_delta_(0),
+ 	  fill_(fill),
+ 	  halo_fill_(Color(255,255,255)),
+@@ -52,6 +54,8 @@
+           text_ratio_(rhs.text_ratio_),
+           wrap_width_(rhs.wrap_width_),
+           label_spacing_(rhs.label_spacing_),
++          label_position_tolerance_(rhs.label_position_tolerance_),
++          force_odd_labels_(rhs.force_odd_labels_),
+           max_char_angle_delta_(rhs.max_char_angle_delta_),
+           fill_(rhs.fill_),
+           halo_fill_(rhs.halo_fill_),
+@@ -71,6 +75,8 @@
+         text_ratio_ = other.text_ratio_;
+         wrap_width_ = other.wrap_width_;
+         label_spacing_ = other.label_spacing_;
++        label_position_tolerance_ = other.label_position_tolerance_;
++        force_odd_labels_ = other.force_odd_labels_;
+         max_char_angle_delta_ = other.max_char_angle_delta_;
+         fill_ = other.fill_;
+         halo_fill_ = other.halo_fill_;
+@@ -123,6 +129,26 @@
+         label_spacing_ = spacing;
+     }
+ 
++    unsigned  text_symbolizer::get_label_position_tolerance() const
++    {
++        return label_position_tolerance_;
++    }
++
++    void  text_symbolizer::set_label_position_tolerance(unsigned tolerance)
++    {
++        label_position_tolerance_ = tolerance;
++    }
++
++    bool  text_symbolizer::get_force_odd_labels() const
++    {
++        return force_odd_labels_;
++    }
++
++    void  text_symbolizer::set_force_odd_labels(bool force) 
++    {
++        force_odd_labels_ = force;
++    }
++
+     double text_symbolizer::get_max_char_angle_delta() const
+     {
+         return max_char_angle_delta_;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000273.html">[Mapnik-svn] r388 - trunk/include/mapnik
+</A></li>
+	<LI>Next message: <A HREF="000275.html">[Mapnik-svn] r390 - in trunk/plugins/input: postgis shape
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#274">[ date ]</a>
+              <a href="thread.html#274">[ thread ]</a>
+              <a href="subject.html#274">[ subject ]</a>
+              <a href="author.html#274">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

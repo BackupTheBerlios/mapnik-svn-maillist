@@ -1,0 +1,398 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r350 - in trunk: bindings/python/mapnik/ogcserver	docs/ogcserver
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r350%20-%20in%20trunk%3A%20bindings/python/mapnik/ogcserver%0A%09docs/ogcserver&In-Reply-To=%3C200610190125.k9J1POKc009127%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000234.html">
+   <LINK REL="Next"  HREF="000236.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r350 - in trunk: bindings/python/mapnik/ogcserver	docs/ogcserver</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r350%20-%20in%20trunk%3A%20bindings/python/mapnik/ogcserver%0A%09docs/ogcserver&In-Reply-To=%3C200610190125.k9J1POKc009127%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r350 - in trunk: bindings/python/mapnik/ogcserver	docs/ogcserver">jdoyon at mail.berlios.de
+       </A><BR>
+    <I>Thu Oct 19 03:25:24 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000234.html">[Mapnik-svn] r349 - trunk/bindings/python
+</A></li>
+        <LI>Next message: <A HREF="000236.html">[Mapnik-svn] r351 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#235">[ date ]</a>
+              <a href="thread.html#235">[ thread ]</a>
+              <a href="subject.html#235">[ subject ]</a>
+              <a href="author.html#235">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-10-19 03:25:24 +0200 (Thu, 19 Oct 2006)
+New Revision: 350
+
+Modified:
+   trunk/bindings/python/mapnik/ogcserver/WMS.py
+   trunk/bindings/python/mapnik/ogcserver/common.py
+   trunk/bindings/python/mapnik/ogcserver/wms111.py
+   trunk/bindings/python/mapnik/ogcserver/wms130.py
+   trunk/docs/ogcserver/readme.txt
+Log:
+- Add projection support to the WMS server and edit ogcserver readme accordingly.
+
+NOTE: WMS 1.1.1 not tested, WMS 1.3.0 lightly tested.
+
+Modified: trunk/bindings/python/mapnik/ogcserver/WMS.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/WMS.py	2006-10-18 23:57:44 UTC (rev 349)
++++ trunk/bindings/python/mapnik/ogcserver/WMS.py	2006-10-19 01:25:24 UTC (rev 350)
+@@ -24,6 +24,7 @@
+ from wms111 import ServiceHandler as ServiceHandler111
+ from wms130 import ServiceHandler as ServiceHandler130
+ from mapnik import Style, Layer
++import re
+ 
+ def ServiceHandlerFactory(conf, mapfactory, onlineresource, version):
+ 
+@@ -46,6 +47,8 @@
+         layername = layer.name
+         if not layername:
+             raise ServerConfigurationError('Attempted to register an unnamed layer.')
++        if not re.match('^\+init=epsg:\d+$', layer.srs):
++            raise ServerConfigurationError('Attempted to register a layer without an epsg projection defined.')
+         if defaultstyle not in self.styles.keys() + self.aggregatestyles.keys():
+             raise ServerConfigurationError('Attempted to register a layer with an non-existent default style.')
+         layer.wmsdefaultstyle = defaultstyle
+
+Modified: trunk/bindings/python/mapnik/ogcserver/common.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/common.py	2006-10-18 23:57:44 UTC (rev 349)
++++ trunk/bindings/python/mapnik/ogcserver/common.py	2006-10-19 01:25:24 UTC (rev 350)
+@@ -20,7 +20,7 @@
+ # $Id$
+ 
+ from exceptions import OGCException, ServerConfigurationError
+-from mapnik import Map, Color, Envelope, render, rawdata, Image, Projection, render_to_file, Coord
++from mapnik import Map, Color, Envelope, render, rawdata, Image, Projection as MapnikProjection, render_to_file, Coord
+ from PIL.Image import fromstring, new
+ from PIL.ImageDraw import Draw
+ from StringIO import StringIO
+@@ -241,7 +241,7 @@
+ class CRS:
+ 
+     def __init__(self, namespace, code):
+-        self.namespace = namespace
++        self.namespace = namespace.lower()
+         self.code = int(code)
+         self.proj = None
+ 
+@@ -255,12 +255,12 @@
+ 
+     def inverse(self, x, y):
+         if not self.proj:
+-            self.proj = Projection('+init=%s' % str(self).lower())
++            self.proj = Projection('+init=%s:%s' % (self.namespace, self.code))
+         return self.proj.inverse(Coord(x, y))
+ 
+     def forward(self, x, y):
+         if not self.proj:
+-            self.proj = Projection('+init=%s' % str(self).lower())
++            self.proj = Projection('+init=%s:%s' % (self.namespace, self.code))        
+         return self.proj.forward(Coord(x, y))
+ 
+ class CRSFactory:
+@@ -286,7 +286,7 @@
+             raise OGCException(&quot;BBOX values don't make sense.  miny is greater than maxy.&quot;)
+         if params.has_key('styles') and len(params['styles']) != len(params['layers']):
+             raise OGCException('STYLES length does not match LAYERS length.')
+-        m = Map(params['width'], params['height'])
++        m = Map(params['width'], params['height'], '+init=%s' % params['crs'])
+         if params.has_key('transparent') and params['transparent'] == 'FALSE':
+             m.background = params['bgcolor']
+         else:
+@@ -380,3 +380,8 @@
+         im.save(fh, PIL_TYPE_MAPPING[params['format']])
+         fh.seek(0)
+         return Response(params['format'], fh.read())
++
++class Projection(MapnikProjection):
++    
++    def epsgstring(self):
++        return self.params().split('=')[1].upper()
+\ No newline at end of file
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms111.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms111.py	2006-10-18 23:57:44 UTC (rev 349)
++++ trunk/bindings/python/mapnik/ogcserver/wms111.py	2006-10-19 01:25:24 UTC (rev 350)
+@@ -21,9 +21,10 @@
+ 
+ from common import ParameterDefinition, Response, Version, ListFactory, \
+                    ColorFactory, CRSFactory, WMSBaseServiceHandler, CRS, \
+-                   BaseExceptionHandler
++                   BaseExceptionHandler, Projection
+ from exceptions import OGCException, ServerConfigurationError
+ from lxml import etree as ElementTree
++from mapnik import Coord
+ 
+ class ServiceHandler(WMSBaseServiceHandler):
+ 
+@@ -98,7 +99,6 @@
+         &lt;Layer&gt;
+           &lt;Title&gt;A Mapnik WMS Server&lt;/Title&gt;
+           &lt;Abstract&gt;A Mapnik WMS Server&lt;/Abstract&gt;
+-          &lt;SRS/&gt;
+         &lt;/Layer&gt;
+       &lt;/Capability&gt;
+     &lt;/WMT_MS_Capabilities&gt;
+@@ -107,10 +107,10 @@
+     def __init__(self, conf, mapfactory, opsonlineresource):
+         self.conf = conf
+         self.mapfactory = mapfactory
+-        if self.conf.has_option('service', 'epsg'):
+-            self.crs = CRS('EPSG', self.conf.get('service', 'epsg'))
++        if self.conf.has_option('service', 'allowedepsgcodes'):
++            self.allowedepsgcodes = map(lambda code: 'epsg:%s' % code, self.conf.get('service', 'allowedepsgcodes').split(','))
+         else:
+-            ServerConfigurationError('EPSG code not properly configured.')
++            raise ServerConfigurationError('Allowed EPSG codes not properly configured.')
+ 
+         capetree = ElementTree.fromstring(self.capabilitiesxmltemplate)
+ 
+@@ -122,22 +122,25 @@
+ 
+         rootlayerelem = capetree.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Capability/{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Layer')
+ 
+-        rootlayersrs = rootlayerelem.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}SRS')
+-        rootlayersrs.text = str(self.crs)
++        for epsgcode in self.allowedepsgcodes:
++            rootlayercrs = ElementTree.Element('SRS')
++            rootlayercrs.text = epsgcode.upper()
++            rootlayerelem.append(rootlayercrs)
+ 
+         for layer in self.mapfactory.layers.values():
++            layerproj = Projection(layer.srs)
+             layername = ElementTree.Element('Name')
+             layername.text = layer.name
+             env = layer.envelope()
+-            llp = self.crs.inverse(env.minx, env.miny)
+-            urp = self.crs.inverse(env.maxx, env.maxy)
++            llp = layerproj.inverse(Coord(env.minx, env.miny))
++            urp = layerproj.inverse(Coord(env.maxx, env.maxy))
+             latlonbb = ElementTree.Element('LatLonBoundingBox')
+             latlonbb.set('minx', str(llp.x))
+             latlonbb.set('miny', str(llp.y))
+             latlonbb.set('maxx', str(urp.x))
+             latlonbb.set('maxy', str(urp.y))
+             layerbbox = ElementTree.Element('BoundingBox')
+-            layerbbox.set('SRS', str(self.crs))
++            layerbbox.set('SRS', layerproj.epsgstring())
+             layerbbox.set('minx', str(env.minx))
+             layerbbox.set('miny', str(env.miny))
+             layerbbox.set('maxx', str(env.maxx))
+@@ -173,8 +176,9 @@
+         return response
+ 
+     def GetMap(self, params):
+-        if str(params['srs']) != str(self.crs):
+-            raise OGCException('Unsupported SRS requested.  Must be &quot;%s&quot; and not &quot;%s&quot;.' % (self.crs, params['crs']), 'InvalidCRS')
++        if str(params['srs']) not in self.allowedepsgcodes:
++            raise OGCException('Unsupported SRS &quot;%s&quot; requested.' % str(params['srs']).upper(), 'InvalidSRS')
++        params['crs'] = params['srs']
+         return WMSBaseServiceHandler.GetMap(self, params)
+ 
+ class ExceptionHandler(BaseExceptionHandler):
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms130.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms130.py	2006-10-18 23:57:44 UTC (rev 349)
++++ trunk/bindings/python/mapnik/ogcserver/wms130.py	2006-10-19 01:25:24 UTC (rev 350)
+@@ -21,9 +21,10 @@
+ 
+ from common import ParameterDefinition, Response, Version, ListFactory, \
+                    ColorFactory, CRSFactory, CRS, WMSBaseServiceHandler, \
+-                   BaseExceptionHandler
++                   BaseExceptionHandler, Projection
+ from exceptions import OGCException, ServerConfigurationError
+ from lxml import etree as ElementTree
++from mapnik import Coord
+ 
+ class ServiceHandler(WMSBaseServiceHandler):
+ 
+@@ -104,7 +105,6 @@
+         &lt;Layer&gt;
+           &lt;Title&gt;A Mapnik WMS Server&lt;/Title&gt;
+           &lt;Abstract&gt;A Mapnik WMS Server&lt;/Abstract&gt;
+-          &lt;CRS/&gt;
+         &lt;/Layer&gt;
+       &lt;/Capability&gt;
+     &lt;/WMS_Capabilities&gt;
+@@ -113,10 +113,10 @@
+     def __init__(self, conf, mapfactory, opsonlineresource):
+         self.conf = conf
+         self.mapfactory = mapfactory
+-        if self.conf.has_option('service', 'epsg'):
+-            self.crs = CRS('EPSG', self.conf.get('service', 'epsg'))
++        if self.conf.has_option('service', 'allowedepsgcodes'):
++            self.allowedepsgcodes = map(lambda code: 'epsg:%s' % code, self.conf.get('service', 'allowedepsgcodes').split(','))
+         else:
+-            raise ServerConfigurationError('EPSG code not properly configured.')
++            raise ServerConfigurationError('Allowed EPSG codes not properly configured.')
+ 
+         capetree = ElementTree.fromstring(self.capabilitiesxmltemplate)
+ 
+@@ -128,16 +128,19 @@
+ 
+         rootlayerelem = capetree.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Capability/{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Layer')
+ 
+-        rootlayercrs = rootlayerelem.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}CRS')
+-        rootlayercrs.text = str(self.crs)
++        for epsgcode in self.allowedepsgcodes:
++            rootlayercrs = ElementTree.Element('CRS')
++            rootlayercrs.text = epsgcode.upper()
++            rootlayerelem.append(rootlayercrs)
+ 
+         for layer in self.mapfactory.layers.values():
++            layerproj = Projection(layer.srs)
+             layername = ElementTree.Element('Name')
+             layername.text = layer.name
+             env = layer.envelope()
+             layerexgbb = ElementTree.Element('EX_GeographicBoundingBox')
+-            ll = self.crs.inverse(env.minx, env.miny)
+-            ur = self.crs.inverse(env.maxx, env.maxy)
++            ll = layerproj.inverse(Coord(env.minx, env.miny))
++            ur = layerproj.inverse(Coord(env.maxx, env.maxy))
+             exgbb_wbl = ElementTree.Element('westBoundLongitude')
+             exgbb_wbl.text = str(ll.x)
+             layerexgbb.append(exgbb_wbl)
+@@ -151,7 +154,7 @@
+             exgbb_nbl.text = str(ur.y)
+             layerexgbb.append(exgbb_nbl)
+             layerbbox = ElementTree.Element('BoundingBox')
+-            layerbbox.set('CRS', str(self.crs))
++            layerbbox.set('CRS', layerproj.epsgstring())
+             layerbbox.set('minx', str(env.minx))
+             layerbbox.set('miny', str(env.miny))
+             layerbbox.set('maxx', str(env.maxx))
+@@ -189,8 +192,8 @@
+     def GetMap(self, params):
+         if params['width'] &gt; int(self.conf.get('service', 'maxwidth')) or params['height'] &gt; int(self.conf.get('service', 'maxheight')):
+             raise OGCException('Requested map size exceeds limits set by this server.')
+-        if str(params['crs']) != str(self.crs):
+-            raise OGCException('Unsupported CRS requested.  Must be &quot;%s&quot; and not &quot;%s&quot;.' % (self.crs, params['crs']), 'InvalidCRS')
++        if str(params['crs']) not in self.allowedepsgcodes:
++            raise OGCException('Unsupported CRS &quot;%s&quot; requested.' % str(params['crs']).upper(), 'InvalidCRS')
+         return WMSBaseServiceHandler.GetMap(self, params)
+ 
+ class ExceptionHandler(BaseExceptionHandler):
+
+Modified: trunk/docs/ogcserver/readme.txt
+===================================================================
+--- trunk/docs/ogcserver/readme.txt	2006-10-18 23:57:44 UTC (rev 349)
++++ trunk/docs/ogcserver/readme.txt	2006-10-19 01:25:24 UTC (rev 350)
+@@ -22,8 +22,8 @@
+ - JPEG/PNG output
+ - XML/INIMAGE/BLANK error handling
+ - Multiple named styles support
+-- No real layer metadata support yet
+-- No re-projection support
++- Reprojection support
++- Supported layer metadata: title, abstract
+ - Needs to be able to write to tempfile.gettempdir() (most likely &quot;/tmp&quot;)
+ 
+ 
+@@ -41,22 +41,8 @@
+ Installation
+ ------------
+ 
+-- Make sure you compile or re-compile Mapnik after installing PROJ.4, if this
+-  was not done already.  Mapnik includes a Python API to the PROJ.4 library
+-  used by the ogcserver.  The PROJ_INCLUDES and PROJ_LIBS parameters can
+-  be passed to mapnik's scons build script to help with this.
+-  
+-  You can test the availability of the PROJ.4 bindings by trying:
+-  
+-  $ python
+-  Python 2.3.4 (#1, Feb 22 2005, 04:09:37)
+-  [GCC 3.4.3 20041212 (Red Hat 3.4.3-9.EL4)] on linux2
+-  Type &quot;help&quot;, &quot;copyright&quot;, &quot;credits&quot; or &quot;license&quot; for more information.
+-  &gt;&gt;&gt; from mapnik import Projection
+-  registered datasource : raster
+-  registered datasource : shape
+-  registered datasource : postgis
+-  &gt;&gt;&gt;
++- Make sure Mapnik was compiled and linked with PROJ.4 support.  If this isn't
++  the case, recompile Mapnik and make sure it is.
+ 
+ - The executable &quot;ogcserver&quot; in utils/ogcserver will work for both CGI and
+   FastCGI operations.  Where to place it will depend on your server's
+@@ -92,6 +78,7 @@
+ The server needs a python module, with code that looks like this:
+ 
+ from mapnik.ogcserver.WMS import BaseWMSFactory
++from mapnik import Layer, Style
+ 
+ class WMSFactory(BaseWMSFactory):
+ 
+@@ -101,7 +88,9 @@
+ 		...
+ 		self.register_style('stylename', sty)
+ 		
+-		lyr = Layer(name='layername', title='Highways', abstract='Highways')
++		lyr = Layer('layername', '+init=epsg:4326')
++		lyr.title = 'Layer title'
++		lyr.abstract = 'Layer abstract'
+ 		...
+ 		self.register_layer(lyr, 'stylename')
+ 		self.finalize()
+@@ -111,11 +100,14 @@
+ - It MUST be called 'WMSFactory'.
+ - It MUST sub-class mapnik.ogcserver.WMS.BaseWMSFactory.
+ - The __init__ MUST call the base class'.
+-- Layers MUST be named with the 'name' parameter to the constructor.
++- Layers MUST be named with the first parameter to the constructor.
++- Layers MUST define an EPSG projection in the second parameter to the
++  constructor.  This implies that the underlying data must be in an EPSG
++  projection already.
+ - style and layer names are meant for machine readability, not human.  Keep
+   them short and simple, without spaces or special characters.
+-- For human readable info, pass title='' and abstract='' parameters to the
+-  Layer() call.
++- For human readable info, set the title and abstract properties on the layer
++  object.
+ - DO NOT register styles using layer.styles.append(), instead, provide style
+   information to the register_layer() call:
+   
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000234.html">[Mapnik-svn] r349 - trunk/bindings/python
+</A></li>
+	<LI>Next message: <A HREF="000236.html">[Mapnik-svn] r351 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#235">[ date ]</a>
+              <a href="thread.html#235">[ thread ]</a>
+              <a href="subject.html#235">[ subject ]</a>
+              <a href="author.html#235">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,164 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r326 - trunk/plugins/input/postgis
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r326%20-%20trunk/plugins/input/postgis&In-Reply-To=%3C200610092057.k99Kv6lJ026830%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000210.html">
+   <LINK REL="Next"  HREF="000212.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r326 - trunk/plugins/input/postgis</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r326%20-%20trunk/plugins/input/postgis&In-Reply-To=%3C200610092057.k99Kv6lJ026830%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r326 - trunk/plugins/input/postgis">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Mon Oct  9 22:57:06 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000210.html">[Mapnik-svn] r325 - trunk/src
+</A></li>
+        <LI>Next message: <A HREF="000212.html">[Mapnik-svn] r327 - trunk/bindings/python
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#211">[ date ]</a>
+              <a href="thread.html#211">[ thread ]</a>
+              <a href="subject.html#211">[ subject ]</a>
+              <a href="author.html#211">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-09 22:57:04 +0200 (Mon, 09 Oct 2006)
+New Revision: 326
+
+Modified:
+   trunk/plugins/input/postgis/postgis.cpp
+Log:
+1. use more precise coord values in SQL statements.
+2. added extra parameter 'estimate_extent'. By default, exact extent will be calulated e.g :
+    select extent(geom) from table_name;
+Sometimes it is more practical (faster!) to use estimated extent
+    select estimated_extent('table_name','geom');
+but it is somewhere around 95% accurate.
+Usage:
+     ....   
+     params[&quot;estimate_extent&quot;]=&quot;true&quot;;
+     ....
+
+
+ 
+
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2006-10-09 20:49:56 UTC (rev 325)
++++ trunk/plugins/input/postgis/postgis.cpp	2006-10-09 20:57:04 UTC (rev 326)
+@@ -22,16 +22,17 @@
+ 
+ //$Id: postgis.cc 44 2005-04-22 18:53:54Z pavlenko $
+ 
+-#include &quot;postgis.hpp&quot;
+ #include &lt;string&gt;
+ #include &lt;algorithm&gt;
+ #include &lt;set&gt;
+ #include &lt;sstream&gt;
++#include &lt;iomanip&gt;
+ #include &quot;connection_manager.hpp&quot;
++#include &quot;postgis.hpp&quot;
+ 
+ DATASOURCE_PLUGIN(postgis_datasource)
+ 
+-    const std::string postgis_datasource::GEOMETRY_COLUMNS=&quot;geometry_columns&quot;;
++const std::string postgis_datasource::GEOMETRY_COLUMNS=&quot;geometry_columns&quot;;
+ const std::string postgis_datasource::SPATIAL_REF_SYS=&quot;spatial_ref_system&quot;;
+ 
+ using std::clog;
+@@ -68,10 +69,10 @@
+ 	    
+             std::ostringstream s;
+             s &lt;&lt; &quot;select f_geometry_column,srid,type from &quot;;
+-            s &lt;&lt; GEOMETRY_COLUMNS &lt;&lt;&quot; where f_table_name='&quot;&lt;&lt;table_name&lt;&lt;&quot;'&quot;;
+-	   
++            s &lt;&lt; GEOMETRY_COLUMNS &lt;&lt;&quot; where f_table_name='&quot; &lt;&lt; table_name&lt;&lt;&quot;'&quot;;
++            
+             shared_ptr&lt;ResultSet&gt; rs=conn-&gt;executeQuery(s.str());
+-	    
++            
+             if (rs-&gt;next())
+             {
+                 try 
+@@ -88,9 +89,21 @@
+             }
+             rs-&gt;close();
+             s.str(&quot;&quot;);
+-            s &lt;&lt; &quot;select xmin(ext),ymin(ext),xmax(ext),ymax(ext)&quot;;
+-            s &lt;&lt; &quot; from (select estimated_extent('&quot;&lt;&lt;table_name&lt;&lt;&quot;','&quot;&lt;&lt;geometryColumn_&lt;&lt;&quot;') as ext) as tmp&quot;;
+-
++            
++            if (params.get(&quot;estimate_extent&quot;) == &quot;true&quot;)
++            {
++                s &lt;&lt; &quot;select xmin(ext),ymin(ext),xmax(ext),ymax(ext)&quot;
++                  &lt;&lt; &quot; from (select estimated_extent('&quot; 
++                  &lt;&lt; table_name &lt;&lt;&quot;','&quot; 
++                  &lt;&lt; geometryColumn_ &lt;&lt; &quot;') as ext) as tmp&quot;;
++            }
++            else 
++            {
++                s &lt;&lt; &quot;select xmin(ext),ymin(ext),xmax(ext),ymax(ext)&quot;
++                  &lt;&lt; &quot; from (select extent(&quot; &lt;&lt;geometryColumn_&lt;&lt; &quot;) as ext from &quot; 
++                  &lt;&lt; table_name &lt;&lt; &quot;) as tmp&quot;;
++            }
++            
+             rs=conn-&gt;executeQuery(s.str());
+             if (rs-&gt;next())
+             {
+@@ -108,7 +121,7 @@
+                 }
+             }
+             rs-&gt;close();
+-
++            
+             // collect attribute desc
+             s.str(&quot;&quot;);
+             s &lt;&lt; &quot;select * from &quot;&lt;&lt;table_&lt;&lt;&quot; limit 1&quot;;
+@@ -204,6 +217,7 @@
+             }	
+     
+             s &lt;&lt; &quot; from &quot; &lt;&lt; table_&lt;&lt;&quot; where &quot;&lt;&lt;geometryColumn_&lt;&lt;&quot; &amp;&amp; setSRID('BOX3D(&quot;;
++            s &lt;&lt; std::setprecision(16);
+             s &lt;&lt; box.minx() &lt;&lt; &quot; &quot; &lt;&lt; box.miny() &lt;&lt; &quot;,&quot;;
+             s &lt;&lt; box.maxx() &lt;&lt; &quot; &quot; &lt;&lt; box.maxy() &lt;&lt; &quot;)'::box3d,&quot;&lt;&lt;srid_&lt;&lt;&quot;)&quot;;
+             clog &lt;&lt; s.str() &lt;&lt; endl;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000210.html">[Mapnik-svn] r325 - trunk/src
+</A></li>
+	<LI>Next message: <A HREF="000212.html">[Mapnik-svn] r327 - trunk/bindings/python
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#211">[ date ]</a>
+              <a href="thread.html#211">[ thread ]</a>
+              <a href="subject.html#211">[ subject ]</a>
+              <a href="author.html#211">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

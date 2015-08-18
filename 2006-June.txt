@@ -1,0 +1,160 @@
+From jdoyon at berlios.de  Thu Jun  1 01:49:38 2006
+From: jdoyon at berlios.de (jdoyon at BerliOS)
+Date: Thu, 1 Jun 2006 01:49:38 +0200
+Subject: [Mapnik-svn] r280 - trunk
+Message-ID: <200605312349.k4VNnclX029790@sheep.berlios.de>
+
+Author: jdoyon
+Date: 2006-06-01 01:49:25 +0200 (Thu, 01 Jun 2006)
+New Revision: 280
+
+Modified:
+   trunk/SConstruct
+Log:
+- make sure the proj bindings only get built if the python bindings also are.
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2006-05-31 21:25:21 UTC (rev 279)
++++ trunk/SConstruct	2006-05-31 23:49:25 UTC (rev 280)
+@@ -128,6 +128,10 @@
+ 
+     SConscript('bindings/python/SConscript')
+ 
++    if 'proj' in env['LIBS']:
++        SConscript('bindings/python/pyprojection/SConscript')
++        env['LIBS'].remove('proj')
++
+ env = conf.Finish()
+ 
+ # Setup the c++ args for our own codebase
+@@ -147,10 +151,6 @@
+     SConscript('utils/shapeindex/SConscript')
+     env['LIBS'].remove('boost_program_options%s' % env['BOOST_APPEND'])
+ 
+-if 'proj' in env['LIBS']:
+-    SConscript('bindings/python/pyprojection/SConscript')
+-    env['LIBS'].remove('proj')
+-
+ # Build the input plug-ins
+ 
+ if 'postgis' in inputplugins and 'pq' in env['LIBS']:
+
+
+Property changes on: trunk/SConstruct
+___________________________________________________________________
+Name: svn:keywords
+   + Id
+
+
+
+From pavlenko at berlios.de  Wed Jun  7 19:03:00 2006
+From: pavlenko at berlios.de (pavlenko at BerliOS)
+Date: Wed, 7 Jun 2006 19:03:00 +0200
+Subject: [Mapnik-svn] r281 - trunk/bindings/python/mapnik/ogcserver
+Message-ID: <200606071703.k57H30of002173@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-06-07 19:02:56 +0200 (Wed, 07 Jun 2006)
+New Revision: 281
+
+Removed:
+   trunk/bindings/python/mapnik/ogcserver/wms.py
+Log:
+removed wms.py - was causing checkupt problems on win32 (WMS.py == wms.py on win32)
+  
+
+
+Deleted: trunk/bindings/python/mapnik/ogcserver/wms.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms.py	2006-05-31 23:49:25 UTC (rev 280)
++++ trunk/bindings/python/mapnik/ogcserver/wms.py	2006-06-07 17:02:56 UTC (rev 281)
+@@ -1,46 +0,0 @@
+-#
+-# This file is part of Mapnik (c++ mapping toolkit)
+-#
+-# Copyright (C) 2006 Jean-Francois Doyon
+-#
+-# Mapnik is free software; you can redistribute it and/or
+-# modify it under the terms of the GNU Lesser General Public
+-# License as published by the Free Software Foundation; either
+-# version 2.1 of the License, or (at your option) any later version.
+-#
+-# This library is distributed in the hope that it will be useful,
+-# but WITHOUT ANY WARRANTY; without even the implied warranty of
+-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-# Lesser General Public License for more details.
+-#
+-# You should have received a copy of the GNU Lesser General Public
+-# License along with this library; if not, write to the Free Software
+-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
+-# $Id$
+-
+-from common import Version
+-from exceptions import OGCException
+-from wms111 import ServiceHandler as ServiceHandler111, \
+-                   ExceptionHandler as ExceptionHandler111
+-from wms130 import ServiceHandler as ServiceHandler130, \
+-                   ExceptionHandler as ExceptionHandler130
+-
+-def ServiceHandlerFactory(conf, mapfactory, onlineresource, version):
+-
+-    if not version:
+-        version = Version('1.3.0')
+-    else:
+-        version = Version(version)
+-    if version >= '1.3.0':
+-        return (ServiceHandler130(conf, mapfactory, onlineresource), ExceptionHandler130)
+-    else:
+-        return (ServiceHandler111(conf, mapfactory, onlineresource), ExceptionHandler111)
+-
+-class BaseWMSFactory:
+-    
+-    def registerLayer(self, layer):
+-        pass
+-    
+-    def registerStyle(self, name, style):
+-        pass
+\ No newline at end of file
+
+
+
+From pavlenko at berlios.de  Tue Jun 27 21:47:21 2006
+From: pavlenko at berlios.de (pavlenko at BerliOS)
+Date: Tue, 27 Jun 2006 21:47:21 +0200
+Subject: [Mapnik-svn] r282 - trunk/bindings/python/mapnik
+Message-ID: <200606271947.k5RJlLw0031576@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-06-27 21:47:20 +0200 (Tue, 27 Jun 2006)
+New Revision: 282
+
+Modified:
+   trunk/bindings/python/mapnik/__init__.py
+Log:
+applied patch from Shaun Walbridge - make dl module work on x86_64 
+
+
+
+Modified: trunk/bindings/python/mapnik/__init__.py
+===================================================================
+--- trunk/bindings/python/mapnik/__init__.py	2006-06-07 17:02:56 UTC (rev 281)
++++ trunk/bindings/python/mapnik/__init__.py	2006-06-27 19:47:20 UTC (rev 282)
+@@ -21,7 +21,12 @@
+ #
+ 
+ from sys import getdlopenflags,setdlopenflags
+-from dl import RTLD_NOW,RTLD_GLOBAL
++try:
++  from dl import RTLD_NOW, RTLD_GLOBAL
++except ImportError:
++  RTLD_NOW = 2
++  RTLD_GLOBAL = 256
++
+ flags = getdlopenflags()
+ setdlopenflags(RTLD_NOW | RTLD_GLOBAL)
+ 
+
+
+

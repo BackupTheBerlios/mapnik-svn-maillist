@@ -1,0 +1,329 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r390 - in trunk/plugins/input: postgis shape
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-November/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r390%20-%20in%20trunk/plugins/input%3A%20postgis%20shape&In-Reply-To=%3C200611291212.kATCCQAE016042%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000274.html">
+   <LINK REL="Next"  HREF="000276.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r390 - in trunk/plugins/input: postgis shape</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r390%20-%20in%20trunk/plugins/input%3A%20postgis%20shape&In-Reply-To=%3C200611291212.kATCCQAE016042%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r390 - in trunk/plugins/input: postgis shape">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Wed Nov 29 13:12:26 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000274.html">[Mapnik-svn] r389 - in trunk: include/mapnik src
+</A></li>
+        <LI>Next message: <A HREF="000276.html">[Mapnik-svn] r391 - trunk/bindings/python
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#275">[ date ]</a>
+              <a href="thread.html#275">[ thread ]</a>
+              <a href="subject.html#275">[ subject ]</a>
+              <a href="author.html#275">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-11-29 13:12:23 +0100 (Wed, 29 Nov 2006)
+New Revision: 390
+
+Modified:
+   trunk/plugins/input/postgis/postgis.cpp
+   trunk/plugins/input/postgis/postgis.hpp
+   trunk/plugins/input/postgis/postgisfs.cpp
+   trunk/plugins/input/shape/shape.cpp
+   trunk/plugins/input/shape/shape.hpp
+Log:
+don't calculate extent by default
+
+
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2006-11-29 10:44:42 UTC (rev 389)
++++ trunk/plugins/input/postgis/postgis.cpp	2006-11-29 12:12:23 UTC (rev 390)
+@@ -46,7 +46,8 @@
+ postgis_datasource::postgis_datasource(parameters const&amp; params)
+     : datasource (params),
+       table_(params.get(&quot;table&quot;)),
+-      type_(datasource::Vector), 
++      type_(datasource::Vector),
++      extent_initialized_(false),
+       desc_(params.get(&quot;type&quot;)),
+       creator_(params.get(&quot;host&quot;),
+                params.get(&quot;port&quot;),
+@@ -60,7 +61,7 @@
+     
+     try 
+     {
+-        initial_size = boost::lexical_cast&lt;unsigned&gt;(params.get(&quot;initial_size&quot;)); 
++        initial_size = boost::lexical_cast&lt;unsigned&gt;(params_.get(&quot;initial_size&quot;)); 
+     }
+     catch (bad_lexical_cast&amp; )
+     {
+@@ -69,7 +70,7 @@
+     
+     try 
+     {
+-        max_size = boost::lexical_cast&lt;unsigned&gt;(params.get(&quot;initial_size&quot;)); 
++        max_size = boost::lexical_cast&lt;unsigned&gt;(params_.get(&quot;initial_size&quot;)); 
+     }
+     catch (bad_lexical_cast&amp;)
+     {
+@@ -82,7 +83,7 @@
+     shared_ptr&lt;Pool&lt;Connection,ConnectionCreator&gt; &gt; pool=mgr-&gt;getPool(creator_.id());
+     if (pool)
+     {
+-        const shared_ptr&lt;Connection&gt;&amp; conn = pool-&gt;borrowObject();
++        shared_ptr&lt;Connection&gt; conn = pool-&gt;borrowObject();
+         if (conn &amp;&amp; conn-&gt;isOK())
+         {
+             PoolGuard&lt;shared_ptr&lt;Connection&gt;,shared_ptr&lt;Pool&lt;Connection,ConnectionCreator&gt; &gt; &gt; guard(conn,pool);
+@@ -108,40 +109,7 @@
+                 std::string postgisType=rs-&gt;getValue(&quot;type&quot;);
+             }
+             rs-&gt;close();
+-            s.str(&quot;&quot;);
+             
+-            if (params.get(&quot;estimate_extent&quot;) == &quot;true&quot;)
+-            {
+-                s &lt;&lt; &quot;select xmin(ext),ymin(ext),xmax(ext),ymax(ext)&quot;
+-                  &lt;&lt; &quot; from (select estimated_extent('&quot; 
+-                  &lt;&lt; table_name &lt;&lt;&quot;','&quot; 
+-                  &lt;&lt; geometryColumn_ &lt;&lt; &quot;') as ext) as tmp&quot;;
+-            }
+-            else 
+-            {
+-                s &lt;&lt; &quot;select xmin(ext),ymin(ext),xmax(ext),ymax(ext)&quot;
+-                  &lt;&lt; &quot; from (select extent(&quot; &lt;&lt;geometryColumn_&lt;&lt; &quot;) as ext from &quot; 
+-                  &lt;&lt; table_name &lt;&lt; &quot;) as tmp&quot;;
+-            }
+-            
+-            rs=conn-&gt;executeQuery(s.str());
+-            if (rs-&gt;next())
+-            {
+-                try 
+-                {
+-                    double lox=lexical_cast&lt;double&gt;(rs-&gt;getValue(0));
+-                    double loy=lexical_cast&lt;double&gt;(rs-&gt;getValue(1));
+-                    double hix=lexical_cast&lt;double&gt;(rs-&gt;getValue(2));
+-                    double hiy=lexical_cast&lt;double&gt;(rs-&gt;getValue(3));		    
+-                    extent_.init(lox,loy,hix,hiy);
+-                }
+-                catch (bad_lexical_cast &amp;ex)
+-                {
+-                    clog &lt;&lt; ex.what() &lt;&lt; endl;
+-                }
+-            }
+-            rs-&gt;close();
+-            
+             // collect attribute desc
+             s.str(&quot;&quot;);
+             s &lt;&lt; &quot;select * from &quot;&lt;&lt;table_&lt;&lt;&quot; limit 1&quot;;
+@@ -182,7 +150,7 @@
+     }
+ }
+ 
+-std::string postgis_datasource::name_=&quot;postgis&quot;;
++std::string const postgis_datasource::name_=&quot;postgis&quot;;
+ 
+ std::string postgis_datasource::name()
+ {
+@@ -216,13 +184,12 @@
+ 
+ featureset_ptr postgis_datasource::features(const query&amp; q) const
+ {
+-    Featureset *fs=0;
+     Envelope&lt;double&gt; const&amp; box=q.get_bbox();
+     ConnectionManager *mgr=ConnectionManager::instance();
+     shared_ptr&lt;Pool&lt;Connection,ConnectionCreator&gt; &gt; pool=mgr-&gt;getPool(creator_.id());
+     if (pool)
+     {
+-        const shared_ptr&lt;Connection&gt;&amp; conn = pool-&gt;borrowObject();
++        shared_ptr&lt;Connection&gt; conn = pool-&gt;borrowObject();
+         if (conn &amp;&amp; conn-&gt;isOK())
+         {       
+             PoolGuard&lt;shared_ptr&lt;Connection&gt;,shared_ptr&lt;Pool&lt;Connection,ConnectionCreator&gt; &gt; &gt; guard(conn,pool);
+@@ -235,18 +202,17 @@
+             {
+                 s &lt;&lt;&quot;,\&quot;&quot;&lt;&lt;*pos&lt;&lt;&quot;\&quot;&quot;;
+                 ++pos;
+-            }	
+-    
++            }	 
+             s &lt;&lt; &quot; from &quot; &lt;&lt; table_&lt;&lt;&quot; where &quot;&lt;&lt;geometryColumn_&lt;&lt;&quot; &amp;&amp; setSRID('BOX3D(&quot;;
+             s &lt;&lt; std::setprecision(16);
+             s &lt;&lt; box.minx() &lt;&lt; &quot; &quot; &lt;&lt; box.miny() &lt;&lt; &quot;,&quot;;
+             s &lt;&lt; box.maxx() &lt;&lt; &quot; &quot; &lt;&lt; box.maxy() &lt;&lt; &quot;)'::box3d,&quot;&lt;&lt;srid_&lt;&lt;&quot;)&quot;;
+             
+             shared_ptr&lt;ResultSet&gt; rs=conn-&gt;executeQuery(s.str(),1);
+-            fs=new postgis_featureset(rs,props.size());
++            return featureset_ptr(new postgis_featureset(rs,props.size()));
+         }
+     }
+-    return featureset_ptr(fs);
++    return featureset_ptr();
+ }
+ 
+ featureset_ptr postgis_datasource::features_at_point(coord2d const&amp; pt) const
+@@ -256,6 +222,51 @@
+ 
+ Envelope&lt;double&gt; postgis_datasource::envelope() const
+ {
++    if (extent_initialized_) return extent_;
++    
++    ConnectionManager *mgr=ConnectionManager::instance();
++    shared_ptr&lt;Pool&lt;Connection,ConnectionCreator&gt; &gt; pool=mgr-&gt;getPool(creator_.id());
++    if (pool)
++    {
++        shared_ptr&lt;Connection&gt; conn = pool-&gt;borrowObject();
++        if (conn &amp;&amp; conn-&gt;isOK())
++        {
++            std::ostringstream s;
++            std::string table_name = table_from_sql(table_);
++            if (params_.get(&quot;estimate_extent&quot;) == &quot;true&quot;)
++            {
++                s &lt;&lt; &quot;select xmin(ext),ymin(ext),xmax(ext),ymax(ext)&quot;
++                  &lt;&lt; &quot; from (select estimated_extent('&quot; 
++                  &lt;&lt; table_name &lt;&lt;&quot;','&quot; 
++                  &lt;&lt; geometryColumn_ &lt;&lt; &quot;') as ext) as tmp&quot;;
++            }
++            else 
++            {
++                s &lt;&lt; &quot;select xmin(ext),ymin(ext),xmax(ext),ymax(ext)&quot;
++                  &lt;&lt; &quot; from (select extent(&quot; &lt;&lt;geometryColumn_&lt;&lt; &quot;) as ext from &quot; 
++                  &lt;&lt; table_name &lt;&lt; &quot;) as tmp&quot;;
++            }
++            
++            shared_ptr&lt;ResultSet&gt; rs=conn-&gt;executeQuery(s.str());
++            if (rs-&gt;next())
++            {
++                try 
++                {
++                    double lox=lexical_cast&lt;double&gt;(rs-&gt;getValue(0));
++                    double loy=lexical_cast&lt;double&gt;(rs-&gt;getValue(1));
++                    double hix=lexical_cast&lt;double&gt;(rs-&gt;getValue(2));
++                    double hiy=lexical_cast&lt;double&gt;(rs-&gt;getValue(3));		    
++                    extent_.init(lox,loy,hix,hiy);
++                    extent_initialized_ = true;
++                }
++                catch (bad_lexical_cast &amp;ex)
++                {
++                    clog &lt;&lt; ex.what() &lt;&lt; endl;
++                }
++            }
++            rs-&gt;close();
++        }
++    }
+     return extent_;
+ }
+ 
+
+Modified: trunk/plugins/input/postgis/postgis.hpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.hpp	2006-11-29 10:44:42 UTC (rev 389)
++++ trunk/plugins/input/postgis/postgis.hpp	2006-11-29 12:12:23 UTC (rev 390)
+@@ -48,10 +48,11 @@
+     std::string geometryColumn_;
+     int type_;
+     int srid_;
+-    mapnik::Envelope&lt;double&gt; extent_;
++    mutable bool extent_initialized_;
++    mutable mapnik::Envelope&lt;double&gt; extent_;
+     layer_descriptor desc_;
+     ConnectionCreator&lt;Connection&gt; creator_;
+-    static std::string name_;
++    static const std::string name_;
+ public:
+     static std::string name();
+     int type() const;
+@@ -76,7 +77,6 @@
+     mutable int count_;
+ public:
+     postgis_featureset(const boost::shared_ptr&lt;ResultSet&gt;&amp; rs,unsigned num_attrs);
+-    void dispose();
+     feature_ptr next();
+     ~postgis_featureset();
+ private:
+
+Modified: trunk/plugins/input/postgis/postgisfs.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgisfs.cpp	2006-11-29 10:44:42 UTC (rev 389)
++++ trunk/plugins/input/postgis/postgisfs.cpp	2006-11-29 12:12:23 UTC (rev 390)
+@@ -22,10 +22,9 @@
+ 
+ //$Id: postgisfs.cc 34 2005-04-04 13:27:23Z pavlenko $
+ 
+-
+-#include &quot;postgis.hpp&quot;
+ #include &lt;mapnik/global.hpp&gt;
+ #include &lt;mapnik/wkb.hpp&gt;
++#include &quot;postgis.hpp&quot;
+ 
+ using boost::lexical_cast;
+ using boost::bad_lexical_cast;
+
+Modified: trunk/plugins/input/shape/shape.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape.cpp	2006-11-29 10:44:42 UTC (rev 389)
++++ trunk/plugins/input/shape/shape.cpp	2006-11-29 12:12:23 UTC (rev 390)
+@@ -91,7 +91,7 @@
+ {
+ }
+ 
+-std::string shape_datasource::name_=&quot;shape&quot;;
++const std::string shape_datasource::name_=&quot;shape&quot;;
+ 
+ void  shape_datasource::init(shape_io&amp; shape)
+ {
+
+Modified: trunk/plugins/input/shape/shape.hpp
+===================================================================
+--- trunk/plugins/input/shape/shape.hpp	2006-11-29 10:44:42 UTC (rev 389)
++++ trunk/plugins/input/shape/shape.hpp	2006-11-29 12:12:23 UTC (rev 390)
+@@ -55,7 +55,7 @@
+     Envelope&lt;double&gt; extent_;
+     bool indexed_;
+     layer_descriptor desc_;
+-    static std::string name_;
++    static const std::string name_;
+ };
+ 
+ #endif //SHAPE_HPP
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000274.html">[Mapnik-svn] r389 - in trunk: include/mapnik src
+</A></li>
+	<LI>Next message: <A HREF="000276.html">[Mapnik-svn] r391 - trunk/bindings/python
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#275">[ date ]</a>
+              <a href="thread.html#275">[ thread ]</a>
+              <a href="subject.html#275">[ subject ]</a>
+              <a href="author.html#275">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

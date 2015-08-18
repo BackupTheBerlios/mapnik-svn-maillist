@@ -1,0 +1,1625 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r341 - in trunk: bindings/python include/mapnik src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r341%20-%20in%20trunk%3A%20bindings/python%20include/mapnik%20src&In-Reply-To=%3C200610171412.k9HECslI018369%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000225.html">
+   <LINK REL="Next"  HREF="000227.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r341 - in trunk: bindings/python include/mapnik src</H1>
+    <B>vspader10east at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r341%20-%20in%20trunk%3A%20bindings/python%20include/mapnik%20src&In-Reply-To=%3C200610171412.k9HECslI018369%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r341 - in trunk: bindings/python include/mapnik src">vspader10east at mail.berlios.de
+       </A><BR>
+    <I>Tue Oct 17 16:12:54 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000225.html">[Mapnik-svn] r340 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+        <LI>Next message: <A HREF="000227.html">[Mapnik-svn] r342 - in trunk: bindings/python include/mapnik src	utils/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#226">[ date ]</a>
+              <a href="thread.html#226">[ thread ]</a>
+              <a href="subject.html#226">[ subject ]</a>
+              <a href="author.html#226">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: vspader10east
+Date: 2006-10-17 16:12:53 +0200 (Tue, 17 Oct 2006)
+New Revision: 341
+
+Added:
+   trunk/bindings/python/mapnik_shield_symbolizer.cpp
+   trunk/include/mapnik/placement_finder.hpp
+   trunk/include/mapnik/shield_symbolizer.hpp
+   trunk/include/mapnik/text_path.hpp
+   trunk/src/placement_finder.cpp
+   trunk/src/shield_symbolizer.cpp
+Modified:
+   trunk/bindings/python/mapnik_python.cpp
+   trunk/bindings/python/mapnik_rule.cpp
+   trunk/bindings/python/mapnik_text_symbolizer.cpp
+   trunk/include/mapnik/agg_renderer.hpp
+   trunk/include/mapnik/attribute_collector.hpp
+   trunk/include/mapnik/font_engine_freetype.hpp
+   trunk/include/mapnik/label_collision_detector.hpp
+   trunk/include/mapnik/rule.hpp
+   trunk/src/SConscript
+   trunk/src/agg_renderer.cpp
+Log:
+1) Added line following labels. Use set_label_placement(POINT_PLACEMENT) or set_label_placement(LINE_PLACEMENT) on a text symbolizer.
+2) Added placement_finder class so labels try to avoid each other.
+3) Added Shield Symbolizer which is essentially a combined image/text symbolizer.
+
+
+Modified: trunk/bindings/python/mapnik_python.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_python.cpp	2006-10-17 01:18:54 UTC (rev 340)
++++ trunk/bindings/python/mapnik_python.cpp	2006-10-17 14:12:53 UTC (rev 341)
+@@ -46,6 +46,7 @@
+ void export_polygon_symbolizer();
+ void export_polygon_pattern_symbolizer();
+ void export_raster_symbolizer();
++void export_shield_symbolizer();
+ void export_text_symbolizer();
+ void export_font_engine();
+ void export_projection();
+@@ -107,6 +108,7 @@
+     export_polygon_symbolizer();
+     export_polygon_pattern_symbolizer();
+     export_raster_symbolizer();
++    export_shield_symbolizer();
+     export_text_symbolizer();
+     export_font_engine();
+     export_projection();
+
+Modified: trunk/bindings/python/mapnik_rule.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_rule.cpp	2006-10-17 01:18:54 UTC (rev 340)
++++ trunk/bindings/python/mapnik_rule.cpp	2006-10-17 14:12:53 UTC (rev 341)
+@@ -41,6 +41,7 @@
+     using mapnik::polygon_symbolizer;
+     using mapnik::polygon_pattern_symbolizer;
+     using mapnik::raster_symbolizer;
++    using mapnik::shield_symbolizer;
+     using mapnik::text_symbolizer;
+     using mapnik::symbolizer;
+     using mapnik::symbolizers;
+@@ -52,6 +53,7 @@
+     implicitly_convertible&lt;polygon_symbolizer,symbolizer&gt;();
+     implicitly_convertible&lt;polygon_pattern_symbolizer,symbolizer&gt;();
+     implicitly_convertible&lt;raster_symbolizer,symbolizer&gt;();
++    implicitly_convertible&lt;shield_symbolizer,symbolizer&gt;();
+     implicitly_convertible&lt;text_symbolizer,symbolizer&gt;();
+     
+     class_&lt;symbolizers&gt;(&quot;Symbolizers&quot;,init&lt;&gt;(&quot;TODO&quot;))
+
+Added: trunk/bindings/python/mapnik_shield_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_shield_symbolizer.cpp	2006-10-17 01:18:54 UTC (rev 340)
++++ trunk/bindings/python/mapnik_shield_symbolizer.cpp	2006-10-17 14:12:53 UTC (rev 341)
+@@ -0,0 +1,39 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko, Jean-Francois Doyon
++ * Copyright (C) 2006 10East Corp.
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++//$Id$
++
++#include &lt;boost/python.hpp&gt;
++#include &lt;mapnik/shield_symbolizer.hpp&gt;
++
++void export_shield_symbolizer()
++{
++    using namespace boost::python;
++    using mapnik::shield_symbolizer;
++    
++    class_&lt;shield_symbolizer&gt;(&quot;ShieldSymbolizer&quot;,
++                             init&lt;&gt;(&quot;Default Shield Symbolizer - 4x4 black square&quot;))
++        .def (init&lt; std::string const&amp;, unsigned, mapnik::Color const&amp;,
++              std::string const&amp;, std::string const&amp;,unsigned,unsigned&gt;(&quot;TODO&quot;))
++        ;
++    
++}
+
+Modified: trunk/bindings/python/mapnik_text_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_text_symbolizer.cpp	2006-10-17 01:18:54 UTC (rev 340)
++++ trunk/bindings/python/mapnik_text_symbolizer.cpp	2006-10-17 14:12:53 UTC (rev 341)
+@@ -32,6 +32,11 @@
+     using mapnik::text_symbolizer;
+     using mapnik::Color;
+  
++    enum_&lt;mapnik::label_placement_e&gt;(&quot;label_placement&quot;)
++        .value(&quot;LINE_PLACEMENT&quot;,mapnik::line_placement)
++        .value(&quot;POINT_PLACEMENT&quot;,mapnik::point_placement)
++        ;
++
+     class_&lt;text_symbolizer&gt;(&quot;TextSymbolizer&quot;,
+ 			    init&lt;std::string const&amp;,unsigned,Color const&amp;&gt;())
+         .add_property(&quot;halo_fill&quot;,make_function(
+@@ -41,5 +46,7 @@
+         .add_property(&quot;halo_radius&quot;,
+                       &amp;text_symbolizer::get_halo_radius, 
+                       &amp;text_symbolizer::set_halo_radius)
++        .def(&quot;set_label_placement&quot;,&amp;text_symbolizer::set_label_placement,
++             &quot;Set the placement of the label&quot;)
+ 	;
+ }
+
+Modified: trunk/include/mapnik/agg_renderer.hpp
+===================================================================
+--- trunk/include/mapnik/agg_renderer.hpp	2006-10-17 01:18:54 UTC (rev 340)
++++ trunk/include/mapnik/agg_renderer.hpp	2006-10-17 14:12:53 UTC (rev 341)
+@@ -31,6 +31,7 @@
+ #include &lt;mapnik/feature_style_processor.hpp&gt;
+ #include &lt;mapnik/font_engine_freetype.hpp&gt;
+ #include &lt;mapnik/label_collision_detector.hpp&gt;
++#include &lt;mapnik/placement_finder.hpp&gt;
+ #include &lt;mapnik/map.hpp&gt;
+ #include &lt;mapnik/config.hpp&gt;
+ 
+@@ -63,6 +64,9 @@
+         void process(raster_symbolizer const&amp; sym,
+                      Feature const&amp; feature,
+                      proj_transform const&amp; prj_trans);
++        void process(shield_symbolizer const&amp; sym,
++                     Feature const&amp; feature,
++                     proj_transform const&amp; prj_trans);
+         void process(text_symbolizer const&amp; sym,
+                      Feature const&amp; feature,
+                      proj_transform const&amp; prj_trans);
+@@ -70,7 +74,9 @@
+         T &amp; pixmap_;
+         CoordTransform t_;
+         face_manager&lt;freetype_engine&gt; font_manager_;
+-        label_collision_detector2 detector_;
++//        label_collision_detector2 label_detector_;
++        placement_finder finder_;
++        label_collision_detector2 point_detector_; //Note: May want to merge this with placement_finder
+     };
+ }
+ 
+
+Modified: trunk/include/mapnik/attribute_collector.hpp
+===================================================================
+--- trunk/include/mapnik/attribute_collector.hpp	2006-10-17 01:18:54 UTC (rev 340)
++++ trunk/include/mapnik/attribute_collector.hpp	2006-10-17 14:12:53 UTC (rev 341)
+@@ -47,6 +47,10 @@
+         {
+             names_.insert(sym.get_name());
+         }
++	void operator () (shield_symbolizer const&amp; sym)
++	{
++	    names_.insert(sym.get_name());
++	}
+     private:
+         std::set&lt;std::string&gt;&amp; names_;
+     };
+
+Modified: trunk/include/mapnik/font_engine_freetype.hpp
+===================================================================
+--- trunk/include/mapnik/font_engine_freetype.hpp	2006-10-17 01:18:54 UTC (rev 340)
++++ trunk/include/mapnik/font_engine_freetype.hpp	2006-10-17 14:12:53 UTC (rev 341)
+@@ -46,7 +46,11 @@
+ // mapnik
+ #include &lt;mapnik/color.hpp&gt;
+ #include &lt;mapnik/utils.hpp&gt;
++#include &lt;mapnik/ctrans.hpp&gt;
++#include &lt;mapnik/geometry.hpp&gt;
+ 
++#include &lt;mapnik/text_path.hpp&gt;
++
+ namespace mapnik
+ {
+     class font_face : boost::noncopyable
+@@ -84,6 +88,7 @@
+         {
+             if (! FT_Set_Pixel_Sizes( face_, 0, size ))
+                 return true;
++            
+             return false;
+         }
+         
+@@ -199,7 +204,6 @@
+     template &lt;typename T&gt;
+     struct text_renderer : private boost::noncopyable
+     {
+-
+         struct glyph_t : boost::noncopyable
+         {
+             FT_Glyph image;
+@@ -216,19 +220,13 @@
+               face_(face),
+               fill_(0,0,0), 
+               halo_fill_(255,255,255),
+-              halo_radius_(0),
+-              angle_(0.0) {}
++              halo_radius_(0) {}
+     
+         void set_pixel_size(unsigned size)
+         {
+             face_-&gt;set_pixel_sizes(size);
+         }
+     
+-        void set_angle(float angle)
+-        {
+-            angle_=angle;
+-        }
+-
+         void set_fill(mapnik::Color const&amp; fill)
+         {
+             fill_=fill;
+@@ -244,7 +242,7 @@
+             halo_radius_=radius;
+         }
+ 
+-        dimension_t prepare_glyphs(std::string const&amp; text)
++        Envelope&lt;double&gt; prepare_glyphs(text_path *path)
+         {
+             //clear glyphs
+             glyphs_.clear();
+@@ -254,43 +252,35 @@
+             FT_Error  error;
+ 	    
+             FT_Face face = face_-&gt;get_face();
+-            FT_GlyphSlot slot = face-&gt;glyph;
+-            FT_Bool use_kerning;
+-            FT_UInt previous = 0;
++//            FT_GlyphSlot slot = face-&gt;glyph;
+ 	    
+-            pen.x = 0;
+-            pen.y = 0;
+-	    
+-            use_kerning = FT_HAS_KERNING(face)&gt;0?true:false;
+-	    
+             FT_BBox bbox;   
+             bbox.xMin = bbox.yMin = 32000; 
+             bbox.xMax = bbox.yMax = -32000; //hmm?? 
+ 	    
+-            for (std::string::const_iterator i=text.begin();i!=text.end();++i)
++            for (int i = 0; i &lt; path-&gt;num_nodes(); i++) 
+             {
++                int c;
++                double x, y, angle;
++                
++                path-&gt;vertex(&amp;c, &amp;x, &amp;y, &amp;angle);
++
+                 FT_BBox glyph_bbox; 
+                 FT_Glyph image;
+ 		
+-                matrix.xx = (FT_Fixed)( cos( angle_ ) * 0x10000L ); 
+-                matrix.xy = (FT_Fixed)(-sin( angle_ ) * 0x10000L ); 
+-                matrix.yx = (FT_Fixed)( sin( angle_ ) * 0x10000L ); 
+-                matrix.yy = (FT_Fixed)( cos( angle_ ) * 0x10000L );
++                pen.x = int(x * 64);
++                pen.y = int(y * 64);
+ 	        	
++                matrix.xx = (FT_Fixed)( cos( angle ) * 0x10000L ); 
++                matrix.xy = (FT_Fixed)(-sin( angle ) * 0x10000L ); 
++                matrix.yx = (FT_Fixed)( sin( angle ) * 0x10000L ); 
++                matrix.yy = (FT_Fixed)( cos( angle ) * 0x10000L );
++		
+                 FT_Set_Transform (face,&amp;matrix,&amp;pen);
+ 		
+-                FT_UInt glyph_index = FT_Get_Char_Index( face, unsigned(*i) &amp; 0xff );
++                FT_UInt glyph_index = FT_Get_Char_Index( face, unsigned(c) &amp; 0xff );
+ 		
+-                if ( use_kerning &amp;&amp; previous &amp;&amp; glyph_index)
+-                {
+-                    FT_Vector delta;
+-                    FT_Get_Kerning(face,previous,glyph_index,
+-                                   FT_KERNING_DEFAULT,&amp;delta);
+-                    pen.x += delta.x;
+-                    pen.y += delta.y;
+-                }
+-		
+-                error = FT_Load_Glyph (face,glyph_index,FT_LOAD_DEFAULT); 
++                error = FT_Load_Glyph (face,glyph_index, FT_LOAD_NO_HINTING); 
+                 if ( error )
+                     continue;
+ 		
+@@ -316,18 +306,67 @@
+                     bbox.yMax = 0; 
+                 }
+ 		
+-                pen.x += slot-&gt;advance.x;
+-                pen.y += slot-&gt;advance.y;
+-		
+-                previous = glyph_index;
+                 // take ownership of the glyph
+                 glyphs_.push_back(new glyph_t(image));
+             }
+ 	    
+-            unsigned string_width = (bbox.xMax - bbox.xMin); 
+-            unsigned string_height = (bbox.yMax - bbox.yMin);
+-            return dimension_t(string_width,string_height);
++          return Envelope&lt;double&gt;(bbox.xMin, bbox.yMin, bbox.xMax, bbox.yMax);
+         }
++      
++        dimension_t character_dimensions(const unsigned c)
++        {
++            FT_Matrix matrix;
++            FT_Vector pen;
++            FT_Error  error;
++            
++            FT_Face face = face_-&gt;get_face();
++            FT_GlyphSlot slot = face-&gt;glyph;
++            
++            pen.x = 0;
++            pen.y = 0;
++            
++            FT_BBox glyph_bbox; 
++            FT_Glyph image;
++            
++            matrix.xx = (FT_Fixed)( 1 * 0x10000L ); 
++            matrix.xy = (FT_Fixed)( 0 * 0x10000L ); 
++            matrix.yx = (FT_Fixed)( 0 * 0x10000L ); 
++            matrix.yy = (FT_Fixed)( 1 * 0x10000L );
++                    
++            FT_Set_Transform (face,&amp;matrix,&amp;pen);
++            
++            FT_UInt glyph_index = FT_Get_Char_Index( face, c &amp; 0xff );
++            
++            error = FT_Load_Glyph (face,glyph_index,FT_LOAD_NO_HINTING); 
++            if ( error )
++                return dimension_t(0, 0);
++            
++            error = FT_Get_Glyph( face-&gt;glyph, &amp;image);
++            if ( error )
++                return dimension_t(0, 0);
++            
++            FT_Glyph_Get_CBox(image,ft_glyph_bbox_pixels, &amp;glyph_bbox); 
++          
++            return dimension_t(slot-&gt;advance.x &gt;&gt; 6, glyph_bbox.yMax - glyph_bbox.yMin);
++        }
++        
++        void get_string_info(std::string const&amp; text, string_info *info)
++        {
++            unsigned width = 0;
++            unsigned height = 0;
++          
++            for (std::string::const_iterator i=text.begin();i!=text.end();++i)
++            {
++              dimension_t char_dim = character_dimensions(*i);
++              
++              info-&gt;add_info(*i, char_dim.first, char_dim.second);
++              
++              width += char_dim.first;
++              height = char_dim.second &gt; height ? char_dim.second : height;
++            }
++            
++            info-&gt;set_dimensions(width, height);
++        }
+ 	
+         void render(double x0, double y0)
+         {
+@@ -421,12 +460,12 @@
+     
+         pixmap_type &amp; pixmap_;
+         face_ptr face_;
+-        Color fill_;
+-        Color halo_fill_;
++      mapnik::Color fill_;
++      mapnik::Color halo_fill_;
+         int halo_radius_;
+-        float angle_;
+         glyphs_t glyphs_;
+     }; 
+ }
+ 
++
+ #endif // FONT_ENGINE_FREETYPE_HPP
+
+Modified: trunk/include/mapnik/label_collision_detector.hpp
+===================================================================
+--- trunk/include/mapnik/label_collision_detector.hpp	2006-10-17 01:18:54 UTC (rev 340)
++++ trunk/include/mapnik/label_collision_detector.hpp	2006-10-17 14:12:53 UTC (rev 341)
+@@ -83,6 +83,38 @@
+             return true;
+         }	
+     };
++    
++    // quad_tree based label collision detector with seperate check/insert
++    class label_collision_detector3 : boost::noncopyable
++    {
++      typedef quad_tree&lt; Envelope&lt;double&gt; &gt; tree_t;
++      tree_t tree_;
++    public:
++	
++      explicit label_collision_detector3(Envelope&lt;double&gt; const&amp; extent)
++          : tree_(extent) {}
++	
++      bool has_placement(Envelope&lt;double&gt; const&amp; box)
++      {
++          tree_t::query_iterator itr = tree_.query_in_box(box);
++          tree_t::query_iterator end = tree_.query_end();
++          
++          for ( ;itr != end; ++itr)
++          {
++            if (itr-&gt;intersects(box))
++            {
++                return false;
++            }
++          }
++          
++          return true;
++      }
++
++      void insert(Envelope&lt;double&gt; const&amp; box)
++      {
++        tree_.insert(box, box);
++      }
++    };
+ }
+ 
+ #endif 
+
+Added: trunk/include/mapnik/placement_finder.hpp
+===================================================================
+--- trunk/include/mapnik/placement_finder.hpp	2006-10-17 01:18:54 UTC (rev 340)
++++ trunk/include/mapnik/placement_finder.hpp	2006-10-17 14:12:53 UTC (rev 341)
+@@ -0,0 +1,102 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ * Copyright (C) 2006 10East Corp.
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++//$Id$
++
++#ifndef __PLACEMENT_FINDER__
++#define __PLACEMENT_FINDER__
++
++#include &lt;queue&gt;
++
++#include &lt;mapnik/ctrans.hpp&gt;
++#include &lt;mapnik/label_collision_detector.hpp&gt;
++#include &lt;mapnik/text_symbolizer.hpp&gt;
++#include &lt;mapnik/geometry.hpp&gt;
++#include &lt;mapnik/text_path.hpp&gt;
++
++namespace mapnik
++{
++  struct placement
++  {
++    typedef  coord_transform2&lt;CoordTransform,geometry_type&gt; path_type;
++
++    //For shields
++    placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, std::pair&lt;double, double&gt; dimensions_);
++    
++    //For text
++    placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, label_placement_e placement_);
++    
++    ~placement();
++
++    string_info *info;
++    
++    CoordTransform *ctrans;
++    const proj_transform *proj_trans;
++
++    geometry_ptr geom;
++    label_placement_e label_placement;
++    std::pair&lt;double, double&gt; dimensions;
++
++    bool has_dimensions;
++    
++    path_type shape_path;
++    std::queue&lt; Envelope&lt;double&gt; &gt; envelopes;
++    
++    //output
++    double starting_x;
++    double starting_y;
++    
++    text_path path;
++    
++    
++    //helpers
++    std::pair&lt;double, double&gt; get_position_at_distance(double target_distance);
++    double get_total_distance();
++    void placement::clear_envelopes();
++    
++    double total_distance_; //cache for distance
++  };
++  
++  class placement_finder : boost::noncopyable
++  {
++  public:
++    placement_finder(Envelope&lt;double&gt; e);
++  
++    bool find_placement(placement *placement);
++    
++  protected:
++    bool find_placement_follow(placement *p);
++    bool find_placement_horizontal(placement *p);
++
++    bool build_path_follow(placement *p, double target_distance);
++    bool build_path_horizontal(placement *p, double target_distance);
++
++    void update_detector(placement *p);
++  
++    label_collision_detector3 detector_;
++  };
++  
++}
++
++#endif
++
+
+Modified: trunk/include/mapnik/rule.hpp
+===================================================================
+--- trunk/include/mapnik/rule.hpp	2006-10-17 01:18:54 UTC (rev 340)
++++ trunk/include/mapnik/rule.hpp	2006-10-17 14:12:53 UTC (rev 341)
+@@ -35,6 +35,7 @@
+ #include &lt;mapnik/polygon_pattern_symbolizer.hpp&gt;
+ #include &lt;mapnik/point_symbolizer.hpp&gt;
+ #include &lt;mapnik/raster_symbolizer.hpp&gt;
++#include &lt;mapnik/shield_symbolizer.hpp&gt;
+ #include &lt;mapnik/text_symbolizer.hpp&gt;
+ #include &lt;mapnik/filter.hpp&gt;
+ #include &lt;mapnik/filter_visitor.hpp&gt;
+@@ -81,12 +82,19 @@
+         return (&amp;lhs == &amp;rhs); 
+     }
+     
++    inline bool operator==(shield_symbolizer const&amp; lhs,
++                           shield_symbolizer const&amp; rhs)
++    {
++        return (&amp;lhs == &amp;rhs); 
++    }
++    
+     typedef boost::variant&lt;point_symbolizer,
+                            line_symbolizer,
+                            line_pattern_symbolizer,
+                            polygon_symbolizer,
+                            polygon_pattern_symbolizer,
+                            raster_symbolizer,
++                           shield_symbolizer,
+                            text_symbolizer&gt; symbolizer;
+     
+         
+
+Added: trunk/include/mapnik/shield_symbolizer.hpp
+===================================================================
+--- trunk/include/mapnik/shield_symbolizer.hpp	2006-10-17 01:18:54 UTC (rev 340)
++++ trunk/include/mapnik/shield_symbolizer.hpp	2006-10-17 14:12:53 UTC (rev 341)
+@@ -0,0 +1,63 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ * Copyright (C) 2006 10East Corp.
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++//$Id$
++
++#ifndef SHIELD_SYMBOLIZER_HPP
++#define SHIELD_SYMBOLIZER_HPP
++
++#include &lt;boost/shared_ptr.hpp&gt;
++#include &lt;mapnik/graphics.hpp&gt; 
++
++namespace mapnik 
++{   
++    struct MAPNIK_DECL shield_symbolizer
++    {	
++        explicit shield_symbolizer();
++        shield_symbolizer(std::string const&amp; name,
++                          unsigned size,
++                          Color const&amp; fill, 
++                          std::string const&amp; file,
++                          std::string const&amp; type,
++                          unsigned width,unsigned height);
++        shield_symbolizer(shield_symbolizer const&amp; rhs);
++        void set_data (boost::shared_ptr&lt;ImageData32&gt; symbol);
++        boost::shared_ptr&lt;ImageData32&gt; const&amp; get_data() const;
++      
++        std::string const&amp; get_name() const;
++
++        unsigned get_text_size() const;
++        Color const&amp; get_fill() const;
++      
++        void set_allow_overlap(bool overlap);
++        bool get_allow_overlap() const;
++        
++    private:
++        std::string name_;
++        unsigned size_;
++        Color fill_;
++        boost::shared_ptr&lt;ImageData32&gt; symbol_;
++        bool overlap_;
++    };
++}
++
++#endif // SHIELD_SYMBOLIZER_HPP
+
+Added: trunk/include/mapnik/text_path.hpp
+===================================================================
+--- trunk/include/mapnik/text_path.hpp	2006-10-17 01:18:54 UTC (rev 340)
++++ trunk/include/mapnik/text_path.hpp	2006-10-17 14:12:53 UTC (rev 341)
+@@ -0,0 +1,149 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ * Copyright (C) 2006 10East Corp.
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++//$Id$
++
++#ifndef __TEXT_PATH_H__
++#define __TEXT_PATH_H__
++
++#include &lt;boost/utility.hpp&gt;
++
++namespace mapnik
++{
++    struct character_info
++    { 
++      int character;
++      double width, height;
++      
++      character_info() : character(0), width(0), height(0) {}
++      character_info(int c_, double width_, double height_) : character(c_), width(width_), height(height_) {}
++      ~character_info() {}
++        
++      character_info(const character_info &amp;ci)
++        : character(ci.character), width(ci.width), height(ci.height)
++      {
++      }
++          
++    };
++    
++    class string_info : private boost::noncopyable
++    {
++    protected:
++      
++      
++      typedef boost::ptr_vector&lt;character_info&gt; characters_t;
++      
++      characters_t characters_;
++      unsigned itr_;
++
++      double width_;
++      double height_;
++    public:
++      string_info() : itr_(0), width_(0), height_(0) {}
++      
++      void add_info(int c, double width, double height)
++      {
++        characters_.push_back(new character_info(c, width, height));
++      }
++      
++      unsigned num_characters()
++      {
++        return characters_.size();
++      }
++      
++      character_info at(unsigned i)
++      {
++        return characters_[i];
++      }
++      
++      character_info operator[](unsigned i)
++      {
++        return at(i);
++      }
++      
++      void set_dimensions(double width, double height)
++      {
++        width_ = width;
++        height_ = height;
++      }
++      
++      std::pair&lt;double, double&gt; get_dimensions()
++      {
++        return std::pair&lt;double, double&gt;(width_, height_);
++      }
++    };
++    
++    struct text_path : private boost::noncopyable
++    {
++        struct character_node : boost::noncopyable
++        {
++            int c;
++            double x, y, angle;
++            
++            character_node(int c_, double x_, double y_, double angle_) : c(c_), x(x_), y(y_), angle(angle_) {}
++            ~character_node() {}
++
++            void vertex(int *c_, double *x_, double *y_, double *angle_)
++            {
++                *c_ = c;
++                *x_ = x;
++                *y_ = y;
++                *angle_ = angle;
++            }
++        };
++
++        typedef boost::ptr_vector&lt;character_node&gt; character_nodes_t;
++        
++        character_nodes_t nodes_;
++        int itr_;
++        
++        std::pair&lt;unsigned,unsigned&gt; string_dimensions;
++        
++        text_path() :  itr_(0) {} 
++        ~text_path() {}
++          
++        void add_node(int c, double x, double y, double angle)
++        {
++            nodes_.push_back(new character_node(c, x, y, angle));
++        }
++        
++        void vertex(int *c, double *x, double *y, double *angle)
++        {
++            nodes_[itr_++].vertex(c, x, y, angle);
++        }
++        
++        int num_nodes()
++        {
++            return nodes_.size();
++        }
++        
++        void clear()
++        {
++          nodes_.clear();
++        }
++    };
++}
++
++#endif
++
++
+
+Modified: trunk/src/SConscript
+===================================================================
+--- trunk/src/SConscript	2006-10-17 01:18:54 UTC (rev 340)
++++ trunk/src/SConscript	2006-10-17 14:12:53 UTC (rev 341)
+@@ -46,11 +46,13 @@
+     map.cpp
+     memory.cpp
+     params.cpp
++    placement_finder.cpp
+     plugin.cpp
+     png_reader.cpp
+     point_symbolizer.cpp
+     polygon_pattern_symbolizer.cpp
+     save_map.cpp
++    shield_symbolizer.cpp
+     text_symbolizer.cpp
+     tiff_reader.cpp
+     wkb.cpp
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-10-17 01:18:54 UTC (rev 340)
++++ trunk/src/agg_renderer.cpp	2006-10-17 14:12:53 UTC (rev 341)
+@@ -59,6 +59,8 @@
+ #include &lt;mapnik/image_util.hpp&gt;
+ #include &lt;mapnik/agg_renderer.hpp&gt;
+ 
++#include &lt;mapnik/placement_finder.hpp&gt;
++
+ namespace mapnik 
+ {
+     class pattern_source : private boost::noncopyable
+@@ -92,7 +94,8 @@
+         : feature_style_processor&lt;agg_renderer&gt;(m),
+           pixmap_(pixmap),
+           t_(m.getWidth(),m.getHeight(),m.getCurrentExtent()),
+-          detector_(Envelope&lt;double&gt;(-64 ,-64, m.getWidth() + 64 ,m.getHeight() + 64))
++          finder_(Envelope&lt;double&gt;(-64 ,-64, m.getWidth() + 64 ,m.getHeight() + 64)),
++          point_detector_(Envelope&lt;double&gt;(-64 ,-64, m.getWidth() + 64 ,m.getHeight() + 64))
+     {
+         Color const&amp; bg=m.getBackground();
+         pixmap_.setBackground(bg);
+@@ -302,7 +305,7 @@
+                 int py=int(floor(y - 0.5 * h));
+                 
+                 if (sym.get_allow_overlap() || 
+-                    detector_.has_placement(Envelope&lt;double&gt;(floor(x - 0.5 * w),
++                    point_detector_.has_placement(Envelope&lt;double&gt;(floor(x - 0.5 * w),
+                                                              floor(y - 0.5 * h),
+                                                              ceil (x + 0.5 * w),
+                                                              ceil (y + 0.5 * h))))
+@@ -314,6 +317,57 @@
+     }
+     
+     template &lt;typename T&gt;
++    void  agg_renderer&lt;T&gt;::process(shield_symbolizer const&amp; sym,
++                                   Feature const&amp; feature,
++                                   proj_transform const&amp; prj_trans)
++    {
++        geometry_ptr const&amp; geom=feature.get_geometry();
++        if (geom)
++        {
++            std::string text = feature[sym.get_name()].to_string();
++            boost::shared_ptr&lt;ImageData32&gt; const&amp; data = sym.get_data();
++            
++            if (text.length() &gt; 0 &amp;&amp; data)
++            {
++                face_ptr face = font_manager_.get_face(&quot;Bitstream Vera Sans Roman&quot;);//TODO
++                if (face)
++                {
++                    int w = data-&gt;width();
++                    int h = data-&gt;height();
++
++                    text_renderer&lt;mapnik::Image32&gt; ren(pixmap_,face);
++                    ren.set_pixel_size(sym.get_text_size());
++                    ren.set_fill(sym.get_fill());
++
++                    string_info info;
++                    ren.get_string_info(text, &amp;info);
++                 
++                    placement text_placement(&amp;info, &amp;t_, &amp;prj_trans, geom, std::pair&lt;double, double&gt;(w, h) );
++                    
++                    bool found = finder_.find_placement(&amp;text_placement);
++                    if (!found) {
++                      return;
++                    }
++                    
++                    double x = text_placement.starting_x;
++                    double y = text_placement.starting_y;
++                    
++                    int px=int(floor(x - 0.5 * w));
++                    int py=int(floor(y - 0.5 * h));
++                    
++                    pixmap_.set_rectangle_alpha(px,py,*data);
++            
++                    Envelope&lt;double&gt; dim = ren.prepare_glyphs(&amp;text_placement.path);
++                    
++                    //If has_placement 
++                    
++                    ren.render(x,y);
++                }
++            }
++        }
++    }
++    
++    template &lt;typename T&gt;
+     void  agg_renderer&lt;T&gt;::process(line_pattern_symbolizer const&amp; sym,
+                                    Feature const&amp; feature,
+                                    proj_transform const&amp; prj_trans)
+@@ -422,37 +476,15 @@
+                                   Feature const&amp; feature,
+                                   proj_transform const&amp; prj_trans)
+     {
+-        typedef  coord_transform2&lt;CoordTransform,geometry_type&gt; path_type;
+         geometry_ptr const&amp; geom=feature.get_geometry();
++       
+         if (geom)
+         {
+-            double angle = 0.0;	    
+-            if (sym.get_label_placement() == line_placement &amp;&amp; 
+-                geom-&gt;num_points() &gt; 1)
+-            {
+-	       
+-                path_type path(t_,*geom,prj_trans);
+-                double x0,y0,x1,y1;
+-                path.vertex(&amp;x0,&amp;y0);
+-                path.vertex(&amp;x1,&amp;y1);
+-                double dx = x1 - x0;
+-                double dy = ( y1 - y0 &gt; 1e-7 ) ?  y1 - y0 : 1.0;
+-	        
+-                angle = atan( dx/ dy ) - 0.5 * 3.1459;
+-		
+-                //TODO!!!!!!!!!!!!!!!!!!!!
+-            }   
+-	    
+             std::string text = feature[sym.get_name()].to_string();
+             if (text.length() &gt; 0)
+             {
+                 Color const&amp; fill  = sym.get_fill();
+ 	
+-                double x;
+-                double y;
+-                geom-&gt;label_position(&amp;x,&amp;y);
+-                t_.forward(&amp;x,&amp;y);
+-
+                 face_ptr face = font_manager_.get_face(&quot;Bitstream Vera Sans Roman&quot;);//TODO
+                 //face_ptr face = font_manager_.get_face(&quot;Times New Roman Regular&quot;);//TODO
+                 if (face)
+@@ -462,25 +494,35 @@
+                     ren.set_fill(fill);
+                     ren.set_halo_fill(sym.get_halo_fill());
+                     ren.set_halo_radius(sym.get_halo_radius());
+-                    ren.set_angle(float(angle));
+ 
+-                    std::pair&lt;unsigned,unsigned&gt; dim = ren.prepare_glyphs(text);
+-                    Envelope&lt;double&gt; text_box(x - 0.5*dim.first,y - 0.5 * dim.second ,
+-                                              x + 0.5*dim.first,y + 0.5 * dim.second);
++                    string_info info;
++                  
++                    ren.get_string_info(text, &amp;info);
++                 
++                    placement text_placement(&amp;info, &amp;t_, &amp;prj_trans, geom, sym.get_label_placement());
++                  
++                    bool found = finder_.find_placement(&amp;text_placement);
++                    if (!found) {
++                      return;
++                    }
++                    
++                    double x = text_placement.starting_x;
++                    double y = text_placement.starting_y;
++                    
++                    Envelope&lt;double&gt; dim = ren.prepare_glyphs(&amp;text_placement.path);
++                    
++                    Envelope&lt;double&gt; text_box(x + dim.minx() ,y - dim.maxy(), x + dim.maxx(),y - dim.miny());
+ 		    
+                     if (sym.get_halo_radius() &gt; 0)
+                     {
+                         text_box.width(text_box.width() + sym.get_halo_radius()*2);
+                         text_box.height(text_box.height() + sym.get_halo_radius()*2);
+                     }
+-
+-                    if (detector_.has_placement(text_box))
+-                    {
+-                        ren.render(x - 0.5 * dim.first,y + 0.5 * dim.second);
+-                    }
++                    ren.render(x,y);
+                 }
+             }  
+         }
+     }   
++    
+     template class agg_renderer&lt;Image32&gt;;
+ }
+
+Added: trunk/src/placement_finder.cpp
+===================================================================
+--- trunk/src/placement_finder.cpp	2006-10-17 01:18:54 UTC (rev 340)
++++ trunk/src/placement_finder.cpp	2006-10-17 14:12:53 UTC (rev 341)
+@@ -0,0 +1,434 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ * Copyright (C) 2006 10East Corp.
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++//$Id$
++
++//stl
++#include &lt;string&gt;
++#include &lt;vector&gt;
++
++// boost
++#include &lt;boost/shared_ptr.hpp&gt;
++#include &lt;boost/utility.hpp&gt;
++#include &lt;boost/ptr_container/ptr_vector.hpp&gt;
++#include &lt;boost/thread/mutex.hpp&gt;
++
++//mapnik
++#include &lt;mapnik/geometry.hpp&gt;
++#include &lt;mapnik/placement_finder.hpp&gt;
++#include &lt;mapnik/text_path.hpp&gt;
++
++namespace mapnik
++{
++  placement::placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, std::pair&lt;double, double&gt; dimensions_)
++    : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(point_placement), dimensions(dimensions_), has_dimensions(true), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0)
++  {
++  }
++  
++  //For text
++  placement::placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, label_placement_e placement_)
++    : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(placement_), has_dimensions(false), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0)
++  {
++  }
++  
++  placement::~placement()
++  {
++  }
++
++  std::pair&lt;double, double&gt; placement::get_position_at_distance(double target_distance)
++  {
++    double old_x, old_y, new_x, new_y;
++    double x, y;
++    x = y = 0.0;
++    
++    double distance = 0.0;
++    
++    shape_path.rewind(0);
++    shape_path.vertex(&amp;new_x,&amp;new_y);
++    for (unsigned i = 0; i &lt; geom-&gt;num_points() - 1; i++)
++    {
++      double dx, dy;
++
++      old_x = new_x;
++      old_y = new_y;
++
++      shape_path.vertex(&amp;new_x,&amp;new_y);
++      
++      dx = new_x - old_x;
++      dy = new_y - old_y;
++      
++      double segment_length = sqrt(dx*dx + dy*dy);
++      
++      distance += segment_length;
++      if (distance &gt; target_distance)
++      {
++          x = new_x - dx*(distance - target_distance)/segment_length;
++          y = new_y - dy*(distance - target_distance)/segment_length;
++
++          break;
++      }
++    }
++    
++    return std::pair&lt;double, double&gt;(x, y);
++  }
++  
++  double placement::get_total_distance()
++  {
++    if (total_distance_ &lt; 0.0)
++    {
++      double old_x, old_y, new_x, new_y;
++      
++      shape_path.rewind(0);
++     
++      shape_path.vertex(&amp;old_x,&amp;old_y);
++
++      total_distance_ = 0.0;
++      
++      for (unsigned i = 0; i &lt; geom-&gt;num_points() - 1; i++)
++      {
++          double dx, dy;
++          
++          shape_path.vertex(&amp;new_x,&amp;new_y);
++          
++          dx = new_x - old_x;
++          dy = new_y - old_y;
++          
++          total_distance_ += sqrt(dx*dx + dy*dy);
++          
++          old_x = new_x;
++          old_y = new_y;
++      }
++    }
++    
++    return total_distance_;
++  }
++  
++  void placement::clear_envelopes()
++  {
++    while (!envelopes.empty())
++      envelopes.pop();
++  }
++  
++  
++  
++  placement_finder::placement_finder(Envelope&lt;double&gt; e)
++    : detector_(e)
++  {
++  }
++
++  bool placement_finder::find_placement(placement *p)
++  {
++    if (p-&gt;label_placement == point_placement)
++    {
++      return find_placement_horizontal(p);
++    }
++    else if (p-&gt;label_placement == line_placement)
++    {
++      return find_placement_follow(p);
++    }
++    
++    return false;
++  }
++
++  bool placement_finder::find_placement_follow(placement *p)
++  {
++    std::pair&lt;double, double&gt; string_dimensions = p-&gt;info-&gt;get_dimensions();
++    double string_width = string_dimensions.first;
++//    double string_height = string_dimensions.second;
++    
++    double distance = p-&gt;get_total_distance();
++    
++    //~ double delta = string_width/distance;
++    double delta = distance/100.0;
++    
++    for (double i = 0; i &lt; (distance - string_width)/2.0; i += delta)
++    {
++      p-&gt;clear_envelopes();
++      
++      if ( build_path_follow(p, (distance - string_width)/2.0 + i) ) {
++        update_detector(p);
++        return true;
++      }
++      
++      p-&gt;clear_envelopes();
++      
++      if ( build_path_follow(p, (distance - string_width)/2.0 - i) ) {
++        update_detector(p);
++        return true;
++      }
++    }
++    
++    p-&gt;starting_x = 0;
++    p-&gt;starting_y = 0;
++    
++    return false;
++  }
++  
++  bool placement_finder::find_placement_horizontal(placement *p)
++  {
++    double distance = p-&gt;get_total_distance();
++    //~ double delta = string_width/distance;
++    double delta = distance/100.0;
++    
++    for (double i = 0; i &lt; distance/2.0; i += delta)
++    {
++      p-&gt;clear_envelopes();
++      
++      if ( build_path_horizontal(p, distance/2.0 + i) ) {
++        update_detector(p);
++        return true;
++      }
++      
++      p-&gt;clear_envelopes();
++      
++      if ( build_path_horizontal(p, distance/2.0 - i) ) {
++        update_detector(p);
++        return true;
++      }
++    }
++    
++    p-&gt;starting_x = 0;
++    p-&gt;starting_y = 0;
++    
++    return false;
++  }
++  
++  void placement_finder::update_detector(placement *p)
++  {
++    while (!p-&gt;envelopes.empty())
++    {
++      Envelope&lt;double&gt; e = p-&gt;envelopes.front();
++
++      detector_.insert(e);
++
++      p-&gt;envelopes.pop();
++    }
++  }
++
++  bool placement_finder::build_path_follow(placement *p, double target_distance)
++  {
++    double new_x, new_y, old_x, old_y;
++    unsigned cur_node = 0;
++
++    double angle = 0.0;
++    int orientation = 0;
++    
++    p-&gt;path.clear();
++    
++    double x, y;
++    x = y = 0.0;
++    
++    double distance = 0.0;
++
++    std::pair&lt;double, double&gt; string_dimensions = p-&gt;info-&gt;get_dimensions();
++//    double string_width = string_dimensions.first;
++    double string_height = string_dimensions.second;
++    
++    p-&gt;shape_path.rewind(0);
++    p-&gt;shape_path.vertex(&amp;new_x,&amp;new_y);
++    for (unsigned i = 0; i &lt; p-&gt;geom-&gt;num_points() - 1; i++)
++    {
++        double dx, dy;
++
++        cur_node++;
++        
++        old_x = new_x;
++        old_y = new_y;
++
++        p-&gt;shape_path.vertex(&amp;new_x,&amp;new_y);
++        
++        dx = new_x - old_x;
++        dy = new_y - old_y;
++        
++        double segment_length = sqrt(dx*dx + dy*dy);
++        
++        distance += segment_length;
++        if (distance &gt; target_distance)
++        {
++            p-&gt;starting_x = new_x - dx*(distance - target_distance)/segment_length;
++            p-&gt;starting_y = new_y - dy*(distance - target_distance)/segment_length;
++
++            angle = atan2(-dy, dx);
++
++            if (angle &gt; M_PI/2 || angle &lt;= -M_PI/2) {
++              orientation = -1;
++            }
++            else {
++              orientation = 1;
++            }
++
++            distance -= target_distance;
++            
++            break;
++        }
++    }
++
++    for (unsigned i = 0; i &lt; p-&gt;info-&gt;num_characters(); i++)
++    {
++        character_info ci;
++        unsigned c;
++      
++        while (distance &lt;= 0) {
++            double dx, dy;
++
++            cur_node++;
++            
++            if (cur_node &gt;= p-&gt;geom-&gt;num_points()) {
++              break;
++            }
++            
++            old_x = new_x;
++            old_y = new_y;
++
++            p-&gt;shape_path.vertex(&amp;new_x,&amp;new_y);
++
++            dx = new_x - old_x;
++            dy = new_y - old_y;
++
++            angle = atan2(-dy, dx );
++            
++            distance += sqrt(dx*dx+dy*dy);
++        }
++
++        if (orientation == -1) {
++            ci = p-&gt;info-&gt;at(p-&gt;info-&gt;num_characters() - i - 1);
++        }
++        else
++        {
++            ci = p-&gt;info-&gt;at(i);
++        }
++        c = ci.character;
++
++        Envelope&lt;double&gt; e;
++        if (p-&gt;has_dimensions)
++        {
++            e.init(x, y, x + p-&gt;dimensions.first, y + p-&gt;dimensions.second);
++        }
++
++        if (orientation == -1) {
++            x = new_x - (distance - ci.width)*cos(angle);
++            y = new_y + (distance - ci.width)*sin(angle);
++
++            //Center the text on the line.
++            x += (((double)string_height/2.0) - 1.0)*cos(angle+M_PI/2);
++            y -= (((double)string_height/2.0) - 1.0)*sin(angle+M_PI/2);
++          
++            if (!p-&gt;has_dimensions)
++            {
++              e.init(x, y, x + ci.width*cos(angle+M_PI), y - ci.width*sin(angle+M_PI));
++              e.expand_to_include(x - ci.height*sin(angle+M_PI), y - ci.height*cos(angle+M_PI));
++              e.expand_to_include(x + (ci.width*cos(angle+M_PI) - ci.height*sin(angle+M_PI)), y - (ci.width*sin(angle+M_PI) + ci.height*cos(angle+M_PI)));
++            }
++        }
++        else
++        {
++            x = new_x - distance*cos(angle);
++            y = new_y + distance*sin(angle);
++
++            //Center the text on the line.
++            x += (((double)string_height/2.0) - 1.0)*cos(angle-M_PI/2);
++            y -= (((double)string_height/2.0) - 1.0)*sin(angle-M_PI/2);
++
++            if (!p-&gt;has_dimensions)
++            {
++              e.init(x, y, x + ci.width*cos(angle), y - ci.width*sin(angle));
++              e.expand_to_include(x - ci.height*sin(angle), y - ci.height*cos(angle));
++              e.expand_to_include(x + (ci.width*cos(angle) - ci.height*sin(angle)), y - (ci.width*sin(angle) + ci.height*cos(angle)));
++            }
++        }
++        
++        if (!detector_.has_placement(e))
++        {
++          return false;
++        }
++        
++        p-&gt;envelopes.push(e);
++        
++        p-&gt;path.add_node(c, x - p-&gt;starting_x, -y + p-&gt;starting_y, (orientation == -1 ? angle + M_PI : angle));
++        
++        distance -= ci.width;
++    }
++    
++    return true;
++  }
++  
++  bool placement_finder::build_path_horizontal(placement *p, double target_distance)
++  {
++    double x, y;
++  
++    p-&gt;path.clear();
++    
++    std::pair&lt;double, double&gt; string_dimensions = p-&gt;info-&gt;get_dimensions();
++    double string_width = string_dimensions.first;
++    double string_height = string_dimensions.second;
++    
++    x = -string_width/2.0;
++    y = -string_height/2.0 + 1.0;
++    
++    if (p-&gt;geom-&gt;type() == LineString)
++    {
++      std::pair&lt;double, double&gt; starting_pos = p-&gt;get_position_at_distance(target_distance);
++      
++      p-&gt;starting_x = starting_pos.first;
++      p-&gt;starting_y = starting_pos.second;
++    }
++    else
++    {
++      p-&gt;geom-&gt;label_position(&amp;p-&gt;starting_x, &amp;p-&gt;starting_y);
++      p-&gt;ctrans-&gt;forward(&amp;p-&gt;starting_x, &amp;p-&gt;starting_y);
++    }
++    
++    for (unsigned i = 0; i &lt; p-&gt;info-&gt;num_characters(); i++)
++    {
++        character_info ci;;
++        ci = p-&gt;info-&gt;at(i);
++        
++        unsigned c = ci.character;
++      
++        p-&gt;path.add_node(c, x, y, 0.0);
++
++        Envelope&lt;double&gt; e;
++        if (p-&gt;has_dimensions)
++        {
++            e.init(p-&gt;starting_x - (p-&gt;dimensions.first/2.0), p-&gt;starting_y - (p-&gt;dimensions.second/2.0), p-&gt;starting_x + (p-&gt;dimensions.first/2.0), p-&gt;starting_y + (p-&gt;dimensions.second/2.0));
++        }
++        else
++        {
++          e.init(p-&gt;starting_x + x, p-&gt;starting_y - y, p-&gt;starting_x + x + ci.width, p-&gt;starting_y - y - ci.height);
++        }
++        
++        if (!detector_.has_placement(e))
++        {
++          return false;
++        }
++        
++        p-&gt;envelopes.push(e);
++      
++        x += ci.width;
++    }
++    return true;
++  }
++
++  
++}
++
+
+Added: trunk/src/shield_symbolizer.cpp
+===================================================================
+--- trunk/src/shield_symbolizer.cpp	2006-10-17 01:18:54 UTC (rev 340)
++++ trunk/src/shield_symbolizer.cpp	2006-10-17 14:12:53 UTC (rev 341)
+@@ -0,0 +1,111 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ * Copyright (C) 2006 10East Corp.
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++//$Id$
++
++// stl
++#include &lt;iostream&gt;
++// boost
++#include &lt;boost/scoped_ptr.hpp&gt;
++// mapnik
++#include &lt;mapnik/shield_symbolizer.hpp&gt;
++#include &lt;mapnik/image_data.hpp&gt;
++#include &lt;mapnik/image_reader.hpp&gt;
++
++namespace mapnik
++{
++    shield_symbolizer::shield_symbolizer()
++        : symbol_(new ImageData32(4,4)),
++          overlap_(false)
++    {
++        //default point symbol is black 4x4px square
++        symbol_-&gt;set(0xff000000);
++    }
++    
++    shield_symbolizer::shield_symbolizer(
++                          std::string const&amp; name,
++                          unsigned size,
++                          Color const&amp; fill, 
++                          std::string const&amp; file,
++                          std::string const&amp; type,
++                          unsigned width,unsigned height)
++        : name_(name), size_(size), fill_(fill), symbol_(new ImageData32(width,height))
++    {
++        try 
++        {
++            boost::scoped_ptr&lt;ImageReader&gt; reader(get_image_reader(type,file));
++            if (reader.get())
++            {
++                reader-&gt;read(0,0,*symbol_);		
++            }
++        } 
++        catch (...) 
++        {
++            std::clog&lt;&lt;&quot;exception caught...&quot; &lt;&lt; std::endl;
++        }
++    }
++    
++    shield_symbolizer::shield_symbolizer(shield_symbolizer const&amp; rhs)
++        : name_(rhs.name_),
++          size_(rhs.size_),
++          fill_(rhs.fill_),
++          symbol_(rhs.symbol_),
++          overlap_(rhs.overlap_)
++    {}
++    
++    void shield_symbolizer::set_data( boost::shared_ptr&lt;ImageData32&gt; symbol)
++    {
++        symbol_ = symbol;
++    }
++
++    boost::shared_ptr&lt;ImageData32&gt; const&amp; shield_symbolizer::get_data() const
++    {
++        return symbol_;
++    }
++    
++    std::string const&amp; shield_symbolizer::get_name() const
++    {
++      return name_;
++    }
++    
++    void shield_symbolizer::set_allow_overlap(bool overlap)
++    {
++        overlap_ = overlap;
++    }
++    
++    bool shield_symbolizer::get_allow_overlap() const
++    {
++        return overlap_;
++    }
++
++    unsigned shield_symbolizer::get_text_size() const
++    {
++        return size_;
++    }
++
++    Color const&amp; shield_symbolizer::get_fill() const
++    {
++        return fill_;
++    }
++}
++
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000225.html">[Mapnik-svn] r340 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+	<LI>Next message: <A HREF="000227.html">[Mapnik-svn] r342 - in trunk: bindings/python include/mapnik src	utils/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#226">[ date ]</a>
+              <a href="thread.html#226">[ thread ]</a>
+              <a href="subject.html#226">[ subject ]</a>
+              <a href="author.html#226">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

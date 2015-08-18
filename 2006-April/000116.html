@@ -1,0 +1,232 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r231 - in trunk: docs docs/ogcserver utils/ogcserver
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-April/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r231%20-%20in%20trunk%3A%20docs%20docs/ogcserver%20utils/ogcserver&In-Reply-To=%3C200604110300.k3B30g12000442%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000115.html">
+   <LINK REL="Next"  HREF="000117.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r231 - in trunk: docs docs/ogcserver utils/ogcserver</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r231%20-%20in%20trunk%3A%20docs%20docs/ogcserver%20utils/ogcserver&In-Reply-To=%3C200604110300.k3B30g12000442%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r231 - in trunk: docs docs/ogcserver utils/ogcserver">jdoyon at berlios.de
+       </A><BR>
+    <I>Tue Apr 11 05:00:42 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000115.html">[Mapnik-svn] r230 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+        <LI>Next message: <A HREF="000117.html">[Mapnik-svn] r232 - in trunk: bindings/python/mapnik/ogcserver docs/ogcserver utils/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#116">[ date ]</a>
+              <a href="thread.html#116">[ thread ]</a>
+              <a href="subject.html#116">[ subject ]</a>
+              <a href="author.html#116">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-04-11 05:00:39 +0200 (Tue, 11 Apr 2006)
+New Revision: 231
+
+Added:
+   trunk/docs/ogcserver/
+   trunk/docs/ogcserver/readme.txt
+Modified:
+   trunk/utils/ogcserver/ogcserver.conf
+Log:
+Documentation for the ogcserver.
+
+Added: trunk/docs/ogcserver/readme.txt
+===================================================================
+--- trunk/docs/ogcserver/readme.txt	2006-04-11 00:36:08 UTC (rev 230)
++++ trunk/docs/ogcserver/readme.txt	2006-04-11 03:00:39 UTC (rev 231)
+@@ -0,0 +1,97 @@
++# $Id$
++
++Mapnik OGC Server
++-----------------
++
++Introduction
++------------
++
++	Mapnik provides an OGC server package to allow the publishing of maps
++through open and standard interfaces.  It is in implemented in Python.
++
++
++Features/Caveats
++----------------
++
++- WMS 1.1.1 and 1.3.0
++- CGI/FastCGI
++- GetCapabilities and GetMap support only
++- GIF/JPEG/PNG output
++- XML error handling only
++- No real layer metadata support yet
++
++
++Dependencies
++------------
++
++Please properly install the following before proceeding further:
++
++- jonpy (<A HREF="http://jonpy.sourceforge.net/">http://jonpy.sourceforge.net/</A>)
++- lxml (<A HREF="http://codespeak.net/lxml/">http://codespeak.net/lxml/</A>)
++- PIL (<A HREF="http://www.pythonware.com/products/pil">http://www.pythonware.com/products/pil</A>)
++- PROJ.4 (<A HREF="http://proj.maptools.org/">http://proj.maptools.org/</A>)
++
++
++Installation
++------------
++
++- Make sure you compile or re-compile Mapnik after installing PROJ.4, if this
++  was not done already.  Mapnik includes a Python API to the PROJ.4 library
++  used by the ogcserver.  The PROJ_INCLUDES and PROJ_LIBS parameters can
++  be passed to mapnik's scons build script to help with this.
++  
++  You can test the availability of the PROJ.4 bindings by trying:
++  
++  $ python
++  Python 2.3.4 (#1, Feb 22 2005, 04:09:37)
++  [GCC 3.4.3 20041212 (Red Hat 3.4.3-9.EL4)] on linux2
++  Type &quot;help&quot;, &quot;copyright&quot;, &quot;credits&quot; or &quot;license&quot; for more information.
++  &gt;&gt;&gt; from mapnik import Projection
++  registered datasource : raster
++  registered datasource : shape
++  registered datasource : postgis
++  &gt;&gt;&gt;
++
++- The executable &quot;ogcserver&quot; in utils/ogcserver will work for both CGI and
++  FastCGI operations.  Where to place it will depend on your server's
++  configuration and is beyond this documentation.  For information on FastCGI
++  go to <A HREF="http://www.fastcgi.com/.">http://www.fastcgi.com/.</A>
++
++
++Configuring the server
++----------------------
++
++- You will need to edit the ogcserver executable for now.  It is a simple
++  Python text script.
++  
++  1) Edit the path to the interpreter in the first line.
++  2) Edit the path to the config file if you don't like the default.
++  
++- Copy the sample configuration &quot;ogcserver.conf&quot; file in utils/ogcserver to
++  the location you specified in the previous step.
++  
++- Edit the file to your liking, the comments within the file will help you
++  further.  Be sure to at the very minimum edit the &quot;module&quot; parameter, the
++  server will not work without you setting it properly first.
++  
++
++Creating a map for use by the ogcserver
++---------------------------------------
++
++	The ogcserver obviously needs a map to publish.  For now, with Mapnik, this
++can only be done by writing code. In this case, a Python script will need to be
++written to describe the map's layers and styles.  For information on the Python
++API, look in demo/python, or in docs/epydocs.
++
++	The server needs a module, and a class that looks like this:
++	
++class MapFactory:
++
++	def __init(self):
++		...
++	
++	def getlayers(self):
++		...
++	
++	def getstyles(self):
++		...
+\ No newline at end of file
+
+
+Property changes on: trunk/docs/ogcserver/readme.txt
+___________________________________________________________________
+Name: svn:keywords
+   + Id
+
+Modified: trunk/utils/ogcserver/ogcserver.conf
+===================================================================
+--- trunk/utils/ogcserver/ogcserver.conf	2006-04-11 00:36:08 UTC (rev 230)
++++ trunk/utils/ogcserver/ogcserver.conf	2006-04-11 03:00:39 UTC (rev 231)
+@@ -1,12 +1,39 @@
+ # $Id$
+ 
++# server: This section contains software related configuration parameters.
++
+ [server]
+-module=rundemo
+ 
++# module:  The module containing the MapFactory class.  See the readme for
++#          details.
++
++module=CHANGEME
++
++# service: This section contains service level metadata.
++
+ [service]
+-title=Test OGC Server
+-abstract=Blah Blah Blah
++
++# title: The title of the server.
++
++title=Mapnik OGC Server
++
++# abstract: An abstract describing the server.
++
++abstract=This abstract describes the server and its contents.
++
++# maxwidth, maxheight: The maximum size that a map will be supplied at.
++#                      Exceeding it will raise an error in the client.
++
+ maxheight=1024
+ maxwidth=1024
+-epsg=42304
++
++# epsg:  The epsg code defining the projection of the source data used in the
++#        map.
++
++epsg=4326
++
++# onlineresource:  A service level URL most likely pointing to the web site
++#                  supporting the service for example.  This is NOT the online
++#                  resource pointing to the CGI.
++
+ onlineresource=<A HREF="http://www.mapnik.org/">http://www.mapnik.org/</A>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000115.html">[Mapnik-svn] r230 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+	<LI>Next message: <A HREF="000117.html">[Mapnik-svn] r232 - in trunk: bindings/python/mapnik/ogcserver docs/ogcserver utils/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#116">[ date ]</a>
+              <a href="thread.html#116">[ thread ]</a>
+              <a href="subject.html#116">[ subject ]</a>
+              <a href="author.html#116">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

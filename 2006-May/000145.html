@@ -1,0 +1,333 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r260 - in trunk: include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-May/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r260%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200605221030.k4MAUwoR015735%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000144.html">
+   <LINK REL="Next"  HREF="000146.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r260 - in trunk: include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r260%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200605221030.k4MAUwoR015735%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r260 - in trunk: include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Mon May 22 12:30:58 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000144.html">[Mapnik-svn] r259 - tags
+</A></li>
+        <LI>Next message: <A HREF="000146.html">[Mapnik-svn] r261 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#145">[ date ]</a>
+              <a href="thread.html#145">[ thread ]</a>
+              <a href="subject.html#145">[ subject ]</a>
+              <a href="author.html#145">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-05-22 12:30:55 +0200 (Mon, 22 May 2006)
+New Revision: 260
+
+Modified:
+   trunk/include/image_data.hpp
+   trunk/include/point_symbolizer.hpp
+   trunk/src/point_symbolizer.cpp
+Log:
+added default point_symbolizer 4x4px black square
+
+Modified: trunk/include/image_data.hpp
+===================================================================
+--- trunk/include/image_data.hpp	2006-05-22 09:38:46 UTC (rev 259)
++++ trunk/include/image_data.hpp	2006-05-22 10:30:55 UTC (rev 260)
+@@ -32,93 +32,93 @@
+     template &lt;class T&gt; class ImageData
+     {
+     private:
+-	const unsigned width_;
+-	const unsigned height_;
+-	T *pData_;
+-	ImageData&amp; operator=(const ImageData&amp;);
++        const unsigned width_;
++        const unsigned height_;
++        T *pData_;
++        ImageData&amp; operator=(const ImageData&amp;);
+     public:
+-	ImageData(unsigned width,unsigned height)
+-	    : width_(width),
+-	      height_(height),
+-	      pData_((width!=0 &amp;&amp; height!=0)? static_cast&lt;T*&gt;(::operator new(sizeof(T)*width*height)):0)
+-	{
+-	    if (pData_) memset(pData_,0,sizeof(T)*width_*height_);
+-	}
++        ImageData(unsigned width,unsigned height)
++            : width_(width),
++              height_(height),
++              pData_((width!=0 &amp;&amp; height!=0)? static_cast&lt;T*&gt;(::operator new(sizeof(T)*width*height)):0)
++        {
++            if (pData_) memset(pData_,0,sizeof(T)*width_*height_);
++        }
+ 
+-	ImageData(const ImageData&lt;T&gt;&amp; rhs)
+-	    :width_(rhs.width_),
+-	     height_(rhs.height_),
+-	     pData_((rhs.width_!=0 &amp;&amp; rhs.height_!=0)? new T[rhs.width_*rhs.height_]:0)
+-	{
+-	    if (pData_) memcpy(pData_,rhs.pData_,sizeof(T)*rhs.width_* rhs.height_);
+-	}
+-	inline T&amp; operator() (unsigned i,unsigned j)
+-	{
+-	    assert(i&lt;width_ &amp;&amp; j&lt;height_);
+-	    return pData_[j*width_+i];
+-	}
+-	inline const T&amp; operator() (unsigned i,unsigned j) const
+-	{
+-	    assert(i&lt;width_ &amp;&amp; j&lt;height_);
+-	    return pData_[j*width_+i];
+-	}
+-	inline unsigned width() const
+-	{
+-	    return width_;
+-	}
+-	inline unsigned height() const
+-	{
+-	    return height_;
+-	}
+-	inline void set(const T&amp; t)
+-	{
+-	    for (unsigned i=0;i&lt;width_;++i)
+-	    {
+-		for (unsigned j=0;j&lt;height_;++j)
+-		{
+-		    (*this)(i,j)=t;
+-		}
+-	    }
+-	}
+-	inline const T* getData() const
+-	{
+-	    return pData_;
+-	}
++        ImageData(const ImageData&lt;T&gt;&amp; rhs)
++            :width_(rhs.width_),
++             height_(rhs.height_),
++             pData_((rhs.width_!=0 &amp;&amp; rhs.height_!=0)? new T[rhs.width_*rhs.height_]:0)
++        {
++            if (pData_) memcpy(pData_,rhs.pData_,sizeof(T)*rhs.width_* rhs.height_);
++        }
++        inline T&amp; operator() (unsigned i,unsigned j)
++        {
++            assert(i&lt;width_ &amp;&amp; j&lt;height_);
++            return pData_[j*width_+i];
++        }
++        inline const T&amp; operator() (unsigned i,unsigned j) const
++        {
++            assert(i&lt;width_ &amp;&amp; j&lt;height_);
++            return pData_[j*width_+i];
++        }
++        inline unsigned width() const
++        {
++            return width_;
++        }
++        inline unsigned height() const
++        {
++            return height_;
++        }
++        inline void set(const T&amp; t)
++        {
++            for (unsigned i=0;i&lt;width_;++i)
++            {
++                for (unsigned j=0;j&lt;height_;++j)
++                {
++                    (*this)(i,j)=t;
++                }
++            }
++        }
++        inline const T* getData() const
++        {
++            return pData_;
++        }
+ 
+-	inline T* getData()
+-	{
+-	    return pData_;
+-	}
++        inline T* getData()
++        {
++            return pData_;
++        }
+ 
+-	inline const unsigned char* getBytes() const
+-	{
+-	    return (unsigned char*)pData_;
+-	}
++        inline const unsigned char* getBytes() const
++        {
++            return (unsigned char*)pData_;
++        }
+ 	
+-	inline unsigned char* getBytes()
+-	{
+-	    return (unsigned char*)pData_;
+-	}
++        inline unsigned char* getBytes()
++        {
++            return (unsigned char*)pData_;
++        }
+ 	
+-	inline const T* getRow(unsigned row) const
+-	{
+-	    return pData_+row*width_;
+-	}
+-	inline void setRow(unsigned row,const T* buf,unsigned size)
+-	{
+-	    assert(row&lt;height_);
+-	    assert(size&lt;=(width_*sizeof(T)));
+-	    memcpy(pData_+row*width_,buf,size*sizeof(T));
+-	}
+-	inline void setRow(unsigned row,unsigned x0,unsigned x1,const T* buf)
+-	{
+-	    memcpy(pData_+row*width_+x0,buf,(x1-x0)*sizeof(T));
+-	}
++        inline const T* getRow(unsigned row) const
++        {
++            return pData_+row*width_;
++        }
++        inline void setRow(unsigned row,const T* buf,unsigned size)
++        {
++            assert(row&lt;height_);
++            assert(size&lt;=(width_*sizeof(T)));
++            memcpy(pData_+row*width_,buf,size*sizeof(T));
++        }
++        inline void setRow(unsigned row,unsigned x0,unsigned x1,const T* buf)
++        {
++            memcpy(pData_+row*width_+x0,buf,(x1-x0)*sizeof(T));
++        }
+ 
+-	inline ~ImageData()
+-	{
+-	    ::operator delete(pData_),pData_=0;
+-	}
++        inline ~ImageData()
++        {
++            ::operator delete(pData_),pData_=0;
++        }
+ 	
+     };
+ 
+
+Modified: trunk/include/point_symbolizer.hpp
+===================================================================
+--- trunk/include/point_symbolizer.hpp	2006-05-22 09:38:46 UTC (rev 259)
++++ trunk/include/point_symbolizer.hpp	2006-05-22 10:30:55 UTC (rev 260)
+@@ -31,6 +31,7 @@
+ {   
+     struct MAPNIK_DECL point_symbolizer
+     {	
++        explicit point_symbolizer();
+         point_symbolizer(std::string const&amp; file,
+                          std::string const&amp; type,
+                          unsigned width,unsigned height);
+
+Modified: trunk/src/point_symbolizer.cpp
+===================================================================
+--- trunk/src/point_symbolizer.cpp	2006-05-22 09:38:46 UTC (rev 259)
++++ trunk/src/point_symbolizer.cpp	2006-05-22 10:30:55 UTC (rev 260)
+@@ -22,38 +22,46 @@
+ 
+ //$Id$
+ 
++#include &lt;boost/scoped_ptr.hpp&gt;
+ #include &quot;point_symbolizer.hpp&quot;
+ #include &quot;image_data.hpp&quot;
+ #include &quot;image_reader.hpp&quot;
+ 
+ namespace mapnik
+ {
++    point_symbolizer::point_symbolizer()
++        : symbol_(new ImageData32(4,4))
++    {
++        //default point symbol is black 4x4px square
++        symbol_-&gt;set(0xff000000);
++    }
++    
+     point_symbolizer::point_symbolizer(std::string const&amp; file,
+-				       std::string const&amp; type,
+-				       unsigned width,unsigned height) 
+-	: symbol_(new ImageData32(width,height))
++                                       std::string const&amp; type,
++                                       unsigned width,unsigned height) 
++        : symbol_(new ImageData32(width,height))
+     {
+-	try 
+-	{
+-	    std::auto_ptr&lt;ImageReader&gt; reader(get_image_reader(type,file));
+-	    if (reader.get())
+-	    {
+-		reader-&gt;read(0,0,*symbol_);		
+-	    }
+-	} 
+-	catch (...) 
+-	{
+-	    std::clog&lt;&lt;&quot;exception caught...&quot; &lt;&lt; std::endl;
+-	}
++        try 
++        {
++            boost::scoped_ptr&lt;ImageReader&gt; reader(get_image_reader(type,file));
++            if (reader.get())
++            {
++                reader-&gt;read(0,0,*symbol_);		
++            }
++        } 
++        catch (...) 
++        {
++            std::clog&lt;&lt;&quot;exception caught...&quot; &lt;&lt; std::endl;
++        }
+     }
+     
+     point_symbolizer::point_symbolizer(point_symbolizer const&amp; rhs)
+-	: symbol_(rhs.symbol_) 
++        : symbol_(rhs.symbol_) 
+     {}
+     
+     ImageData32 const&amp; point_symbolizer::get_data() const
+     {
+-	return *(symbol_.get());
++        return *(symbol_.get());
+     }
+ }
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000144.html">[Mapnik-svn] r259 - tags
+</A></li>
+	<LI>Next message: <A HREF="000146.html">[Mapnik-svn] r261 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#145">[ date ]</a>
+              <a href="thread.html#145">[ thread ]</a>
+              <a href="subject.html#145">[ subject ]</a>
+              <a href="author.html#145">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

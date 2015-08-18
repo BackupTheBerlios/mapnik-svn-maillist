@@ -1,0 +1,112 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r419 - trunk/src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-December/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r419%20-%20trunk/src&In-Reply-To=%3C200612212251.kBLMpuQu000589%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000303.html">
+   <LINK REL="Next"  HREF="000305.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r419 - trunk/src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r419%20-%20trunk/src&In-Reply-To=%3C200612212251.kBLMpuQu000589%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r419 - trunk/src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Thu Dec 21 23:51:56 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000303.html">[Mapnik-svn] r418 - in trunk: bindings/python include/mapnik src
+</A></li>
+        <LI>Next message: <A HREF="000305.html">[Mapnik-svn] r420 - trunk/plugins/input/postgis
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#304">[ date ]</a>
+              <a href="thread.html#304">[ thread ]</a>
+              <a href="subject.html#304">[ subject ]</a>
+              <a href="author.html#304">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-12-21 23:51:53 +0100 (Thu, 21 Dec 2006)
+New Revision: 419
+
+Modified:
+   trunk/src/tiff_reader.cpp
+Log:
+1. is_regular is not supported in boost 1.33.*
+2. cleanups
+
+
+
+Modified: trunk/src/tiff_reader.cpp
+===================================================================
+--- trunk/src/tiff_reader.cpp	2006-12-20 00:22:45 UTC (rev 418)
++++ trunk/src/tiff_reader.cpp	2006-12-21 22:51:53 UTC (rev 419)
+@@ -23,7 +23,7 @@
+ //$Id: tiff_reader.cpp 17 2005-03-08 23:58:43Z pavlenko $
+ // stl
+ #include &lt;iostream&gt;
+-#include &lt;boost/filesystem/operations.hpp&gt;
++#include &lt;boost/filesystem.hpp&gt;
+ // mapnik
+ #include &lt;mapnik/image_reader.hpp&gt;
+ 
+@@ -262,19 +262,16 @@
+         }
+     }
+     
+-    TIFF* TiffReader::load_if_exists(const std::string&amp; filename)
++    TIFF* TiffReader::load_if_exists(std::string const&amp; filename)
+     {
+-        TIFF* tif = 0;
++        TIFF * tif = 0;
+         boost::filesystem::path path(file_name_);
+-        if (exists(path) &amp;&amp; is_regular(path)) {
++        if (exists(path)) //  &amp;&amp; is_regular(path)) { -- not supported in boost-1.33.*
++        {    
+             // File path is a full file path and does exist
+             tif = TIFFOpen(filename.c_str(), &quot;rb&quot;);
+-        } else {
+-            return 0;
+         }
+-        if (!tif) {
+-            throw ImageReaderException(&quot;cannot open &quot;+file_name_);
+-        }
++        
+         return tif;
+     }
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000303.html">[Mapnik-svn] r418 - in trunk: bindings/python include/mapnik src
+</A></li>
+	<LI>Next message: <A HREF="000305.html">[Mapnik-svn] r420 - trunk/plugins/input/postgis
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#304">[ date ]</a>
+              <a href="thread.html#304">[ thread ]</a>
+              <a href="subject.html#304">[ subject ]</a>
+              <a href="author.html#304">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

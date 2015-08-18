@@ -1,0 +1,101 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r280 - trunk
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-June/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r280%20-%20trunk&In-Reply-To=%3C200605312349.k4VNnclX029790%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="000166.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r280 - trunk</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r280%20-%20trunk&In-Reply-To=%3C200605312349.k4VNnclX029790%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r280 - trunk">jdoyon at berlios.de
+       </A><BR>
+    <I>Thu Jun  1 01:49:38 CEST 2006</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="000166.html">[Mapnik-svn] r281 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#165">[ date ]</a>
+              <a href="thread.html#165">[ thread ]</a>
+              <a href="subject.html#165">[ subject ]</a>
+              <a href="author.html#165">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-06-01 01:49:25 +0200 (Thu, 01 Jun 2006)
+New Revision: 280
+
+Modified:
+   trunk/SConstruct
+Log:
+- make sure the proj bindings only get built if the python bindings also are.
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2006-05-31 21:25:21 UTC (rev 279)
++++ trunk/SConstruct	2006-05-31 23:49:25 UTC (rev 280)
+@@ -128,6 +128,10 @@
+ 
+     SConscript('bindings/python/SConscript')
+ 
++    if 'proj' in env['LIBS']:
++        SConscript('bindings/python/pyprojection/SConscript')
++        env['LIBS'].remove('proj')
++
+ env = conf.Finish()
+ 
+ # Setup the c++ args for our own codebase
+@@ -147,10 +151,6 @@
+     SConscript('utils/shapeindex/SConscript')
+     env['LIBS'].remove('boost_program_options%s' % env['BOOST_APPEND'])
+ 
+-if 'proj' in env['LIBS']:
+-    SConscript('bindings/python/pyprojection/SConscript')
+-    env['LIBS'].remove('proj')
+-
+ # Build the input plug-ins
+ 
+ if 'postgis' in inputplugins and 'pq' in env['LIBS']:
+
+
+Property changes on: trunk/SConstruct
+___________________________________________________________________
+Name: svn:keywords
+   + Id
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="000166.html">[Mapnik-svn] r281 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#165">[ date ]</a>
+              <a href="thread.html#165">[ thread ]</a>
+              <a href="subject.html#165">[ subject ]</a>
+              <a href="author.html#165">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

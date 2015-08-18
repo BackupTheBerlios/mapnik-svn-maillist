@@ -1,0 +1,104 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r299 - trunk/include
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-September/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r299%20-%20trunk/include&In-Reply-To=%3C200609150819.k8F8J5IY031232%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000183.html">
+   <LINK REL="Next"  HREF="000185.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r299 - trunk/include</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r299%20-%20trunk/include&In-Reply-To=%3C200609150819.k8F8J5IY031232%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r299 - trunk/include">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Fri Sep 15 10:19:05 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000183.html">[Mapnik-svn] r298 - trunk/include
+</A></li>
+        <LI>Next message: <A HREF="000185.html">[Mapnik-svn] r300 - trunk/bindings/python
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#184">[ date ]</a>
+              <a href="thread.html#184">[ thread ]</a>
+              <a href="subject.html#184">[ subject ]</a>
+              <a href="author.html#184">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-09-15 10:19:03 +0200 (Fri, 15 Sep 2006)
+New Revision: 299
+
+Modified:
+   trunk/include/color.hpp
+Log:
+added alpha to to_string method.
+ rgb ( R, B, G, A)
+
+TODO: modify CSS color parser to accept alpha channel e.g 
+rgb (R,G,B,A)
+#RRGGBBAA
+#RGBA
+ 
+
+
+Modified: trunk/include/color.hpp
+===================================================================
+--- trunk/include/color.hpp	2006-09-15 07:56:35 UTC (rev 298)
++++ trunk/include/color.hpp	2006-09-15 08:19:03 UTC (rev 299)
+@@ -100,13 +100,18 @@
+         {
+             return abgr_ == other.abgr_;
+         }
+-
++        
+         inline std::string to_string() const
+         {
+             std::stringstream ss;
+-            ss &lt;&lt; &quot;rgb (&quot; &lt;&lt; red() &lt;&lt; &quot;,&quot;  &lt;&lt; green() &lt;&lt; &quot;,&quot;  &lt;&lt; blue() &lt;&lt;&quot;)&quot;;
++            ss &lt;&lt; &quot;rgb (&quot; 
++               &lt;&lt; red()   &lt;&lt; &quot;,&quot;  
++               &lt;&lt; green() &lt;&lt; &quot;,&quot;  
++               &lt;&lt; blue()  &lt;&lt; &quot;,&quot;
++               &lt;&lt; alpha() &lt;&lt; &quot;)&quot;;
+             return ss.str();
+         }
++        
+         inline std::string to_hex_string() const
+         {
+             std::stringstream ss;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000183.html">[Mapnik-svn] r298 - trunk/include
+</A></li>
+	<LI>Next message: <A HREF="000185.html">[Mapnik-svn] r300 - trunk/bindings/python
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#184">[ date ]</a>
+              <a href="thread.html#184">[ thread ]</a>
+              <a href="subject.html#184">[ subject ]</a>
+              <a href="author.html#184">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

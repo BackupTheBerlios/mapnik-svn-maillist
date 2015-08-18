@@ -1,0 +1,142 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r212 - trunk/bindings/python
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r212%20-%20trunk/bindings/python&In-Reply-To=%3C200603280101.k2S11Bsm011948%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000096.html">
+   <LINK REL="Next"  HREF="000098.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r212 - trunk/bindings/python</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r212%20-%20trunk/bindings/python&In-Reply-To=%3C200603280101.k2S11Bsm011948%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r212 - trunk/bindings/python">jdoyon at berlios.de
+       </A><BR>
+    <I>Tue Mar 28 03:01:11 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000096.html">[Mapnik-svn] r211 - trunk
+</A></li>
+        <LI>Next message: <A HREF="000098.html">[Mapnik-svn] r213 - in trunk: . bindings/python bindings/python/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#97">[ date ]</a>
+              <a href="thread.html#97">[ thread ]</a>
+              <a href="subject.html#97">[ subject ]</a>
+              <a href="author.html#97">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-03-28 03:01:00 +0200 (Tue, 28 Mar 2006)
+New Revision: 212
+
+Modified:
+   trunk/bindings/python/mapnik_envelope.cpp
+   trunk/bindings/python/mapnik_layer.cpp
+   trunk/bindings/python/mapnik_map.cpp
+Log:
+Added some docstrings.
+
+
+
+Modified: trunk/bindings/python/mapnik_envelope.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_envelope.cpp	2006-03-26 22:36:55 UTC (rev 211)
++++ trunk/bindings/python/mapnik_envelope.cpp	2006-03-28 01:01:00 UTC (rev 212)
+@@ -61,10 +61,10 @@
+     class_&lt;Envelope&lt;double&gt; &gt;(&quot;Envelope&quot;,&quot;A spacial envelope (i.e. bounding box) which also defines some basic operators.&quot;,init&lt;double,double,double,double&gt;())
+         .def(init&lt;&gt;())
+ 	.def(init&lt;const coord&lt;double,2&gt;&amp;, const coord&lt;double,2&gt;&amp;&gt;())
+-        .add_property(&quot;minx&quot;,&amp;Envelope&lt;double&gt;::minx)
+-        .add_property(&quot;miny&quot;,&amp;Envelope&lt;double&gt;::miny)
+-        .add_property(&quot;maxx&quot;,&amp;Envelope&lt;double&gt;::maxx)
+-        .add_property(&quot;maxy&quot;,&amp;Envelope&lt;double&gt;::maxy)
++        .add_property(&quot;minx&quot;,&amp;Envelope&lt;double&gt;::minx, &quot;X coordinate for the lower left corner&quot;)
++        .add_property(&quot;miny&quot;,&amp;Envelope&lt;double&gt;::miny, &quot;Y coordinate for the lower left corner&quot;)
++        .add_property(&quot;maxx&quot;,&amp;Envelope&lt;double&gt;::maxx, &quot;X coordinate for the upper right corner&quot;)
++        .add_property(&quot;maxy&quot;,&amp;Envelope&lt;double&gt;::maxy, &quot;Y coordinate for the upper right corner&quot;)
+         .def(&quot;center&quot;,&amp;Envelope&lt;double&gt;::center)
+ 	.def(&quot;center&quot;,&amp;Envelope&lt;double&gt;::re_center)
+ 	.def(&quot;width&quot;,width_p1)
+
+Modified: trunk/bindings/python/mapnik_layer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_layer.cpp	2006-03-26 22:36:55 UTC (rev 211)
++++ trunk/bindings/python/mapnik_layer.cpp	2006-03-28 01:01:00 UTC (rev 212)
+@@ -106,7 +106,7 @@
+     
+     class_&lt;Layer&gt;(&quot;Layer&quot;,&quot;A map layer.&quot;,no_init)
+         .def(&quot;name&quot;,&amp;Layer::name,return_value_policy&lt;copy_const_reference&gt;(), &quot;Return the name of the layer.&quot;)
+-        .def(&quot;params&quot;,&amp;Layer::params,return_value_policy&lt;reference_existing_object&gt;())
++        .def(&quot;params&quot;,&amp;Layer::params,return_value_policy&lt;reference_existing_object&gt;(), &quot;The configuration parameters of the layer.  These vary depending on the type of data source.&quot;)
+         .def(&quot;envelope&quot;,&amp;Layer::envelope, &quot;Return the geographic envelope/bounding box of the data in the layer.&quot;)
+ 	.add_property(&quot;minzoom&quot;,&amp;Layer::getMinZoom,&amp;Layer::setMinZoom)
+ 	.add_property(&quot;maxzoom&quot;,&amp;Layer::getMaxZoom,&amp;Layer::setMaxZoom)
+
+Modified: trunk/bindings/python/mapnik_map.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_map.cpp	2006-03-26 22:36:55 UTC (rev 211)
++++ trunk/bindings/python/mapnik_map.cpp	2006-03-28 01:01:00 UTC (rev 212)
+@@ -79,22 +79,22 @@
+     class_&lt;std::vector&lt;Layer&gt; &gt;(&quot;Layers&quot;)
+     	.def(vector_indexing_suite&lt;std::vector&lt;Layer&gt; &gt;())
+     	;
+-    class_&lt;Map&gt;(&quot;Map&quot;,init&lt;int,int,boost::python::optional&lt;int&gt; &gt;())
+-        .add_property(&quot;width&quot;,&amp;Map::getWidth,&amp;Map::setWidth)
+-        .add_property(&quot;height&quot;,&amp;Map::getHeight,&amp;Map::setHeight)
++    class_&lt;Map&gt;(&quot;Map&quot;,&quot;The map object.&quot;,init&lt;int,int,boost::python::optional&lt;int&gt; &gt;())
++        .add_property(&quot;width&quot;,&amp;Map::getWidth,&quot;The width of the map image.&quot;)
++        .add_property(&quot;height&quot;,&amp;Map::getHeight,&quot;The height of the map image.&quot;)
+ 	.add_property(&quot;srid&quot;,&amp;Map::srid)
+ 	.add_property(&quot;background&quot;,make_function
+ 		      (&amp;Map::getBackground,return_value_policy&lt;copy_const_reference&gt;()),
+-		      &amp;Map::setBackground)
++		      &amp;Map::setBackground, &quot;The background color of the map.&quot;)
+         .def(&quot;scale&quot;, &amp;Map::scale)
+-        .def(&quot;zoom_to_box&quot;,&amp;Map::zoomToBox)
++        .def(&quot;zoom_to_box&quot;,&amp;Map::zoomToBox, &quot;Set the geographical extent of the map.&quot;)
+         .def(&quot;pan&quot;,&amp;Map::pan)
+         .def(&quot;zoom&quot;,&amp;Map::zoom)
+         .def(&quot;pan_and_zoom&quot;,&amp;Map::pan_and_zoom)
+ 	.def(&quot;append_style&quot;,&amp;Map::insert_style)
+ 	.def(&quot;remove_style&quot;,&amp;Map::remove_style)
+ 	.add_property(&quot;layers&quot;,make_function
+-		      (&amp;Map::layers,return_value_policy&lt;reference_existing_object&gt;()))
++		      (&amp;Map::layers,return_value_policy&lt;reference_existing_object&gt;()), &quot;Get the list of layers in this map.&quot;)
+         .def_pickle(map_pickle_suite())
+         ;
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000096.html">[Mapnik-svn] r211 - trunk
+</A></li>
+	<LI>Next message: <A HREF="000098.html">[Mapnik-svn] r213 - in trunk: . bindings/python bindings/python/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#97">[ date ]</a>
+              <a href="thread.html#97">[ thread ]</a>
+              <a href="subject.html#97">[ subject ]</a>
+              <a href="author.html#97">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

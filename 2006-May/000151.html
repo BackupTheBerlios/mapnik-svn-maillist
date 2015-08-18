@@ -1,0 +1,1505 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r266 - in trunk: include plugins/input/postgis plugins/input/raster plugins/input/shape src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-May/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r266%20-%20in%20trunk%3A%20include%20plugins/input/postgis%20plugins/input/raster%20plugins/input/shape%20src&In-Reply-To=%3C200605231652.k4NGqElb000491%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000150.html">
+   <LINK REL="Next"  HREF="000152.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r266 - in trunk: include plugins/input/postgis plugins/input/raster plugins/input/shape src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r266%20-%20in%20trunk%3A%20include%20plugins/input/postgis%20plugins/input/raster%20plugins/input/shape%20src&In-Reply-To=%3C200605231652.k4NGqElb000491%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r266 - in trunk: include plugins/input/postgis plugins/input/raster plugins/input/shape src">pavlenko at berlios.de
+       </A><BR>
+    <I>Tue May 23 18:52:14 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000150.html">[Mapnik-svn] r265 - tags
+</A></li>
+        <LI>Next message: <A HREF="000152.html">[Mapnik-svn] r267 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#151">[ date ]</a>
+              <a href="thread.html#151">[ thread ]</a>
+              <a href="subject.html#151">[ subject ]</a>
+              <a href="author.html#151">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-05-23 18:52:10 +0200 (Tue, 23 May 2006)
+New Revision: 266
+
+Modified:
+   trunk/include/datasource.hpp
+   trunk/include/map.hpp
+   trunk/include/params.hpp
+   trunk/include/point_symbolizer.hpp
+   trunk/include/polygon_symbolizer.hpp
+   trunk/plugins/input/postgis/postgis.cpp
+   trunk/plugins/input/raster/raster_datasource.cpp
+   trunk/plugins/input/shape/shape.cpp
+   trunk/plugins/input/shape/shape.hpp
+   trunk/src/agg_renderer.cpp
+   trunk/src/layer.cpp
+   trunk/src/map.cpp
+   trunk/src/point_symbolizer.cpp
+Log:
+1. move parameters to datasource
+2. general cleanup
+
+
+
+Modified: trunk/include/datasource.hpp
+===================================================================
+--- trunk/include/datasource.hpp	2006-05-22 19:38:53 UTC (rev 265)
++++ trunk/include/datasource.hpp	2006-05-23 16:52:10 UTC (rev 266)
+@@ -50,28 +50,38 @@
+     private:
+         const std::string message_;
+     public:
+-	datasource_exception(const std::string&amp; message=std::string())
+-	    :message_(message) {}
++        datasource_exception(const std::string&amp; message=std::string())
++            :message_(message) {}
+ 
+-	~datasource_exception() throw() {}
+-	virtual const char* what() const throw()
+-	{
+-	    return message_.c_str();
+-	}
++        ~datasource_exception() throw() {}
++        virtual const char* what() const throw()
++        {
++            return message_.c_str();
++        }
+     };
+     
+-    class MAPNIK_DECL datasource
++    class MAPNIK_DECL datasource : private boost::noncopyable
+     {
+-    public:
+-	enum {
+-	    Vector,
+-	    Raster
+-	};
+-	virtual int type() const=0;
+-	virtual featureset_ptr features(const query&amp; q) const=0;
+-	virtual Envelope&lt;double&gt; const&amp; envelope() const=0;
+-	virtual layer_descriptor const&amp; get_descriptor() const=0;
+-	virtual ~datasource() {};
++        parameters params_;
++    public:        
++        enum {
++            Vector,
++            Raster
++        };
++        
++        datasource (parameters const&amp; params)
++            : params_(params) {}
++
++        parameters const&amp; params() const
++        {
++            return params_;
++        }
++        
++        virtual int type() const=0;
++        virtual featureset_ptr features(const query&amp; q) const=0;
++        virtual Envelope&lt;double&gt; const&amp; envelope() const=0;
++        virtual layer_descriptor const&amp; get_descriptor() const=0;
++        virtual ~datasource() {};
+     };
+     
+     typedef std::string datasource_name();
+@@ -82,28 +92,28 @@
+     class datasource_deleter
+     {
+     public:
+-	void operator() (datasource* ds)
+-	{
+-	    delete ds;
+-	}
++        void operator() (datasource* ds)
++        {
++            delete ds;
++        }
+     };
+ 
+     typedef boost::shared_ptr&lt;datasource&gt; datasource_p;
+     
+     ///////////////////////////////////////////
+-    #define DATASOURCE_PLUGIN(classname) \
+-        extern &quot;C&quot; MAPNIK_DECL std::string datasource_name() \
+-        { \
+-        return classname::name();\
+-        }\
+-        extern &quot;C&quot;  MAPNIK_DECL datasource* create(const parameters &amp;params)	\
+-        { \
+-	    return new classname(params);	\
+-        }\
+-        extern &quot;C&quot; MAPNIK_DECL void destroy(datasource *ds) \
+-        { \
+-        delete ds;\
+-        }\
++#define DATASOURCE_PLUGIN(classname)                                    \
++    extern &quot;C&quot; MAPNIK_DECL std::string datasource_name()                \
++    {                                                                   \
++        return classname::name();                                       \
++    }                                                                   \
++        extern &quot;C&quot;  MAPNIK_DECL datasource* create(const parameters &amp;params) \
++        {                                                               \
++            return new classname(params);                               \
++        }                                                               \
++        extern &quot;C&quot; MAPNIK_DECL void destroy(datasource *ds)             \
++        {                                                               \
++            delete ds;                                                  \
++        }                                                               \
+         ///////////////////////////////////////////
+ }
+ #endif                                            //DATASOURCE_HPP
+
+Modified: trunk/include/map.hpp
+===================================================================
+--- trunk/include/map.hpp	2006-05-22 19:38:53 UTC (rev 265)
++++ trunk/include/map.hpp	2006-05-23 16:52:10 UTC (rev 266)
+@@ -78,6 +78,7 @@
+         const Color&amp; getBackground() const;
+         void zoom(double zoom);
+         void zoomToBox(const Envelope&lt;double&gt;&amp; box);
++        void zoom_all();
+         void pan(int x,int y);
+         void pan_and_zoom(int x,int y,double zoom);
+         const Envelope&lt;double&gt;&amp; getCurrentExtent() const;
+
+Modified: trunk/include/params.hpp
+===================================================================
+--- trunk/include/params.hpp	2006-05-22 19:38:53 UTC (rev 265)
++++ trunk/include/params.hpp	2006-05-23 16:52:10 UTC (rev 266)
+@@ -44,47 +44,48 @@
+ 
+     class parameters : public param_map
+     {
+-	friend class boost::serialization::access;
++        friend class boost::serialization::access;
++        
++        template &lt;typename Archive&gt;
++        void save(Archive &amp; ar, const unsigned int /*version*/) const
++        {
++            const size_t size = param_map::size();
++            ar &amp; boost::serialization::make_nvp(&quot;count&quot;,size);
++            param_map::const_iterator itr;
++            for (itr=param_map::begin();itr!=param_map::end();++itr)
++            {
++                ar &amp; boost::serialization::make_nvp(&quot;name&quot;,itr-&gt;first);
++                ar &amp; boost::serialization::make_nvp(&quot;value&quot;,itr-&gt;second);
++            }
++        }
+ 	
+-	template &lt;typename Archive&gt;
+-	void save(Archive &amp; ar, const unsigned int /*version*/) const
+-	{
+-	    const size_t size = param_map::size();
+-	    ar &amp; boost::serialization::make_nvp(&quot;count&quot;,size);
+-	    param_map::const_iterator itr;
+-	    for (itr=param_map::begin();itr!=param_map::end();++itr)
+-	    {
+-		ar &amp; boost::serialization::make_nvp(&quot;name&quot;,itr-&gt;first);
+-		ar &amp; boost::serialization::make_nvp(&quot;value&quot;,itr-&gt;second);
+-	    }
+-	}
+-	
+-	template &lt;typename Archive&gt;
+-	void load(Archive &amp; ar, const unsigned int /*version*/)
+-	{	    
+-	    size_t size;
+-	    ar &amp; boost::serialization::make_nvp(&quot;size&quot;,size);
+-	    for (size_t i=0;i&lt;size;++i)
+-	    {
+-		std::string name;
+-		std::string value;
+-		ar &amp; boost::serialization::make_nvp(&quot;name&quot;,name);
+-		ar &amp; boost::serialization::make_nvp(&quot;value&quot;,value);
+-		param_map::insert(make_pair(name,value));
+-	    }
+-	}
+-	BOOST_SERIALIZATION_SPLIT_MEMBER()
+-    public:
+-	parameters() {}
+-	const std::string get(std::string const&amp; key) const
+-	{
+-	    param_map::const_iterator itr=find(key);
+-	    if (itr != end())
+-	    {
+-		return itr-&gt;second;
+-	    }
+-	    return std::string();
+-	}
++        template &lt;typename Archive&gt;
++        void load(Archive &amp; ar, const unsigned int /*version*/)
++        {	    
++            size_t size;
++            ar &amp; boost::serialization::make_nvp(&quot;size&quot;,size);
++            for (size_t i=0;i&lt;size;++i)
++            {
++                std::string name;
++                std::string value;
++                ar &amp; boost::serialization::make_nvp(&quot;name&quot;,name);
++                ar &amp; boost::serialization::make_nvp(&quot;value&quot;,value);
++                param_map::insert(make_pair(name,value));
++            }
++        }
++        BOOST_SERIALIZATION_SPLIT_MEMBER()
++     public:
++
++        parameters() {}
++        const std::string get(std::string const&amp; key) const
++        {
++            param_map::const_iterator itr=find(key);
++            if (itr != end())
++            {
++                return itr-&gt;second;
++            }
++            return std::string();
++        }
+     };
+ }
+ 
+
+Modified: trunk/include/point_symbolizer.hpp
+===================================================================
+--- trunk/include/point_symbolizer.hpp	2006-05-22 19:38:53 UTC (rev 265)
++++ trunk/include/point_symbolizer.hpp	2006-05-23 16:52:10 UTC (rev 266)
+@@ -37,8 +37,11 @@
+                          unsigned width,unsigned height);
+         point_symbolizer(point_symbolizer const&amp; rhs);
+         ImageData32 const&amp; get_data() const;
++        void set_allow_overlap(bool overlap);
++        bool get_allow_overlap() const;
+     private:
+         boost::shared_ptr&lt;ImageData32&gt; symbol_;
++        bool overlap_;
+     };
+ }
+ 
+
+Modified: trunk/include/polygon_symbolizer.hpp
+===================================================================
+--- trunk/include/polygon_symbolizer.hpp	2006-05-22 19:38:53 UTC (rev 265)
++++ trunk/include/polygon_symbolizer.hpp	2006-05-23 16:52:10 UTC (rev 266)
+@@ -32,10 +32,12 @@
+     struct MAPNIK_DECL polygon_symbolizer
+     {
+         explicit polygon_symbolizer() 
+-            : fill_(Color(128,128,128)) {}
++            : fill_(Color(128,128,128)),
++              opacity_(1.0) {}
+ 
+         polygon_symbolizer(Color const&amp; fill)
+-            : fill_(fill) {}
++            : fill_(fill),
++              opacity_(1.0) {}
+         
+         Color const&amp; get_fill() const
+         {
+@@ -45,8 +47,17 @@
+         {
+             fill_ = fill;
+         }
++        void set_opacity(float opacity)
++        {
++            opacity_ = opacity;
++        }
++        float get_opacity() const
++        {
++            return opacity_;
++        }
+     private:
+         Color fill_;
++        float opacity_;
+     };  
+ }
+ 
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2006-05-22 19:38:53 UTC (rev 265)
++++ trunk/plugins/input/postgis/postgis.cpp	2006-05-23 16:52:10 UTC (rev 266)
+@@ -43,7 +43,8 @@
+ using boost::shared_ptr;
+ 
+ postgis_datasource::postgis_datasource(const parameters&amp; params)
+-    : table_(params.get(&quot;table&quot;)),
++    : datasource (params),
++      table_(params.get(&quot;table&quot;)),
+       type_(datasource::Vector), 
+       desc_(params.get(&quot;name&quot;)),
+       creator_(params.get(&quot;host&quot;),
+
+Modified: trunk/plugins/input/raster/raster_datasource.cpp
+===================================================================
+--- trunk/plugins/input/raster/raster_datasource.cpp	2006-05-22 19:38:53 UTC (rev 265)
++++ trunk/plugins/input/raster/raster_datasource.cpp	2006-05-23 16:52:10 UTC (rev 266)
+@@ -35,22 +35,23 @@
+ using boost::bad_lexical_cast;
+ 
+ raster_datasource::raster_datasource(const parameters&amp; params)
+-    : desc_(params.get(&quot;name&quot;))
++    : datasource (params),
++      desc_(params.get(&quot;name&quot;))
+ {
+     filename_=params.get(&quot;file&quot;);
+     format_=params.get(&quot;format&quot;);
+     
+     try 
+     {
+-	double lox=lexical_cast&lt;double&gt;(params.get(&quot;lox&quot;));
+-	double loy=lexical_cast&lt;double&gt;(params.get(&quot;loy&quot;));
+-	double hix=lexical_cast&lt;double&gt;(params.get(&quot;hix&quot;));
+-	double hiy=lexical_cast&lt;double&gt;(params.get(&quot;hiy&quot;));
+-	extent_.init(lox,loy,hix,hiy);
++        double lox=lexical_cast&lt;double&gt;(params.get(&quot;lox&quot;));
++        double loy=lexical_cast&lt;double&gt;(params.get(&quot;loy&quot;));
++        double hix=lexical_cast&lt;double&gt;(params.get(&quot;hix&quot;));
++        double hiy=lexical_cast&lt;double&gt;(params.get(&quot;hiy&quot;));
++        extent_.init(lox,loy,hix,hiy);
+     }
+     catch (bad_lexical_cast&amp; ex)
+     {
+-	clog &lt;&lt; ex.what() &lt;&lt; endl;
++        clog &lt;&lt; ex.what() &lt;&lt; endl;
+     }  
+ }
+ 
+
+Modified: trunk/plugins/input/shape/shape.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape.cpp	2006-05-22 19:38:53 UTC (rev 265)
++++ trunk/plugins/input/shape/shape.cpp	2006-05-23 16:52:10 UTC (rev 266)
+@@ -30,12 +30,13 @@
+ 
+ DATASOURCE_PLUGIN(shape_datasource)
+ 
+-    shape_datasource::shape_datasource(const parameters &amp;params)
+-	: shape_name_(params.get(&quot;file&quot;)),
+-	  type_(datasource::Vector),
+-	  file_length_(0),
+-	  indexed_(false),
+-	  desc_(params.get(&quot;name&quot;))
++shape_datasource::shape_datasource(const parameters &amp;params)
++    : datasource (params) ,
++      shape_name_(params.get(&quot;file&quot;)),
++      type_(datasource::Vector),
++      file_length_(0),
++      indexed_(false),
++      desc_(params.get(&quot;name&quot;))
+ {
+     try
+     {
+
+Modified: trunk/plugins/input/shape/shape.hpp
+===================================================================
+--- trunk/plugins/input/shape/shape.hpp	2006-05-22 19:38:53 UTC (rev 265)
++++ trunk/plugins/input/shape/shape.hpp	2006-05-23 16:52:10 UTC (rev 266)
+@@ -31,15 +31,15 @@
+ 
+ class MAPNIK_DECL shape_datasource : public datasource
+ {
+-
+ public:
++    shape_datasource(const parameters &amp;params);
++    virtual ~shape_datasource();
++ 
+     int type() const;
+     static std::string name();
+     featureset_ptr features(const query&amp; q) const;
+     const Envelope&lt;double&gt;&amp; envelope() const;
+-    shape_datasource(const parameters &amp;params);
+-    layer_descriptor const&amp; get_descriptor() const;
+-    virtual ~shape_datasource();
++    layer_descriptor const&amp; get_descriptor() const;   
+ private:
+     shape_datasource(const shape_datasource&amp;);
+     shape_datasource&amp; operator=(const shape_datasource&amp;);
+@@ -52,7 +52,6 @@
+     bool indexed_;
+     layer_descriptor desc_;
+     static std::string name_;
+-    
+ };
+ 
+-#endif                                            //SHAPE_HH
++#endif //SHAPE_HH
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-05-22 19:38:53 UTC (rev 265)
++++ trunk/src/agg_renderer.cpp	2006-05-23 16:52:10 UTC (rev 266)
+@@ -61,397 +61,398 @@
+     class pattern_source : private boost::noncopyable
+     {
+     public:
+-	pattern_source(ImageData32 const&amp; pattern)
+-	    : pattern_(pattern) {}
++        pattern_source(ImageData32 const&amp; pattern)
++            : pattern_(pattern) {}
+ 	
+-	unsigned int width() const
+-	{
+-	    return pattern_.width();
+-	}
+-	unsigned int height() const
+-	{
+-	    return pattern_.height();
+-	}
+-	agg::rgba8 pixel(int x, int y) const
+-	{
+-	    unsigned c = pattern_(x,y);
+-	    return agg::rgba8(c &amp; 0xff, (c &gt;&gt; 8) &amp; 0xff, (c &gt;&gt; 16) &amp; 0xff,(c &gt;&gt; 24) &amp; 0xff);
+-	}
++        unsigned int width() const
++        {
++            return pattern_.width();
++        }
++        unsigned int height() const
++        {
++            return pattern_.height();
++        }
++        agg::rgba8 pixel(int x, int y) const
++        {
++            unsigned c = pattern_(x,y);
++            return agg::rgba8(c &amp; 0xff, (c &gt;&gt; 8) &amp; 0xff, (c &gt;&gt; 16) &amp; 0xff,(c &gt;&gt; 24) &amp; 0xff);
++        }
+     private:
+-	ImageData32 const&amp; pattern_;
++        ImageData32 const&amp; pattern_;
+     };
+ 
+     template &lt;typename T&gt;
+     agg_renderer&lt;T&gt;::agg_renderer(Map const&amp; m, T &amp; pixmap)
+-	: feature_style_processor&lt;agg_renderer&gt;(m),
+-	  pixmap_(pixmap),
+-	  t_(m.getWidth(),m.getHeight(),m.getCurrentExtent()),
+-	  detector_(Envelope&lt;double&gt;(-64 ,-64, m.getWidth() + 64 ,m.getHeight() + 64))
++        : feature_style_processor&lt;agg_renderer&gt;(m),
++          pixmap_(pixmap),
++          t_(m.getWidth(),m.getHeight(),m.getCurrentExtent()),
++          detector_(Envelope&lt;double&gt;(-64 ,-64, m.getWidth() + 64 ,m.getHeight() + 64))
+     {
+-	Color const&amp; bg=m.getBackground();
+-	pixmap_.setBackground(bg);
+-	std::clog &lt;&lt; &quot;scale=&quot;&lt;&lt;m.scale()&lt;&lt;std::endl;
++        Color const&amp; bg=m.getBackground();
++        pixmap_.setBackground(bg);
++        std::clog &lt;&lt; &quot;scale=&quot;&lt;&lt;m.scale()&lt;&lt;std::endl;
+     }
+     
+     template &lt;typename T&gt;
+     void agg_renderer&lt;T&gt;::start_map_processing(Map const&amp; map)
+     {
+-	std::clog &lt;&lt; &quot;start map processing bbox=&quot; &lt;&lt; map.getCurrentExtent() &lt;&lt;  std::endl;
++        std::clog &lt;&lt; &quot;start map processing bbox=&quot; &lt;&lt; map.getCurrentExtent() &lt;&lt;  std::endl;
+     }
+ 
+     template &lt;typename T&gt;
+     void agg_renderer&lt;T&gt;::end_map_processing(Map const&amp; )
+     {
+-	std::clog &lt;&lt; &quot;end map processing&quot; &lt;&lt; std::endl;
++        std::clog &lt;&lt; &quot;end map processing&quot; &lt;&lt; std::endl;
+     }
+     
+     template &lt;typename T&gt;
+     void agg_renderer&lt;T&gt;::start_layer_processing(Layer const&amp; lay)
+     {
+-	std::clog &lt;&lt; &quot;start layer processing : &quot; &lt;&lt; lay.name()  &lt;&lt; std::endl;
+-	std::clog &lt;&lt; &quot;datasource = &quot; &lt;&lt; lay.datasource().get() &lt;&lt; std::endl;
++        std::clog &lt;&lt; &quot;start layer processing : &quot; &lt;&lt; lay.name()  &lt;&lt; std::endl;
++        std::clog &lt;&lt; &quot;datasource = &quot; &lt;&lt; lay.datasource().get() &lt;&lt; std::endl;
+     }
+     
+     template &lt;typename T&gt;
+     void agg_renderer&lt;T&gt;::end_layer_processing(Layer const&amp;)
+     {
+-	std::clog &lt;&lt; &quot;end layer processing&quot; &lt;&lt; std::endl;
++        std::clog &lt;&lt; &quot;end layer processing&quot; &lt;&lt; std::endl;
+     }
+     
+     template &lt;typename T&gt;	
+     void agg_renderer&lt;T&gt;::process(polygon_symbolizer const&amp; sym,Feature const&amp; feature)
+     {
+-	typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
+-	typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base;    
+-	typedef agg::renderer_scanline_aa_solid&lt;ren_base&gt; renderer;
++        typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
++        typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base;    
++        typedef agg::renderer_scanline_aa_solid&lt;ren_base&gt; renderer;
+ 	    
+-	Color const&amp; fill_  = sym.get_fill();
++        Color const&amp; fill_  = sym.get_fill();
+ 	    
+-	geometry_ptr const&amp; geom=feature.get_geometry();
+-	if (geom &amp;&amp; geom-&gt;num_points() &gt; 2) 
+-	{
+-	    unsigned width = pixmap_.width();
+-	    unsigned height = pixmap_.height();
+-	    path_type path(t_,*geom);
+-	    agg::row_ptr_cache&lt;agg::int8u&gt; buf(pixmap_.raw_data(),width,height,width * 4);
+-	    agg::pixfmt_rgba32 pixf(buf);
+-	    ren_base renb(pixf);	    
++        geometry_ptr const&amp; geom=feature.get_geometry();
++        if (geom &amp;&amp; geom-&gt;num_points() &gt; 2) 
++        {
++            unsigned width = pixmap_.width();
++            unsigned height = pixmap_.height();
++            path_type path(t_,*geom);
++            agg::row_ptr_cache&lt;agg::int8u&gt; buf(pixmap_.raw_data(),width,height,width * 4);
++            agg::pixfmt_rgba32 pixf(buf);
++            ren_base renb(pixf);	    
+ 		
+-	    unsigned r=fill_.red();
+-	    unsigned g=fill_.green();
+-	    unsigned b=fill_.blue();
+-	    unsigned a=fill_.alpha();
+-	    renderer ren(renb);
++            unsigned r=fill_.red();
++            unsigned g=fill_.green();
++            unsigned b=fill_.blue();
++            //unsigned a=fill_.alpha();
++            renderer ren(renb);
+ 		
+-	    agg::rasterizer_scanline_aa&lt;&gt; ras;
+-	    agg::scanline_u8 sl;
+-	    ras.clip_box(0,0,width,height);
+-	    ras.add_path(path);
+-	    ren.color(agg::rgba8(r, g, b, a));
+-	    agg::render_scanlines(ras, sl, ren);
+-	}
++            agg::rasterizer_scanline_aa&lt;&gt; ras;
++            agg::scanline_u8 sl;
++            ras.clip_box(0,0,width,height);
++            ras.add_path(path);
++            ren.color(agg::rgba8(r, g, b, int(255 * sym.get_opacity())));
++            agg::render_scanlines(ras, sl, ren);
++        }
+     }
+ 
+     template &lt;typename T&gt;
+     void agg_renderer&lt;T&gt;::process(line_symbolizer const&amp; sym,Feature const&amp; feature)
+     {   
+-	typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base; 
+-	typedef coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
+-	typedef agg::renderer_outline_aa&lt;ren_base&gt; renderer_oaa;
+-	typedef agg::rasterizer_outline_aa&lt;renderer_oaa&gt; rasterizer_outline_aa;
+-	typedef agg::renderer_scanline_aa_solid&lt;ren_base&gt; renderer;
++        typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base; 
++        typedef coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
++        typedef agg::renderer_outline_aa&lt;ren_base&gt; renderer_oaa;
++        typedef agg::rasterizer_outline_aa&lt;renderer_oaa&gt; rasterizer_outline_aa;
++        typedef agg::renderer_scanline_aa_solid&lt;ren_base&gt; renderer;
+ 	    
+-	geometry_ptr const&amp; geom=feature.get_geometry();
+-	if (geom &amp;&amp; geom-&gt;num_points() &gt; 1)
+-	{
+-	    path_type path(t_,*geom);
+-	    agg::row_ptr_cache&lt;agg::int8u&gt; buf(pixmap_.raw_data(),pixmap_.width(),pixmap_.height(),
+-					       pixmap_.width()*4);
+-	    agg::pixfmt_rgba32 pixf(buf);
+-	    ren_base renb(pixf);	    
++        geometry_ptr const&amp; geom=feature.get_geometry();
++        if (geom &amp;&amp; geom-&gt;num_points() &gt; 1)
++        {
++            path_type path(t_,*geom);
++            agg::row_ptr_cache&lt;agg::int8u&gt; buf(pixmap_.raw_data(),pixmap_.width(),pixmap_.height(),
++                                               pixmap_.width()*4);
++            agg::pixfmt_rgba32 pixf(buf);
++            ren_base renb(pixf);	    
+ 		
+-	    mapnik::stroke const&amp;  stroke_ = sym.get_stroke();
++            mapnik::stroke const&amp;  stroke_ = sym.get_stroke();
+ 		
+-	    Color const&amp; col = stroke_.get_color();
+-	    unsigned r=col.red();
+-	    unsigned g=col.green();
+-	    unsigned b=col.blue();	    
++            Color const&amp; col = stroke_.get_color();
++            unsigned r=col.red();
++            unsigned g=col.green();
++            unsigned b=col.blue();	    
+ 		
+-	    if (stroke_.has_dash())
+-	    {
+-		renderer ren(renb);	
+-		agg::rasterizer_scanline_aa&lt;&gt; ras;
+-		agg::scanline_u8 sl;
+-		agg::conv_dash&lt;path_type&gt; dash(path);
+-		dash_array const&amp; d = stroke_.get_dash_array();
+-		dash_array::const_iterator itr = d.begin();
+-		dash_array::const_iterator end = d.end();
+-		while (itr != end)
+-		{
+-		    dash.add_dash(itr-&gt;first, itr-&gt;second);
+-		    ++itr;
+-		}
+-		agg::conv_stroke&lt;agg::conv_dash&lt;path_type &gt; &gt; stroke(dash);
++            if (stroke_.has_dash())
++            {
++                renderer ren(renb);	
++                agg::rasterizer_scanline_aa&lt;&gt; ras;
++                agg::scanline_u8 sl;
++                agg::conv_dash&lt;path_type&gt; dash(path);
++                dash_array const&amp; d = stroke_.get_dash_array();
++                dash_array::const_iterator itr = d.begin();
++                dash_array::const_iterator end = d.end();
++                while (itr != end)
++                {
++                    dash.add_dash(itr-&gt;first, itr-&gt;second);
++                    ++itr;
++                }
++                agg::conv_stroke&lt;agg::conv_dash&lt;path_type &gt; &gt; stroke(dash);
+ 		    
+-		line_join_e join=stroke_.get_line_join();
+-		if ( join == MITER_JOIN)
+-		    stroke.generator().line_join(agg::miter_join);
+-		else if( join == MITER_REVERT_JOIN) 
+-		    stroke.generator().line_join(agg::miter_join);
+-		else if( join == ROUND_JOIN) 
+-		    stroke.generator().line_join(agg::round_join);
+-		else
+-		    stroke.generator().line_join(agg::bevel_join);
++                line_join_e join=stroke_.get_line_join();
++                if ( join == MITER_JOIN)
++                    stroke.generator().line_join(agg::miter_join);
++                else if( join == MITER_REVERT_JOIN) 
++                    stroke.generator().line_join(agg::miter_join);
++                else if( join == ROUND_JOIN) 
++                    stroke.generator().line_join(agg::round_join);
++                else
++                    stroke.generator().line_join(agg::bevel_join);
+ 		    
+-		line_cap_e cap=stroke_.get_line_cap();
+-		if (cap == BUTT_CAP)    
+-		    stroke.generator().line_cap(agg::butt_cap);
+-		else if (cap == SQUARE_CAP)
+-		    stroke.generator().line_cap(agg::square_cap);
+-		else 
+-		    stroke.generator().line_cap(agg::round_cap);
++                line_cap_e cap=stroke_.get_line_cap();
++                if (cap == BUTT_CAP)    
++                    stroke.generator().line_cap(agg::butt_cap);
++                else if (cap == SQUARE_CAP)
++                    stroke.generator().line_cap(agg::square_cap);
++                else 
++                    stroke.generator().line_cap(agg::round_cap);
+ 		    
+-		stroke.generator().miter_limit(4.0);
+-		stroke.generator().width(stroke_.get_width());
++                stroke.generator().miter_limit(4.0);
++                stroke.generator().width(stroke_.get_width());
+ 		    
+-		ras.clip_box(0,0,pixmap_.width(),pixmap_.height());
+-		ras.add_path(stroke);
+-		ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
+-		agg::render_scanlines(ras, sl, ren);
+-	    }
+-	    else if (stroke_.get_width() &lt;= 1.0)
+-	    {
+-		agg::line_profile_aa prof;
+-		prof.width(stroke_.get_width());
+-		renderer_oaa ren_oaa(renb, prof);
+-		rasterizer_outline_aa ras_oaa(ren_oaa);
++                ras.clip_box(0,0,pixmap_.width(),pixmap_.height());
++                ras.add_path(stroke);
++                ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
++                agg::render_scanlines(ras, sl, ren);
++            }
++            else if (stroke_.get_width() &lt;= 1.0)
++            {
++                agg::line_profile_aa prof;
++                prof.width(stroke_.get_width());
++                renderer_oaa ren_oaa(renb, prof);
++                rasterizer_outline_aa ras_oaa(ren_oaa);
+ 		    
+-		ren_oaa.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
+-		ren_oaa.clip_box(0,0,pixmap_.width(),pixmap_.height());
+-		ras_oaa.add_path(path);		
++                ren_oaa.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
++                ren_oaa.clip_box(0,0,pixmap_.width(),pixmap_.height());
++                ras_oaa.add_path(path);		
+ 		    
+-	    }
+-	    else 
+-	    {
+-		renderer ren(renb);	
+-		agg::rasterizer_scanline_aa&lt;&gt; ras;
+-		agg::scanline_p8 sl;
+-		agg::conv_stroke&lt;path_type&gt;  stroke(path);
++            }
++            else 
++            {
++                renderer ren(renb);	
++                agg::rasterizer_scanline_aa&lt;&gt; ras;
++                agg::scanline_p8 sl;
++                agg::conv_stroke&lt;path_type&gt;  stroke(path);
+ 		    
+-		line_join_e join=stroke_.get_line_join();
+-		if ( join == MITER_JOIN)
+-		    stroke.generator().line_join(agg::miter_join);
+-		else if( join == MITER_REVERT_JOIN) 
+-		    stroke.generator().line_join(agg::miter_join);
+-		else if( join == ROUND_JOIN) 
+-		    stroke.generator().line_join(agg::round_join);
+-		else
+-		    stroke.generator().line_join(agg::bevel_join);
++                line_join_e join=stroke_.get_line_join();
++                if ( join == MITER_JOIN)
++                    stroke.generator().line_join(agg::miter_join);
++                else if( join == MITER_REVERT_JOIN) 
++                    stroke.generator().line_join(agg::miter_join);
++                else if( join == ROUND_JOIN) 
++                    stroke.generator().line_join(agg::round_join);
++                else
++                    stroke.generator().line_join(agg::bevel_join);
+ 		    
+-		line_cap_e cap=stroke_.get_line_cap();
+-		if (cap == BUTT_CAP)    
+-		    stroke.generator().line_cap(agg::butt_cap);
+-		else if (cap == SQUARE_CAP)
+-		    stroke.generator().line_cap(agg::square_cap);
+-		else 
+-		    stroke.generator().line_cap(agg::round_cap);
++                line_cap_e cap=stroke_.get_line_cap();
++                if (cap == BUTT_CAP)    
++                    stroke.generator().line_cap(agg::butt_cap);
++                else if (cap == SQUARE_CAP)
++                    stroke.generator().line_cap(agg::square_cap);
++                else 
++                    stroke.generator().line_cap(agg::round_cap);
+ 		
+-		stroke.generator().miter_limit(4.0);
+-		stroke.generator().width(stroke_.get_width());
++                stroke.generator().miter_limit(4.0);
++                stroke.generator().width(stroke_.get_width());
+ 		    
+-		ras.clip_box(0,0,pixmap_.width(),pixmap_.height());
+-		ras.add_path(stroke);
+-		ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
+-		agg::render_scanlines(ras, sl, ren);
+-	    }
+-	}
++                ras.clip_box(0,0,pixmap_.width(),pixmap_.height());
++                ras.add_path(stroke);
++                ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
++                agg::render_scanlines(ras, sl, ren);
++            }
++        }
+     }
+ 
+     template &lt;typename T&gt;
+     void agg_renderer&lt;T&gt;::process(point_symbolizer const&amp; sym,Feature const&amp; feature)
+     {
+-	geometry_ptr const&amp; geom=feature.get_geometry();
+-	if (geom)
+-	{
+-	    double x;
+-	    double y;
+-	    ImageData32 const&amp; data = sym.get_data();
+-	    geom-&gt;label_position(&amp;x,&amp;y);
+-	    t_.forward_x(&amp;x);
+-	    t_.forward_y(&amp;y);
+-	    int w=data.width();
+-	    int h=data.height();
+-	    
+-	    if (detector_.has_placement(Envelope&lt;double&gt;(floor(x - 0.5 * w),
+-							 floor(y - 0.5 * h),
+-							 ceil (x + 0.5 * w),
+-							 ceil (y + 0.5 * h))))
+-	    {
+-		int px=int(floor(x - 0.5 * w));
+-		int py=int(floor(y - 0.5 * h));
+-		pixmap_.set_rectangle_alpha(px,py,data);
+-	    }
+-	}
++        geometry_ptr const&amp; geom=feature.get_geometry();
++        if (geom)
++        {
++            double x;
++            double y;
++            ImageData32 const&amp; data = sym.get_data();
++            geom-&gt;label_position(&amp;x,&amp;y);
++            t_.forward_x(&amp;x);
++            t_.forward_y(&amp;y);
++            int w = data.width();
++            int h = data.height();
++            int px=int(floor(x - 0.5 * w));
++            int py=int(floor(y - 0.5 * h));
++            
++            if (sym.get_allow_overlap() || 
++                detector_.has_placement(Envelope&lt;double&gt;(floor(x - 0.5 * w),
++                                                         floor(y - 0.5 * h),
++                                                         ceil (x + 0.5 * w),
++                                                         ceil (y + 0.5 * h))))
++            {    
++                pixmap_.set_rectangle_alpha(px,py,data);
++            }
++        }
+     }
+     
+     template &lt;typename T&gt;
+     void  agg_renderer&lt;T&gt;::process(line_pattern_symbolizer const&amp; sym,Feature const&amp; feature)
+     {
+-	typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
+-	typedef agg::line_image_pattern&lt;agg::pattern_filter_bilinear_rgba8&gt; pattern_type;
+-	typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; renderer_base;
+-	typedef agg::renderer_outline_image&lt;renderer_base, pattern_type&gt; renderer_type;
+-	typedef agg::rasterizer_outline_aa&lt;renderer_type&gt; rasterizer_type;
++        typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
++        typedef agg::line_image_pattern&lt;agg::pattern_filter_bilinear_rgba8&gt; pattern_type;
++        typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; renderer_base;
++        typedef agg::renderer_outline_image&lt;renderer_base, pattern_type&gt; renderer_type;
++        typedef agg::rasterizer_outline_aa&lt;renderer_type&gt; rasterizer_type;
+ 
+-	geometry_ptr const&amp; geom=feature.get_geometry();
+-	if (geom &amp;&amp; geom-&gt;num_points() &gt; 1)
+-	{
+-	    unsigned width = pixmap_.width();
+-	    unsigned height = pixmap_.height();
+-	    ImageData32 const&amp; pat = sym.get_pattern();
+-	    path_type path(t_,*geom);
+-	    agg::row_ptr_cache&lt;agg::int8u&gt; buf(pixmap_.raw_data(), width, height,width*4);
+-	    agg::pixfmt_rgba32 pixf(buf);
+-	    renderer_base ren_base(pixf);  
+-	    agg::pattern_filter_bilinear_rgba8 filter; 
+-	    pattern_source source(pat);
+-	    pattern_type pattern (filter,source);
+-	    renderer_type ren(ren_base, pattern);
+-	    ren.clip_box(0,0,width,height);
+-	    rasterizer_type ras(ren);	    
+-	    ras.add_path(path);    
+-	}
++        geometry_ptr const&amp; geom=feature.get_geometry();
++        if (geom &amp;&amp; geom-&gt;num_points() &gt; 1)
++        {
++            unsigned width = pixmap_.width();
++            unsigned height = pixmap_.height();
++            ImageData32 const&amp; pat = sym.get_pattern();
++            path_type path(t_,*geom);
++            agg::row_ptr_cache&lt;agg::int8u&gt; buf(pixmap_.raw_data(), width, height,width*4);
++            agg::pixfmt_rgba32 pixf(buf);
++            renderer_base ren_base(pixf);  
++            agg::pattern_filter_bilinear_rgba8 filter; 
++            pattern_source source(pat);
++            pattern_type pattern (filter,source);
++            renderer_type ren(ren_base, pattern);
++            ren.clip_box(0,0,width,height);
++            rasterizer_type ras(ren);	    
++            ras.add_path(path);    
++        }
+     }
+     
+     template &lt;typename T&gt;
+     void agg_renderer&lt;T&gt;::process(polygon_pattern_symbolizer const&amp; sym,Feature const&amp; feature)
+     {
+-	typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
+-	typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base; 
+-	typedef agg::wrap_mode_repeat wrap_x_type;
+-	typedef agg::wrap_mode_repeat wrap_y_type;
+-	typedef agg::image_accessor_wrap&lt;agg::pixfmt_rgba32, 
+-	    wrap_x_type,
+-	    wrap_y_type&gt; img_source_type;
++        typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
++        typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base; 
++        typedef agg::wrap_mode_repeat wrap_x_type;
++        typedef agg::wrap_mode_repeat wrap_y_type;
++        typedef agg::image_accessor_wrap&lt;agg::pixfmt_rgba32, 
++            wrap_x_type,
++            wrap_y_type&gt; img_source_type;
+ 	
+-	typedef agg::span_pattern_rgba&lt;img_source_type&gt; span_gen_type;
++        typedef agg::span_pattern_rgba&lt;img_source_type&gt; span_gen_type;
+ 	
+-	typedef agg::renderer_scanline_aa&lt;ren_base, 
+-	    agg::span_allocator&lt;agg::rgba8&gt;,
+-	    span_gen_type&gt; renderer_type;  
+-	geometry_ptr const&amp; geom=feature.get_geometry();
+-	if (geom &amp;&amp; geom-&gt;num_points() &gt; 2)
+-	{
+-	    ImageData32 const&amp; pattern = sym.get_pattern();
++        typedef agg::renderer_scanline_aa&lt;ren_base, 
++            agg::span_allocator&lt;agg::rgba8&gt;,
++            span_gen_type&gt; renderer_type;  
++        geometry_ptr const&amp; geom=feature.get_geometry();
++        if (geom &amp;&amp; geom-&gt;num_points() &gt; 2)
++        {
++            ImageData32 const&amp; pattern = sym.get_pattern();
+ 	    
+-	    unsigned width = pixmap_.width();
+-	    unsigned height = pixmap_.height();
+-	    path_type path(t_,*geom);
++            unsigned width = pixmap_.width();
++            unsigned height = pixmap_.height();
++            path_type path(t_,*geom);
+ 	    
+-	    agg::row_ptr_cache&lt;agg::int8u&gt; buf(pixmap_.raw_data(),width,height,width * 4);
+-	    agg::pixfmt_rgba32 pixf(buf);
+-	    ren_base renb(pixf);
++            agg::row_ptr_cache&lt;agg::int8u&gt; buf(pixmap_.raw_data(),width,height,width * 4);
++            agg::pixfmt_rgba32 pixf(buf);
++            ren_base renb(pixf);
+ 	
+-	    unsigned w=pattern.width();
+-	    unsigned h=pattern.height();
+-	    agg::row_ptr_cache&lt;agg::int8u&gt; pattern_rbuf((agg::int8u*)pattern.getBytes(),w,h,w*4);  
++            unsigned w=pattern.width();
++            unsigned h=pattern.height();
++            agg::row_ptr_cache&lt;agg::int8u&gt; pattern_rbuf((agg::int8u*)pattern.getBytes(),w,h,w*4);  
+ 	    
+-	    double x0,y0;
+-	    path.vertex(&amp;x0,&amp;y0);
+-	    path.rewind(0);
++            double x0,y0;
++            path.vertex(&amp;x0,&amp;y0);
++            path.rewind(0);
+ 	
+-	    unsigned offset_x = unsigned(width - x0);
+-	    unsigned offset_y = unsigned(height - y0);
++            unsigned offset_x = unsigned(width - x0);
++            unsigned offset_y = unsigned(height - y0);
+ 	
+-	    agg::span_allocator&lt;agg::rgba8&gt; sa;
+-	    img_source_type img_src(pattern_rbuf);
+-	    span_gen_type sg(img_src, offset_x, offset_y);
+-	    renderer_type rp(renb,sa, sg);
++            agg::span_allocator&lt;agg::rgba8&gt; sa;
++            img_source_type img_src(pattern_rbuf);
++            span_gen_type sg(img_src, offset_x, offset_y);
++            renderer_type rp(renb,sa, sg);
+ 	
+-	    agg::rasterizer_scanline_aa&lt;&gt; ras;
+-	    agg::scanline_u8 sl;
+-	    ras.clip_box(0,0,width,height);
+-	    ras.add_path(path);
+-	    agg::render_scanlines(ras, sl, rp);   
+-	}
++            agg::rasterizer_scanline_aa&lt;&gt; ras;
++            agg::scanline_u8 sl;
++            ras.clip_box(0,0,width,height);
++            ras.add_path(path);
++            agg::render_scanlines(ras, sl, rp);   
++        }
+     }
+ 
+     template &lt;typename T&gt;
+     void agg_renderer&lt;T&gt;::process(raster_symbolizer const&amp; ,Feature const&amp; feature)
+     {
+-	// TODO -- at the moment raster_symbolizer is an empty class 
+-	// used for type dispatching, but we can have some fancy raster
+-	// processing in a future (filters??). Just copy raster into pixmap for now.
+-	raster_ptr const&amp; raster=feature.get_raster();
+-	if (raster)
+-	{
+-	    pixmap_.set_rectangle(raster-&gt;x_,raster-&gt;y_,raster-&gt;data_);
+-	}
++        // TODO -- at the moment raster_symbolizer is an empty class 
++        // used for type dispatching, but we can have some fancy raster
++        // processing in a future (filters??). Just copy raster into pixmap for now.
++        raster_ptr const&amp; raster=feature.get_raster();
++        if (raster)
++        {
++            pixmap_.set_rectangle(raster-&gt;x_,raster-&gt;y_,raster-&gt;data_);
++        }
+     }
+     
+     template &lt;typename T&gt;
+     void agg_renderer&lt;T&gt;::process(text_symbolizer const&amp; sym ,Feature const&amp; feature)
+     {
+-	typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
+-	geometry_ptr const&amp; geom=feature.get_geometry();
+-	if (geom)
+-	{
+-	    double angle = 0.0;	    
+-	    if (sym.get_label_placement() == line_placement &amp;&amp; 
+-		geom-&gt;num_points() &gt; 1)
+-	    {
++        typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
++        geometry_ptr const&amp; geom=feature.get_geometry();
++        if (geom)
++        {
++            double angle = 0.0;	    
++            if (sym.get_label_placement() == line_placement &amp;&amp; 
++                geom-&gt;num_points() &gt; 1)
++            {
+ 	       
+-		path_type path(t_,*geom);
+-		double x0,y0,x1,y1;
+-		path.vertex(&amp;x0,&amp;y0);
+-		path.vertex(&amp;x1,&amp;y1);
+-		double dx = x1 - x0;
+-		double dy = ( y1 - y0 &gt; 1e-7 ) ?  y1 - y0 : 1.0;
++                path_type path(t_,*geom);
++                double x0,y0,x1,y1;
++                path.vertex(&amp;x0,&amp;y0);
++                path.vertex(&amp;x1,&amp;y1);
++                double dx = x1 - x0;
++                double dy = ( y1 - y0 &gt; 1e-7 ) ?  y1 - y0 : 1.0;
+ 	        
+-		angle = atan( dx/ dy ) - 0.5 * 3.1459;
++                angle = atan( dx/ dy ) - 0.5 * 3.1459;
+ 		
+-		//TODO!!!!!!!!!!!!!!!!!!!!
+-	    }   
++                //TODO!!!!!!!!!!!!!!!!!!!!
++            }   
+ 	    
+-	    std::string text = feature[sym.get_name()].to_string();
+-	    if (text.length() &gt; 0)
+-	    {
+-		Color const&amp; fill  = sym.get_fill();
++            std::string text = feature[sym.get_name()].to_string();
++            if (text.length() &gt; 0)
++            {
++                Color const&amp; fill  = sym.get_fill();
+ 	
+-		double x;
+-		double y;
+-		geom-&gt;label_position(&amp;x,&amp;y);
+-		t_.forward_x(&amp;x);
+-		t_.forward_y(&amp;y);
++                double x;
++                double y;
++                geom-&gt;label_position(&amp;x,&amp;y);
++                t_.forward_x(&amp;x);
++                t_.forward_y(&amp;y);
+ 
+-		face_ptr face = font_manager_.get_face(&quot;Bitstream Vera Sans Roman&quot;);//TODO
+-		//face_ptr face = font_manager_.get_face(&quot;Times New Roman Regular&quot;);//TODO
+-		if (face)
+-		{
+-		    text_renderer&lt;mapnik::Image32&gt; ren(pixmap_,face);
+-		    ren.set_pixel_size(sym.get_text_size());
+-		    ren.set_fill(fill);
+-		    ren.set_halo_fill(sym.get_halo_fill());
+-		    ren.set_halo_radius(sym.get_halo_radius());
+-		    ren.set_angle(float(angle));
++                face_ptr face = font_manager_.get_face(&quot;Bitstream Vera Sans Roman&quot;);//TODO
++                //face_ptr face = font_manager_.get_face(&quot;Times New Roman Regular&quot;);//TODO
++                if (face)
++                {
++                    text_renderer&lt;mapnik::Image32&gt; ren(pixmap_,face);
++                    ren.set_pixel_size(sym.get_text_size());
++                    ren.set_fill(fill);
++                    ren.set_halo_fill(sym.get_halo_fill());
++                    ren.set_halo_radius(sym.get_halo_radius());
++                    ren.set_angle(float(angle));
+ 
+-		    std::pair&lt;unsigned,unsigned&gt; dim = ren.prepare_glyphs(text);
+-		    Envelope&lt;double&gt; text_box(x - 0.5*dim.first,y - 0.5 * dim.second ,
+-					      x + 0.5*dim.first,y + 0.5 * dim.second);
++                    std::pair&lt;unsigned,unsigned&gt; dim = ren.prepare_glyphs(text);
++                    Envelope&lt;double&gt; text_box(x - 0.5*dim.first,y - 0.5 * dim.second ,
++                                              x + 0.5*dim.first,y + 0.5 * dim.second);
+ 		    
+-		    if (sym.get_halo_radius() &gt; 0)
+-		    {
+-			text_box.width(text_box.width() + sym.get_halo_radius()*2);
+-			text_box.height(text_box.height() + sym.get_halo_radius()*2);
+-		    }
++                    if (sym.get_halo_radius() &gt; 0)
++                    {
++                        text_box.width(text_box.width() + sym.get_halo_radius()*2);
++                        text_box.height(text_box.height() + sym.get_halo_radius()*2);
++                    }
+ 
+-		    if (detector_.has_placement(text_box))
+-		    {
+-			ren.render(x - 0.5 * dim.first,y + 0.5 * dim.second);
+-		    }
+-		}
+-	    }  
+-	}
++                    if (detector_.has_placement(text_box))
++                    {
++                        ren.render(x - 0.5 * dim.first,y + 0.5 * dim.second);
++                    }
++                }
++            }  
++        }
+     }
+     
+     template class agg_renderer&lt;Image32&gt;;
+
+Modified: trunk/src/layer.cpp
+===================================================================
+--- trunk/src/layer.cpp	2006-05-22 19:38:53 UTC (rev 265)
++++ trunk/src/layer.cpp	2006-05-23 16:52:10 UTC (rev 266)
+@@ -37,8 +37,6 @@
+     Layer::Layer()
+         : params_(),
+           name_(&quot;unknown&quot;),
+-          title_(&quot;&quot;),
+-          abstract_(&quot;&quot;),
+           minZoom_(0),
+           maxZoom_(std::numeric_limits&lt;double&gt;::max()),
+           active_(true),
+@@ -49,8 +47,6 @@
+     Layer::Layer(const parameters&amp; params)
+         :params_(params),
+          name_(params_[&quot;name&quot;]),
+-         title_(params_[&quot;title&quot;]),
+-         abstract_(params_[&quot;abstract&quot;]),
+          minZoom_(0),
+          maxZoom_(std::numeric_limits&lt;double&gt;::max()),
+          active_(true),
+@@ -59,17 +55,15 @@
+     {}
+     
+     Layer::Layer(const Layer&amp; rhs)
+-        :params_(rhs.params_),
+-         name_(rhs.name_),
+-         title_(rhs.title_),
+-         abstract_(rhs.abstract_),
+-         minZoom_(rhs.minZoom_),
+-         maxZoom_(rhs.maxZoom_),
+-         active_(rhs.active_),
+-         selectable_(rhs.selectable_),
+-         ds_(rhs.ds_),
+-         styles_(rhs.styles_),
+-         selection_style_(rhs.selection_style_) {}
++        : params_(rhs.params_),
++          name_(rhs.name_),
++          minZoom_(rhs.minZoom_),
++          maxZoom_(rhs.maxZoom_),
++          active_(rhs.active_),
++          selectable_(rhs.selectable_),
++          styles_(rhs.styles_),
++          selection_style_(rhs.selection_style_), 
++          ds_(rhs.ds_)  {}
+     
+     Layer&amp; Layer::operator=(const Layer&amp; rhs)
+     {
+@@ -87,13 +81,11 @@
+     {
+         params_=rhs.params_;
+         name_=rhs.name_;
+-        title_=rhs.title_;
+-        abstract_=rhs.abstract_;
+         minZoom_=rhs.minZoom_;
+         maxZoom_=rhs.maxZoom_;
+         active_=rhs.active_;
+         selectable_=rhs.selectable_;
+-        //ds_=rhs.ds_;
++        ds_=rhs.ds_;
+         styles_=rhs.styles_;
+         selection_style_=rhs.selection_style_;
+     }
+@@ -115,26 +107,6 @@
+         return name_;
+     }
+ 
+-    void Layer::set_title( std::string const&amp; title)
+-    {
+-        title_ = title;
+-    }
+- 
+-    string const&amp; Layer::title() const
+-    {
+-        return title_;
+-    }
+-
+-    void Layer::set_abstract( std::string const&amp; abstract)
+-    {
+-        abstract_ = abstract;
+-    }
+- 
+-    string const&amp; Layer::abstract() const
+-    {
+-        return abstract_;
+-    }
+-
+     void Layer::add_style(std::string const&amp; stylename)
+     {
+         styles_.push_back(stylename);
+
+Modified: trunk/src/map.cpp
+===================================================================
+--- trunk/src/map.cpp	2006-05-22 19:38:53 UTC (rev 265)
++++ trunk/src/map.cpp	2006-05-23 16:52:10 UTC (rev 266)
+@@ -30,23 +30,23 @@
+ namespace mapnik
+ {
+     Map::Map()
+-	: width_(400),
+-	  height_(400),
+-	  srid_(-1) {}
++        : width_(400),
++          height_(400),
++          srid_(-1) {}
+     Map::Map(int width,int height,int srid)
+         : width_(width),
+-	  height_(height),
+-	  srid_(srid),
+-	  background_(Color(255,255,255)) {}
++          height_(height),
++          srid_(srid),
++          background_(Color(255,255,255)) {}
+ 
+     Map::Map(const Map&amp; rhs)
+         : width_(rhs.width_),
+-	  height_(rhs.height_),
+-	  srid_(rhs.srid_),
+-	  background_(rhs.background_),
+-	  styles_(rhs.styles_),
+-	  layers_(rhs.layers_),
+-	  currentExtent_(rhs.currentExtent_) {}
++          height_(rhs.height_),
++          srid_(rhs.srid_),
++          background_(rhs.background_),
++          styles_(rhs.styles_),
++          layers_(rhs.layers_),
++          currentExtent_(rhs.currentExtent_) {}
+     
+     Map&amp; Map::operator=(const Map&amp; rhs)
+     {
+@@ -55,28 +55,28 @@
+         height_=rhs.height_;
+         srid_=rhs.srid_;
+         background_=rhs.background_;
+-	styles_=rhs.styles_;
++        styles_=rhs.styles_;
+         layers_=rhs.layers_;
+         return *this;
+     }
+ 
+     bool Map::insert_style(std::string const&amp; name,feature_type_style const&amp; style) 
+     {
+-	return styles_.insert(make_pair(name,style)).second;
++        return styles_.insert(make_pair(name,style)).second;
+     }
+     
+     void Map::remove_style(std::string const&amp; name) 
+     {
+-	styles_.erase(name);
++        styles_.erase(name);
+     }
+     
+     feature_type_style const&amp;  Map::find_style(std::string const&amp; name) const
+     {
+-	std::map&lt;std::string,feature_type_style&gt;::const_iterator itr=styles_.find(name);
+-	if (itr!=styles_.end()) 
+-	    return itr-&gt;second;
+-	static feature_type_style default_style;
+-	return default_style;
++        std::map&lt;std::string,feature_type_style&gt;::const_iterator itr=styles_.find(name);
++        if (itr!=styles_.end()) 
++            return itr-&gt;second;
++        static feature_type_style default_style;
++        return default_style;
+     }
+     
+     size_t Map::layerCount() const
+@@ -106,7 +106,7 @@
+ 
+     std::vector&lt;Layer&gt; const&amp; Map::layers() const
+     {
+-	return layers_;
++        return layers_;
+     }
+     
+     unsigned Map::getWidth() const
+@@ -121,30 +121,30 @@
+     
+     void Map::setWidth(unsigned width)
+     {
+-	if (width &gt;= MIN_MAPSIZE &amp;&amp; width &lt;= MAX_MAPSIZE)
+-	{
+-	    width_=width;
+-	    fixAspectRatio();
+-	}	
++        if (width &gt;= MIN_MAPSIZE &amp;&amp; width &lt;= MAX_MAPSIZE)
++        {
++            width_=width;
++            fixAspectRatio();
++        }	
+     }
+ 
+     void Map::setHeight(unsigned height)
+     {
+-	if (height &gt;= MIN_MAPSIZE &amp;&amp; height &lt;= MAX_MAPSIZE)
+-	{
+-	    height_=height;
+-	    fixAspectRatio();
+-	}
++        if (height &gt;= MIN_MAPSIZE &amp;&amp; height &lt;= MAX_MAPSIZE)
++        {
++            height_=height;
++            fixAspectRatio();
++        }
+     }
+     void Map::resize(unsigned width,unsigned height)
+     {
+-	if (width &gt;= MIN_MAPSIZE &amp;&amp; width &lt;= MAX_MAPSIZE &amp;&amp;
+-	    height &gt;= MIN_MAPSIZE &amp;&amp; height &lt;= MAX_MAPSIZE)
+-	{
+-	    width_=width;
+-	    height_=height;
+-	    fixAspectRatio();
+-	}
++        if (width &gt;= MIN_MAPSIZE &amp;&amp; width &lt;= MAX_MAPSIZE &amp;&amp;
++            height &gt;= MIN_MAPSIZE &amp;&amp; height &lt;= MAX_MAPSIZE)
++        {
++            width_=width;
++            height_=height;
++            fixAspectRatio();
++        }
+     }
+ 
+     int Map::srid() const
+@@ -168,9 +168,30 @@
+         double w = factor * currentExtent_.width();
+         double h = factor * currentExtent_.height();
+         currentExtent_ = Envelope&lt;double&gt;(center.x - 0.5 * w, center.y - 0.5 * h,
+-            center.x + 0.5 * w, center.y + 0.5 * h);
+-	fixAspectRatio();
++                                          center.x + 0.5 * w, center.y + 0.5 * h);
++        fixAspectRatio();
+     }
++    
++    void Map::zoom_all() 
++    {
++        std::vector&lt;Layer&gt;::const_iterator itr = layers_.begin();
++        Envelope&lt;double&gt; ext;
++        bool first = true;
++        while (itr != layers_.end())
++        {
++            if (first)
++            {
++                ext = itr-&gt;envelope();
++                first = false;
++            }
++            else 
++            {
++                ext.expand_to_include(itr-&gt;envelope());
++            }
++            ++itr;
++        }
++        zoomToBox(ext);
++    }
+ 
+     void Map::zoomToBox(const Envelope&lt;double&gt; &amp;box)
+     {
+@@ -183,14 +204,14 @@
+         double ratio1 = (double) width_ / (double) height_;
+         double ratio2 = currentExtent_.width() / currentExtent_.height();
+          
+-	if (ratio2 &gt; ratio1)
+-	{
+-	    currentExtent_.height(currentExtent_.width() / ratio1);
+-	}
+-	else if (ratio2 &lt; ratio1)
+-	{
+-	    currentExtent_.width(currentExtent_.height() * ratio1);
+-	}       
++        if (ratio2 &gt; ratio1)
++        {
++            currentExtent_.height(currentExtent_.width() / ratio1);
++        }
++        else if (ratio2 &lt; ratio1)
++        {
++            currentExtent_.width(currentExtent_.height() * ratio1);
++        }       
+     }
+ 
+     const Envelope&lt;double&gt;&amp; Map::getCurrentExtent() const
+@@ -201,13 +222,13 @@
+     void Map::pan(int x,int y)
+     {
+         int dx = x - int(0.5 * width_);
+-	int dy = int(0.5 * height_) - y;
+-	double s = width_/currentExtent_.width();
+-	double minx  = currentExtent_.minx() + dx/s;
+-	double maxx  = currentExtent_.maxx() + dx/s;
+-	double miny  = currentExtent_.miny() + dy/s;
+-	double maxy  = currentExtent_.maxy() + dy/s;
+-	currentExtent_.init(minx,miny,maxx,maxy);
++        int dy = int(0.5 * height_) - y;
++        double s = width_/currentExtent_.width();
++        double minx  = currentExtent_.minx() + dx/s;
++        double maxx  = currentExtent_.maxx() + dx/s;
++        double miny  = currentExtent_.miny() + dy/s;
++        double maxy  = currentExtent_.maxy() + dy/s;
++        currentExtent_.init(minx,miny,maxx,maxy);
+     }
+ 
+     void Map::pan_and_zoom(int x,int y,double factor)
+
+Modified: trunk/src/point_symbolizer.cpp
+===================================================================
+--- trunk/src/point_symbolizer.cpp	2006-05-22 19:38:53 UTC (rev 265)
++++ trunk/src/point_symbolizer.cpp	2006-05-23 16:52:10 UTC (rev 266)
+@@ -30,7 +30,8 @@
+ namespace mapnik
+ {
+     point_symbolizer::point_symbolizer()
+-        : symbol_(new ImageData32(4,4))
++        : symbol_(new ImageData32(4,4)),
++          overlap_(false)
+     {
+         //default point symbol is black 4x4px square
+         symbol_-&gt;set(0xff000000);
+@@ -56,12 +57,23 @@
+     }
+     
+     point_symbolizer::point_symbolizer(point_symbolizer const&amp; rhs)
+-        : symbol_(rhs.symbol_) 
++        : symbol_(rhs.symbol_),
++          overlap_(rhs.overlap_)
+     {}
+     
+     ImageData32 const&amp; point_symbolizer::get_data() const
+     {
+         return *(symbol_.get());
+     }
++    
++    void point_symbolizer::set_allow_overlap(bool overlap)
++    {
++        overlap_ = overlap;
++    }
++    
++    bool point_symbolizer::get_allow_overlap() const
++    {
++        return overlap_;
++    }
+ }
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000150.html">[Mapnik-svn] r265 - tags
+</A></li>
+	<LI>Next message: <A HREF="000152.html">[Mapnik-svn] r267 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#151">[ date ]</a>
+              <a href="thread.html#151">[ thread ]</a>
+              <a href="subject.html#151">[ subject ]</a>
+              <a href="author.html#151">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

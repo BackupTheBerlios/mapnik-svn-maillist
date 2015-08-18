@@ -1,0 +1,1625 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r122 - in trunk: agg include python src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-January/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r122%20-%20in%20trunk%3A%20agg%20include%20python%20src&In-Reply-To=%3C200601231324.k0NDOkYD002425%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000008.html">
+   <LINK REL="Next"  HREF="000010.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r122 - in trunk: agg include python src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r122%20-%20in%20trunk%3A%20agg%20include%20python%20src&In-Reply-To=%3C200601231324.k0NDOkYD002425%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r122 - in trunk: agg include python src">pavlenko at berlios.de
+       </A><BR>
+    <I>Mon Jan 23 14:24:46 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000008.html">[Mapnik-svn] r121 - in trunk: include src
+</A></li>
+        <LI>Next message: <A HREF="000010.html">[Mapnik-svn] r123 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#9">[ date ]</a>
+              <a href="thread.html#9">[ thread ]</a>
+              <a href="subject.html#9">[ subject ]</a>
+              <a href="author.html#9">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-01-23 14:24:41 +0100 (Mon, 23 Jan 2006)
+New Revision: 122
+
+Added:
+   trunk/include/named_style_cache.hpp
+   trunk/include/polygon_pattern_symbolizer.hpp
+   trunk/src/image_symbolizer.cpp
+   trunk/src/line_pattern_symbolizer.cpp
+   trunk/src/line_symbolizer.cpp
+   trunk/src/named_style_cache.cpp
+   trunk/src/polygon_pattern_symbolizer.cpp
+   trunk/src/polygon_symbolizer.cpp
+Removed:
+   trunk/include/style_cache.hpp
+   trunk/src/style.cpp
+   trunk/src/style_cache.cpp
+Modified:
+   trunk/agg/SConscript
+   trunk/include/graphics.hpp
+   trunk/include/image_symbolizer.hpp
+   trunk/include/line_aa.hpp
+   trunk/include/line_pattern_symbolizer.hpp
+   trunk/include/line_symbolizer.hpp
+   trunk/include/mapnik.hpp
+   trunk/include/polygon_symbolizer.hpp
+   trunk/include/render.hpp
+   trunk/include/style_factory.hpp
+   trunk/include/text.hpp
+   trunk/python/SConscript
+   trunk/python/mapnik_python.cpp
+   trunk/src/SConscript
+   trunk/src/mapnik.cpp
+   trunk/src/render.cpp
+Log:
+1.symbolizers refactored - split into hpp/cpp
+  (all AGG is private to libmapnik and not exposed to client code) 
+2.removed unused files (more todo)
+3.added line pattern symbolizer to python bindings
+
+
+
+Modified: trunk/agg/SConscript
+===================================================================
+--- trunk/agg/SConscript	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/agg/SConscript	2006-01-23 13:24:41 UTC (rev 122)
+@@ -25,5 +25,5 @@
+ agg_headers = agg_root + '/include'
+ agg_src_dir = agg_root + '/src/' 
+ agg_src = glob.glob(agg_src_dir + '*.cpp')
+-agg_lib = env.SharedLibrary('libagg',agg_src,LIBS=[],CPPPATH=agg_headers)
++agg_lib = env.StaticLibrary('libagg',agg_src,LIBS=[],CPPPATH=agg_headers)
+ env.Install(prefix+'/lib',agg_lib)
+
+Modified: trunk/include/graphics.hpp
+===================================================================
+--- trunk/include/graphics.hpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/include/graphics.hpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -24,7 +24,7 @@
+ #include &lt;cmath&gt;
+ #include &lt;string&gt;
+ #include &lt;cassert&gt;
+-#include &quot;style.hpp&quot;
++#include &quot;color.hpp&quot;
+ #include &quot;gamma.hpp&quot;
+ #include &quot;image_data.hpp&quot;
+ 
+
+Modified: trunk/include/image_symbolizer.hpp
+===================================================================
+--- trunk/include/image_symbolizer.hpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/include/image_symbolizer.hpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -22,7 +22,6 @@
+ #define IMAGE_SYMBOLIZER_HPP
+ 
+ #include &quot;symbolizer.hpp&quot;
+-#include &quot;image_data.hpp&quot;
+ #include &lt;boost/utility.hpp&gt;
+ 
+ namespace mapnik 
+@@ -30,42 +29,15 @@
+     struct image_symbolizer : public symbolizer,
+ 			      private boost::noncopyable
+     {
+-    private:
+-	ImageData32 symbol_;
+-    public:
++	  
+ 	image_symbolizer(std::string const&amp; file,
+ 			 std::string const&amp; type,
+-			 unsigned width,unsigned height) 
+-	    : symbolizer(),
+-	      symbol_(width,height)
+-	{
+-	    try 
+-	    {
+-		std::auto_ptr&lt;ImageReader&gt; reader(get_image_reader(type,file));
+-		reader-&gt;read(0,0,symbol_);		
+-	    } 
+-	    catch (...) 
+-	    {
+-		std::cerr&lt;&lt;&quot;exception caught...&quot;&lt;&lt;std::endl;
+-	    }
+-	}
++			 unsigned width,unsigned height);
++	
++	void render(geometry_type&amp; geom,Image32&amp; image) const;
+ 
+-	virtual ~image_symbolizer() {}
+-
+-	void render(geometry_type&amp; geom,Image32&amp; image) const 
+-	{
+-	    int w=symbol_.width();
+-	    int h=symbol_.height();
+-	    double x,y;
+-	    unsigned size = geom.num_points();
+-	    for (unsigned pos = 0; pos &lt; size ;++pos)
+-	    {
+-		geom.vertex(&amp;x,&amp;y);
+-		int px=int(x - 0.5 * w);
+-		int py=int(y - 0.5 * h);
+-		image.set_rectangle_alpha(px,py,symbol_);
+-	    }
+-	}
++    private:
++	ImageData32 symbol_;
+     };
+ }
+ 
+
+Modified: trunk/include/line_aa.hpp
+===================================================================
+--- trunk/include/line_aa.hpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/include/line_aa.hpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -23,8 +23,8 @@
+ 
+ #include &quot;geometry.hpp&quot;
+ #include &quot;graphics.hpp&quot;
+-#include &quot;style.hpp&quot;
+ 
++
+ namespace mapnik
+ {
+     template &lt;typename PixBuffer&gt; class LineRasterizerAA
+
+Modified: trunk/include/line_pattern_symbolizer.hpp
+===================================================================
+--- trunk/include/line_pattern_symbolizer.hpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/include/line_pattern_symbolizer.hpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -22,91 +22,20 @@
+ #define LINE_PATTERN_SYMBOLIZER_HPP
+ 
+ #include &quot;symbolizer.hpp&quot;
+-#include &quot;image_reader.hpp&quot;
+-#include &quot;agg_basics.h&quot;
+-#include &quot;agg_rendering_buffer.h&quot;
+-#include &quot;agg_rasterizer_scanline_aa.h&quot;
+-#include &quot;agg_scanline_p.h&quot;
+-#include &quot;agg_scanline_u.h&quot;
+-#include &quot;agg_renderer_scanline.h&quot;
+-#include &quot;agg_pixfmt_rgba.h&quot;
+-#include &quot;agg_path_storage.h&quot;
+-#include &quot;agg_span_allocator.h&quot;
+-#include &quot;agg_span_pattern_rgba.h&quot;
+-#include &quot;agg_image_accessors.h&quot;
+-#include &quot;agg_pattern_filters_rgba.h&quot;
+-
+ #include &lt;boost/utility.hpp&gt;
+ 
+ namespace mapnik 
+-{
+-    class pattern_source : private boost::noncopyable
+-    {
+-    public:
+-	pattern_source(ImageData32 const&amp; pattern)
+-	    : pattern_(pattern) {}
+-	
+-	unsigned int width() const
+-	{
+-	    return pattern_.width();
+-	}
+-	unsigned int height() const
+-	{
+-	    return pattern_.height();
+-	}
+-	agg::rgba8 pixel(int x, int y) const
+-	{
+-	    unsigned c = pattern_(x,y);
+-	    return agg::rgba8(c &amp; 0xff, (c &gt;&gt; 8) &amp; 0xff, (c &gt;&gt; 16) &amp; 0xff,(c &gt;&gt; 24) &amp; 0xff);
+-	}
+-    private:
+-	ImageData32 const&amp; pattern_;
+-    };
+-
++{      
+     struct line_pattern_symbolizer : public symbolizer, 
+ 				     private boost::noncopyable
+     {
++	line_pattern_symbolizer(std::string const&amp; file,
++				std::string const&amp; type,
++				unsigned width,unsigned height);
++	void render(geometry_type&amp; geom,Image32&amp; image) const;
++	
+     private:
+ 	ImageData32 pattern_;
+-    public:
+-	line_pattern_symbolizer(std::string const&amp; file,
+-			 std::string const&amp; type,
+-			 unsigned width,unsigned height) 
+-	    : symbolizer(),
+-	      pattern_(width,height)
+-	{
+-	    try 
+-	    {
+-		std::auto_ptr&lt;ImageReader&gt; reader(get_image_reader(type,file));
+-		reader-&gt;read(0,0,pattern_);		
+-	    } 
+-	    catch (...) 
+-	    {
+-		std::cerr&lt;&lt;&quot;exception caught...&quot;&lt;&lt;std::endl;
+-	    }
+-	}
+-
+-	virtual ~line_pattern_symbolizer() {}
+-
+-	void render(geometry_type&amp; geom,Image32&amp; image) const
+-	{
+-	    typedef agg::line_image_pattern&lt;agg::pattern_filter_bilinear_rgba8&gt; pattern_type;
+-	    typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; renderer_base;
+-	    typedef agg::renderer_outline_image&lt;renderer_base, pattern_type&gt; renderer_type;
+-	    typedef agg::rasterizer_outline_aa&lt;renderer_type&gt; rasterizer_type;
+-	    unsigned int width=image.width();
+-	    unsigned int height=image.height();
+-	    agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(), width, height,width*4);
+-	    agg::pixfmt_rgba32 pixf(buf);
+-	    renderer_base ren_base(pixf);  
+-	    agg::pattern_filter_bilinear_rgba8 filter; 
+-	    pattern_source source(pattern_);
+-	    pattern_type pattern (filter,source);
+-	    renderer_type ren(ren_base, pattern);
+-	    ren.clip_box(0,0,width,height);
+-	    rasterizer_type ras(ren);	    
+-	    ras.add_path(geom);
+-	}
+     };    
+ }
+ 
+
+Modified: trunk/include/line_symbolizer.hpp
+===================================================================
+--- trunk/include/line_symbolizer.hpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/include/line_symbolizer.hpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -21,27 +21,6 @@
+ #ifndef LINE_SYMBOLIZER_HPP
+ #define LINE_SYMBOLIZER_HPP
+ 
+-#include &quot;agg_basics.h&quot;
+-#include &quot;agg_rendering_buffer.h&quot;
+-#include &quot;agg_rasterizer_scanline_aa.h&quot;
+-#include &quot;agg_conv_stroke.h&quot;
+-#include &quot;agg_conv_dash.h&quot;
+-#include &quot;agg_conv_contour.h&quot;
+-#include &quot;agg_vcgen_stroke.h&quot;
+-#include &quot;agg_conv_adaptor_vcgen.h&quot;
+-#include &quot;agg_conv_smooth_poly1.h&quot;
+-#include &quot;agg_conv_marker.h&quot;
+-#include &quot;agg_arrowhead.h&quot;
+-#include &quot;agg_vcgen_markers_term.h&quot;
+-#include &quot;agg_scanline_p.h&quot;
+-#include &quot;agg_scanline_u.h&quot;
+-#include &quot;agg_renderer_scanline.h&quot;
+-#include &quot;agg_pixfmt_rgba.h&quot;
+-#include &quot;agg_path_storage.h&quot;
+-#include &quot;agg_renderer_outline_aa.h&quot;
+-#include &quot;agg_rasterizer_outline_aa.h&quot;
+-#include &quot;agg_rasterizer_outline.h&quot;
+-#include &quot;agg_renderer_outline_image.h&quot;
+ 
+ #include &quot;symbolizer.hpp&quot;
+ #include &quot;stroke.hpp&quot;
+@@ -53,124 +32,11 @@
+     struct line_symbolizer : public symbolizer,
+ 			     private boost::noncopyable
+     {
++	line_symbolizer(stroke const&amp; stroke);
++	line_symbolizer(const Color&amp; pen,float width=1.0);	
++	void render(geometry_type&amp; geom, Image32&amp; image) const;
+     private:
+ 	stroke stroke_;
+-    public:
+-
+-	line_symbolizer(stroke const&amp; stroke)
+-	    : symbolizer(),
+-	      stroke_(stroke) {}
+-
+-	line_symbolizer(const Color&amp; pen,float width=1.0)
+-	    : symbolizer(),
+-	      stroke_(pen,width) {}
+-	
+-	void render(geometry_type&amp; geom, Image32&amp; image) const 
+-	{
+-	    typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base;    
+-	    agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(),image.width(),image.height(),
+-					       image.width()*4);
+-	    agg::pixfmt_rgba32 pixf(buf);
+-	    ren_base renb(pixf);	    
+-	    
+-	    Color const&amp; col = stroke_.get_color();
+-	    unsigned r=col.red();
+-	    unsigned g=col.green();
+-	    unsigned b=col.blue();	    
+-	    
+-	    if (0)//stroke_.get_width() &lt;= 1.0)
+-	    {
+-		typedef agg::renderer_outline_aa&lt;ren_base&gt; renderer_oaa;
+-		typedef agg::rasterizer_outline_aa&lt;renderer_oaa&gt; rasterizer_outline_aa;
+-		agg::line_profile_aa prof;
+-		prof.width(stroke_.get_width());
+-		renderer_oaa ren_oaa(renb, prof);
+-		rasterizer_outline_aa ras_oaa(ren_oaa);
+-
+-		ren_oaa.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
+-		ren_oaa.clip_box(0,0,image.width(),image.height());
+-		ras_oaa.add_path(geom);		
+-	          
+-	    }
+-	    else 
+-	    {
+-		typedef agg::renderer_scanline_aa_solid&lt;ren_base&gt; renderer;
+-		renderer ren(renb);	
+-		agg::rasterizer_scanline_aa&lt;&gt; ras;
+-		agg::scanline_u8 sl;
+-		
+-		if (stroke_.has_dash())
+-		{
+-		    
+-		    agg::conv_dash&lt;geometry&lt;vertex2d&gt; &gt; dash(geom);
+-		    dash_array const&amp; d = stroke_.get_dash_array();
+-		    dash_array::const_iterator itr = d.begin();
+-		    dash_array::const_iterator end = d.end();
+-		    while (itr != end)
+-		    {
+-			dash.add_dash(itr-&gt;first, itr-&gt;second);
+-			++itr;
+-		    }
+-		    agg::conv_stroke&lt;agg::conv_dash&lt;geometry&lt;vertex2d&gt; &gt; &gt; stroke(dash);
+-		
+-		    line_join_e join=stroke_.get_line_join();
+-		    if ( join == MITER_JOIN)
+-			stroke.generator().line_join(agg::miter_join);
+-		    else if( join == MITER_REVERT_JOIN) 
+-			stroke.generator().line_join(agg::miter_join);
+-		    else if( join == ROUND_JOIN) 
+-			stroke.generator().line_join(agg::round_join);
+-		    else
+-			stroke.generator().line_join(agg::bevel_join);
+-		    
+-		    line_cap_e cap=stroke_.get_line_cap();
+-		    if (cap == BUTT_CAP)    
+-			stroke.generator().line_cap(agg::butt_cap);
+-		    else if (cap == SQUARE_CAP)
+-			stroke.generator().line_cap(agg::square_cap);
+-		    else 
+-			stroke.generator().line_cap(agg::round_cap);
+-
+-		    stroke.generator().miter_limit(4.0);
+-		    stroke.generator().width(stroke_.get_width());
+-		
+-		    ras.clip_box(0,0,image.width(),image.height());
+-		    ras.add_path(stroke);
+-		    ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
+-		    agg::render_scanlines(ras, sl, ren);
+-		}
+-		else 
+-		{
+-		    agg::conv_stroke&lt;geometry&lt;vertex2d&gt; &gt;  stroke(geom);
+-		
+-		    line_join_e join=stroke_.get_line_join();
+-		    if ( join == MITER_JOIN)
+-			stroke.generator().line_join(agg::miter_join);
+-		    else if( join == MITER_REVERT_JOIN) 
+-			stroke.generator().line_join(agg::miter_join);
+-		    else if( join == ROUND_JOIN) 
+-			stroke.generator().line_join(agg::round_join);
+-		    else
+-			stroke.generator().line_join(agg::bevel_join);
+-		    
+-		    line_cap_e cap=stroke_.get_line_cap();
+-		    if (cap == BUTT_CAP)    
+-			stroke.generator().line_cap(agg::butt_cap);
+-		    else if (cap == SQUARE_CAP)
+-			stroke.generator().line_cap(agg::square_cap);
+-		    else 
+-			stroke.generator().line_cap(agg::round_cap);
+-
+-		    stroke.generator().miter_limit(4.0);
+-		    stroke.generator().width(stroke_.get_width());
+-		    
+-		    ras.clip_box(0,0,image.width(),image.height());
+-		    ras.add_path(stroke);
+-		    ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
+-		    agg::render_scanlines(ras, sl, ren);
+-		}
+-	    }
+-	}
+     };
+ }
+ 
+
+Modified: trunk/include/mapnik.hpp
+===================================================================
+--- trunk/include/mapnik.hpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/include/mapnik.hpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -34,9 +34,7 @@
+ #include &quot;comparison.hpp&quot;
+ #include &quot;regex_filter.hpp&quot;
+ #include &quot;utils.hpp&quot;
+-#include &quot;style.hpp&quot;
+ #include &quot;symbolizer.hpp&quot;
+-#include &quot;style_cache.hpp&quot;
+ #include &quot;geometry.hpp&quot;
+ #include &quot;geom_util.hpp&quot;
+ #include &quot;raster.hpp&quot;
+@@ -48,8 +46,9 @@
+ #include &quot;image_reader.hpp&quot;
+ #include &quot;line_symbolizer.hpp&quot;
+ #include &quot;polygon_symbolizer.hpp&quot;
++#include &quot;polygon_pattern_symbolizer.hpp&quot;
+ #include &quot;line_pattern_symbolizer.hpp&quot;
+-//#include &quot;image_symbolizer.hpp&quot;
++#include &quot;image_symbolizer.hpp&quot;
+ #include &quot;image_util.hpp&quot;
+ #include &quot;datasource.hpp&quot;
+ #include &quot;layer.hpp&quot;
+@@ -57,6 +56,7 @@
+ #include &quot;wkb.hpp&quot;
+ #include &quot;map.hpp&quot;
+ #include &quot;feature_type_style.hpp&quot;
++#include &quot;named_style_cache.hpp&quot;
+ #include &quot;feature_factory.hpp&quot;
+ #include &quot;math_expr.hpp&quot;
+ #include &quot;value.hpp&quot;
+
+Copied: trunk/include/named_style_cache.hpp (from rev 110, trunk/include/style_cache.hpp)
+===================================================================
+--- trunk/include/style_cache.hpp	2005-12-23 12:31:54 UTC (rev 110)
++++ trunk/include/named_style_cache.hpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -0,0 +1,47 @@
++/* This file is part of Mapnik (c++ mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id: style_cache.hpp 39 2005-04-10 20:39:53Z pavlenko $
++
++#ifndef STYLE_CACHE_HPP
++#define STYLE_CACHE_HPP
++
++#include &quot;utils.hpp&quot;
++#include &lt;map&gt;
++#include &quot;feature_type_style.hpp&quot;
++
++namespace mapnik {
++      
++    class named_style_cache : public singleton &lt;named_style_cache,CreateStatic&gt;
++    {
++	friend class CreateStatic&lt;named_style_cache&gt;;
++    private:
++	static std::map&lt;std::string,feature_type_style&gt; styles_;  
++	named_style_cache();
++	~named_style_cache();
++	named_style_cache(const named_style_cache&amp;);
++	named_style_cache&amp; operator=(const named_style_cache&amp;);
++    public:
++	static bool insert(const std::string&amp; name,const feature_type_style&amp; style);
++	static void remove(const std::string&amp; name);
++	static feature_type_style find(const std::string&amp; name);
++    }; 
++}
++
++
++#endif //STYLE_CACHE_HPP
+
+Added: trunk/include/polygon_pattern_symbolizer.hpp
+===================================================================
+--- trunk/include/polygon_pattern_symbolizer.hpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/include/polygon_pattern_symbolizer.hpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -0,0 +1,43 @@
++/* This file is part of Mapnik (c++ mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++#ifndef POLYGON_PATTERN_SYMBOLIZER_HPP
++#define POLYGON_PATTERN_SYMBOLIZER_HPP
++
++#include &quot;symbolizer.hpp&quot;
++#include &lt;boost/utility.hpp&gt;
++
++namespace mapnik
++{
++    struct polygon_pattern_symbolizer : public symbolizer,
++					private boost::noncopyable
++    {
++	
++	polygon_pattern_symbolizer(std::string const&amp; file,
++				   std::string const&amp; type,
++				   unsigned width,unsigned height);
++	
++	void render(geometry_type&amp; geom,Image32&amp; image) const;
++    private:
++	ImageData32 pattern_;
++    };
++}
++
++#endif //POLYGON_PATTERN_SYMBOLIZER_HPP
+
+Modified: trunk/include/polygon_symbolizer.hpp
+===================================================================
+--- trunk/include/polygon_symbolizer.hpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/include/polygon_symbolizer.hpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -22,132 +22,18 @@
+ #define POLYGON_SYMBOLIZER_HPP
+ 
+ #include &quot;symbolizer.hpp&quot;
+-#include &quot;image_reader.hpp&quot;
+-#include &quot;agg_basics.h&quot;
+-#include &quot;agg_rendering_buffer.h&quot;
+-#include &quot;agg_rasterizer_scanline_aa.h&quot;
+-#include &quot;agg_scanline_p.h&quot;
+-#include &quot;agg_scanline_u.h&quot;
+-#include &quot;agg_renderer_scanline.h&quot;
+-#include &quot;agg_pixfmt_rgba.h&quot;
+-#include &quot;agg_path_storage.h&quot;
+-#include &quot;agg_span_allocator.h&quot;
+-#include &quot;agg_span_pattern_rgba.h&quot;
+-#include &quot;agg_image_accessors.h&quot;
++#include &lt;boost/utility.hpp&gt;
+ 
+ namespace mapnik 
+ {
+-    struct polygon_symbolizer : public symbolizer
++    struct polygon_symbolizer : public symbolizer,
++				private boost::noncopyable
+     {
++	polygon_symbolizer(const Color&amp; fill);
++	void render(geometry_type&amp; geom,Image32&amp; image) const;
+     private:
+ 	Color fill_;
+-    public:
+-	polygon_symbolizer(const Color&amp; fill)
+-	    : symbolizer(),
+-	      fill_(fill) {}
+-	
+-	virtual ~polygon_symbolizer() {}
+-
+-	void render(geometry_type&amp; geom,Image32&amp; image) const 
+-	{
+-	    typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base;    
+-	    typedef agg::renderer_scanline_aa_solid&lt;ren_base&gt; renderer;
+-	    agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(),image.width(),image.height(),
+-					       image.width()*4);
+-	    agg::pixfmt_rgba32 pixf(buf);
+-	    ren_base renb(pixf);	    
+-	    
+-	    unsigned r=fill_.red();
+-	    unsigned g=fill_.green();
+-	    unsigned b=fill_.blue();
+-	    unsigned a=fill_.alpha();
+-	    renderer ren(renb);
+-	    
+-	    agg::rasterizer_scanline_aa&lt;&gt; ras;
+-	    agg::scanline_u8 sl;
+-	    ras.clip_box(0,0,image.width(),image.height());
+-	    ras.add_path(geom);
+-	    ren.color(agg::rgba8(r, g, b, a));
+-	    agg::render_scanlines(ras, sl, ren);
+-	}
+-	
+-    private:
+-	polygon_symbolizer(const polygon_symbolizer&amp;);
+-	polygon_symbolizer&amp; operator=(const polygon_symbolizer&amp;);	
+-    };
+-    
+-    struct pattern_symbolizer : public symbolizer
+-    {
+-    private:
+-	ImageData32 pattern_;
+-    public:
+-	pattern_symbolizer(std::string const&amp; file,
+-			 std::string const&amp; type,
+-			 unsigned width,unsigned height) 
+-	    : symbolizer(),
+-	      pattern_(width,height)
+-	{
+-	    try 
+-	    {
+-		std::auto_ptr&lt;ImageReader&gt; reader(get_image_reader(type,file));
+-		reader-&gt;read(0,0,pattern_);		
+-	    } 
+-	    catch (...) 
+-	    {
+-		std::cerr&lt;&lt;&quot;exception caught...&quot;&lt;&lt;std::endl;
+-	    }
+-	}
+-
+-	virtual ~pattern_symbolizer() {}
+-
+-	void render(geometry_type&amp; geom,Image32&amp; image) const
+-	{
+-	    typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base; 
+-	    agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(),image.width(),image.height(),
+-					       image.width()*4);
+-	    agg::pixfmt_rgba32 pixf(buf);
+-	    ren_base renb(pixf);
+- 
+-	    unsigned w=pattern_.width();
+-	    unsigned h=pattern_.height();
+-	    agg::row_ptr_cache&lt;agg::int8u&gt; pattern_rbuf((agg::int8u*)pattern_.getBytes(),w,h,w*4);  
+-
+-	    typedef agg::wrap_mode_repeat wrap_x_type;
+-	    typedef agg::wrap_mode_repeat wrap_y_type;
+-	    typedef agg::image_accessor_wrap&lt;agg::pixfmt_rgba32, 
+-		wrap_x_type,
+-		wrap_y_type&gt; img_source_type;
+-
+-	    typedef agg::span_pattern_rgba&lt;img_source_type&gt; span_gen_type;
+-	    
+-	    typedef agg::renderer_scanline_aa&lt;ren_base, 
+-		agg::span_allocator&lt;agg::rgba8&gt;,
+-		span_gen_type&gt; renderer_type;  
+-	    
+-	    double x0,y0;
+-	    geom.vertex(&amp;x0,&amp;y0);
+-	    geom.rewind(0);
+-
+-	    unsigned offset_x = unsigned(image.width() - x0);
+-	    unsigned offset_y = unsigned(image.height() - y0);
+-	    
+-	    agg::span_allocator&lt;agg::rgba8&gt; sa;
+-	    img_source_type img_src(pattern_rbuf);
+-	    span_gen_type sg(img_src, offset_x, offset_y);
+-	    renderer_type rp(renb,sa, sg);
+-
+-	    agg::rasterizer_scanline_aa&lt;&gt; ras;
+-	    agg::scanline_u8 sl;
+-	    ras.clip_box(0,0,image.width(),image.height());
+-	    ras.add_path(geom);
+-	    agg::render_scanlines(ras, sl, rp);   
+-	}
+-	
+-    private:
+-	pattern_symbolizer(const pattern_symbolizer&amp;);
+-	pattern_symbolizer&amp; operator=(const pattern_symbolizer&amp;);	
+-    };
+-    
++    };  
+ }
+ 
+ #endif // POLYGON_SYMBOLIZER_HPP
+
+Modified: trunk/include/render.hpp
+===================================================================
+--- trunk/include/render.hpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/include/render.hpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -22,7 +22,6 @@
+ #define RENDER_HPP
+ 
+ #include &lt;stack&gt;
+-#include &quot;style.hpp&quot;
+ #include &quot;envelope.hpp&quot;
+ #include &quot;graphics.hpp&quot;
+ #include &quot;datasource.hpp&quot;
+
+Deleted: trunk/include/style_cache.hpp
+===================================================================
+--- trunk/include/style_cache.hpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/include/style_cache.hpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -1,48 +0,0 @@
+-/* This file is part of Mapnik (c++ mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
+- *
+- * Mapnik is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version 2
+- * of the License, or any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+- */
+-
+-//$Id: style_cache.hpp 39 2005-04-10 20:39:53Z pavlenko $
+-
+-#ifndef STYLE_CACHE_HPP
+-#define STYLE_CACHE_HPP
+-
+-#include &quot;utils.hpp&quot;
+-#include &quot;style.hpp&quot;
+-#include &lt;map&gt;
+-#include &quot;feature_type_style.hpp&quot;
+-
+-namespace mapnik {
+-      
+-    class named_style_cache : public singleton &lt;named_style_cache,CreateStatic&gt;
+-    {
+-	friend class CreateStatic&lt;named_style_cache&gt;;
+-    private:
+-	static std::map&lt;std::string,feature_type_style&gt; styles_;  
+-	named_style_cache();
+-	~named_style_cache();
+-	named_style_cache(const named_style_cache&amp;);
+-	named_style_cache&amp; operator=(const named_style_cache&amp;);
+-    public:
+-	static bool insert(const std::string&amp; name,const feature_type_style&amp; style);
+-	static void remove(const std::string&amp; name);
+-	static feature_type_style find(const std::string&amp; name);
+-    }; 
+-}
+-
+-
+-#endif //STYLE_CACHE_HPP
+
+Modified: trunk/include/style_factory.hpp
+===================================================================
+--- trunk/include/style_factory.hpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/include/style_factory.hpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -21,7 +21,7 @@
+ #ifndef STYLE_FACTORY_HPP
+ #define STYLE_FACTORY_HPP
+ 
+-#include &quot;style.hpp&quot;
++//#include &quot;style.hpp&quot;
+ 
+ namespace mapnik {
+     
+
+Modified: trunk/include/text.hpp
+===================================================================
+--- trunk/include/text.hpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/include/text.hpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -27,7 +27,6 @@
+ #include FT_FREETYPE_H
+ #include &lt;iostream&gt;
+ #include &lt;string&gt;
+-#include &quot;style.hpp&quot;
+ #include &quot;graphics.hpp&quot;
+ 
+ namespace mapnik
+
+Modified: trunk/python/SConscript
+===================================================================
+--- trunk/python/SConscript	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/python/SConscript	2006-01-23 13:24:41 UTC (rev 122)
+@@ -45,9 +45,9 @@
+ 
+ env.Install(prefix + '/lib',lib_boost_python)
+ 
+-agg_root = env['AGG_ROOT']
+-agg_headers = agg_root +'/include'
+-freetype2_root = env['FREETYPE2_ROOT']
++#agg_root = env['AGG_ROOT']
++#agg_headers = agg_root +'/include'
++#freetype2_root = env['FREETYPE2_ROOT']
+ 
+ 
+ def createPythonExtBuilder(env):
+@@ -91,7 +91,7 @@
+     &quot;&quot;&quot;
+     )
+ 
+-headers =[ '#include',boost_root,freetype2_root,agg_headers,python_headers]
++headers =[ '#include',boost_root,python_headers]
+ 
+ libraries=['mapnik','boost-python']
+ libpaths = [prefix+&quot;/lib&quot;]
+
+Modified: trunk/python/mapnik_python.cpp
+===================================================================
+--- trunk/python/mapnik_python.cpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/python/mapnik_python.cpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -23,7 +23,6 @@
+ #include &lt;boost/python/detail/api_placeholder.hpp&gt;
+ 
+ #include &quot;mapnik.hpp&quot;
+-#include &quot;image_symbolizer.hpp&quot;
+ 
+ using namespace mapnik;
+ 
+@@ -68,6 +67,11 @@
+     return boost::shared_ptr&lt;symbolizer&gt;(new line_symbolizer(strk));
+ } 
+ 
++boost::shared_ptr&lt;symbolizer&gt; create_line_symbolizer3(std::string const&amp; file,unsigned w,unsigned h)
++{
++    return boost::shared_ptr&lt;symbolizer&gt;(new line_pattern_symbolizer(file,&quot;png&quot;,w,h));
++} 
++
+ boost::shared_ptr&lt;symbolizer&gt; create_polygon_symbolizer(const Color&amp; fill) 
+ {   
+     return boost::shared_ptr&lt;symbolizer&gt;(new polygon_symbolizer(fill));
+@@ -75,7 +79,7 @@
+ 
+ boost::shared_ptr&lt;symbolizer&gt; create_polygon_symbolizer2(std::string const&amp; file,unsigned w,unsigned h) 
+ {   
+-    return boost::shared_ptr&lt;symbolizer&gt;(new pattern_symbolizer(file,&quot;png&quot;,w,h));
++    return boost::shared_ptr&lt;symbolizer&gt;(new polygon_pattern_symbolizer(file,&quot;png&quot;,w,h));
+ } 
+ 
+ BOOST_PYTHON_MODULE(_mapnik)
+@@ -117,6 +121,7 @@
+     def(&quot;point_symbolizer&quot;,&amp;create_point_symbolizer);
+     def(&quot;line_symbolizer&quot;,&amp;create_line_symbolizer);
+     def(&quot;line_symbolizer&quot;,&amp;create_line_symbolizer2);
++    def(&quot;line_symbolizer&quot;,&amp;create_line_symbolizer3);
+     def(&quot;polygon_symbolizer&quot;,&amp;create_polygon_symbolizer);
+     def(&quot;polygon_symbolizer&quot;,&amp;create_polygon_symbolizer2);
+     register_ptr_to_python&lt;boost::shared_ptr&lt;symbolizer&gt; &gt;();
+
+Modified: trunk/src/SConscript
+===================================================================
+--- trunk/src/SConscript	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/src/SConscript	2006-01-23 13:24:41 UTC (rev 122)
+@@ -49,11 +49,16 @@
+     plugin.cpp
+     png_reader.cpp
+     render.cpp
+-    style_cache.cpp
+-    style.cpp
++    named_style_cache.cpp
+     text.cpp
+     tiff_reader.cpp
+-    wkb.cpp&quot;&quot;&quot;
++    wkb.cpp
++    line_symbolizer.cpp
++    line_pattern_symbolizer.cpp
++    polygon_symbolizer.cpp
++    polygon_pattern_symbolizer.cpp
++    image_symbolizer.cpp
++    &quot;&quot;&quot;
+     )
+ 
+ lib_mapnik = env.SharedLibrary('libmapnik',source,CPPPATH=headers,LIBS=libraries,LIBPATH=libpaths,LINKFLAGS=linkflags)
+
+Added: trunk/src/image_symbolizer.cpp
+===================================================================
+--- trunk/src/image_symbolizer.cpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/src/image_symbolizer.cpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -0,0 +1,59 @@
++/* This file is part of Mapnik (c++ mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++#include &quot;image_symbolizer.hpp&quot;
++#include &quot;image_data.hpp&quot;
++#include &quot;image_reader.hpp&quot;
++
++namespace mapnik
++{
++    image_symbolizer::image_symbolizer(std::string const&amp; file,
++			 std::string const&amp; type,
++			 unsigned width,unsigned height) 
++	    : symbolizer(),
++	      symbol_(width,height)
++	{
++	    try 
++	    {
++		std::auto_ptr&lt;ImageReader&gt; reader(get_image_reader(type,file));
++		reader-&gt;read(0,0,symbol_);		
++	    } 
++	    catch (...) 
++	    {
++		std::cerr&lt;&lt;&quot;exception caught...&quot; &lt;&lt; std::endl;
++	    }
++	}
++  
++    void image_symbolizer::render(geometry_type&amp; geom,Image32&amp; image) const 
++    {
++	int w=symbol_.width();
++	int h=symbol_.height();
++	double x,y;
++	unsigned size = geom.num_points();
++	for (unsigned pos = 0; pos &lt; size ;++pos)
++	{
++	    geom.vertex(&amp;x,&amp;y);
++	    int px=int(x - 0.5 * w);
++	    int py=int(y - 0.5 * h);
++	    image.set_rectangle_alpha(px,py,symbol_);
++	}
++    }
++}
++
+
+Added: trunk/src/line_pattern_symbolizer.cpp
+===================================================================
+--- trunk/src/line_pattern_symbolizer.cpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/src/line_pattern_symbolizer.cpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -0,0 +1,101 @@
++/* This file is part of Mapnik (c++ mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++#include &quot;line_pattern_symbolizer.hpp&quot;
++#include &quot;image_reader.hpp&quot;
++#include &quot;agg_basics.h&quot;
++#include &quot;agg_rendering_buffer.h&quot;
++#include &quot;agg_rasterizer_scanline_aa.h&quot;
++#include &quot;agg_rasterizer_outline_aa.h&quot;
++#include &quot;agg_scanline_p.h&quot;
++#include &quot;agg_scanline_u.h&quot;
++#include &quot;agg_renderer_scanline.h&quot;
++#include &quot;agg_pixfmt_rgba.h&quot;
++#include &quot;agg_path_storage.h&quot;
++#include &quot;agg_span_allocator.h&quot;
++#include &quot;agg_span_pattern_rgba.h&quot;
++#include &quot;agg_image_accessors.h&quot;
++#include &quot;agg_pattern_filters_rgba.h&quot;
++#include &quot;agg_renderer_outline_image.h&quot;
++
++namespace mapnik
++{
++    class pattern_source : private boost::noncopyable
++    {
++    public:
++	pattern_source(ImageData32 const&amp; pattern)
++	    : pattern_(pattern) {}
++	
++	unsigned int width() const
++	{
++	    return pattern_.width();
++	}
++	unsigned int height() const
++	{
++	    return pattern_.height();
++	}
++	agg::rgba8 pixel(int x, int y) const
++	{
++	    unsigned c = pattern_(x,y);
++	    return agg::rgba8(c &amp; 0xff, (c &gt;&gt; 8) &amp; 0xff, (c &gt;&gt; 16) &amp; 0xff,(c &gt;&gt; 24) &amp; 0xff);
++	}
++    private:
++	ImageData32 const&amp; pattern_;
++    };
++
++    line_pattern_symbolizer::line_pattern_symbolizer(std::string const&amp; file,
++			    std::string const&amp; type,
++			    unsigned width,unsigned height) 
++	: symbolizer(),
++	  pattern_(width,height)
++    {
++	try 
++	{
++	    std::auto_ptr&lt;ImageReader&gt; reader(get_image_reader(type,file));
++	    reader-&gt;read(0,0,pattern_);		
++	} 
++	catch (...) 
++	{
++	    std::cerr&lt;&lt;&quot;exception caught...&quot;&lt;&lt;std::endl;
++	}
++    }
++    
++    void line_pattern_symbolizer::render(geometry_type&amp; geom,Image32&amp; image) const
++    { 
++	
++	typedef agg::line_image_pattern&lt;agg::pattern_filter_bilinear_rgba8&gt; pattern_type;
++	typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; renderer_base;
++	typedef agg::renderer_outline_image&lt;renderer_base, pattern_type&gt; renderer_type;
++	typedef agg::rasterizer_outline_aa&lt;renderer_type&gt; rasterizer_type;
++	
++	unsigned int width=image.width();
++	unsigned int height=image.height();
++	agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(), width, height,width*4);
++	agg::pixfmt_rgba32 pixf(buf);
++	renderer_base ren_base(pixf);  
++	agg::pattern_filter_bilinear_rgba8 filter; 
++	pattern_source source(pattern_);
++	pattern_type pattern (filter,source);
++	renderer_type ren(ren_base, pattern);
++	ren.clip_box(0,0,width,height);
++	rasterizer_type ras(ren);	    
++	ras.add_path(geom);    
++    }
++}
+
+Added: trunk/src/line_symbolizer.cpp
+===================================================================
+--- trunk/src/line_symbolizer.cpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/src/line_symbolizer.cpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -0,0 +1,161 @@
++/* This file is part of Mapnik (c++ mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++#include &quot;line_symbolizer.hpp&quot;
++
++#include &quot;agg_basics.h&quot;
++#include &quot;agg_rendering_buffer.h&quot;
++#include &quot;agg_rasterizer_scanline_aa.h&quot;
++#include &quot;agg_conv_stroke.h&quot;
++#include &quot;agg_conv_dash.h&quot;
++#include &quot;agg_conv_contour.h&quot;
++#include &quot;agg_vcgen_stroke.h&quot;
++#include &quot;agg_conv_adaptor_vcgen.h&quot;
++#include &quot;agg_conv_smooth_poly1.h&quot;
++#include &quot;agg_conv_marker.h&quot;
++#include &quot;agg_arrowhead.h&quot;
++#include &quot;agg_vcgen_markers_term.h&quot;
++#include &quot;agg_scanline_p.h&quot;
++#include &quot;agg_scanline_u.h&quot;
++#include &quot;agg_renderer_scanline.h&quot;
++#include &quot;agg_pixfmt_rgba.h&quot;
++#include &quot;agg_path_storage.h&quot;
++#include &quot;agg_renderer_outline_aa.h&quot;
++#include &quot;agg_rasterizer_outline_aa.h&quot;
++#include &quot;agg_rasterizer_outline.h&quot;
++#include &quot;agg_renderer_outline_image.h&quot;
++
++namespace mapnik
++{
++    line_symbolizer::line_symbolizer(stroke const&amp; stroke)
++	: symbolizer(),
++	  stroke_(stroke) {}
++    
++    line_symbolizer::line_symbolizer(const Color&amp; pen,float width)
++	    : symbolizer(),
++	      stroke_(pen,width) {}
++	
++    void line_symbolizer::render(geometry_type&amp; geom, Image32&amp; image) const 
++    {
++	typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base;    
++	agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(),image.width(),image.height(),
++					   image.width()*4);
++	agg::pixfmt_rgba32 pixf(buf);
++	ren_base renb(pixf);	    
++	
++	Color const&amp; col = stroke_.get_color();
++	unsigned r=col.red();
++	unsigned g=col.green();
++	unsigned b=col.blue();	    
++	
++	if (0)//stroke_.get_width() &lt;= 1.0)
++	{
++	    typedef agg::renderer_outline_aa&lt;ren_base&gt; renderer_oaa;
++	    typedef agg::rasterizer_outline_aa&lt;renderer_oaa&gt; rasterizer_outline_aa;
++	    agg::line_profile_aa prof;
++	    prof.width(stroke_.get_width());
++	    renderer_oaa ren_oaa(renb, prof);
++	    rasterizer_outline_aa ras_oaa(ren_oaa);
++	    
++	    ren_oaa.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
++	    ren_oaa.clip_box(0,0,image.width(),image.height());
++	    ras_oaa.add_path(geom);		
++	    
++	}
++	else 
++	{
++	    typedef agg::renderer_scanline_aa_solid&lt;ren_base&gt; renderer;
++	    renderer ren(renb);	
++	    agg::rasterizer_scanline_aa&lt;&gt; ras;
++	    agg::scanline_u8 sl;
++	    
++	    if (stroke_.has_dash())
++	    {
++		
++		agg::conv_dash&lt;geometry&lt;vertex2d&gt; &gt; dash(geom);
++		dash_array const&amp; d = stroke_.get_dash_array();
++		dash_array::const_iterator itr = d.begin();
++		dash_array::const_iterator end = d.end();
++		while (itr != end)
++		{
++		    dash.add_dash(itr-&gt;first, itr-&gt;second);
++		    ++itr;
++		}
++		agg::conv_stroke&lt;agg::conv_dash&lt;geometry&lt;vertex2d&gt; &gt; &gt; stroke(dash);
++		
++		line_join_e join=stroke_.get_line_join();
++		if ( join == MITER_JOIN)
++		    stroke.generator().line_join(agg::miter_join);
++		else if( join == MITER_REVERT_JOIN) 
++		    stroke.generator().line_join(agg::miter_join);
++		else if( join == ROUND_JOIN) 
++		    stroke.generator().line_join(agg::round_join);
++		else
++		    stroke.generator().line_join(agg::bevel_join);
++		    
++		line_cap_e cap=stroke_.get_line_cap();
++		if (cap == BUTT_CAP)    
++		    stroke.generator().line_cap(agg::butt_cap);
++		else if (cap == SQUARE_CAP)
++		    stroke.generator().line_cap(agg::square_cap);
++		else 
++		    stroke.generator().line_cap(agg::round_cap);
++
++		stroke.generator().miter_limit(4.0);
++		stroke.generator().width(stroke_.get_width());
++		
++		ras.clip_box(0,0,image.width(),image.height());
++		ras.add_path(stroke);
++		ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
++		agg::render_scanlines(ras, sl, ren);
++	    }
++	    else 
++	    {
++		agg::conv_stroke&lt;geometry&lt;vertex2d&gt; &gt;  stroke(geom);
++		
++		line_join_e join=stroke_.get_line_join();
++		if ( join == MITER_JOIN)
++		    stroke.generator().line_join(agg::miter_join);
++		else if( join == MITER_REVERT_JOIN) 
++		    stroke.generator().line_join(agg::miter_join);
++		else if( join == ROUND_JOIN) 
++		    stroke.generator().line_join(agg::round_join);
++		else
++		    stroke.generator().line_join(agg::bevel_join);
++		    
++		line_cap_e cap=stroke_.get_line_cap();
++		if (cap == BUTT_CAP)    
++		    stroke.generator().line_cap(agg::butt_cap);
++		else if (cap == SQUARE_CAP)
++		    stroke.generator().line_cap(agg::square_cap);
++		else 
++		    stroke.generator().line_cap(agg::round_cap);
++
++		stroke.generator().miter_limit(4.0);
++		stroke.generator().width(stroke_.get_width());
++		    
++		ras.clip_box(0,0,image.width(),image.height());
++		ras.add_path(stroke);
++		ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
++		agg::render_scanlines(ras, sl, ren);
++	    }
++	}
++    }
++}
+
+Modified: trunk/src/mapnik.cpp
+===================================================================
+--- trunk/src/mapnik.cpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/src/mapnik.cpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -59,3 +59,5 @@
+ 	ia &gt;&gt; m;
+     }
+ }
++
++
+
+Copied: trunk/src/named_style_cache.cpp (from rev 110, trunk/src/style_cache.cpp)
+===================================================================
+--- trunk/src/style_cache.cpp	2005-12-23 12:31:54 UTC (rev 110)
++++ trunk/src/named_style_cache.cpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -0,0 +1,53 @@
++/* This file is part of Mapnik (c++ mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id: style_cache.cpp 37 2005-04-07 17:09:38Z pavlenko $
++
++#include &quot;named_style_cache.hpp&quot;
++#include &lt;boost/thread/mutex.hpp&gt;
++
++namespace mapnik 
++{
++    named_style_cache::named_style_cache() {}
++    named_style_cache::~named_style_cache() {}
++    
++    std::map&lt;std::string,feature_type_style&gt; named_style_cache::styles_;
++
++    bool named_style_cache::insert(const std::string&amp; name,const feature_type_style&amp; style) 
++    {
++	mutex::scoped_lock lock(mutex_);
++	return styles_.insert(make_pair(name,style)).second;
++    }
++    
++    void named_style_cache::remove(const std::string&amp; name) 
++    {
++	mutex::scoped_lock lock(mutex_);
++	styles_.erase(name);
++    }
++    
++    feature_type_style named_style_cache::find(const std::string&amp; name)
++    {
++	mutex::scoped_lock lock(mutex_);
++	std::map&lt;std::string,feature_type_style&gt;::iterator itr=styles_.find(name);
++	if (itr!=styles_.end()) 
++	{
++	    return itr-&gt;second;
++	}
++	return feature_type_style();
++    }
++}
+
+Added: trunk/src/polygon_pattern_symbolizer.cpp
+===================================================================
+--- trunk/src/polygon_pattern_symbolizer.cpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/src/polygon_pattern_symbolizer.cpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -0,0 +1,97 @@
++/* This file is part of Mapnik (c++ mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++#include &quot;polygon_pattern_symbolizer.hpp&quot;
++
++#include &quot;image_reader.hpp&quot;
++#include &quot;agg_basics.h&quot;
++#include &quot;agg_rendering_buffer.h&quot;
++#include &quot;agg_rasterizer_scanline_aa.h&quot;
++#include &quot;agg_scanline_p.h&quot;
++#include &quot;agg_scanline_u.h&quot;
++#include &quot;agg_renderer_scanline.h&quot;
++#include &quot;agg_pixfmt_rgba.h&quot;
++#include &quot;agg_path_storage.h&quot;
++#include &quot;agg_span_allocator.h&quot;
++#include &quot;agg_span_pattern_rgba.h&quot;
++#include &quot;agg_image_accessors.h&quot;
++
++namespace mapnik
++{
++    polygon_pattern_symbolizer::polygon_pattern_symbolizer(std::string const&amp; file,
++							   std::string const&amp; type,
++							   unsigned width,unsigned height) 
++	: symbolizer(),
++	  pattern_(width,height)
++    {
++	try 
++	{
++	    std::auto_ptr&lt;ImageReader&gt; reader(get_image_reader(type,file));
++	    reader-&gt;read(0,0,pattern_);		
++	} 
++	catch (...) 
++	{
++	    std::cerr&lt;&lt;&quot;exception caught...&quot;&lt;&lt;std::endl;
++	}
++    }
++    
++    void polygon_pattern_symbolizer::render(geometry_type&amp; geom,Image32&amp; image) const
++    {
++	typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base; 
++	agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(),image.width(),image.height(),
++					   image.width()*4);
++	agg::pixfmt_rgba32 pixf(buf);
++	ren_base renb(pixf);
++	
++	unsigned w=pattern_.width();
++	unsigned h=pattern_.height();
++	agg::row_ptr_cache&lt;agg::int8u&gt; pattern_rbuf((agg::int8u*)pattern_.getBytes(),w,h,w*4);  
++	
++	typedef agg::wrap_mode_repeat wrap_x_type;
++	typedef agg::wrap_mode_repeat wrap_y_type;
++	typedef agg::image_accessor_wrap&lt;agg::pixfmt_rgba32, 
++	    wrap_x_type,
++	    wrap_y_type&gt; img_source_type;
++	
++	typedef agg::span_pattern_rgba&lt;img_source_type&gt; span_gen_type;
++	
++	typedef agg::renderer_scanline_aa&lt;ren_base, 
++	    agg::span_allocator&lt;agg::rgba8&gt;,
++	    span_gen_type&gt; renderer_type;  
++	
++	double x0,y0;
++	geom.vertex(&amp;x0,&amp;y0);
++	geom.rewind(0);
++	
++	unsigned offset_x = unsigned(image.width() - x0);
++	unsigned offset_y = unsigned(image.height() - y0);
++	
++	agg::span_allocator&lt;agg::rgba8&gt; sa;
++	img_source_type img_src(pattern_rbuf);
++	span_gen_type sg(img_src, offset_x, offset_y);
++	renderer_type rp(renb,sa, sg);
++	
++	agg::rasterizer_scanline_aa&lt;&gt; ras;
++	agg::scanline_u8 sl;
++	ras.clip_box(0,0,image.width(),image.height());
++	ras.add_path(geom);
++	agg::render_scanlines(ras, sl, rp);   
++    }
++}
+
+Added: trunk/src/polygon_symbolizer.cpp
+===================================================================
+--- trunk/src/polygon_symbolizer.cpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/src/polygon_symbolizer.cpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -0,0 +1,63 @@
++/* This file is part of Mapnik (c++ mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++#include &quot;polygon_symbolizer.hpp&quot;
++
++#include &quot;agg_basics.h&quot;
++#include &quot;agg_rendering_buffer.h&quot;
++#include &quot;agg_rasterizer_scanline_aa.h&quot;
++#include &quot;agg_scanline_p.h&quot;
++#include &quot;agg_scanline_u.h&quot;
++#include &quot;agg_renderer_scanline.h&quot;
++#include &quot;agg_pixfmt_rgba.h&quot;
++#include &quot;agg_path_storage.h&quot;
++#include &quot;agg_span_allocator.h&quot;
++#include &quot;agg_span_pattern_rgba.h&quot;
++#include &quot;agg_image_accessors.h&quot;
++
++namespace mapnik
++{
++    polygon_symbolizer::polygon_symbolizer(const Color&amp; fill)
++	: symbolizer(),
++	  fill_(fill) {}
++    
++    void polygon_symbolizer::render(geometry_type&amp; geom,Image32&amp; image) const 
++    {
++	typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base;    
++	typedef agg::renderer_scanline_aa_solid&lt;ren_base&gt; renderer;
++	agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(),image.width(),image.height(),
++					   image.width()*4);
++	agg::pixfmt_rgba32 pixf(buf);
++	ren_base renb(pixf);	    
++	
++	unsigned r=fill_.red();
++	unsigned g=fill_.green();
++	unsigned b=fill_.blue();
++	unsigned a=fill_.alpha();
++	renderer ren(renb);
++	
++	agg::rasterizer_scanline_aa&lt;&gt; ras;
++	agg::scanline_u8 sl;
++	ras.clip_box(0,0,image.width(),image.height());
++	ras.add_path(geom);
++	ren.color(agg::rgba8(r, g, b, a));
++	agg::render_scanlines(ras, sl, ren);
++    }
++}
+
+Modified: trunk/src/render.cpp
+===================================================================
+--- trunk/src/render.cpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/src/render.cpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -21,7 +21,7 @@
+ #include &quot;render.hpp&quot;
+ #include &quot;image_util.hpp&quot;
+ #include &quot;utils.hpp&quot;
+-#include &quot;style_cache.hpp&quot;
++#include &quot;named_style_cache.hpp&quot;
+ #include &quot;symbolizer.hpp&quot;
+ #include &quot;query.hpp&quot;
+ #include &quot;feature_layer_desc.hpp&quot;
+
+Deleted: trunk/src/style.cpp
+===================================================================
+--- trunk/src/style.cpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/src/style.cpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -1,26 +0,0 @@
+-/* This file is part of Mapnik (c++ mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
+- *
+- * Mapnik is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version 2
+- * of the License, or any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+- */
+-
+-//$Id: style.cpp 17 2005-03-08 23:58:43Z pavlenko $
+-
+-#include &quot;style.hpp&quot;
+-
+-namespace mapnik 
+-{
+-    boost::shared_ptr&lt;symbolizer&gt; Style::zero_symbol_ = boost::shared_ptr&lt;symbolizer&gt;();
+-}
+
+Deleted: trunk/src/style_cache.cpp
+===================================================================
+--- trunk/src/style_cache.cpp	2006-01-23 10:33:32 UTC (rev 121)
++++ trunk/src/style_cache.cpp	2006-01-23 13:24:41 UTC (rev 122)
+@@ -1,54 +0,0 @@
+-/* This file is part of Mapnik (c++ mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
+- *
+- * Mapnik is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version 2
+- * of the License, or any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+- */
+-
+-//$Id: style_cache.cpp 37 2005-04-07 17:09:38Z pavlenko $
+-
+-#include &quot;style_cache.hpp&quot;
+-#include &quot;line_symbolizer.hpp&quot;
+-#include &lt;boost/thread/mutex.hpp&gt;
+-
+-namespace mapnik 
+-{
+-    named_style_cache::named_style_cache() {}
+-    named_style_cache::~named_style_cache() {}
+-    
+-    std::map&lt;std::string,feature_type_style&gt; named_style_cache::styles_;
+-
+-    bool named_style_cache::insert(const std::string&amp; name,const feature_type_style&amp; style) 
+-    {
+-	mutex::scoped_lock lock(mutex_);
+-	return styles_.insert(make_pair(name,style)).second;
+-    }
+-    
+-    void named_style_cache::remove(const std::string&amp; name) 
+-    {
+-	mutex::scoped_lock lock(mutex_);
+-	styles_.erase(name);
+-    }
+-    
+-    feature_type_style named_style_cache::find(const std::string&amp; name)
+-    {
+-	mutex::scoped_lock lock(mutex_);
+-	std::map&lt;std::string,feature_type_style&gt;::iterator itr=styles_.find(name);
+-	if (itr!=styles_.end()) 
+-	{
+-	    return itr-&gt;second;
+-	}
+-	return feature_type_style();
+-    }
+-}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000008.html">[Mapnik-svn] r121 - in trunk: include src
+</A></li>
+	<LI>Next message: <A HREF="000010.html">[Mapnik-svn] r123 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#9">[ date ]</a>
+              <a href="thread.html#9">[ thread ]</a>
+              <a href="subject.html#9">[ subject ]</a>
+              <a href="author.html#9">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

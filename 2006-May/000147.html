@@ -1,0 +1,300 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r262 - in trunk: bindings/python bindings/python/mapnik/ogcserver docs/ogcserver include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-May/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r262%20-%20in%20trunk%3A%20bindings/python%20bindings/python/mapnik/ogcserver%20docs/ogcserver%20include%20src&In-Reply-To=%3C200605221700.k4MH0e75032038%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000146.html">
+   <LINK REL="Next"  HREF="000148.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r262 - in trunk: bindings/python bindings/python/mapnik/ogcserver docs/ogcserver include src</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r262%20-%20in%20trunk%3A%20bindings/python%20bindings/python/mapnik/ogcserver%20docs/ogcserver%20include%20src&In-Reply-To=%3C200605221700.k4MH0e75032038%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r262 - in trunk: bindings/python bindings/python/mapnik/ogcserver docs/ogcserver include src">jdoyon at berlios.de
+       </A><BR>
+    <I>Mon May 22 19:00:40 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000146.html">[Mapnik-svn] r261 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+        <LI>Next message: <A HREF="000148.html">[Mapnik-svn] r263 - trunk/docs/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#147">[ date ]</a>
+              <a href="thread.html#147">[ thread ]</a>
+              <a href="subject.html#147">[ subject ]</a>
+              <a href="author.html#147">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-05-22 19:00:35 +0200 (Mon, 22 May 2006)
+New Revision: 262
+
+Modified:
+   trunk/bindings/python/mapnik/ogcserver/cgiserver.py
+   trunk/bindings/python/mapnik/ogcserver/wms111.py
+   trunk/bindings/python/mapnik/ogcserver/wms130.py
+   trunk/bindings/python/mapnik_layer.cpp
+   trunk/docs/ogcserver/readme.txt
+   trunk/include/layer.hpp
+   trunk/src/layer.cpp
+Log:
+- Fix a bug with missing version.
+- Add support for layer title and asbtract to c++ and python
+- Make WMS server use above changes, edit docs
+
+Modified: trunk/bindings/python/mapnik/ogcserver/cgiserver.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/cgiserver.py	2006-05-22 14:45:52 UTC (rev 261)
++++ trunk/bindings/python/mapnik/ogcserver/cgiserver.py	2006-05-22 17:00:35 UTC (rev 262)
+@@ -73,7 +73,8 @@
+             raise OGCException('Unsupported service &quot;%s&quot;.' % service)
+         ServiceHandlerFactory = getattr(mapnikmodule.ogcserver, service).ServiceHandlerFactory
+         servicehandler = ServiceHandlerFactory(self.conf, self.mapfactory, onlineresource, reqparams.get('version', None))
+-        del reqparams['version']
++        if reqparams.has_key('version'):
++            del reqparams['version']
+         if request not in servicehandler.SERVICE_PARAMS.keys():
+             raise OGCException('Operation &quot;%s&quot; not supported.' % request, 'OperationNotSupported')
+         ogcparams = servicehandler.processParameters(request, reqparams)
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms111.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms111.py	2006-05-22 14:45:52 UTC (rev 261)
++++ trunk/bindings/python/mapnik/ogcserver/wms111.py	2006-05-22 17:00:35 UTC (rev 262)
+@@ -144,8 +144,6 @@
+         for layer in self.mapfactory.layers.values():
+             layername = ElementTree.Element('Name')
+             layername.text = layer.name()
+-            layertitle = ElementTree.Element('Title')
+-            layertitle.text = layer.name()
+             env = layer.envelope()
+             llp = self.crs.Inverse(env.minx, env.miny)
+             urp = self.crs.Inverse(env.maxx, env.maxy)
+@@ -162,7 +160,14 @@
+             layerbbox.set('maxy', str(env.maxy))
+             layere = ElementTree.Element('Layer')
+             layere.append(layername)
+-            layere.append(layertitle)
++            if layer.title():
++                layertitle = ElementTree.Element('Title')
++                layertitle.text = layer.title()
++                layere.append(layertitle)
++            if layer.abstract():
++                layerabstract = ElementTree.Element('Abstract')
++                layerabstract.text = layer.abstract()
++                layere.append(layerabstract)
+             layere.append(latlonbb)
+             layere.append(layerbbox)
+             if len(layer.wmsextrastyles) &gt; 0:
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms130.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms130.py	2006-05-22 14:45:52 UTC (rev 261)
++++ trunk/bindings/python/mapnik/ogcserver/wms130.py	2006-05-22 17:00:35 UTC (rev 262)
+@@ -150,8 +150,6 @@
+         for layer in self.mapfactory.layers.values():
+             layername = ElementTree.Element('Name')
+             layername.text = layer.name()
+-            layertitle = ElementTree.Element('Title')
+-            layertitle.text = layer.name()
+             env = layer.envelope()
+             layerexgbb = ElementTree.Element('EX_GeographicBoundingBox')
+             ll = self.crs.Inverse(env.minx, env.miny)
+@@ -176,7 +174,14 @@
+             layerbbox.set('maxy', str(env.maxy))
+             layere = ElementTree.Element('Layer')
+             layere.append(layername)
+-            layere.append(layertitle)
++            if layer.title():
++                layertitle = ElementTree.Element('Title')
++                layertitle.text = layer.title()
++                layere.append(layertitle)
++            if layer.abstract():
++                layerabstract = ElementTree.Element('Abstract')
++                layerabstract.text = layer.abstract()
++                layere.append(layerabstract)
+             layere.append(layerexgbb)
+             layere.append(layerbbox)
+             if len(layer.wmsextrastyles) &gt; 0:
+
+Modified: trunk/bindings/python/mapnik_layer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_layer.cpp	2006-05-22 14:45:52 UTC (rev 261)
++++ trunk/bindings/python/mapnik_layer.cpp	2006-05-22 17:00:35 UTC (rev 262)
+@@ -109,6 +109,8 @@
+     
+     class_&lt;Layer&gt;(&quot;Layer&quot;,&quot;A map layer.&quot;,no_init)
+         .def(&quot;name&quot;,&amp;Layer::name,return_value_policy&lt;copy_const_reference&gt;(), &quot;Return the name of the layer.&quot;)
++        .def(&quot;title&quot;,&amp;Layer::title,return_value_policy&lt;copy_const_reference&gt;(), &quot;Return the title of the layer.&quot;)
++        .def(&quot;abstract&quot;,&amp;Layer::abstract,return_value_policy&lt;copy_const_reference&gt;(), &quot;Return the abstract of the layer.&quot;)
+         .def(&quot;params&quot;,&amp;Layer::params,return_value_policy&lt;reference_existing_object&gt;(), &quot;The configuration parameters of the layer.  These vary depending on the type of data source.&quot;)
+         .def(&quot;envelope&quot;,&amp;Layer::envelope, &quot;Return the geographic envelope/bounding box of the data in the layer.&quot;)
+ 	.add_property(&quot;minzoom&quot;,&amp;Layer::getMinZoom,&amp;Layer::setMinZoom)
+
+Modified: trunk/docs/ogcserver/readme.txt
+===================================================================
+--- trunk/docs/ogcserver/readme.txt	2006-05-22 14:45:52 UTC (rev 261)
++++ trunk/docs/ogcserver/readme.txt	2006-05-22 17:00:35 UTC (rev 262)
+@@ -100,7 +100,7 @@
+ 		...
+ 		self.register_style('stylename', sty)
+ 		
+-		lyr = Layer(name='layername')
++		lyr = Layer(name='layername', title='Highways', description='Highways')
+ 		...
+ 		lyr.styles.append('stylename')
+ 		self.register_layer(lyr)
+@@ -114,6 +114,8 @@
+ - Layers MUST be named with the 'name' parameter to the constructor.
+ - style and layer names are meant for machine readability, not human.  Keep
+   them short and simple, without spaces or special characters.
++- For human readable info, pass title='' and abstract='' parameters to the
++  Layer() call.
+ - The layers must have at least one style associated with them (a default).
+ - No Map() object is used or needed here.
+ - Be sure to call self.finalize() once you've registered everything! This will
+@@ -127,7 +129,6 @@
+ 
+ - Named style support.
+ - Improve configuration to allow for full server metadata.
+-- Add support for richer layer metadata.
+ - Investigate moving to cElementTree from lxml.
+ - Add some internal &quot;caching&quot; for performance improvements.
+ - Support GetFeatureInfo (Requires core changes).
+
+Modified: trunk/include/layer.hpp
+===================================================================
+--- trunk/include/layer.hpp	2006-05-22 14:45:52 UTC (rev 261)
++++ trunk/include/layer.hpp	2006-05-22 17:00:35 UTC (rev 262)
+@@ -39,6 +39,8 @@
+         void serialize(Archive &amp; ar, const unsigned int /*version*/)
+         {
+             ar  &amp; boost::serialization::make_nvp(&quot;name&quot;,name_)
++            	&amp; boost::serialization::make_nvp(&quot;title&quot;,title_)
++            	&amp; boost::serialization::make_nvp(&quot;abstract&quot;,abstract_)
+                 &amp; boost::serialization::make_nvp(&quot;params&quot;,params_)
+                 &amp; boost::serialization::make_nvp(&quot;min_zoom&quot;,minZoom_)
+                 &amp; boost::serialization::make_nvp(&quot;max_zoom&quot;,maxZoom_)
+@@ -49,6 +51,8 @@
+         }
+         parameters params_;
+         std::string name_;
++        std::string title_;
++        std::string abstract_;
+         double minZoom_;
+         double maxZoom_;
+         bool active_;
+@@ -69,6 +73,10 @@
+         parameters const&amp; params() const;
+         void set_name(std::string const&amp; name);
+         const std::string&amp; name() const;
++        void set_title(std::string const&amp; title);
++        const std::string&amp; title() const;
++        void set_abstract(std::string const&amp; abstract);
++        const std::string&amp; abstract() const;
+         void add_style(std::string const&amp; stylename);
+         std::vector&lt;std::string&gt; const&amp; styles() const;
+         void selection_style(const std::string&amp; name);
+
+Modified: trunk/src/layer.cpp
+===================================================================
+--- trunk/src/layer.cpp	2006-05-22 14:45:52 UTC (rev 261)
++++ trunk/src/layer.cpp	2006-05-22 17:00:35 UTC (rev 262)
+@@ -37,6 +37,8 @@
+     Layer::Layer()
+         : params_(),
+           name_(&quot;unknown&quot;),
++          title_(&quot;&quot;),
++          abstract_(&quot;&quot;),
+           minZoom_(0),
+           maxZoom_(std::numeric_limits&lt;double&gt;::max()),
+           active_(true),
+@@ -47,6 +49,8 @@
+     Layer::Layer(const parameters&amp; params)
+         :params_(params),
+          name_(params_[&quot;name&quot;]),
++         title_(params_[&quot;title&quot;]),
++         abstract_(params_[&quot;abstract&quot;]),
+          minZoom_(0),
+          maxZoom_(std::numeric_limits&lt;double&gt;::max()),
+          active_(true),
+@@ -57,6 +61,8 @@
+     Layer::Layer(const Layer&amp; rhs)
+         :params_(rhs.params_),
+          name_(rhs.name_),
++         title_(rhs.title_),
++         abstract_(rhs.abstract_),
+          minZoom_(rhs.minZoom_),
+          maxZoom_(rhs.maxZoom_),
+          active_(rhs.active_),
+@@ -81,6 +87,8 @@
+     {
+         params_=rhs.params_;
+         name_=rhs.name_;
++        title_=rhs.title_;
++        abstract_=rhs.abstract_;
+         minZoom_=rhs.minZoom_;
+         maxZoom_=rhs.maxZoom_;
+         active_=rhs.active_;
+@@ -107,6 +115,26 @@
+         return name_;
+     }
+ 
++    void Layer::set_title( std::string const&amp; title)
++    {
++        title_ = title;
++    }
++ 
++    string const&amp; Layer::title() const
++    {
++        return title_;
++    }
++
++    void Layer::set_abstract( std::string const&amp; abstract)
++    {
++        abstract_ = abstract;
++    }
++ 
++    string const&amp; Layer::abstract() const
++    {
++        return abstract_;
++    }
++
+     void Layer::add_style(std::string const&amp; stylename)
+     {
+         styles_.push_back(stylename);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000146.html">[Mapnik-svn] r261 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+	<LI>Next message: <A HREF="000148.html">[Mapnik-svn] r263 - trunk/docs/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#147">[ date ]</a>
+              <a href="thread.html#147">[ thread ]</a>
+              <a href="subject.html#147">[ subject ]</a>
+              <a href="author.html#147">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

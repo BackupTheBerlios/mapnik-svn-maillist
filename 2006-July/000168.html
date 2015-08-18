@@ -1,0 +1,412 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r283 - in trunk: bindings/python/mapnik/ogcserver	docs/ogcserver utils/ogcserver
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-July/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r283%20-%20in%20trunk%3A%20bindings/python/mapnik/ogcserver%0A%09docs/ogcserver%20utils/ogcserver&In-Reply-To=%3C200607221855.k6MIt2Hk030166%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="000169.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r283 - in trunk: bindings/python/mapnik/ogcserver	docs/ogcserver utils/ogcserver</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r283%20-%20in%20trunk%3A%20bindings/python/mapnik/ogcserver%0A%09docs/ogcserver%20utils/ogcserver&In-Reply-To=%3C200607221855.k6MIt2Hk030166%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r283 - in trunk: bindings/python/mapnik/ogcserver	docs/ogcserver utils/ogcserver">jdoyon at mail.berlios.de
+       </A><BR>
+    <I>Sat Jul 22 20:55:02 CEST 2006</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="000169.html">[Mapnik-svn] r284 - in trunk: bindings/python/mapnik/ogcserver	docs/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#168">[ date ]</a>
+              <a href="thread.html#168">[ thread ]</a>
+              <a href="subject.html#168">[ subject ]</a>
+              <a href="author.html#168">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-07-22 20:54:53 +0200 (Sat, 22 Jul 2006)
+New Revision: 283
+
+Added:
+   trunk/bindings/python/mapnik/ogcserver/configparser.py
+Modified:
+   trunk/bindings/python/mapnik/ogcserver/cgiserver.py
+   trunk/bindings/python/mapnik/ogcserver/common.py
+   trunk/bindings/python/mapnik/ogcserver/wms111.py
+   trunk/bindings/python/mapnik/ogcserver/wms130.py
+   trunk/docs/ogcserver/readme.txt
+   trunk/utils/ogcserver/ogcserver.conf
+Log:
+- Added support for complete service metadata
+- refactored some code for optimization
+- cusomtized the config parser
+
+Modified: trunk/bindings/python/mapnik/ogcserver/cgiserver.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/cgiserver.py	2006-06-27 19:47:20 UTC (rev 282)
++++ trunk/bindings/python/mapnik/ogcserver/cgiserver.py	2006-07-22 18:54:53 UTC (rev 283)
+@@ -28,7 +28,7 @@
+ from exceptions import OGCException, ServerConfigurationError
+ from wms111 import ExceptionHandler as ExceptionHandler111
+ from wms130 import ExceptionHandler as ExceptionHandler130
+-from ConfigParser import SafeConfigParser
++from configparser import SafeConfigParser
+ from common import Version
+ 
+ class Handler(cgi.DebugHandler):
+@@ -37,7 +37,7 @@
+         conf = SafeConfigParser()
+         conf.readfp(open(self.configpath))
+         self.conf = conf
+-        if not conf.has_option('server', 'module'):
++        if not conf.has_option_with_value('server', 'module'):
+             raise ServerConfigurationError('The factory module is not defined in the configuration file.')
+         try:
+             mapfactorymodule = __import__(conf.get('server', 'module'))
+
+Modified: trunk/bindings/python/mapnik/ogcserver/common.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/common.py	2006-06-27 19:47:20 UTC (rev 282)
++++ trunk/bindings/python/mapnik/ogcserver/common.py	2006-07-22 18:54:53 UTC (rev 283)
+@@ -79,6 +79,26 @@
+ 
+ class BaseServiceHandler:
+ 
++    CONF_CONTACT_PERSON_PRIMARY = [
++        ['contactperson', 'ContactPerson', str],
++        ['contactorganization', 'ContactOrganization', str]
++    ]
++    
++    CONF_CONTACT_ADDRESS = [   
++        ['addresstype', 'AddressType', str],
++        ['address', 'Address', str],
++        ['city', 'City', str],
++        ['stateorprovince', 'StateOrProvince', str],
++        ['postcode', 'PostCode', str],
++        ['country', 'Country', str]
++    ]
++    
++    CONF_CONTACT = [
++        ['contactposition', 'ContactPosition', str],
++        ['contactvoicetelephone', 'ContactVoiceTelephone', str],
++        ['contactelectronicmailaddress', 'ContactElectronicMailAddress', str]
++    ]
++
+     def processParameters(self, requestname, params):
+         finalparams = {}
+         for paramname, paramdef in self.SERVICE_PARAMS[requestname].items():
+@@ -101,6 +121,65 @@
+             elif not paramdef.mandatory and paramdef.default:
+                 finalparams[paramname] = paramdef.default
+         return finalparams
++    
++    def processServiceCapabilities(self, capetree):
++        if len(self.conf.items('service')) &gt; 0:
++            servicee = capetree.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Service')
++            for item in self.CONF_SERVICE:
++                if self.conf.has_option_with_value('service', item[0]):
++                    value = self.conf.get('service', item[0]).strip()
++                    try:
++                        item[2](value)
++                    except:
++                        raise ServerConfigurationError('Configuration parameter [%s]-&gt;%s has an invalid value: %s.' % ('service', item[0], value))
++                    if item[0] == 'onlineresource':
++                        element = ElementTree.Element('%s' % item[1])
++                        servicee.append(element)
++                        element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}href', value)
++                        element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}type', 'simple')
++                    elif item[0] == 'keywordlist':
++                        element = ElementTree.Element('%s' % item[1])
++                        servicee.append(element)
++                        keywords = value.split(',')
++                        keywords = map(str.strip, keywords)
++                        for keyword in keywords:
++                            kelement = ElementTree.Element('Keyword')
++                            kelement.text = keyword
++                            element.append(kelement)
++                    else:
++                        element = ElementTree.Element('%s' % item[1])
++                        element.text = value
++                        servicee.append(element)
++            if len(self.conf.items_with_value('contact')) &gt; 0:
++                element = ElementTree.Element('ContactInformation')
++                servicee.append(element)
++                for item in self.CONF_CONTACT:
++                    if self.conf.has_option_with_value('contact', item[0]):
++                        value = self.conf.get('contact', item[0]).strip()
++                        try:
++                            item[2](value)
++                        except:
++                            raise ServerConfigurationError('Configuration parameter [%s]-&gt;%s has an invalid value: %s.' % ('service', item[0], value))
++                        celement = ElementTree.Element('%s' % item[1])
++                        celement.text = value
++                        element.append(celement)
++                for item in self.CONF_CONTACT_PERSON_PRIMARY + self.CONF_CONTACT_ADDRESS:
++                    if item in self.CONF_CONTACT_PERSON_PRIMARY:
++                        tagname = 'ContactPersonPrimary'
++                    else:
++                        tagname = 'ContactAddress'
++                    if self.conf.has_option_with_value('contact', item[0]):
++                        if element.find(tagname) == None:
++                            subelement = ElementTree.Element(tagname)
++                            element.append(subelement)
++                        value = self.conf.get('contact', item[0]).strip()
++                        try:
++                            item[2](value)
++                        except:
++                            raise ServerConfigurationError('Configuration parameter [%s]-&gt;%s has an invalid value: %s.' % ('service', item[0], value))
++                        celement = ElementTree.Element('%s' % item[1])
++                        celement.text = value
++                        subelement.append(celement)
+ 
+ class Response:
+ 
+
+Added: trunk/bindings/python/mapnik/ogcserver/configparser.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/configparser.py	2006-06-27 19:47:20 UTC (rev 282)
++++ trunk/bindings/python/mapnik/ogcserver/configparser.py	2006-07-22 18:54:53 UTC (rev 283)
+@@ -0,0 +1,44 @@
++#
++# This file is part of Mapnik (c++ mapping toolkit)
++#
++# Copyright (C) 2006 Jean-Francois Doyon
++#
++# Mapnik is free software; you can redistribute it and/or
++# modify it under the terms of the GNU Lesser General Public
++# License as published by the Free Software Foundation; either
++# version 2.1 of the License, or (at your option) any later version.
++#
++# This library is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++# Lesser General Public License for more details.
++#
++# You should have received a copy of the GNU Lesser General Public
++# License along with this library; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++#
++# $Id$
++
++&quot;&quot;&quot; Change SafeConfigParser behavior to treat options without values as
++    non-existent.
++&quot;&quot;&quot;
++
++from ConfigParser import SafeConfigParser as OrigSafeConfigParser
++
++class SafeConfigParser(OrigSafeConfigParser):
++    
++    def items_with_value(self, section):
++        finallist = []
++        items = self.items(section)
++        for item in items:
++            if item[1] != '':
++                finallist.append(item)
++        return finallist
++    
++    def has_option_with_value(self, section, option):
++        if self.has_option(section, option):
++            if self.get(section, option) == '':
++                return False
++        else:
++            return False
++        return True
+\ No newline at end of file
+
+
+Property changes on: trunk/bindings/python/mapnik/ogcserver/configparser.py
+___________________________________________________________________
+Name: svn:keywords
+   + Id
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms111.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms111.py	2006-06-27 19:47:20 UTC (rev 282)
++++ trunk/bindings/python/mapnik/ogcserver/wms111.py	2006-07-22 18:54:53 UTC (rev 283)
+@@ -51,11 +51,12 @@
+         ['onlineresource', 'OnlineResource', str],
+         ['fees', 'Fees', str],
+         ['accessconstraints', 'AccessConstraints', str],
++        ['keywordlist', 'KeywordList', str]
+     ]
+ 
+     capabilitiesxmltemplate = &quot;&quot;&quot;&lt;?xml version='1.0' encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;
+     &lt;!DOCTYPE WMT_MS_Capabilities SYSTEM &quot;<A HREF="http://www.digitalearth.gov/wmt/xml/capabilities_1_1_1.dtd">http://www.digitalearth.gov/wmt/xml/capabilities_1_1_1.dtd</A>&quot;&gt;
+-    &lt;WMT_MS_Capabilities version=&quot;1.1.1&quot; updateSequence=&quot;0&quot; xmlns:xlink=&quot;<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>&quot;&gt;
++    &lt;WMT_MS_Capabilities version=&quot;1.1.1&quot; updateSequence=&quot;0&quot; xmlns:xlink=&quot;<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>&quot; xmlns=&quot;<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>&quot;&gt;
+       &lt;Service&gt;
+         &lt;Name&gt;WMS&lt;/Name&gt;
+       &lt;/Service&gt;
+@@ -117,28 +118,11 @@
+         for element in elements:
+             element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}href', opsonlineresource)
+ 
+-        if len(self.conf.items('service')) &gt; 0:
+-            servicee = capetree.find('Service')
+-            for item in self.CONF_SERVICE:
+-                if self.conf.has_option('service', item[0]):
+-                    value = self.conf.get('service', item[0])
+-                    try:
+-                        item[2](value)
+-                    except:
+-                        raise ServerConfigurationError('Configuration parameter [%s]-&gt;%s has an invalid value: %s.' % ('service', item[0], value))
+-                    if item[0] == 'onlineresource':
+-                        element = ElementTree.Element('%s' % item[1])
+-                        servicee.append(element)
+-                        element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}href', value)
+-                        element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}type', 'simple')
+-                    else:
+-                        element = ElementTree.Element('%s' % item[1])
+-                        element.text = value
+-                        servicee.append(element)
++        self.processServiceCapabilities(capetree)
+ 
+-        rootlayerelem = capetree.find('Capability/Layer')
++        rootlayerelem = capetree.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Capability/{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Layer')
+ 
+-        rootlayersrs = rootlayerelem.find('SRS')
++        rootlayersrs = rootlayerelem.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}SRS')
+         rootlayersrs.text = str(self.crs)
+ 
+         for layer in self.mapfactory.layers.values():
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms130.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms130.py	2006-06-27 19:47:20 UTC (rev 282)
++++ trunk/bindings/python/mapnik/ogcserver/wms130.py	2006-07-22 18:54:53 UTC (rev 283)
+@@ -54,7 +54,8 @@
+         ['accessconstraints', 'AccessConstraints', str],
+         ['layerlimit', 'LayerLimit', int],
+         ['maxwidth', 'MaxWidth', int],
+-        ['maxheight', 'MaxHeight', int]
++        ['maxheight', 'MaxHeight', int],
++        ['keywordlist', 'KeywordList', str]
+     ]
+ 
+     capabilitiesxmltemplate = &quot;&quot;&quot;&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+@@ -123,24 +124,7 @@
+         for element in elements:
+             element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}href', opsonlineresource)
+ 
+-        if len(self.conf.items('service')) &gt; 0:
+-            servicee = capetree.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Service')
+-            for item in self.CONF_SERVICE:
+-                if self.conf.has_option('service', item[0]):
+-                    value = self.conf.get('service', item[0]).strip()
+-                    try:
+-                        item[2](value)
+-                    except:
+-                        raise ServerConfigurationError('Configuration parameter [%s]-&gt;%s has an invalid value: %s.' % ('service', item[0], value))
+-                    if item[0] == 'onlineresource':
+-                        element = ElementTree.Element('%s' % item[1])
+-                        servicee.append(element)
+-                        element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}href', value)
+-                        element.set('{<A HREF="http://www.w3.org/1999/xlink">http://www.w3.org/1999/xlink</A>}type', 'simple')
+-                    else:
+-                        element = ElementTree.Element('%s' % item[1])
+-                        element.text = value
+-                        servicee.append(element)
++        self.processServiceCapabilities(capetree)
+ 
+         rootlayerelem = capetree.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Capability/{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Layer')
+ 
+
+Modified: trunk/docs/ogcserver/readme.txt
+===================================================================
+--- trunk/docs/ogcserver/readme.txt	2006-06-27 19:47:20 UTC (rev 282)
++++ trunk/docs/ogcserver/readme.txt	2006-07-22 18:54:53 UTC (rev 283)
+@@ -18,7 +18,7 @@
+ 
+ - WMS 1.1.1 and 1.3.0
+ - CGI/FastCGI
+-- GetCapabilities and GetMap support only (NO GetFeatureInfo)
++- GetCapabilities and GetMap support only (NO GetFeatureInfo ... yet)
+ - JPEG/PNG output
+ - XML/INIMAGE/BLANK error handling
+ - No real layer metadata support yet
+@@ -128,7 +128,6 @@
+ -----
+ 
+ - Named style support.
+-- Improve configuration to allow for full server metadata.
+ - Investigate moving to cElementTree from lxml.
+ - Add some internal &quot;caching&quot; for performance improvements.
+ - Support GetFeatureInfo (Requires core changes).
+
+Modified: trunk/utils/ogcserver/ogcserver.conf
+===================================================================
+--- trunk/utils/ogcserver/ogcserver.conf	2006-06-27 19:47:20 UTC (rev 282)
++++ trunk/utils/ogcserver/ogcserver.conf	2006-07-22 18:54:53 UTC (rev 283)
+@@ -37,3 +37,37 @@
+ #                  resource pointing to the CGI.
+ 
+ onlineresource=<A HREF="http://www.mapnik.org/">http://www.mapnik.org/</A>
++
++# fees: An explanation of the fee structure for the usage of your service,
++#       if any. Use the reserved keyword &quot;none&quot; if not applicable.
++
++fees=
++
++# keywords: A comma seperated list of key words.
++
++keywordlist=
++
++# accessconstraints: Plain language description of any constraints that might
++#                    apply to the usage of your service, such as hours of
++#                    operation.  
++
++accessconstraints=
++
++# contact: Contact information.  Provides niformation to service users on who
++#          to contact for help on or details about the service.
++
++[contact]
++
++contactperson=
++contactorganization=
++contactposition=
++
++addresstype=
++address=
++city=
++stateorprovince=
++postcode=
++country=
++
++contactvoicetelephone=
++contactelectronicmailaddress=
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="000169.html">[Mapnik-svn] r284 - in trunk: bindings/python/mapnik/ogcserver	docs/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#168">[ date ]</a>
+              <a href="thread.html#168">[ thread ]</a>
+              <a href="subject.html#168">[ subject ]</a>
+              <a href="author.html#168">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

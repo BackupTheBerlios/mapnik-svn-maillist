@@ -1,0 +1,523 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r233 - in trunk: . bindings/python/mapnik/ogcserver docs/ogcserver utils/ogcserver
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-April/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r233%20-%20in%20trunk%3A%20.%20bindings/python/mapnik/ogcserver%20docs/ogcserver%20utils/ogcserver&In-Reply-To=%3C200604140346.k3E3kAUb020609%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000117.html">
+   <LINK REL="Next"  HREF="000119.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r233 - in trunk: . bindings/python/mapnik/ogcserver docs/ogcserver utils/ogcserver</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r233%20-%20in%20trunk%3A%20.%20bindings/python/mapnik/ogcserver%20docs/ogcserver%20utils/ogcserver&In-Reply-To=%3C200604140346.k3E3kAUb020609%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r233 - in trunk: . bindings/python/mapnik/ogcserver docs/ogcserver utils/ogcserver">jdoyon at berlios.de
+       </A><BR>
+    <I>Fri Apr 14 05:46:10 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000117.html">[Mapnik-svn] r232 - in trunk: bindings/python/mapnik/ogcserver docs/ogcserver utils/ogcserver
+</A></li>
+        <LI>Next message: <A HREF="000119.html">[Mapnik-svn] r234 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#118">[ date ]</a>
+              <a href="thread.html#118">[ thread ]</a>
+              <a href="subject.html#118">[ subject ]</a>
+              <a href="author.html#118">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-04-14 05:45:46 +0200 (Fri, 14 Apr 2006)
+New Revision: 233
+
+Added:
+   trunk/bindings/python/mapnik/ogcserver/WMS.py
+Modified:
+   trunk/INSTALL
+   trunk/bindings/python/mapnik/ogcserver/cgiserver.py
+   trunk/bindings/python/mapnik/ogcserver/common.py
+   trunk/bindings/python/mapnik/ogcserver/exceptions.py
+   trunk/bindings/python/mapnik/ogcserver/wms111.py
+   trunk/bindings/python/mapnik/ogcserver/wms130.py
+   trunk/docs/ogcserver/readme.txt
+   trunk/utils/ogcserver/ogcserver.conf
+Log:
+OK, final fixes to the WMS stuff, cleaned up documentation, and so on.
+
+Things should be good to go for a first try by the wider community!
+
+Modified: trunk/INSTALL
+===================================================================
+--- trunk/INSTALL	2006-04-13 02:39:49 UTC (rev 232)
++++ trunk/INSTALL	2006-04-14 03:45:46 UTC (rev 233)
+@@ -22,7 +22,8 @@
+ - libtiff
+ - libz
+ - libfreetype2
+-- (Optional) PostgreSQL libraries
++- (Optional) PostgreSQL libraries (For PostGIS support)
++- (Optional) PROJ.4 (More on this below)
+ 
+ - Python 1.5.2 or greater to build Mapnik
+ - (Optional) Python 2.2 or greater for the Python language bindings
+@@ -33,6 +34,7 @@
+ 
+ Also, a minimum of 256MB of RAM is recommended for the build process.
+ 
++
+ Building
+ --------
+ 
+@@ -101,6 +103,14 @@
+     default: /usr/lib
+     actual: /usr/lib
+ 
++PROJ_INCLUDES: Search path for PROJ.4 include files ( /path/to/PROJ_INCLUDES )
++    default: /usr/local/include
++    actual: /usr/local/include
++
++PROJ_LIBS: Search path for PROJ.4 include files ( /path/to/PROJ_LIBS )
++    default: /usr/local/lib
++    actual: /usr/local/lib
++
+ PYTHON: Python executable ( /path/to/PYTHON )
+     default: /usr/bin/python
+     actual: /usr/bin/python
+@@ -146,6 +156,30 @@
+ If you're using the default PREFIX, you will most likely need to be root to perform the install.
+ 
+ 
++A note on projection support
++----------------------------
++
++At this time Mapnik's core C++ library and map rendering engine does NOT support on-the-fly cartographic
++reprojections.
++
++Mapnik can however be configured to build the Python API to the PROJ.4 library.  This provides projection
++support through Python, and is used by the WMS ogcserver feature, since that server is written in Python.
++
++Here is an example on how to use it:
++
++&gt;&gt;&gt; from mapnik import Projection
++registered datasource : raster
++registered datasource : shape
++registered datasource : postgis
++&gt;&gt;&gt; p = Projection(['init=epsg:42304'])
++&gt;&gt;&gt; p.Inverse(12345.245,143225.56)
++[-94.825927695613018, 50.290732340975467]
++&gt;&gt;&gt;
++
++The Projection() instance provides Inverse() and Forward() methods.  For details on the possible parameters,
++see the PROJ.4 documentation.
++
++
+ Test
+ ----
+ 
+
+Copied: trunk/bindings/python/mapnik/ogcserver/WMS.py (from rev 232, trunk/bindings/python/mapnik/ogcserver/wms.py)
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms.py	2006-04-13 02:39:49 UTC (rev 232)
++++ trunk/bindings/python/mapnik/ogcserver/WMS.py	2006-04-14 03:45:46 UTC (rev 233)
+@@ -0,0 +1,53 @@
++#
++# This file is part of Mapnik (c++ mapping toolkit)
++#
++# Copyright (C) 2006 Jean-Francois Doyon
++#
++# Mapnik is free software; you can redistribute it and/or
++# modify it under the terms of the GNU Lesser General Public
++# License as published by the Free Software Foundation; either
++# version 2.1 of the License, or (at your option) any later version.
++#
++# This library is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++# Lesser General Public License for more details.
++#
++# You should have received a copy of the GNU Lesser General Public
++# License along with this library; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++#
++# $Id$
++
++from common import Version
++from exceptions import OGCException, ServerConfigurationError
++from wms111 import ServiceHandler as ServiceHandler111
++from wms130 import ServiceHandler as ServiceHandler130
++
++def ServiceHandlerFactory(conf, mapfactory, onlineresource, version):
++
++    if not version:
++        version = Version('1.3.0')
++    else:
++        version = Version(version)
++    if version &gt;= '1.3.0':
++        return ServiceHandler130(conf, mapfactory, onlineresource)
++    else:
++        return ServiceHandler111(conf, mapfactory, onlineresource)
++
++class BaseWMSFactory:
++    
++    def __init__(self):
++        self.layers = {}
++        self.styles = {}
++    
++    def register_layer(self, layer):
++        layername = layer.name()
++        if not layername:
++            raise ServerConfigurationError('There is an un-named layer.')
++        self.layers[layername] = layer
++    
++    def register_style(self, name, style):
++        if not name:
++            raise ServerConfigurationError('There is an un-named style.')
++        self.styles[name] = style
+\ No newline at end of file
+
+Modified: trunk/bindings/python/mapnik/ogcserver/cgiserver.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/cgiserver.py	2006-04-13 02:39:49 UTC (rev 232)
++++ trunk/bindings/python/mapnik/ogcserver/cgiserver.py	2006-04-14 03:45:46 UTC (rev 233)
+@@ -25,10 +25,11 @@
+ 
+ import sys
+ from jon import cgi
+-from exceptions import OGCException
+-from wms130 import ExceptionHandler
+-from lxml import etree as ElementTree
++from exceptions import OGCException, ServerConfigurationError
++from wms111 import ExceptionHandler as ExceptionHandler111
++from wms130 import ExceptionHandler as ExceptionHandler130
+ from ConfigParser import SafeConfigParser
++from common import Version
+ 
+ class Handler(cgi.DebugHandler):
+ 
+@@ -36,29 +37,36 @@
+         conf = SafeConfigParser()
+         conf.readfp(open(self.configpath))
+         self.conf = conf
+-        mapfactorymodule = __import__(conf.get('server', 'module'))
+-        self.mapfactory = getattr(mapfactorymodule, 'WMSFactory')()
++        if not conf.has_option('server', 'module'):
++            raise ServerConfigurationError('The factory module is not defined in the configuration file.')
++        try:
++            mapfactorymodule = __import__(conf.get('server', 'module'))
++        except ImportError:
++            raise ServerConfigurationError('The factory module could not be loaded.')
++        if hasattr(mapfactorymodule, 'WMSFactory'):
++            self.mapfactory = getattr(mapfactorymodule, 'WMSFactory')()
++        else:
++            raise ServerConfigurationError('The factory module does not have a WMSFactory class.')
++        if conf.has_option('server', 'debug'):
++            self.debug = int(conf.get('server', 'debug'))
++        else:
++            self.debug = 0
+ 
+     def process(self, req):
+-        exceptionhandler = ExceptionHandler
+-        reqparams = {}
+-        for key, value in req.params.items():
+-            reqparams[key.lower()] = value
++        reqparams = lowerparams(req.params)
+         onlineresource = '<A HREF="http://%s:%s%s?">http://%s:%s%s?</A>' % (req.environ['SERVER_NAME'], req.environ['SERVER_PORT'], req.environ['SCRIPT_NAME'])
+-#        try:
+         if not reqparams.has_key('request'):
+             raise OGCException('Missing request parameter.')
+         if reqparams['request'] == 'GetCapabilities' and not reqparams.has_key('service'):
+             raise OGCException('Missing service parameter.')
+         if reqparams['request'] in ['GetMap', 'GetFeatureInfo']:
+-            reqparams['service'] = 'wms'
+-        service = reqparams['service'].lower()
++            reqparams['service'] = 'WMS'
+         try:
+-            mapnikmodule = __import__('mapnik.ogcserver.' + service)
++            mapnikmodule = __import__('mapnik.ogcserver.' + reqparams['service'])
+         except:
+-            raise OGCException('Unsupported service &quot;%s&quot;.' % service)
+-        ServiceHandlerFactory = getattr(mapnikmodule.ogcserver, service).ServiceHandlerFactory
+-        servicehandler, exceptionhandler = ServiceHandlerFactory(self.conf, self.mapfactory, onlineresource, reqparams.get('version', None))
++            raise OGCException('Unsupported service &quot;%s&quot;.' % reqparams['service'])
++        ServiceHandlerFactory = getattr(mapnikmodule.ogcserver, reqparams['service']).ServiceHandlerFactory
++        servicehandler = ServiceHandlerFactory(self.conf, self.mapfactory, onlineresource, reqparams.get('version', None))
+         if reqparams['request'] not in servicehandler.SERVICE_PARAMS.keys():
+             raise OGCException('Operation &quot;%s&quot; not supported.' % reqparams['request'], 'OperationNotSupported')
+         ogcparams = servicehandler.processParameters(reqparams['request'], reqparams)
+@@ -67,14 +75,25 @@
+         except:
+             raise OGCException('Operation &quot;%s&quot; not supported.' % reqparams['request'], 'OperationNotSupported')
+         response = requesthandler(ogcparams)
+-#        except:
+-#            raise
+-#        else:
+         req.set_header('Content-Type', response.content_type)
+         req.write(response.content)
+-        &quot;&quot;&quot;
+-        except OGCException:
+-            eh = exceptionhandler()
+-            req.set_header('Content-Type', eh.mimetype)
+-            req.write(ElementTree.tostring(eh.getexcetree(sys.exc_info()[1])))
+-        &quot;&quot;&quot;
+\ No newline at end of file
++
++    def traceback(self, req):
++        reqparams = lowerparams(req.params)
++        version = reqparams.get('version', None)
++        if not version:
++            version = Version('1.3.0')
++        else:
++            version = Version(version)
++        if version &gt;= '1.3.0':
++            eh = ExceptionHandler130(self.debug)
++        else:
++            eh = ExceptionHandler111(self.debug)
++        req.set_header('Content-Type', eh.mimetype)
++        req.write(eh.getcontent())
++
++def lowerparams(params):
++    reqparams = {}
++    for key, value in params.items():
++        reqparams[key.lower()] = value
++    return reqparams
+\ No newline at end of file
+
+Modified: trunk/bindings/python/mapnik/ogcserver/common.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/common.py	2006-04-13 02:39:49 UTC (rev 232)
++++ trunk/bindings/python/mapnik/ogcserver/common.py	2006-04-14 03:45:46 UTC (rev 233)
+@@ -195,8 +195,6 @@
+ class WMSBaseServiceHandler(BaseServiceHandler):
+     
+     def GetMap(self, params):
+-        if str(params['crs']) != str(self.crs):
+-            raise OGCException('Unsupported CRS requested.  Must be &quot;%s&quot; and not &quot;%s&quot;.' % (self.crs, params['crs']), 'InvalidCRS')
+         if params['bbox'][0] &gt;= params['bbox'][2]:
+             raise OGCException(&quot;BBOX values don't make sense.  minx is greater than maxx.&quot;)
+         if params['bbox'][1] &gt;= params['bbox'][3]:
+@@ -204,18 +202,19 @@
+         m = Map(params['width'], params['height'])
+         if params.has_key('transparent') and params['transparent'] == 'FALSE':
+             m.background = params['bgcolor']
+-        maplayers = self.mapfactory.getlayers()
+-        mapstyles = self.mapfactory.getstyles()
++        maplayers = self.mapfactory.layers
++        mapstyles = self.mapfactory.styles
+         for layername in params['layers']:
+-            for layer in maplayers:
+-                if layer.name() == layername:
+-                    for stylename in layer.styles:
+-                        if stylename in mapstyles.keys():
+-                            m.append_style(stylename, mapstyles[stylename])
+-                    m.layers.append(layer)
+-        if len(m.layers) != len(params['layers']):
+-            badnames = [ layername for layername in params['layers'] if layername not in [ layer.name() for layer in m.layers ] ]
+-            raise OGCException('The following layers are not defined by this server: %s.' % ','.join(badnames), 'LayerNotDefined')
++            try:
++                layer = maplayers[layername]
++            except KeyError:
++                raise OGCException('Layer not defined: %s.' % layername, 'LayerNotDefined')
++            for stylename in layer.styles:
++                if stylename in mapstyles.keys():
++                    m.append_style(stylename, mapstyles[stylename])
++                else:
++                    raise ServerConfigurationError('Layer &quot;%s&quot; refers to non-existent style &quot;%s&quot;.' % (layername, stylename))
++            m.layers.append(layer)
+         m.zoom_to_box(Envelope(params['bbox'][0], params['bbox'][1], params['bbox'][2], params['bbox'][3]))
+         im = Image(params['width'], params['height'])
+         render(m, im)
+
+Modified: trunk/bindings/python/mapnik/ogcserver/exceptions.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/exceptions.py	2006-04-13 02:39:49 UTC (rev 232)
++++ trunk/bindings/python/mapnik/ogcserver/exceptions.py	2006-04-14 03:45:46 UTC (rev 233)
+@@ -20,6 +20,10 @@
+ # $Id$
+ 
+ from copy import deepcopy
++from lxml import etree as ElementTree
++from StringIO import StringIO
++from traceback import print_tb
++from sys import exc_info
+ 
+ class OGCException(Exception):
+     pass
+@@ -29,11 +33,20 @@
+ 
+ class BaseExceptionHandler:
+     
+-    def getexcetree(self, exc):
++    def __init__(self, debug):
++        self.debug = debug
++    
++    def getcontent(self):
++        excinfo = exc_info()
+         ogcexcetree = deepcopy(self.xmltemplate)
+         e = ogcexcetree.find(self.xpath)
+-        if len(exc.args) &gt; 0:
+-            e.text = exc.args[0]
+-            if len(exc.args) &gt; 1:
+-                e.set('code', exc.args[1])
+-        return ogcexcetree
+\ No newline at end of file
++        if self.debug:
++            fh = StringIO()
++            print_tb(excinfo[2], None, fh)
++            fh.seek(0)
++            e.text = '\n' + fh.read() + '\n' + str(excinfo[0]) + ': ' + ', '.join(excinfo[1].args) + '\n'
++        elif len(excinfo[1].args) &gt; 0:
++            e.text = excinfo[1].args[0]
++        if isinstance(excinfo[1], OGCException) and len(excinfo[1].args) &gt; 1:
++            e.set('code', excinfo[1].args[1])
++        return ElementTree.tostring(ogcexcetree)
+\ No newline at end of file
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms111.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms111.py	2006-04-13 02:39:49 UTC (rev 232)
++++ trunk/bindings/python/mapnik/ogcserver/wms111.py	2006-04-14 03:45:46 UTC (rev 233)
+@@ -140,7 +140,7 @@
+         rootlayersrs = rootlayerelem.find('SRS')
+         rootlayersrs.text = str(self.crs)
+ 
+-        for layer in self.mapfactory.getlayers():
++        for layer in self.mapfactory.layers.values():
+             layername = ElementTree.Element('Name')
+             layername.text = layer.name()
+             layertitle = ElementTree.Element('Title')
+@@ -172,6 +172,11 @@
+         response = Response('application/vnd.ogc.wms_xml', self.capabilities)
+         return response
+ 
++    def GetMap(self, params):
++        if str(params['srs']) != str(self.crs):
++            raise OGCException('Unsupported SRS requested.  Must be &quot;%s&quot; and not &quot;%s&quot;.' % (self.crs, params['crs']), 'InvalidCRS')
++        return WMSBaseServiceHandler.GetMap(self, params)
++
+ class ExceptionHandler(BaseExceptionHandler):
+     
+     mimetype = &quot;application/vnd.ogc.se_xml&quot;
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms130.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms130.py	2006-04-13 02:39:49 UTC (rev 232)
++++ trunk/bindings/python/mapnik/ogcserver/wms130.py	2006-04-14 03:45:46 UTC (rev 233)
+@@ -126,7 +126,7 @@
+             servicee = capetree.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}Service')
+             for item in self.CONF_SERVICE:
+                 if self.conf.has_option('service', item[0]):
+-                    value = self.conf.get('service', item[0])
++                    value = self.conf.get('service', item[0]).strip()
+                     try:
+                         item[2](value)
+                     except:
+@@ -147,7 +147,7 @@
+         rootlayercrs = rootlayerelem.find('{<A HREF="http://www.opengis.net/wms">http://www.opengis.net/wms</A>}CRS')
+         rootlayercrs.text = str(self.crs)
+         
+-        for layer in self.mapfactory.getlayers():
++        for layer in self.mapfactory.layers.values():
+             layername = ElementTree.Element('Name')
+             layername.text = layer.name()
+             layertitle = ElementTree.Element('Title')
+@@ -190,6 +190,8 @@
+     def GetMap(self, params):
+         if params['width'] &gt; int(self.conf.get('service', 'maxwidth')) or params['height'] &gt; int(self.conf.get('service', 'maxheight')):
+             raise OGCException('Requested map size exceeds limits set by this server.')
++        if str(params['crs']) != str(self.crs):
++            raise OGCException('Unsupported CRS requested.  Must be &quot;%s&quot; and not &quot;%s&quot;.' % (self.crs, params['crs']), 'InvalidCRS')
+         return WMSBaseServiceHandler.GetMap(self, params)
+ 
+ class ExceptionHandler(BaseExceptionHandler):
+
+Modified: trunk/docs/ogcserver/readme.txt
+===================================================================
+--- trunk/docs/ogcserver/readme.txt	2006-04-13 02:39:49 UTC (rev 232)
++++ trunk/docs/ogcserver/readme.txt	2006-04-14 03:45:46 UTC (rev 233)
+@@ -89,15 +89,27 @@
+ 
+ The server needs a python module, with code that looks like this:
+ 
+-from mapnik.ogcserver.wms import BaseWMSFactory
++from mapnik.ogcserver.WMS import BaseWMSFactory
+ 
+-class MapFactory:
++class WMSFactory(BaseWMSFactory):
+ 
+ 	def __init(self):
++		BaseWMSFactory.__init__(self)
++		sty = Style()
+ 		...
+-	
+-	def getlayers(self):
++		self.register_style('stylename', sty)
++		
++		lyr = Layer(name='layername')
+ 		...
+-	
+-	def getstyles(self):
+-		...
+\ No newline at end of file
++		self.register_layer(lyr)
++		
++The rules for writing this class are:
++
++- It MUST be called 'WMSFactory'.
++- It MUST sub-class mapnik.ogcserver.WMS.BaseWMSFactory.
++- The __init__ MUST call the base class'.
++- Layers MUST be named with the 'name' parameter to the constructor.
++- style and layer names are meant for machine readability, not human.  Keep
++  them short and simple, without spaces or special characters.
++- The layers must have at least one style associated with them (a default).
++- No Map() object is used or needed here.
+\ No newline at end of file
+
+Modified: trunk/utils/ogcserver/ogcserver.conf
+===================================================================
+--- trunk/utils/ogcserver/ogcserver.conf	2006-04-13 02:39:49 UTC (rev 232)
++++ trunk/utils/ogcserver/ogcserver.conf	2006-04-14 03:45:46 UTC (rev 233)
+@@ -36,8 +36,4 @@
+ #                  supporting the service for example.  This is NOT the online
+ #                  resource pointing to the CGI.
+ 
+-onlineresource=<A HREF="http://www.mapnik.org/">http://www.mapnik.org/</A>
+-
+-[contact]
+-name=
+-email=
++onlineresource=<A HREF="http://www.mapnik.org/">http://www.mapnik.org/</A>
+\ No newline at end of file
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000117.html">[Mapnik-svn] r232 - in trunk: bindings/python/mapnik/ogcserver docs/ogcserver utils/ogcserver
+</A></li>
+	<LI>Next message: <A HREF="000119.html">[Mapnik-svn] r234 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#118">[ date ]</a>
+              <a href="thread.html#118">[ thread ]</a>
+              <a href="subject.html#118">[ subject ]</a>
+              <a href="author.html#118">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

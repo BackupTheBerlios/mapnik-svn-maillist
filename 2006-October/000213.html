@@ -1,0 +1,158 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r328 - in trunk: include/mapnik src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r328%20-%20in%20trunk%3A%20include/mapnik%20src&In-Reply-To=%3C200610161331.k9GDVt22015074%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000212.html">
+   <LINK REL="Next"  HREF="000214.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r328 - in trunk: include/mapnik src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r328%20-%20in%20trunk%3A%20include/mapnik%20src&In-Reply-To=%3C200610161331.k9GDVt22015074%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r328 - in trunk: include/mapnik src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Mon Oct 16 15:31:55 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000212.html">[Mapnik-svn] r327 - trunk/bindings/python
+</A></li>
+        <LI>Next message: <A HREF="000214.html">[Mapnik-svn] r329 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#213">[ date ]</a>
+              <a href="thread.html#213">[ thread ]</a>
+              <a href="subject.html#213">[ subject ]</a>
+              <a href="author.html#213">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-16 15:31:52 +0200 (Mon, 16 Oct 2006)
+New Revision: 328
+
+Modified:
+   trunk/include/mapnik/envelope.hpp
+   trunk/src/envelope.cpp
+Log:
+added operators +,-,*,/ 
+
+
+
+Modified: trunk/include/mapnik/envelope.hpp
+===================================================================
+--- trunk/include/mapnik/envelope.hpp	2006-10-09 22:07:39 UTC (rev 327)
++++ trunk/include/mapnik/envelope.hpp	2006-10-16 13:31:52 UTC (rev 328)
+@@ -27,12 +27,18 @@
+ 
+ // stl
+ #include &lt;iomanip&gt;
++// boost
++#include &lt;boost/operators.hpp&gt;
+ // mapnik
+ #include &lt;mapnik/config.hpp&gt;
+ #include &lt;mapnik/coord.hpp&gt;
+ 
+ namespace mapnik {
+-	template &lt;class T&gt; class MAPNIK_DECL Envelope
++	template &lt;typename T&gt; class MAPNIK_DECL Envelope 
++    : boost::addable&lt;Envelope&lt;T&gt;, 
++      boost::subtractable&lt;Envelope&lt;T&gt;, 
++      boost::dividable2&lt;Envelope&lt;T&gt;, T,
++      boost::multipliable2&lt;Envelope&lt;T&gt;, T &gt; &gt; &gt; &gt;
+     {
+     public:
+         typedef Envelope&lt;T&gt; EnvelopeType;
+@@ -68,6 +74,12 @@
+         bool operator==(const EnvelopeType &amp;other) const;
+         void re_center(T cx,T cy);
+         void init(T x0,T y0,T x1,T y1);
++        
++        // define some operators 
++        EnvelopeType&amp; operator+=(EnvelopeType const&amp; other);
++        EnvelopeType&amp; operator-=(EnvelopeType const&amp; other);
++        EnvelopeType&amp; operator*=(T);
++        EnvelopeType&amp; operator/=(T);    
+     };
+     
+     template &lt;class charT,class traits,class T&gt;
+
+Modified: trunk/src/envelope.cpp
+===================================================================
+--- trunk/src/envelope.cpp	2006-10-09 22:07:39 UTC (rev 327)
++++ trunk/src/envelope.cpp	2006-10-16 13:31:52 UTC (rev 328)
+@@ -223,7 +223,41 @@
+             miny_=y1;maxy_=y0;
+         }
+     }
++    
++    template &lt;typename T&gt;
++    Envelope&lt;T&gt;&amp;  Envelope&lt;T&gt;::operator+=(Envelope&lt;T&gt; const&amp; other)
++    {
++        expand_to_include(other);
++        return *this;
++    }
++    
++    template &lt;typename T&gt;    
++    Envelope&lt;T&gt;&amp; Envelope&lt;T&gt;::operator-=(Envelope&lt;T&gt; const&amp; other)
++    {
++        // not sure what to do here. intersect?
++        return *this;
++    }
++    
++    template &lt;typename T&gt;    
++    Envelope&lt;T&gt;&amp; Envelope&lt;T&gt;::operator*=(T t)
++    {
++        minx_ *= t;
++        miny_ *= t;
++        maxx_ *= t;
++        maxy_ *= t;
++        return *this;
++    }
+ 
++    template &lt;typename T&gt;    
++    Envelope&lt;T&gt;&amp; Envelope&lt;T&gt;::operator/=(T t)
++    {
++        minx_ /= t;
++        miny_ /= t;
++        maxx_ /= t;
++        maxy_ /= t;
++        return *this;
++    }
++    
+     template class Envelope&lt;int&gt;;
+     template class Envelope&lt;double&gt;;
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000212.html">[Mapnik-svn] r327 - trunk/bindings/python
+</A></li>
+	<LI>Next message: <A HREF="000214.html">[Mapnik-svn] r329 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#213">[ date ]</a>
+              <a href="thread.html#213">[ thread ]</a>
+              <a href="subject.html#213">[ subject ]</a>
+              <a href="author.html#213">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

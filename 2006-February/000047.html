@@ -1,0 +1,389 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r161 - trunk/bindings/python
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-February/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r161%20-%20trunk/bindings/python&In-Reply-To=%3C200602200134.k1K1Y67Y021282%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000046.html">
+   <LINK REL="Next"  HREF="000048.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r161 - trunk/bindings/python</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r161%20-%20trunk/bindings/python&In-Reply-To=%3C200602200134.k1K1Y67Y021282%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r161 - trunk/bindings/python">jdoyon at berlios.de
+       </A><BR>
+    <I>Mon Feb 20 02:34:06 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000046.html">[Mapnik-svn] r160 - trunk
+</A></li>
+        <LI>Next message: <A HREF="000048.html">[Mapnik-svn] r162 - in trunk: . include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#47">[ date ]</a>
+              <a href="thread.html#47">[ thread ]</a>
+              <a href="subject.html#47">[ subject ]</a>
+              <a href="author.html#47">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-02-20 02:34:02 +0100 (Mon, 20 Feb 2006)
+New Revision: 161
+
+Modified:
+   trunk/bindings/python/mapnik_color.cpp
+   trunk/bindings/python/mapnik_datasource_cache.cpp
+   trunk/bindings/python/mapnik_envelope.cpp
+   trunk/bindings/python/mapnik_filter.cpp
+   trunk/bindings/python/mapnik_image.cpp
+   trunk/bindings/python/mapnik_layer.cpp
+   trunk/bindings/python/mapnik_map.cpp
+   trunk/bindings/python/mapnik_parameters.cpp
+   trunk/bindings/python/mapnik_python.cpp
+   trunk/bindings/python/mapnik_rule.cpp
+   trunk/bindings/python/mapnik_stroke.cpp
+   trunk/bindings/python/mapnik_style.cpp
+Log:
+Capitalized class names as per the &quot;Style Guide for Python Code&quot; at:
+
+<A HREF="http://www.python.org/peps/pep-0008.html">http://www.python.org/peps/pep-0008.html</A>
+
+Because the bindings are out of synch, this is untested.
+
+
+
+Modified: trunk/bindings/python/mapnik_color.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_color.cpp	2006-02-20 01:17:04 UTC (rev 160)
++++ trunk/bindings/python/mapnik_color.cpp	2006-02-20 01:34:02 UTC (rev 161)
+@@ -1,5 +1,5 @@
+ /* This file is part of python_mapnik (c++/python mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
+  *
+  * Mapnik is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU General Public License
+@@ -44,7 +44,7 @@
+ void export_color () 
+ {
+     using namespace boost::python;
+-    class_&lt;Color&gt;(&quot;color&quot;,init&lt;&gt;())
++    class_&lt;Color&gt;(&quot;Color&quot;,init&lt;&gt;())
+         .def(init&lt;int,int,int,boost::python::optional&lt;int&gt; &gt;())
+         .add_property(&quot;r&quot;,&amp;Color::red,&amp;Color::set_red)
+         .add_property(&quot;g&quot;,&amp;Color::green,&amp;Color::set_green)
+
+Modified: trunk/bindings/python/mapnik_datasource_cache.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_datasource_cache.cpp	2006-02-20 01:17:04 UTC (rev 160)
++++ trunk/bindings/python/mapnik_datasource_cache.cpp	2006-02-20 01:34:02 UTC (rev 161)
+@@ -1,5 +1,5 @@
+ /* This file is part of python_mapnik (c++/python mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
+  *
+  * Mapnik is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU General Public License
+@@ -28,14 +28,14 @@
+     using mapnik::singleton;
+     using mapnik::CreateStatic;
+     using namespace boost::python;
+-    class_&lt;singleton&lt;datasource_cache,CreateStatic&gt;,boost::noncopyable&gt;(&quot;singleton&quot;,no_init)
++    class_&lt;singleton&lt;datasource_cache,CreateStatic&gt;,boost::noncopyable&gt;(&quot;Singleton&quot;,no_init)
+         .def(&quot;instance&quot;,&amp;singleton&lt;datasource_cache,CreateStatic&gt;::instance,
+ 	     return_value_policy&lt;reference_existing_object&gt;())
+         .staticmethod(&quot;instance&quot;)
+         ;
+ 
+     class_&lt;datasource_cache,bases&lt;singleton&lt;datasource_cache,CreateStatic&gt; &gt;,
+-        boost::noncopyable&gt;(&quot;datasource_cache&quot;,no_init)
++        boost::noncopyable&gt;(&quot;DatasourceCache&quot;,no_init)
+         .def(&quot;create&quot;,&amp;datasource_cache::create)
+         .staticmethod(&quot;create&quot;)
+ 	.def(&quot;register_datasources&quot;,&amp;datasource_cache::register_datasources)
+
+Modified: trunk/bindings/python/mapnik_envelope.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_envelope.cpp	2006-02-20 01:17:04 UTC (rev 160)
++++ trunk/bindings/python/mapnik_envelope.cpp	2006-02-20 01:34:02 UTC (rev 161)
+@@ -1,5 +1,5 @@
+ /* This file is part of python_mapnik (c++/python mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
+  *
+  * Mapnik is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU General Public License
+@@ -58,7 +58,7 @@
+ void export_envelope()
+ {
+     using namespace boost::python;
+-    class_&lt;Envelope&lt;double&gt; &gt;(&quot;envelope&quot;,init&lt;double,double,double,double&gt;())
++    class_&lt;Envelope&lt;double&gt; &gt;(&quot;Envelope&quot;,init&lt;double,double,double,double&gt;())
+         .def(init&lt;&gt;())
+ 	.def(init&lt;const coord&lt;double,2&gt;&amp;, const coord&lt;double,2&gt;&amp;&gt;())
+         .add_property(&quot;minx&quot;,&amp;Envelope&lt;double&gt;::minx)
+
+Modified: trunk/bindings/python/mapnik_filter.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_filter.cpp	2006-02-20 01:17:04 UTC (rev 160)
++++ trunk/bindings/python/mapnik_filter.cpp	2006-02-20 01:34:02 UTC (rev 161)
+@@ -1,5 +1,5 @@
+ /* This file is part of python_mapnik (c++/python mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
+  *
+  * Mapnik is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU General Public License
+@@ -38,7 +38,7 @@
+ void export_filter()
+ {
+     using namespace boost::python;
+-    class_&lt;filter&lt;Feature&gt;,boost::noncopyable&gt;(&quot;filter&quot;,no_init)
++    class_&lt;filter&lt;Feature&gt;,boost::noncopyable&gt;(&quot;Filter&quot;,no_init)
+ 	.def(&quot;__str__&quot;,&amp;filter&lt;Feature&gt;::to_string);
+ 	;
+     def(&quot;filter&quot;,&amp;create_filter);
+
+Modified: trunk/bindings/python/mapnik_image.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_image.cpp	2006-02-20 01:17:04 UTC (rev 160)
++++ trunk/bindings/python/mapnik_image.cpp	2006-02-20 01:34:02 UTC (rev 161)
+@@ -1,5 +1,5 @@
+ /* This file is part of python_mapnik (c++/python mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
+  *
+  * Mapnik is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU General Public License
+@@ -32,7 +32,7 @@
+ void export_image()
+ {
+     using namespace boost::python;
+-    class_&lt;Image32&gt;(&quot;image&quot;,init&lt;int,int&gt;())
++    class_&lt;Image32&gt;(&quot;Image&quot;,init&lt;int,int&gt;())
+     ;
+     def(&quot;rawdata&quot;,&amp;rawdata);
+ }
+
+Modified: trunk/bindings/python/mapnik_layer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_layer.cpp	2006-02-20 01:17:04 UTC (rev 160)
++++ trunk/bindings/python/mapnik_layer.cpp	2006-02-20 01:34:02 UTC (rev 161)
+@@ -1,5 +1,5 @@
+ /* This file is part of python_mapnik (c++/python mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
+  *
+  * Mapnik is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU General Public License
+@@ -100,11 +100,11 @@
+ void export_layer()
+ {
+     using namespace boost::python;
+-    class_&lt;std::vector&lt;std::string&gt; &gt;(&quot;styles&quot;)
++    class_&lt;std::vector&lt;std::string&gt; &gt;(&quot;Styles&quot;)
+     	.def(vector_indexing_suite&lt;std::vector&lt;std::string&gt;,true &gt;())
+     	;
+     //class_&lt;Layer&gt;(&quot;layer&quot;,init&lt;const Parameters&amp;&gt;(&quot;Layer constructor&quot;))
+-    class_&lt;Layer&gt;(&quot;layer&quot;,no_init)
++    class_&lt;Layer&gt;(&quot;Layer&quot;,no_init)
+         .def(&quot;name&quot;,&amp;Layer::name,return_value_policy&lt;copy_const_reference&gt;())
+         .def(&quot;params&quot;,&amp;Layer::params,return_value_policy&lt;reference_existing_object&gt;())
+         .def(&quot;envelope&quot;,&amp;Layer::envelope)
+
+Modified: trunk/bindings/python/mapnik_map.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_map.cpp	2006-02-20 01:17:04 UTC (rev 160)
++++ trunk/bindings/python/mapnik_map.cpp	2006-02-20 01:34:02 UTC (rev 161)
+@@ -1,5 +1,5 @@
+ /* This file is part of python_mapnik (c++/python mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
+  *
+  * Mapnik is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU General Public License
+@@ -76,10 +76,10 @@
+ void export_map() 
+ {
+     using namespace boost::python;
+-    class_&lt;std::vector&lt;Layer&gt; &gt;(&quot;layers&quot;)
++    class_&lt;std::vector&lt;Layer&gt; &gt;(&quot;Layers&quot;)
+     	.def(vector_indexing_suite&lt;std::vector&lt;Layer&gt; &gt;())
+     	;
+-    class_&lt;Map&gt;(&quot;map&quot;,init&lt;int,int,boost::python::optional&lt;int&gt; &gt;())
++    class_&lt;Map&gt;(&quot;Map&quot;,init&lt;int,int,boost::python::optional&lt;int&gt; &gt;())
+         .add_property(&quot;width&quot;,&amp;Map::getWidth)
+         .add_property(&quot;height&quot;,&amp;Map::getHeight)
+ 	.add_property(&quot;srid&quot;,&amp;Map::srid)
+
+Modified: trunk/bindings/python/mapnik_parameters.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_parameters.cpp	2006-02-20 01:17:04 UTC (rev 160)
++++ trunk/bindings/python/mapnik_parameters.cpp	2006-02-20 01:34:02 UTC (rev 161)
+@@ -1,5 +1,5 @@
+ /* This file is part of python_mapnik (c++/python mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
+  *
+  * Mapnik is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU General Public License
+@@ -80,11 +80,11 @@
+ void export_parameters()
+ {
+     using namespace boost::python;
+-    class_&lt;parameter&gt;(&quot;parameter&quot;,init&lt;std::string,std::string&gt;())
++    class_&lt;parameter&gt;(&quot;Parameter&quot;,init&lt;std::string,std::string&gt;())
+         .def_pickle(parameter_pickle_suite())
+         ;
+ 
+-    class_&lt;parameters&gt;(&quot;parameters&quot;,init&lt;&gt;())
++    class_&lt;parameters&gt;(&quot;Parameters&quot;,init&lt;&gt;())
+         //.def(&quot;add&quot;,add1)
+         //.def(&quot;add&quot;,add2)
+         .def(&quot;get&quot;,&amp;parameters::get)
+
+Modified: trunk/bindings/python/mapnik_python.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_python.cpp	2006-02-20 01:17:04 UTC (rev 160)
++++ trunk/bindings/python/mapnik_python.cpp	2006-02-20 01:34:02 UTC (rev 161)
+@@ -1,5 +1,5 @@
+ /* This file is part of python_mapnik (c++/python mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
+  *
+  * Mapnik is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU General Public License
+@@ -87,15 +87,15 @@
+     using namespace boost::python;
+     
+     class_&lt;datasource,boost::shared_ptr&lt;datasource&gt;,
+-	boost::noncopyable&gt;(&quot;datasource&quot;,no_init)
++	boost::noncopyable&gt;(&quot;Datasource&quot;,no_init)
+         .def(&quot;envelope&quot;,&amp;datasource::envelope,
+ 	     return_value_policy&lt;reference_existing_object&gt;())
+         ;
+     
+-    class_&lt;symbolizer,boost::noncopyable&gt; (&quot;symbolizer_&quot;,no_init) 
++    class_&lt;symbolizer,boost::noncopyable&gt; (&quot;Symbolizer_&quot;,no_init) 
+     	;
+     class_&lt;boost::shared_ptr&lt;symbolizer&gt;,
+-	boost::noncopyable&gt;(&quot;symbolizer&quot;,no_init)
++	boost::noncopyable&gt;(&quot;Symbolizer&quot;,no_init)
+ 	;
+     export_parameters();
+     export_color(); 
+@@ -109,7 +109,7 @@
+     export_datasource_cache();
+     
+     
+-    class_&lt;coord&lt;double,2&gt; &gt;(&quot;coord&quot;,init&lt;double,double&gt;())
++    class_&lt;coord&lt;double,2&gt; &gt;(&quot;Coord&quot;,init&lt;double,double&gt;())
+         .def_readwrite(&quot;x&quot;, &amp;coord&lt;double,2&gt;::x)
+         .def_readwrite(&quot;y&quot;, &amp;coord&lt;double,2&gt;::y)
+         ;
+
+Modified: trunk/bindings/python/mapnik_rule.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_rule.cpp	2006-02-20 01:17:04 UTC (rev 160)
++++ trunk/bindings/python/mapnik_rule.cpp	2006-02-20 01:34:02 UTC (rev 161)
+@@ -1,5 +1,5 @@
+ /* This file is part of python_mapnik (c++/python mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
+  *
+  * Mapnik is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU General Public License
+@@ -33,11 +33,11 @@
+ {
+     using namespace boost::python;
+     
+-    class_&lt;symbolizers&gt;(&quot;symbolizers&quot;,init&lt;&gt;(&quot;TODO&quot;))
++    class_&lt;symbolizers&gt;(&quot;Symbolizers&quot;,init&lt;&gt;(&quot;TODO&quot;))
+ 	.def(vector_indexing_suite&lt;symbolizers&gt;())
+ 	;
+     
+-    class_&lt;rule_type&gt;(&quot;rule&quot;,init&lt;&gt;(&quot;default ctor&quot;))
++    class_&lt;rule_type&gt;(&quot;Rule&quot;,init&lt;&gt;(&quot;default ctor&quot;))
+ 	.def(init&lt;std::string const&amp;,
+ 	     boost::python::optional&lt;std::string const&amp;,double,double&gt; &gt;())
+ 	.add_property(&quot;name&quot;,make_function
+
+Modified: trunk/bindings/python/mapnik_stroke.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_stroke.cpp	2006-02-20 01:17:04 UTC (rev 160)
++++ trunk/bindings/python/mapnik_stroke.cpp	2006-02-20 01:34:02 UTC (rev 161)
+@@ -1,5 +1,5 @@
+ /* This file is part of python_mapnik (c++/python mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
+  *
+  * Mapnik is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU General Public License
+@@ -38,7 +38,7 @@
+ 	.value(&quot;BEVEL_JOIN&quot;,BEVEL_JOIN)
+ 	;
+ 
+-    class_&lt;stroke&gt;(&quot;stroke&quot;,init&lt;&gt;())
++    class_&lt;stroke&gt;(&quot;Stroke&quot;,init&lt;&gt;())
+ 	.def(init&lt;Color,float&gt;())
+ 	.add_property(&quot;color&quot;,make_function
+ 		      (&amp;stroke::get_color,return_value_policy&lt;reference_existing_object&gt;()),
+
+Modified: trunk/bindings/python/mapnik_style.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_style.cpp	2006-02-20 01:17:04 UTC (rev 160)
++++ trunk/bindings/python/mapnik_style.cpp	2006-02-20 01:34:02 UTC (rev 161)
+@@ -1,5 +1,5 @@
+ /* This file is part of python_mapnik (c++/python mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
+  *
+  * Mapnik is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU General Public License
+@@ -29,10 +29,10 @@
+ {
+     using namespace boost::python;
+ 
+-    class_&lt;rules&gt;(&quot;rules&quot;,init&lt;&gt;(&quot;default ctor&quot;))
++    class_&lt;rules&gt;(&quot;Rules&quot;,init&lt;&gt;(&quot;default ctor&quot;))
+ 	.def(vector_indexing_suite&lt;rules&gt;())
+ 	;
+-    class_&lt;feature_type_style&gt;(&quot;style&quot;,init&lt;&gt;(&quot;default style constructor&quot;))
++    class_&lt;feature_type_style&gt;(&quot;Style&quot;,init&lt;&gt;(&quot;default style constructor&quot;))
+ 	.add_property(&quot;rules&quot;,make_function
+ 		      (&amp;feature_type_style::get_rules,return_value_policy&lt;reference_existing_object&gt;()))
+ 	;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000046.html">[Mapnik-svn] r160 - trunk
+</A></li>
+	<LI>Next message: <A HREF="000048.html">[Mapnik-svn] r162 - in trunk: . include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#47">[ date ]</a>
+              <a href="thread.html#47">[ thread ]</a>
+              <a href="subject.html#47">[ subject ]</a>
+              <a href="author.html#47">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

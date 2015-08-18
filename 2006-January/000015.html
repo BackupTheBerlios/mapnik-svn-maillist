@@ -1,0 +1,143 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r128 - trunk/include
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-January/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r128%20-%20trunk/include&In-Reply-To=%3C200601262352.k0QNqNWn031717%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000014.html">
+   <LINK REL="Next"  HREF="000016.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r128 - trunk/include</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r128%20-%20trunk/include&In-Reply-To=%3C200601262352.k0QNqNWn031717%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r128 - trunk/include">pavlenko at berlios.de
+       </A><BR>
+    <I>Fri Jan 27 00:52:23 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000014.html">[Mapnik-svn] r127 - trunk/src
+</A></li>
+        <LI>Next message: <A HREF="000016.html">[Mapnik-svn] r129 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#15">[ date ]</a>
+              <a href="thread.html#15">[ thread ]</a>
+              <a href="subject.html#15">[ subject ]</a>
+              <a href="author.html#15">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-01-27 00:52:22 +0100 (Fri, 27 Jan 2006)
+New Revision: 128
+
+Modified:
+   trunk/include/geometry.hpp
+Log:
+midpoint calc for line strings
+
+Modified: trunk/include/geometry.hpp
+===================================================================
+--- trunk/include/geometry.hpp	2006-01-26 16:46:56 UTC (rev 127)
++++ trunk/include/geometry.hpp	2006-01-26 23:52:22 UTC (rev 128)
+@@ -25,7 +25,6 @@
+ #include &quot;vertex_transform.hpp&quot;
+ #include &quot;ctrans.hpp&quot;
+ #include &quot;geom_util.hpp&quot;
+-
+ #include &lt;boost/shared_ptr.hpp&gt;
+ #include &lt;boost/utility.hpp&gt;
+ 
+@@ -242,7 +241,58 @@
+ 	}
+         void label_position(double *x, double *y) const
+ 	{
+-	    cont_.get_vertex(0,x,y);
++	    // calculate mid point on line string
++	    unsigned size = cont_.size();
++	    if (size == 1)
++	    {
++		cont_.get_vertex(0,x,y); 
++	    }
++	    else if (size == 2)
++	    {
++		double x0;
++		double y0;
++		double x1;
++		double y1;
++		cont_.get_vertex(0,&amp;x0,&amp;y0);
++		cont_.get_vertex(1,&amp;x1,&amp;y1);
++		*x = 0.5 * (x1 + x0);
++		*y = 0.5 * (y1 + y0);		
++	    }
++	    else
++	    {
++		double x0;
++		double y0;
++		double x1;
++		double y1;
++		double len=0.0;
++		for (unsigned pos = 1; pos &lt; size; ++pos)
++		{
++		    cont_.get_vertex(pos-1,&amp;x0,&amp;y0);
++		    cont_.get_vertex(pos,&amp;x1,&amp;y1);
++		    double dx = x1 - x0;
++		    double dy = y1 - y0;
++		    len += sqrt(dx * dx + dy * dy);
++		}
++		double midlen = 0.5 * len;
++		double dist = 0.0;
++		for (unsigned pos = 1; pos &lt; size;++pos)
++		{
++		    cont_.get_vertex(pos-1,&amp;x0,&amp;y0);
++		    cont_.get_vertex(pos,&amp;x1,&amp;y1);
++		    double dx = x1 - x0;
++		    double dy = y1 - y0; 
++		    double seg_len = sqrt(dx * dx + dy * dy);
++		    if (( dist + seg_len) &gt;= midlen)
++		    {
++			double r = (midlen - dist)/seg_len;
++			*x = x0 + (x1 - x0) * r;
++			*y = y0 + (y1 - y0) * r;
++			break;
++		    }
++		    dist += seg_len;
++		}
++	    }
++	    
+ 	}
+ 	void line_to(value_type x,value_type y)
+ 	{
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000014.html">[Mapnik-svn] r127 - trunk/src
+</A></li>
+	<LI>Next message: <A HREF="000016.html">[Mapnik-svn] r129 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#15">[ date ]</a>
+              <a href="thread.html#15">[ thread ]</a>
+              <a href="subject.html#15">[ subject ]</a>
+              <a href="author.html#15">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

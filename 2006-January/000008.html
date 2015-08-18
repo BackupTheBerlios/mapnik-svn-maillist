@@ -1,0 +1,412 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r121 - in trunk: include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-January/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r121%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200601231033.k0NAXXPJ026359%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000007.html">
+   <LINK REL="Next"  HREF="000009.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r121 - in trunk: include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r121%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200601231033.k0NAXXPJ026359%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r121 - in trunk: include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Mon Jan 23 11:33:33 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000007.html">[Mapnik-svn] r120 - trunk/include
+</A></li>
+        <LI>Next message: <A HREF="000009.html">[Mapnik-svn] r122 - in trunk: agg include python src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#8">[ date ]</a>
+              <a href="thread.html#8">[ thread ]</a>
+              <a href="subject.html#8">[ subject ]</a>
+              <a href="author.html#8">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-01-23 11:33:32 +0100 (Mon, 23 Jan 2006)
+New Revision: 121
+
+Added:
+   trunk/include/line_pattern_symbolizer.hpp
+Modified:
+   trunk/include/line_symbolizer.hpp
+   trunk/include/mapnik.hpp
+   trunk/include/rule.hpp
+   trunk/src/render.cpp
+Log:
+1.added line pattern symbolizer
+2.added layer envelope check in main rendering loop
+ 
+
+
+Added: trunk/include/line_pattern_symbolizer.hpp
+===================================================================
+--- trunk/include/line_pattern_symbolizer.hpp	2006-01-23 10:31:10 UTC (rev 120)
++++ trunk/include/line_pattern_symbolizer.hpp	2006-01-23 10:33:32 UTC (rev 121)
+@@ -0,0 +1,113 @@
++/* This file is part of Mapnik (c++ mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id: polygon_symbolizer.hpp 39 2005-04-10 20:39:53Z pavlenko $
++
++#ifndef LINE_PATTERN_SYMBOLIZER_HPP
++#define LINE_PATTERN_SYMBOLIZER_HPP
++
++#include &quot;symbolizer.hpp&quot;
++#include &quot;image_reader.hpp&quot;
++#include &quot;agg_basics.h&quot;
++#include &quot;agg_rendering_buffer.h&quot;
++#include &quot;agg_rasterizer_scanline_aa.h&quot;
++#include &quot;agg_scanline_p.h&quot;
++#include &quot;agg_scanline_u.h&quot;
++#include &quot;agg_renderer_scanline.h&quot;
++#include &quot;agg_pixfmt_rgba.h&quot;
++#include &quot;agg_path_storage.h&quot;
++#include &quot;agg_span_allocator.h&quot;
++#include &quot;agg_span_pattern_rgba.h&quot;
++#include &quot;agg_image_accessors.h&quot;
++#include &quot;agg_pattern_filters_rgba.h&quot;
++
++#include &lt;boost/utility.hpp&gt;
++
++namespace mapnik 
++{
++    class pattern_source : private boost::noncopyable
++    {
++    public:
++	pattern_source(ImageData32 const&amp; pattern)
++	    : pattern_(pattern) {}
++	
++	unsigned int width() const
++	{
++	    return pattern_.width();
++	}
++	unsigned int height() const
++	{
++	    return pattern_.height();
++	}
++	agg::rgba8 pixel(int x, int y) const
++	{
++	    unsigned c = pattern_(x,y);
++	    return agg::rgba8(c &amp; 0xff, (c &gt;&gt; 8) &amp; 0xff, (c &gt;&gt; 16) &amp; 0xff,(c &gt;&gt; 24) &amp; 0xff);
++	}
++    private:
++	ImageData32 const&amp; pattern_;
++    };
++
++    struct line_pattern_symbolizer : public symbolizer, 
++				     private boost::noncopyable
++    {
++    private:
++	ImageData32 pattern_;
++    public:
++	line_pattern_symbolizer(std::string const&amp; file,
++			 std::string const&amp; type,
++			 unsigned width,unsigned height) 
++	    : symbolizer(),
++	      pattern_(width,height)
++	{
++	    try 
++	    {
++		std::auto_ptr&lt;ImageReader&gt; reader(get_image_reader(type,file));
++		reader-&gt;read(0,0,pattern_);		
++	    } 
++	    catch (...) 
++	    {
++		std::cerr&lt;&lt;&quot;exception caught...&quot;&lt;&lt;std::endl;
++	    }
++	}
++
++	virtual ~line_pattern_symbolizer() {}
++
++	void render(geometry_type&amp; geom,Image32&amp; image) const
++	{
++	    typedef agg::line_image_pattern&lt;agg::pattern_filter_bilinear_rgba8&gt; pattern_type;
++	    typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; renderer_base;
++	    typedef agg::renderer_outline_image&lt;renderer_base, pattern_type&gt; renderer_type;
++	    typedef agg::rasterizer_outline_aa&lt;renderer_type&gt; rasterizer_type;
++	    unsigned int width=image.width();
++	    unsigned int height=image.height();
++	    agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(), width, height,width*4);
++	    agg::pixfmt_rgba32 pixf(buf);
++	    renderer_base ren_base(pixf);  
++	    agg::pattern_filter_bilinear_rgba8 filter; 
++	    pattern_source source(pattern_);
++	    pattern_type pattern (filter,source);
++	    renderer_type ren(ren_base, pattern);
++	    ren.clip_box(0,0,width,height);
++	    rasterizer_type ras(ren);	    
++	    ras.add_path(geom);
++	}
++    };    
++}
++
++#endif // LINE_PATTERN_SYMBOLIZER_HPP
+
+Modified: trunk/include/line_symbolizer.hpp
+===================================================================
+--- trunk/include/line_symbolizer.hpp	2006-01-23 10:31:10 UTC (rev 120)
++++ trunk/include/line_symbolizer.hpp	2006-01-23 10:33:32 UTC (rev 121)
+@@ -74,86 +74,101 @@
+ 	    ren_base renb(pixf);	    
+ 	    
+ 	    Color const&amp; col = stroke_.get_color();
+-	    double r=col.red()/255.0;
+-	    double g=col.green()/255.0;
+-	    double b=col.blue()/255.0;
++	    unsigned r=col.red();
++	    unsigned g=col.green();
++	    unsigned b=col.blue();	    
+ 	    
++	    if (0)//stroke_.get_width() &lt;= 1.0)
++	    {
++		typedef agg::renderer_outline_aa&lt;ren_base&gt; renderer_oaa;
++		typedef agg::rasterizer_outline_aa&lt;renderer_oaa&gt; rasterizer_outline_aa;
++		agg::line_profile_aa prof;
++		prof.width(stroke_.get_width());
++		renderer_oaa ren_oaa(renb, prof);
++		rasterizer_outline_aa ras_oaa(ren_oaa);
+ 
+-	    typedef agg::renderer_scanline_aa_solid&lt;ren_base&gt; renderer;
+-	    renderer ren(renb);
++		ren_oaa.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
++		ren_oaa.clip_box(0,0,image.width(),image.height());
++		ras_oaa.add_path(geom);		
++	          
++	    }
++	    else 
++	    {
++		typedef agg::renderer_scanline_aa_solid&lt;ren_base&gt; renderer;
++		renderer ren(renb);	
++		agg::rasterizer_scanline_aa&lt;&gt; ras;
++		agg::scanline_u8 sl;
+ 		
+-	    agg::rasterizer_scanline_aa&lt;&gt; ras;
+-	    agg::scanline_u8 sl;
+-		
+-	    if (stroke_.has_dash())
+-	    {
++		if (stroke_.has_dash())
++		{
+ 		    
+-		agg::conv_dash&lt;geometry&lt;vertex2d&gt; &gt; dash(geom);
+-		dash_array const&amp; d = stroke_.get_dash_array();
+-		dash_array::const_iterator itr = d.begin();
+-		dash_array::const_iterator end = d.end();
+-		while (itr != end)
+-		{
+-		    dash.add_dash(itr-&gt;first, itr-&gt;second);
+-		    ++itr;
+-		}
+-		agg::conv_stroke&lt;agg::conv_dash&lt;geometry&lt;vertex2d&gt; &gt; &gt; stroke(dash);
++		    agg::conv_dash&lt;geometry&lt;vertex2d&gt; &gt; dash(geom);
++		    dash_array const&amp; d = stroke_.get_dash_array();
++		    dash_array::const_iterator itr = d.begin();
++		    dash_array::const_iterator end = d.end();
++		    while (itr != end)
++		    {
++			dash.add_dash(itr-&gt;first, itr-&gt;second);
++			++itr;
++		    }
++		    agg::conv_stroke&lt;agg::conv_dash&lt;geometry&lt;vertex2d&gt; &gt; &gt; stroke(dash);
+ 		
+-		line_join_e join=stroke_.get_line_join();
+-		if ( join == MITER_JOIN)
+-		    stroke.generator().line_join(agg::miter_join);
+-		else if( join == MITER_REVERT_JOIN) 
+-		    stroke.generator().line_join(agg::miter_join);
+-		else if( join == ROUND_JOIN) 
+-		    stroke.generator().line_join(agg::round_join);
+-		else
+-		    stroke.generator().line_join(agg::bevel_join);
++		    line_join_e join=stroke_.get_line_join();
++		    if ( join == MITER_JOIN)
++			stroke.generator().line_join(agg::miter_join);
++		    else if( join == MITER_REVERT_JOIN) 
++			stroke.generator().line_join(agg::miter_join);
++		    else if( join == ROUND_JOIN) 
++			stroke.generator().line_join(agg::round_join);
++		    else
++			stroke.generator().line_join(agg::bevel_join);
+ 		    
+-		line_cap_e cap=stroke_.get_line_cap();
+-		if (cap == BUTT_CAP)    
+-		    stroke.generator().line_cap(agg::butt_cap);
+-		else if (cap == SQUARE_CAP)
+-		    stroke.generator().line_cap(agg::square_cap);
+-		else 
+-		    stroke.generator().line_cap(agg::round_cap);
++		    line_cap_e cap=stroke_.get_line_cap();
++		    if (cap == BUTT_CAP)    
++			stroke.generator().line_cap(agg::butt_cap);
++		    else if (cap == SQUARE_CAP)
++			stroke.generator().line_cap(agg::square_cap);
++		    else 
++			stroke.generator().line_cap(agg::round_cap);
+ 
+-		stroke.generator().miter_limit(4.0);
+-		stroke.generator().width(stroke_.get_width());
++		    stroke.generator().miter_limit(4.0);
++		    stroke.generator().width(stroke_.get_width());
+ 		
+-		ras.clip_box(0,0,image.width(),image.height());
+-		ras.add_path(stroke);
+-		ren.color(agg::rgba(r, g, b, stroke_.get_opacity()));
+-		agg::render_scanlines(ras, sl, ren);
+-	    }
+-	    else 
+-	    {
+-		agg::conv_stroke&lt;geometry&lt;vertex2d&gt; &gt;  stroke(geom);
++		    ras.clip_box(0,0,image.width(),image.height());
++		    ras.add_path(stroke);
++		    ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
++		    agg::render_scanlines(ras, sl, ren);
++		}
++		else 
++		{
++		    agg::conv_stroke&lt;geometry&lt;vertex2d&gt; &gt;  stroke(geom);
+ 		
+-		line_join_e join=stroke_.get_line_join();
+-		if ( join == MITER_JOIN)
+-		    stroke.generator().line_join(agg::miter_join);
+-		else if( join == MITER_REVERT_JOIN) 
+-		    stroke.generator().line_join(agg::miter_join);
+-		else if( join == ROUND_JOIN) 
+-		    stroke.generator().line_join(agg::round_join);
+-		else
+-		    stroke.generator().line_join(agg::bevel_join);
++		    line_join_e join=stroke_.get_line_join();
++		    if ( join == MITER_JOIN)
++			stroke.generator().line_join(agg::miter_join);
++		    else if( join == MITER_REVERT_JOIN) 
++			stroke.generator().line_join(agg::miter_join);
++		    else if( join == ROUND_JOIN) 
++			stroke.generator().line_join(agg::round_join);
++		    else
++			stroke.generator().line_join(agg::bevel_join);
+ 		    
+-		line_cap_e cap=stroke_.get_line_cap();
+-		if (cap == BUTT_CAP)    
+-		    stroke.generator().line_cap(agg::butt_cap);
+-		else if (cap == SQUARE_CAP)
+-		    stroke.generator().line_cap(agg::square_cap);
+-		else 
+-		    stroke.generator().line_cap(agg::round_cap);
++		    line_cap_e cap=stroke_.get_line_cap();
++		    if (cap == BUTT_CAP)    
++			stroke.generator().line_cap(agg::butt_cap);
++		    else if (cap == SQUARE_CAP)
++			stroke.generator().line_cap(agg::square_cap);
++		    else 
++			stroke.generator().line_cap(agg::round_cap);
+ 
+-		stroke.generator().miter_limit(4.0);
+-		stroke.generator().width(stroke_.get_width());
++		    stroke.generator().miter_limit(4.0);
++		    stroke.generator().width(stroke_.get_width());
+ 		    
+-		ras.clip_box(0,0,image.width(),image.height());
+-		ras.add_path(stroke);
+-		ren.color(agg::rgba(r, g, b, stroke_.get_opacity()));
+-		agg::render_scanlines(ras, sl, ren);
++		    ras.clip_box(0,0,image.width(),image.height());
++		    ras.add_path(stroke);
++		    ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
++		    agg::render_scanlines(ras, sl, ren);
++		}
+ 	    }
+ 	}
+     };
+
+Modified: trunk/include/mapnik.hpp
+===================================================================
+--- trunk/include/mapnik.hpp	2006-01-23 10:31:10 UTC (rev 120)
++++ trunk/include/mapnik.hpp	2006-01-23 10:33:32 UTC (rev 121)
+@@ -48,6 +48,7 @@
+ #include &quot;image_reader.hpp&quot;
+ #include &quot;line_symbolizer.hpp&quot;
+ #include &quot;polygon_symbolizer.hpp&quot;
++#include &quot;line_pattern_symbolizer.hpp&quot;
+ //#include &quot;image_symbolizer.hpp&quot;
+ #include &quot;image_util.hpp&quot;
+ #include &quot;datasource.hpp&quot;
+
+Modified: trunk/include/rule.hpp
+===================================================================
+--- trunk/include/rule.hpp	2006-01-23 10:31:10 UTC (rev 120)
++++ trunk/include/rule.hpp	2006-01-23 10:33:32 UTC (rev 121)
+@@ -120,7 +120,6 @@
+ 	    return name_;
+ 	}
+ 	
+-
+ 	const std::string&amp; get_title() const
+ 	{
+ 	    return  title_;
+
+Modified: trunk/src/render.cpp
+===================================================================
+--- trunk/src/render.cpp	2006-01-23 10:31:10 UTC (rev 120)
++++ trunk/src/render.cpp	2006-01-23 10:33:32 UTC (rev 121)
+@@ -182,7 +182,7 @@
+         for (size_t n=0;n&lt;map.layerCount();++n)
+         {
+             Layer const&amp; l=map.getLayer(n);
+-            if (l.isVisible(scale)) // TODO: extent check
++            if (l.isVisible(scale) &amp;&amp; l.envelope().intersects(extent))
+ 	    {
+ 		datasource_p const&amp; ds=l.datasource();
+ 		if (!ds) continue;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000007.html">[Mapnik-svn] r120 - trunk/include
+</A></li>
+	<LI>Next message: <A HREF="000009.html">[Mapnik-svn] r122 - in trunk: agg include python src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#8">[ date ]</a>
+              <a href="thread.html#8">[ thread ]</a>
+              <a href="subject.html#8">[ subject ]</a>
+              <a href="author.html#8">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

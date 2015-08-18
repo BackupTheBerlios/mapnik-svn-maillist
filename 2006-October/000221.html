@@ -1,0 +1,195 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r336 - in trunk: bindings/python/mapnik demo/python
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r336%20-%20in%20trunk%3A%20bindings/python/mapnik%20demo/python&In-Reply-To=%3C200610162225.k9GMPDFV022764%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000220.html">
+   <LINK REL="Next"  HREF="000222.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r336 - in trunk: bindings/python/mapnik demo/python</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r336%20-%20in%20trunk%3A%20bindings/python/mapnik%20demo/python&In-Reply-To=%3C200610162225.k9GMPDFV022764%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r336 - in trunk: bindings/python/mapnik demo/python">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Tue Oct 17 00:25:13 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000220.html">[Mapnik-svn] r335 - trunk/bindings/python
+</A></li>
+        <LI>Next message: <A HREF="000222.html">[Mapnik-svn] r337 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#221">[ date ]</a>
+              <a href="thread.html#221">[ thread ]</a>
+              <a href="subject.html#221">[ subject ]</a>
+              <a href="author.html#221">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-17 00:25:11 +0200 (Tue, 17 Oct 2006)
+New Revision: 336
+
+Modified:
+   trunk/bindings/python/mapnik/__init__.py
+   trunk/demo/python/rundemo.py
+Log:
+1. added convinience factory methods
+
+    ds = Shapefile(file='/../../')
+    ds = PostGIS(host='localhost',..)
+    ds = Raster(....)
+
+2. Modified rundemo.py accordingly 
+    
+
+
+Modified: trunk/bindings/python/mapnik/__init__.py
+===================================================================
+--- trunk/bindings/python/mapnik/__init__.py	2006-10-16 21:57:27 UTC (rev 335)
++++ trunk/bindings/python/mapnik/__init__.py	2006-10-16 22:25:11 UTC (rev 336)
+@@ -70,11 +70,22 @@
+     return Describe(self)
+ 
+ def Datasource (**keywords):
+-    return CreateDatasource(keywords)
++  return CreateDatasource(keywords)
+ 
++# convinience factory methods
+ 
++def Shapefile(**keywords):
++  keywords['type'] = 'shape'
++  return CreateDatasource(keywords)
+ 
++def PostGIS(**keywords):
++  keywords['type'] = 'postgis'
++  return CreateDatasource(keywords)
+ 
++def Raster(**keywords):
++  keywords['type'] = 'raster'
++  return CreateDatasource(keywords)
++
+ #register datasources
+ from mapnik import DatasourceCache
+ DatasourceCache.instance().register_datasources('%s' % inputpluginspath)
+
+Modified: trunk/demo/python/rundemo.py
+===================================================================
+--- trunk/demo/python/rundemo.py	2006-10-16 21:57:27 UTC (rev 335)
++++ trunk/demo/python/rundemo.py	2006-10-16 22:25:11 UTC (rev 336)
+@@ -56,7 +56,7 @@
+ #     table= TODO
+ 
+ provpoly_lyr = Layer('Provinces')
+-provpoly_lyr.datasource = Datasource(type='shape', file='../data/boundaries')
++provpoly_lyr.datasource = Shapefile(file='../data/boundaries')
+ 
+ # We then define a style for the layer.  A layer can have one or many styles.
+ # Styles are named, so they can be shared across different layers.
+@@ -121,8 +121,7 @@
+ 
+ qcdrain_lyr = Layer('Quebec Hydrography')
+ 
+-qcdrain_lyr.datasource = Datasource( type='shape',
+-                                     file='../data/qcdrainage')
++qcdrain_lyr.datasource = Shapefile(file='../data/qcdrainage')
+ 
+ qcdrain_style = Style()
+ qcdrain_rule = Rule()
+@@ -139,8 +138,7 @@
+ # re-use the style defined in the above layer for the next one.
+ 
+ ondrain_lyr = Layer('Ontario Hydrography')
+-ondrain_lyr.datasource = Datasource(type='shape',
+-                                    file='../data/ontdrainage')
++ondrain_lyr.datasource = Shapefile(file='../data/ontdrainage')
+ 
+ ondrain_lyr.styles.append('drainage')
+ m.layers.append(ondrain_lyr)
+@@ -148,8 +146,7 @@
+ # Provincial boundaries
+ 
+ provlines_lyr = Layer('Provincial borders')
+-provlines_lyr.datasource = Datasource (type='shape',
+-                                       file='../data/boundaries_l')
++provlines_lyr.datasource = Shapefile(file='../data/boundaries_l')
+ 
+ # Here we define a &quot;dash dot dot dash&quot; pattern for the provincial boundaries.
+ 
+@@ -172,8 +169,10 @@
+ # Roads 3 and 4 (The &quot;grey&quot; roads)
+ 
+ roads34_lyr = Layer('Roads')
+-roads34_lyr.datasource = Datasource(type='shape', file='../data/roads')
++# create roads datasource (we're going to re-use it later) 
+ 
++roads34_lyr.datasource = Shapefile(file='../data/roads')
++
+ roads34_style = Style()
+ roads34_rule = Rule()
+ roads34_rule.filter = Filter('[CLASS] = 3 or [CLASS] = 4')
+@@ -203,8 +202,10 @@
+ # Roads 2 (The thin yellow ones)
+ 
+ roads2_lyr = Layer('Roads')
+-roads2_lyr.datasource = Datasource (type='shape', file='../data/roads')
+ 
++# Just get a copy from roads34_lyr
++roads2_lyr.datasource = roads34_lyr.datasource 
++
+ roads2_style_1 = Style()
+ roads2_rule_1 = Rule()
+ roads2_rule_1.filter = Filter('[CLASS] = 2')
+@@ -237,7 +238,7 @@
+ # Roads 1 (The big orange ones, the highways)
+ 
+ roads1_lyr = Layer('Roads')
+-roads1_lyr.datasource = Datasource(type='shape', file='../data/roads')
++roads1_lyr.datasource = roads34_lyr.datasource
+ 
+ roads1_style_1 = Style()
+ roads1_rule_1 = Rule()
+@@ -270,8 +271,7 @@
+ # Populated Places
+ 
+ popplaces_lyr = Layer('Populated Places')
+-popplaces_lyr.datasource = Datasource (type='shape',
+-                                       file='../data/popplaces')
++popplaces_lyr.datasource = Shapefile(file='../data/popplaces')
+ 
+ popplaces_style = Style()
+ popplaces_rule = Rule()
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000220.html">[Mapnik-svn] r335 - trunk/bindings/python
+</A></li>
+	<LI>Next message: <A HREF="000222.html">[Mapnik-svn] r337 - trunk/bindings/python/mapnik/ogcserver
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#221">[ date ]</a>
+              <a href="thread.html#221">[ thread ]</a>
+              <a href="subject.html#221">[ subject ]</a>
+              <a href="author.html#221">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

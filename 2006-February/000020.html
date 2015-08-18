@@ -1,0 +1,304 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r134 - trunk
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-February/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r134%20-%20trunk&In-Reply-To=%3C200601312318.k0VNIPwR007074%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000019.html">
+   <LINK REL="Next"  HREF="000021.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r134 - trunk</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r134%20-%20trunk&In-Reply-To=%3C200601312318.k0VNIPwR007074%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r134 - trunk">pavlenko at berlios.de
+       </A><BR>
+    <I>Wed Feb  1 00:18:25 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000019.html">[Mapnik-svn] r133 - trunk/agg
+</A></li>
+        <LI>Next message: <A HREF="000021.html">[Mapnik-svn] r135 - trunk/agg
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#20">[ date ]</a>
+              <a href="thread.html#20">[ thread ]</a>
+              <a href="subject.html#20">[ subject ]</a>
+              <a href="author.html#20">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-02-01 00:18:24 +0100 (Wed, 01 Feb 2006)
+New Revision: 134
+
+Modified:
+   trunk/SConstruct
+Log:
+new build system
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2006-01-31 23:12:49 UTC (rev 133)
++++ trunk/SConstruct	2006-01-31 23:18:24 UTC (rev 134)
+@@ -1,110 +1,158 @@
+ #  This file is part of Mapnik (c++ mapping toolkit)
+-#  Copyright (C) 2005 Artem Pavlenko
++#  Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
+ #
+ #  Mapnik is free software; you can redistribute it and/or
+ #  modify it under the terms of the GNU General Public License
+ #  as published by the Free Software Foundation; either version 2
+ #  of the License, or any later version.
+-# 
++#
+ #  This program is distributed in the hope that it will be useful,
+ #  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ #  GNU General Public License for more details.
+-# 
++#
+ #  You should have received a copy of the GNU General Public License
+ #  along with this program; if not, write to the Free Software
+ #  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+-# 
++#
+ # $Id$
+ 
+-import os
++import os, sys
+ 
+-#edit 'settings.py' to match your system settings
+-opts = Options('settings.py')
++opts = Options()
+ 
+-opts.Add('PREFIX', 'Set the install &quot;prefix&quot;', '/opt/mapnik')
+-opts.Add(PathOption('BOOST_ROOT','boost source root directory','/opt/boost'))
+-opts.Add(PathOption('AGG_ROOT','agg source root directory','/opt/agg23'))
+-opts.Add(PathOption('FREETYPE2_ROOT','freetype2 root directory','/opt/freetype2'))
+-opts.Add(PathOption('PYTHON_ROOT','python root directory','/opt/python'))
+-opts.Add('PYTHON_VERSION','python version','2.4')
+-opts.Add(ListOption('DATASOURCES','list of available datasources','all',['postgis','shape','raster'])) 
+-opts.Add(ListOption('EXTENSIONS','list of available extensions','none',['python']))
+-opts.Add('POSTGRESQL_ROOT','path to postgresql prefix','/usr/local')
+-    
+-platform = ARGUMENTS.get(&quot;OS&quot;,Platform())
++opts.Add('PREFIX', 'The install path &quot;prefix&quot;', '/usr/local')
++opts.Add(PathOption('BOOST_INCLUDES', 'Search path for boost include files', '/usr/include'))
++opts.Add(PathOption('BOOST_LIBS', 'Search path for boost library files', '/usr/lib'))
++opts.Add(PathOption('FREETYPE_INCLUDES', 'Search path for FreeType include files', '/usr/include'))
++opts.Add(PathOption('FREETYPE_LIBS', 'Search path for FreeType library files', '/usr/lib'))
++opts.Add(PathOption('PNG_INCLUDES', 'Search path for libpng include files', '/usr/include'))
++opts.Add(PathOption('PNG_LIBS', 'Search path for libpng include files', '/usr/lib'))
++opts.Add(PathOption('JPEG_INCLUDES', 'Search path for libjpeg include files', '/usr/include'))
++opts.Add(PathOption('JPEG_LIBS', 'Search path for libjpeg library files', '/usr/lib'))
++opts.Add(PathOption('TIFF_INCLUDES', 'Search path for libtiff include files', '/usr/include'))
++opts.Add(PathOption('TIFF_LIBS', 'Search path for libtiff library files', '/usr/lib'))
++opts.Add(PathOption('PGSQL_INCLUDES', 'Search path for PostgreSQL include files', '/usr/include'))
++opts.Add(PathOption('PGSQL_LIBS', 'Search path for PostgreSQL library files', '/usr/lib'))
++opts.Add(PathOption('PYTHON','Python executable','/usr/local/bin/python2.4'))
++opts.Add(ListOption('INPUT_PLUGINS','Input drivers to include','all',['postgis','shape','raster']))
++opts.Add(ListOption('BINDINGS','Language bindings to build','all',['python']))
+ 
+-build_dir = 'build'
+-build_prefix = build_dir+'/'+str(platform)
++env = Environment(ENV=os.environ, options=opts)
+ 
+-#cxx = 'g++'
++Help(opts.GenerateHelpText(env))
+ 
+-env = Environment(ENV=os.environ, options=opts)
++conf = Configure(env)
+ 
+-cxx_debug='-Wall -Wno-non-virtual-dtor -Wno-ctor-dtor-privacy -ftemplate-depth-100 -O0 -fno-inline -g -pthread -DDEBUG'
+-cxx_release='-Wall -Wno-non-virtual-dtor -Wno-ctor-dtor-privacy -ftemplate-depth-100 -O3 -finline-functions -Wno-inline -pthread -DNDEBUG '
++# Libraries and headers dependency checks
+ 
+-#release_env = env.Copy(CXXFLAGS = cxx_release)
+-#debug_env = env.Copy(CXXFLAGS = cxx_debug)
++env['CPPPATH'] = ['#agg/include', '#include']
+ 
+-if ARGUMENTS.get('debug',0):
+-    env.Append(CXXFLAGS = cxx_debug)
+-    build_prefix+='/debug'
+-else:
+-    env.Append(CXXFLAGS = cxx_release)
+-    build_prefix+='/release'
++for path in [env['BOOST_INCLUDES'], env['FREETYPE_INCLUDES'], env['PNG_INCLUDES'], env['JPEG_INCLUDES'], env['TIFF_INCLUDES'], env['PGSQL_INCLUDES']]:
++    if path not in env['CPPPATH']: env['CPPPATH'].append(path)
+ 
+-Help(opts.GenerateHelpText(env))
++env['LIBPATH'] = ['#agg', '#src']
+ 
+-conf = Configure(env)
++for path in [env['BOOST_LIBS'], env['FREETYPE_LIBS'], env['PNG_LIBS'], env['JPEG_LIBS'], env['TIFF_LIBS'], env['PGSQL_LIBS']]:
++    if path not in env['LIBPATH']: env['LIBPATH'].append(path)
+ 
+-if not conf.CheckLibWithHeader('ltdl','ltdl.h','C'):
+-    print 'Could not find libltdl/headers , exiting!'
+-    Exit(1)
++C_LIBSHEADERS = [
++    ['ltdl', 'ltdl.h', True],
++    ['png', 'png.h', True],
++    ['tiff', 'tiff.h', True],
++    ['z', 'zlib.h', True],
++    ['jpeg', ['stdio.h','jpeglib.h'], True],
++    ['pq', 'libpq-fe.h', False]
++]
+ 
+-if not conf.CheckLib('z'):
+-    print 'Could not find libz , exiting!'
+-    Exit(1)
++BOOST_LIBSHEADERS = [
++    ['thread', 'boost/thread/mutex.hpp', True],
++    ['filesystem', 'boost/filesystem/operations.hpp', True],
++    ['wserialization', ['boost/archive/text_oarchive.hpp',
++                        'boost/archive/text_iarchive.hpp',
++                        'boost/archive/xml_oarchive.hpp',
++                        'boost/archive/xml_iarchive.hpp'], True
++    ],
++    ['regex', 'boost/regex.hpp', True],
++    ['program_options', 'boost/program_options.hpp', False]
++]
+ 
+-if not conf.CheckLibWithHeader('png','png.h','C'):
+-    print 'Could not find png lib and/or headers, exiting!'
+-    Exit(1)
++for libinfo in C_LIBSHEADERS:
++    if not conf.CheckLibWithHeader(libinfo[0], libinfo[1], 'C') and libinfo[2]:
++        print 'Could not find header or shared library for %s, exiting!' % libinfo[0]
++        Exit(1)
+ 
+-if not conf.CheckLib('jpeg'):
+-    print 'Could not find jpeg lib, exiting!'
+-    Exit(1)
+-    
+-if not conf.CheckLibWithHeader('tiff','tiff.h','C'):
+-    print 'Could not find tiff lib and/or headers, exiting!'
+-    Exit(1)
+-    
+-env  = conf.Finish()
++for libinfo in BOOST_LIBSHEADERS:
++    if not conf.CheckLibWithHeader('boost_%s' % libinfo[0], libinfo[1], 'C++'):
++        if not conf.CheckLibWithHeader('boost_%s-%s-mt' % (libinfo[0], env['CC']), libinfo[1], 'C++') and libinfo[2]:
++            print 'Could not find header or shared library for boost %s, exiting!' % libinfo[0]
++            Exit(1)
+ 
++# Check out the Python situation
++
++if 'python' in env['BINDINGS']:
++    if not os.access(env['PYTHON'], os.X_OK):
++        print 'Cannot run python, make sure that you have the permissions to execute it.'
++        Exit(1)
++
++    env['PYTHON_PREFIX'] = os.popen(&quot;%s -c 'import sys; print sys.prefix'&quot; % env['PYTHON']).read().strip()
++    env['PYTHON_VERSION'] = os.popen(&quot;%s -c 'import sys; print sys.version'&quot; % env['PYTHON']).read()[0:3]
++
++    print 'Bindings Python version... %s' % env['PYTHON_VERSION']
++
++    majver, minver = env['PYTHON_VERSION'].split('.')
++
++    if int(majver) &gt; 1:
++        if int(minver) &lt; 3:
++           print &quot;Python version 2.2 or greater required&quot;
++           Exit(1)
++    else:
++        print &quot;Python version 2.2 or greater required&quot;
++        Exit(1)
++
++    print 'Python %s prefix... %s' % (env['PYTHON_VERSION'], env['PYTHON_PREFIX'])
++
++env = conf.Finish()
++
++# Setup the c++ args for our own codebase
++
++if ARGUMENTS.get('DEBUG',0):
++    env.Append(CXXFLAGS = '-Wall -ftemplate-depth-100 -O0 -fno-inline -g -pthread -DDEBUG')
++else:
++    env.Append(CXXFLAGS = '-Wall -ftemplate-depth-100 -O3 -finline-functions -Wno-inline -pthread -DNDEBUG')
++
++# Build the input plug-ins
++
++inputplugins = [ driver.strip() for driver in Split(env['INPUT_PLUGINS'])]
++
+ Export('env')
+-#build agg lib
+-env.SConscript('agg/SConscript')
+-#build boost libs (filesystem, regex, python etc)
+-env.SConscript('boost/SConscript')
+-#main lib
+-SConscript('src/SConscript')
+ 
+-import string
++# Build agg first, doesn't need anything special
+ 
+-#python bindings
++SConscript('agg/SConscript')
+ 
+-if 'python' in [string.strip(m) for m in Split(env['EXTENSIONS'])]:
+-    SConscript('python/SConscript')
++# Build shapeindex and remove it's dependency from the LIBS
+ 
+-#shapeindex
+-SConscript('util/shapeindex/SConscript')
++if 'boost_program_options' in env['LIBS'] or 'boost_program_options-gcc-mt' in env['LIBS']:
++    SConscript('utils/shapeindex/SConscript')
+ 
+-#datasources
+-def build_datasource(name):
+-    env.BuildDir('build/datasources/' + name,'src/datasources/'+name,duplicate=0)
+-    SConscript('datasources/' + name + '/SConscript')
+-    
+-[build_datasource(name) for name in Split(env['DATASOURCES'])]
++if 'postgis' in inputplugins and 'pq' in env['LIBS']:
++    SConscript('plugins/input/postgis/SConscript')
++    env['LIBS'].remove('pq')
+ 
++if 'shape' in inputplugins:
++    SConscript('plugins/input/shape/SConscript')
+ 
++if 'raster' in inputplugins:
++    SConscript('plugins/input/raster/SConscript')
+ 
++# Build the core library
+ 
++SConscript('src/SConscript')
++
++# Build python bindings
++
++bindings = [ binding.strip() for binding in Split(env['BINDINGS'])]
++
++if 'python' in bindings:
++    SConscript('bindings/python/SConscript')
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000019.html">[Mapnik-svn] r133 - trunk/agg
+</A></li>
+	<LI>Next message: <A HREF="000021.html">[Mapnik-svn] r135 - trunk/agg
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#20">[ date ]</a>
+              <a href="thread.html#20">[ thread ]</a>
+              <a href="subject.html#20">[ subject ]</a>
+              <a href="author.html#20">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,120 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r383 - trunk/plugins/input/postgis
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-November/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r383%20-%20trunk/plugins/input/postgis&In-Reply-To=%3C200611280016.kAS0GFiC010336%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000267.html">
+   <LINK REL="Next"  HREF="000269.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r383 - trunk/plugins/input/postgis</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r383%20-%20trunk/plugins/input/postgis&In-Reply-To=%3C200611280016.kAS0GFiC010336%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r383 - trunk/plugins/input/postgis">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Tue Nov 28 01:16:15 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000267.html">[Mapnik-svn] r382 - trunk/src
+</A></li>
+        <LI>Next message: <A HREF="000269.html">[Mapnik-svn] r384 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#268">[ date ]</a>
+              <a href="thread.html#268">[ thread ]</a>
+              <a href="subject.html#268">[ subject ]</a>
+              <a href="author.html#268">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-11-28 01:16:13 +0100 (Tue, 28 Nov 2006)
+New Revision: 383
+
+Modified:
+   trunk/plugins/input/postgis/postgis.cpp
+Log:
+added initial_size ans max_size parameters for setting up db connection pool
+(default to 1 and 10 respectively)
+
+
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2006-11-28 00:13:31 UTC (rev 382)
++++ trunk/plugins/input/postgis/postgis.cpp	2006-11-28 00:16:13 UTC (rev 383)
+@@ -27,6 +27,7 @@
+ #include &lt;set&gt;
+ #include &lt;sstream&gt;
+ #include &lt;iomanip&gt;
++#include &lt;boost/lexical_cast.hpp&gt;
+ #include &quot;connection_manager.hpp&quot;
+ #include &quot;postgis.hpp&quot;
+ 
+@@ -52,9 +53,31 @@
+                params.get(&quot;dbname&quot;),
+                params.get(&quot;user&quot;),
+                params.get(&quot;password&quot;))    
+-{     
++{   
++
++    unsigned initial_size;
++    unsigned max_size;
++    
++    try 
++    {
++        initial_size = boost::lexical_cast&lt;unsigned&gt;(params.get(&quot;initial_size&quot;)); 
++    }
++    catch (bad_lexical_cast&amp; )
++    {
++        initial_size = 1;
++    }
++    
++    try 
++    {
++        max_size = boost::lexical_cast&lt;unsigned&gt;(params.get(&quot;initial_size&quot;)); 
++    }
++    catch (bad_lexical_cast&amp;)
++    {
++        max_size = 10;
++    }
++    
+     ConnectionManager *mgr=ConnectionManager::instance();   
+-    mgr-&gt;registerPool(creator_,5,10);
++    mgr-&gt;registerPool(creator_, initial_size, max_size);
+     
+     shared_ptr&lt;Pool&lt;Connection,ConnectionCreator&gt; &gt; pool=mgr-&gt;getPool(creator_.id());
+     if (pool)
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000267.html">[Mapnik-svn] r382 - trunk/src
+</A></li>
+	<LI>Next message: <A HREF="000269.html">[Mapnik-svn] r384 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#268">[ date ]</a>
+              <a href="thread.html#268">[ thread ]</a>
+              <a href="subject.html#268">[ subject ]</a>
+              <a href="author.html#268">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

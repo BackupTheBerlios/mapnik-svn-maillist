@@ -1,0 +1,1657 @@
+From jdoyon at mail.berlios.de  Sat Jul 22 20:55:02 2006
+From: jdoyon at mail.berlios.de (jdoyon at BerliOS)
+Date: Sat, 22 Jul 2006 20:55:02 +0200
+Subject: [Mapnik-svn] r283 - in trunk: bindings/python/mapnik/ogcserver
+	docs/ogcserver utils/ogcserver
+Message-ID: <200607221855.k6MIt2Hk030166@sheep.berlios.de>
+
+Author: jdoyon
+Date: 2006-07-22 20:54:53 +0200 (Sat, 22 Jul 2006)
+New Revision: 283
+
+Added:
+   trunk/bindings/python/mapnik/ogcserver/configparser.py
+Modified:
+   trunk/bindings/python/mapnik/ogcserver/cgiserver.py
+   trunk/bindings/python/mapnik/ogcserver/common.py
+   trunk/bindings/python/mapnik/ogcserver/wms111.py
+   trunk/bindings/python/mapnik/ogcserver/wms130.py
+   trunk/docs/ogcserver/readme.txt
+   trunk/utils/ogcserver/ogcserver.conf
+Log:
+- Added support for complete service metadata
+- refactored some code for optimization
+- cusomtized the config parser
+
+Modified: trunk/bindings/python/mapnik/ogcserver/cgiserver.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/cgiserver.py	2006-06-27 19:47:20 UTC (rev 282)
++++ trunk/bindings/python/mapnik/ogcserver/cgiserver.py	2006-07-22 18:54:53 UTC (rev 283)
+@@ -28,7 +28,7 @@
+ from exceptions import OGCException, ServerConfigurationError
+ from wms111 import ExceptionHandler as ExceptionHandler111
+ from wms130 import ExceptionHandler as ExceptionHandler130
+-from ConfigParser import SafeConfigParser
++from configparser import SafeConfigParser
+ from common import Version
+ 
+ class Handler(cgi.DebugHandler):
+@@ -37,7 +37,7 @@
+         conf = SafeConfigParser()
+         conf.readfp(open(self.configpath))
+         self.conf = conf
+-        if not conf.has_option('server', 'module'):
++        if not conf.has_option_with_value('server', 'module'):
+             raise ServerConfigurationError('The factory module is not defined in the configuration file.')
+         try:
+             mapfactorymodule = __import__(conf.get('server', 'module'))
+
+Modified: trunk/bindings/python/mapnik/ogcserver/common.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/common.py	2006-06-27 19:47:20 UTC (rev 282)
++++ trunk/bindings/python/mapnik/ogcserver/common.py	2006-07-22 18:54:53 UTC (rev 283)
+@@ -79,6 +79,26 @@
+ 
+ class BaseServiceHandler:
+ 
++    CONF_CONTACT_PERSON_PRIMARY = [
++        ['contactperson', 'ContactPerson', str],
++        ['contactorganization', 'ContactOrganization', str]
++    ]
++    
++    CONF_CONTACT_ADDRESS = [   
++        ['addresstype', 'AddressType', str],
++        ['address', 'Address', str],
++        ['city', 'City', str],
++        ['stateorprovince', 'StateOrProvince', str],
++        ['postcode', 'PostCode', str],
++        ['country', 'Country', str]
++    ]
++    
++    CONF_CONTACT = [
++        ['contactposition', 'ContactPosition', str],
++        ['contactvoicetelephone', 'ContactVoiceTelephone', str],
++        ['contactelectronicmailaddress', 'ContactElectronicMailAddress', str]
++    ]
++
+     def processParameters(self, requestname, params):
+         finalparams = {}
+         for paramname, paramdef in self.SERVICE_PARAMS[requestname].items():
+@@ -101,6 +121,65 @@
+             elif not paramdef.mandatory and paramdef.default:
+                 finalparams[paramname] = paramdef.default
+         return finalparams
++    
++    def processServiceCapabilities(self, capetree):
++        if len(self.conf.items('service')) > 0:
++            servicee = capetree.find('{http://www.opengis.net/wms}Service')
++            for item in self.CONF_SERVICE:
++                if self.conf.has_option_with_value('service', item[0]):
++                    value = self.conf.get('service', item[0]).strip()
++                    try:
++                        item[2](value)
++                    except:
++                        raise ServerConfigurationError('Configuration parameter [%s]->%s has an invalid value: %s.' % ('service', item[0], value))
++                    if item[0] == 'onlineresource':
++                        element = ElementTree.Element('%s' % item[1])
++                        servicee.append(element)
++                        element.set('{http://www.w3.org/1999/xlink}href', value)
++                        element.set('{http://www.w3.org/1999/xlink}type', 'simple')
++                    elif item[0] == 'keywordlist':
++                        element = ElementTree.Element('%s' % item[1])
++                        servicee.append(element)
++                        keywords = value.split(',')
++                        keywords = map(str.strip, keywords)
++                        for keyword in keywords:
++                            kelement = ElementTree.Element('Keyword')
++                            kelement.text = keyword
++                            element.append(kelement)
++                    else:
++                        element = ElementTree.Element('%s' % item[1])
++                        element.text = value
++                        servicee.append(element)
++            if len(self.conf.items_with_value('contact')) > 0:
++                element = ElementTree.Element('ContactInformation')
++                servicee.append(element)
++                for item in self.CONF_CONTACT:
++                    if self.conf.has_option_with_value('contact', item[0]):
++                        value = self.conf.get('contact', item[0]).strip()
++                        try:
++                            item[2](value)
++                        except:
++                            raise ServerConfigurationError('Configuration parameter [%s]->%s has an invalid value: %s.' % ('service', item[0], value))
++                        celement = ElementTree.Element('%s' % item[1])
++                        celement.text = value
++                        element.append(celement)
++                for item in self.CONF_CONTACT_PERSON_PRIMARY + self.CONF_CONTACT_ADDRESS:
++                    if item in self.CONF_CONTACT_PERSON_PRIMARY:
++                        tagname = 'ContactPersonPrimary'
++                    else:
++                        tagname = 'ContactAddress'
++                    if self.conf.has_option_with_value('contact', item[0]):
++                        if element.find(tagname) == None:
++                            subelement = ElementTree.Element(tagname)
++                            element.append(subelement)
++                        value = self.conf.get('contact', item[0]).strip()
++                        try:
++                            item[2](value)
++                        except:
++                            raise ServerConfigurationError('Configuration parameter [%s]->%s has an invalid value: %s.' % ('service', item[0], value))
++                        celement = ElementTree.Element('%s' % item[1])
++                        celement.text = value
++                        subelement.append(celement)
+ 
+ class Response:
+ 
+
+Added: trunk/bindings/python/mapnik/ogcserver/configparser.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/configparser.py	2006-06-27 19:47:20 UTC (rev 282)
++++ trunk/bindings/python/mapnik/ogcserver/configparser.py	2006-07-22 18:54:53 UTC (rev 283)
+@@ -0,0 +1,44 @@
++#
++# This file is part of Mapnik (c++ mapping toolkit)
++#
++# Copyright (C) 2006 Jean-Francois Doyon
++#
++# Mapnik is free software; you can redistribute it and/or
++# modify it under the terms of the GNU Lesser General Public
++# License as published by the Free Software Foundation; either
++# version 2.1 of the License, or (at your option) any later version.
++#
++# This library is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++# Lesser General Public License for more details.
++#
++# You should have received a copy of the GNU Lesser General Public
++# License along with this library; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++#
++# $Id$
++
++""" Change SafeConfigParser behavior to treat options without values as
++    non-existent.
++"""
++
++from ConfigParser import SafeConfigParser as OrigSafeConfigParser
++
++class SafeConfigParser(OrigSafeConfigParser):
++    
++    def items_with_value(self, section):
++        finallist = []
++        items = self.items(section)
++        for item in items:
++            if item[1] != '':
++                finallist.append(item)
++        return finallist
++    
++    def has_option_with_value(self, section, option):
++        if self.has_option(section, option):
++            if self.get(section, option) == '':
++                return False
++        else:
++            return False
++        return True
+\ No newline at end of file
+
+
+Property changes on: trunk/bindings/python/mapnik/ogcserver/configparser.py
+___________________________________________________________________
+Name: svn:keywords
+   + Id
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms111.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms111.py	2006-06-27 19:47:20 UTC (rev 282)
++++ trunk/bindings/python/mapnik/ogcserver/wms111.py	2006-07-22 18:54:53 UTC (rev 283)
+@@ -51,11 +51,12 @@
+         ['onlineresource', 'OnlineResource', str],
+         ['fees', 'Fees', str],
+         ['accessconstraints', 'AccessConstraints', str],
++        ['keywordlist', 'KeywordList', str]
+     ]
+ 
+     capabilitiesxmltemplate = """<?xml version='1.0' encoding="UTF-8" standalone="no"?>
+     <!DOCTYPE WMT_MS_Capabilities SYSTEM "http://www.digitalearth.gov/wmt/xml/capabilities_1_1_1.dtd">
+-    <WMT_MS_Capabilities version="1.1.1" updateSequence="0" xmlns:xlink="http://www.w3.org/1999/xlink">
++    <WMT_MS_Capabilities version="1.1.1" updateSequence="0" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.opengis.net/wms">
+       <Service>
+         <Name>WMS</Name>
+       </Service>
+@@ -117,28 +118,11 @@
+         for element in elements:
+             element.set('{http://www.w3.org/1999/xlink}href', opsonlineresource)
+ 
+-        if len(self.conf.items('service')) > 0:
+-            servicee = capetree.find('Service')
+-            for item in self.CONF_SERVICE:
+-                if self.conf.has_option('service', item[0]):
+-                    value = self.conf.get('service', item[0])
+-                    try:
+-                        item[2](value)
+-                    except:
+-                        raise ServerConfigurationError('Configuration parameter [%s]->%s has an invalid value: %s.' % ('service', item[0], value))
+-                    if item[0] == 'onlineresource':
+-                        element = ElementTree.Element('%s' % item[1])
+-                        servicee.append(element)
+-                        element.set('{http://www.w3.org/1999/xlink}href', value)
+-                        element.set('{http://www.w3.org/1999/xlink}type', 'simple')
+-                    else:
+-                        element = ElementTree.Element('%s' % item[1])
+-                        element.text = value
+-                        servicee.append(element)
++        self.processServiceCapabilities(capetree)
+ 
+-        rootlayerelem = capetree.find('Capability/Layer')
++        rootlayerelem = capetree.find('{http://www.opengis.net/wms}Capability/{http://www.opengis.net/wms}Layer')
+ 
+-        rootlayersrs = rootlayerelem.find('SRS')
++        rootlayersrs = rootlayerelem.find('{http://www.opengis.net/wms}SRS')
+         rootlayersrs.text = str(self.crs)
+ 
+         for layer in self.mapfactory.layers.values():
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms130.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms130.py	2006-06-27 19:47:20 UTC (rev 282)
++++ trunk/bindings/python/mapnik/ogcserver/wms130.py	2006-07-22 18:54:53 UTC (rev 283)
+@@ -54,7 +54,8 @@
+         ['accessconstraints', 'AccessConstraints', str],
+         ['layerlimit', 'LayerLimit', int],
+         ['maxwidth', 'MaxWidth', int],
+-        ['maxheight', 'MaxHeight', int]
++        ['maxheight', 'MaxHeight', int],
++        ['keywordlist', 'KeywordList', str]
+     ]
+ 
+     capabilitiesxmltemplate = """<?xml version="1.0" encoding="UTF-8"?>
+@@ -123,24 +124,7 @@
+         for element in elements:
+             element.set('{http://www.w3.org/1999/xlink}href', opsonlineresource)
+ 
+-        if len(self.conf.items('service')) > 0:
+-            servicee = capetree.find('{http://www.opengis.net/wms}Service')
+-            for item in self.CONF_SERVICE:
+-                if self.conf.has_option('service', item[0]):
+-                    value = self.conf.get('service', item[0]).strip()
+-                    try:
+-                        item[2](value)
+-                    except:
+-                        raise ServerConfigurationError('Configuration parameter [%s]->%s has an invalid value: %s.' % ('service', item[0], value))
+-                    if item[0] == 'onlineresource':
+-                        element = ElementTree.Element('%s' % item[1])
+-                        servicee.append(element)
+-                        element.set('{http://www.w3.org/1999/xlink}href', value)
+-                        element.set('{http://www.w3.org/1999/xlink}type', 'simple')
+-                    else:
+-                        element = ElementTree.Element('%s' % item[1])
+-                        element.text = value
+-                        servicee.append(element)
++        self.processServiceCapabilities(capetree)
+ 
+         rootlayerelem = capetree.find('{http://www.opengis.net/wms}Capability/{http://www.opengis.net/wms}Layer')
+ 
+
+Modified: trunk/docs/ogcserver/readme.txt
+===================================================================
+--- trunk/docs/ogcserver/readme.txt	2006-06-27 19:47:20 UTC (rev 282)
++++ trunk/docs/ogcserver/readme.txt	2006-07-22 18:54:53 UTC (rev 283)
+@@ -18,7 +18,7 @@
+ 
+ - WMS 1.1.1 and 1.3.0
+ - CGI/FastCGI
+-- GetCapabilities and GetMap support only (NO GetFeatureInfo)
++- GetCapabilities and GetMap support only (NO GetFeatureInfo ... yet)
+ - JPEG/PNG output
+ - XML/INIMAGE/BLANK error handling
+ - No real layer metadata support yet
+@@ -128,7 +128,6 @@
+ -----
+ 
+ - Named style support.
+-- Improve configuration to allow for full server metadata.
+ - Investigate moving to cElementTree from lxml.
+ - Add some internal "caching" for performance improvements.
+ - Support GetFeatureInfo (Requires core changes).
+
+Modified: trunk/utils/ogcserver/ogcserver.conf
+===================================================================
+--- trunk/utils/ogcserver/ogcserver.conf	2006-06-27 19:47:20 UTC (rev 282)
++++ trunk/utils/ogcserver/ogcserver.conf	2006-07-22 18:54:53 UTC (rev 283)
+@@ -37,3 +37,37 @@
+ #                  resource pointing to the CGI.
+ 
+ onlineresource=http://www.mapnik.org/
++
++# fees: An explanation of the fee structure for the usage of your service,
++#       if any. Use the reserved keyword "none" if not applicable.
++
++fees=
++
++# keywords: A comma seperated list of key words.
++
++keywordlist=
++
++# accessconstraints: Plain language description of any constraints that might
++#                    apply to the usage of your service, such as hours of
++#                    operation.  
++
++accessconstraints=
++
++# contact: Contact information.  Provides niformation to service users on who
++#          to contact for help on or details about the service.
++
++[contact]
++
++contactperson=
++contactorganization=
++contactposition=
++
++addresstype=
++address=
++city=
++stateorprovince=
++postcode=
++country=
++
++contactvoicetelephone=
++contactelectronicmailaddress=
+
+
+
+From jdoyon at mail.berlios.de  Sun Jul 23 21:50:54 2006
+From: jdoyon at mail.berlios.de (jdoyon at BerliOS)
+Date: Sun, 23 Jul 2006 21:50:54 +0200
+Subject: [Mapnik-svn] r284 - in trunk: bindings/python/mapnik/ogcserver
+	docs/ogcserver
+Message-ID: <200607231950.k6NJosEX009451@sheep.berlios.de>
+
+Author: jdoyon
+Date: 2006-07-23 21:50:52 +0200 (Sun, 23 Jul 2006)
+New Revision: 284
+
+Modified:
+   trunk/bindings/python/mapnik/ogcserver/WMS.py
+   trunk/bindings/python/mapnik/ogcserver/common.py
+   trunk/bindings/python/mapnik/ogcserver/wms130.py
+   trunk/docs/ogcserver/readme.txt
+Log:
+Added support for associating multiple named styles to a layer
+and specifying one using the STYLES= WMS request argument.
+
+Modified: trunk/bindings/python/mapnik/ogcserver/WMS.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/WMS.py	2006-07-22 18:54:53 UTC (rev 283)
++++ trunk/bindings/python/mapnik/ogcserver/WMS.py	2006-07-23 19:50:52 UTC (rev 284)
+@@ -40,24 +40,47 @@
+     def __init__(self):
+         self.layers = {}
+         self.styles = {}
++        self.aggregatestyles = {}
+ 
+-    def register_layer(self, layer, extrastyles=()):
++    def register_layer(self, layer, defaultstyle, extrastyles=()):
+         layername = layer.name()
+         if not layername:
+             raise ServerConfigurationError('Attempted to register an unnamed layer.')
+-        self.layers[layername] = layer
++        if defaultstyle not in self.styles.keys() + self.aggregatestyles.keys():
++            raise ServerConfigurationError('Attempted to register a layer with an non-existent default style.')
++        layer.wmsdefaultstyle = defaultstyle
+         if isinstance(extrastyles, tuple):
++            for stylename in extrastyles:
++                if type(stylename) == type(''):
++                    if stylename not in self.styles.keys() + self.aggregatestyles.keys():
++                        raise ServerConfigurationError('Attempted to register a layer with an non-existent extra style.')
++                else:
++                    ServerConfigurationError('Attempted to register a layer with an invalid extra style name.')
+             layer.wmsextrastyles = extrastyles
+         else:
+             raise ServerConfigurationError('Layer "%s" was passed an invalid list of extra styles.  List must be a tuple of strings.' % layername)
++        self.layers[layername] = layer
+ 
+     def register_style(self, name, style):
+         if not name:
+             raise ServerConfigurationError('Attempted to register a style without providing a name.')
++        if name in self.aggregatestyles.keys() or name in self.styles.keys():
++            raise ServerConfigurationError('Attempted to register an aggregate style with a name already in use.')
+         if not isinstance(style, Style):
+             raise ServerConfigurationError('Bad style object passed to register_style() for style "%s".' % name)
+         self.styles[name] = style
+ 
++    def register_aggregate_style(self, name, stylenames):
++        if not name:
++            raise ServerConfigurationError('Attempted to register an aggregate style without providing a name.')
++        if name in self.aggregatestyles.keys() or name in self.styles.keys():
++            raise ServerConfigurationError('Attempted to register an aggregate style with a name already in use.')
++        self.aggregatestyles[name] = []
++        for stylename in stylenames:
++            if stylename not in self.styles.keys():
++                raise ServerConfigurationError('Attempted to register an aggregate style containing a style that does not exist.')
++            self.aggregatestyles[name].append(stylename)
++
+     def finalize(self):
+         if len(self.layers) == 0:
+             raise ServerConfigurationError('No layers defined!')
+@@ -65,5 +88,5 @@
+             raise ServerConfigurationError('No styles defined!')
+         for layer in self.layers.values():
+             for style in list(layer.styles) + list(layer.wmsextrastyles):
+-                if style not in self.styles.keys():
++                if style not in self.styles.keys() + self.aggregatestyles.keys():
+                     raise ServerConfigurationError('Layer "%s" refers to undefined style "%s".' % (layer.name(), style))
+
+Modified: trunk/bindings/python/mapnik/ogcserver/common.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/common.py	2006-07-22 18:54:53 UTC (rev 283)
++++ trunk/bindings/python/mapnik/ogcserver/common.py	2006-07-23 19:50:52 UTC (rev 284)
+@@ -29,6 +29,7 @@
+ from sys import exc_info
+ from lxml import etree as ElementTree
+ import re
++import sys
+ # from elementtree import ElementTree
+ # ElementTree._namespace_map.update({'http://www.opengis.net/wms': 'wms',
+ #                                    'http://www.opengis.net/ogc': 'ogc',
+@@ -292,11 +293,22 @@
+             m.background = Color(0, 0, 0, 0)
+         maplayers = self.mapfactory.layers
+         mapstyles = self.mapfactory.styles
+-        for layername in params['layers']:
++        mapaggregatestyles = self.mapfactory.aggregatestyles
++        for layerindex, layername in enumerate(params['layers']):
+             try:
+                 layer = maplayers[layername]
+             except KeyError:
+                 raise OGCException('Layer "%s" not defined.' % layername, 'LayerNotDefined')
++            reqstyle = params['styles'][layerindex]
++            if reqstyle and reqstyle not in layer.wmsextrastyles:
++                raise OGCException('Invalid style "%s" requested for layer "%s".' % (reqstyle, layername), 'StyleNotDefined')
++            if not reqstyle:
++                reqstyle = layer.wmsdefaultstyle
++            if reqstyle in mapaggregatestyles.keys():
++                for stylename in mapaggregatestyles[reqstyle]:
++                    layer.styles.append(stylename)
++            else:
++                layer.styles.append(reqstyle)
+             for stylename in layer.styles:
+                 if stylename in mapstyles.keys():
+                     m.append_style(stylename, mapstyles[stylename])
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms130.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms130.py	2006-07-22 18:54:53 UTC (rev 283)
++++ trunk/bindings/python/mapnik/ogcserver/wms130.py	2006-07-23 19:50:52 UTC (rev 284)
+@@ -169,7 +169,7 @@
+             layere.append(layerexgbb)
+             layere.append(layerbbox)
+             if len(layer.wmsextrastyles) > 0:
+-                for extrastyle in list(layer.wmsextrastyles):
++                for extrastyle in [layer.wmsdefaultstyle] + list(layer.wmsextrastyles):
+                     style = ElementTree.Element('Style')
+                     stylename = ElementTree.Element('Name')
+                     stylename.text = extrastyle
+
+Modified: trunk/docs/ogcserver/readme.txt
+===================================================================
+--- trunk/docs/ogcserver/readme.txt	2006-07-22 18:54:53 UTC (rev 283)
++++ trunk/docs/ogcserver/readme.txt	2006-07-23 19:50:52 UTC (rev 284)
+@@ -21,6 +21,7 @@
+ - GetCapabilities and GetMap support only (NO GetFeatureInfo ... yet)
+ - JPEG/PNG output
+ - XML/INIMAGE/BLANK error handling
++- Multiple named styles support
+ - No real layer metadata support yet
+ - No re-projection support
+ - Needs to be able to write to tempfile.gettempdir() (most likely "/tmp")
+@@ -102,8 +103,7 @@
+ 		
+ 		lyr = Layer(name='layername', title='Highways', abstract='Highways')
+ 		...
+-		lyr.styles.append('stylename')
+-		self.register_layer(lyr)
++		self.register_layer(lyr, 'stylename')
+ 		self.finalize()
+ 		
+ The rules for writing this class are:
+@@ -116,18 +116,19 @@
+   them short and simple, without spaces or special characters.
+ - For human readable info, pass title='' and abstract='' parameters to the
+   Layer() call.
+-- The layers must have at least one style associated with them (a default).
++- DO NOT register styles using layer.styles.append(), instead, provide style
++  information to the register_layer() call:
++  
++  register_layer(layerobject, defaultstylename, tuple of alternative style names)
++
+ - No Map() object is used or needed here.
+ - Be sure to call self.finalize() once you've registered everything! This will
+   validate everything and let you know if there's problems.
+-- Be sure to associate a default style with the layer.  In the future, there
+-  will be a mechanism to assign other non-default styles to a layer, to support
+-  named styles through the STYLES= parameter.
+ 
++
+ To Do
+ -----
+ 
+-- Named style support.
+ - Investigate moving to cElementTree from lxml.
+ - Add some internal "caching" for performance improvements.
+ - Support GetFeatureInfo (Requires core changes).
+
+
+
+From jdoyon at mail.berlios.de  Sun Jul 23 21:56:14 2006
+From: jdoyon at mail.berlios.de (jdoyon at BerliOS)
+Date: Sun, 23 Jul 2006 21:56:14 +0200
+Subject: [Mapnik-svn] r285 - trunk/bindings/python/mapnik/ogcserver
+Message-ID: <200607231956.k6NJuESE010991@sheep.berlios.de>
+
+Author: jdoyon
+Date: 2006-07-23 21:56:13 +0200 (Sun, 23 Jul 2006)
+New Revision: 285
+
+Modified:
+   trunk/bindings/python/mapnik/ogcserver/wms111.py
+Log:
+- Fix bug in WMS 1.1.1 re: STYLES support.
+
+Modified: trunk/bindings/python/mapnik/ogcserver/wms111.py
+===================================================================
+--- trunk/bindings/python/mapnik/ogcserver/wms111.py	2006-07-23 19:50:52 UTC (rev 284)
++++ trunk/bindings/python/mapnik/ogcserver/wms111.py	2006-07-23 19:56:13 UTC (rev 285)
+@@ -155,7 +155,7 @@
+             layere.append(latlonbb)
+             layere.append(layerbbox)
+             if len(layer.wmsextrastyles) > 0:
+-                for extrastyle in list(layer.wmsextrastyles):
++                for extrastyle in [layer.wmsdefaultstyle] + list(layer.wmsextrastyles):
+                     style = ElementTree.Element('Style')
+                     stylename = ElementTree.Element('Name')
+                     stylename.text = extrastyle
+
+
+
+From pavlenko at mail.berlios.de  Mon Jul 24 22:06:36 2006
+From: pavlenko at mail.berlios.de (pavlenko at BerliOS)
+Date: Mon, 24 Jul 2006 22:06:36 +0200
+Subject: [Mapnik-svn] r286 - in trunk/plugins/input: postgis shape
+Message-ID: <200607242006.k6OK6a6W023458@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-07-24 22:06:09 +0200 (Mon, 24 Jul 2006)
+New Revision: 286
+
+Modified:
+   trunk/plugins/input/postgis/postgis.cpp
+   trunk/plugins/input/shape/shape.cpp
+Log:
+use fully qualified names 
+
+
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2006-07-23 19:56:13 UTC (rev 285)
++++ trunk/plugins/input/postgis/postgis.cpp	2006-07-24 20:06:09 UTC (rev 286)
+@@ -31,7 +31,7 @@
+ 
+ DATASOURCE_PLUGIN(postgis_datasource)
+ 
+-const std::string postgis_datasource::GEOMETRY_COLUMNS="geometry_columns";
++    const std::string postgis_datasource::GEOMETRY_COLUMNS="geometry_columns";
+ const std::string postgis_datasource::SPATIAL_REF_SYS="spatial_ref_system";
+ 
+ using std::clog;
+@@ -48,9 +48,9 @@
+       type_(datasource::Vector), 
+       desc_(params.get("name")),
+       creator_(params.get("host"),
+-	       params.get("dbname"),
+-	       params.get("user"),
+-	       params.get("password"))
++               params.get("dbname"),
++               params.get("user"),
++               params.get("password"))
+       
+ {     
+     ConnectionManager *mgr=ConnectionManager::instance();   
+@@ -59,92 +59,92 @@
+     shared_ptr<Pool<Connection,ConnectionCreator> > pool=mgr->getPool(creator_.id());
+     if (pool)
+     {
+-	const shared_ptr<Connection>& conn = pool->borrowObject();
+-	if (conn && conn->isOK())
+-	{
+-	    PoolGuard<shared_ptr<Connection>,shared_ptr<Pool<Connection,ConnectionCreator> > > guard(conn,pool);
++        const shared_ptr<Connection>& conn = pool->borrowObject();
++        if (conn && conn->isOK())
++        {
++            PoolGuard<shared_ptr<Connection>,shared_ptr<Pool<Connection,ConnectionCreator> > > guard(conn,pool);
+ 
+-	    std::string table_name=table_from_sql(table_);
++            std::string table_name=table_from_sql(table_);
+ 	    
+-	    std::ostringstream s;
+-	    s << "select f_geometry_column,srid,type from ";
+-	    s << GEOMETRY_COLUMNS <<" where f_table_name='"<<table_name<<"'";
++            std::ostringstream s;
++            s << "select f_geometry_column,srid,type from ";
++            s << GEOMETRY_COLUMNS <<" where f_table_name='"<<table_name<<"'";
+ 	   
+-	    shared_ptr<ResultSet> rs=conn->executeQuery(s.str());
++            shared_ptr<ResultSet> rs=conn->executeQuery(s.str());
+ 	    
+-	    if (rs->next())
+-	    {
+-		try 
+-		{
+-		    srid_ = lexical_cast<int>(rs->getValue("srid"));
+-		    desc_.set_srid(srid_);
+-		}
+-		catch (bad_lexical_cast &ex)
+-		{
+-		    clog << ex.what() << endl;
+-		}
+-		geometryColumn_=rs->getValue("f_geometry_column");
+-		std::string postgisType=rs->getValue("type");
+-	    }
+-	    rs->close();
+-	    s.str("");
+-	    s << "select xmin(ext),ymin(ext),xmax(ext),ymax(ext)";
+-	    s << " from (select estimated_extent('"<<table_name<<"','"<<geometryColumn_<<"') as ext) as tmp";
++            if (rs->next())
++            {
++                try 
++                {
++                    srid_ = lexical_cast<int>(rs->getValue("srid"));
++                    desc_.set_srid(srid_);
++                }
++                catch (bad_lexical_cast &ex)
++                {
++                    clog << ex.what() << endl;
++                }
++                geometryColumn_=rs->getValue("f_geometry_column");
++                std::string postgisType=rs->getValue("type");
++            }
++            rs->close();
++            s.str("");
++            s << "select xmin(ext),ymin(ext),xmax(ext),ymax(ext)";
++            s << " from (select estimated_extent('"<<table_name<<"','"<<geometryColumn_<<"') as ext) as tmp";
+ 
+-	    rs=conn->executeQuery(s.str());
+-	    if (rs->next())
+-	    {
+-		try 
+-		{
+-		    double lox=lexical_cast<double>(rs->getValue(0));
+-		    double loy=lexical_cast<double>(rs->getValue(1));
+-		    double hix=lexical_cast<double>(rs->getValue(2));
+-		    double hiy=lexical_cast<double>(rs->getValue(3));		    
+-		    extent_.init(lox,loy,hix,hiy);
+-		}
+-		catch (bad_lexical_cast &ex)
+-		{
+-		    clog << ex.what() << endl;
+-		}
+-	    }
+-	    rs->close();
++            rs=conn->executeQuery(s.str());
++            if (rs->next())
++            {
++                try 
++                {
++                    double lox=lexical_cast<double>(rs->getValue(0));
++                    double loy=lexical_cast<double>(rs->getValue(1));
++                    double hix=lexical_cast<double>(rs->getValue(2));
++                    double hiy=lexical_cast<double>(rs->getValue(3));		    
++                    extent_.init(lox,loy,hix,hiy);
++                }
++                catch (bad_lexical_cast &ex)
++                {
++                    clog << ex.what() << endl;
++                }
++            }
++            rs->close();
+ 
+-	    // collect attribute desc
+-	    s.str("");
+-	    s << "select * from "<<table_<<" limit 1";
+-	    rs=conn->executeQuery(s.str());
+-	    if (rs->next())
+-	    {
+-		int count = rs->getNumFields();
+-		for (int i=0;i<count;++i)
+-		{
+-		    std::string fld_name=rs->getFieldName(i);
+-		    int length = rs->getFieldLength(i);
++            // collect attribute desc
++            s.str("");
++            s << "select * from "<<table_<<" limit 1";
++            rs=conn->executeQuery(s.str());
++            if (rs->next())
++            {
++                int count = rs->getNumFields();
++                for (int i=0;i<count;++i)
++                {
++                    std::string fld_name=rs->getFieldName(i);
++                    int length = rs->getFieldLength(i);
+ 		    
+-		    int type_oid = rs->getTypeOID(i);
+-		    switch (type_oid)
+-		    {
+-		    case 17285: // geometry
+-			desc_.add_descriptor(attribute_descriptor(fld_name,Geometry));
+-			break;
+-		    case 21:    // int2
+-		    case 23:    // int4
+-			desc_.add_descriptor(attribute_descriptor(fld_name,Integer,false,length));
+- 			break;
++                    int type_oid = rs->getTypeOID(i);
++                    switch (type_oid)
++                    {
++                    case 17285: // geometry
++                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Geometry));
++                        break;
++                    case 21:    // int2
++                    case 23:    // int4
++                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Integer,false,length));
++                        break;
+                     case 701:  // float8
+- 			desc_.add_descriptor(attribute_descriptor(fld_name,Double,false,length));
+-		    case 1042:  // bpchar
+-		    case 1043:  // varchar
+-			desc_.add_descriptor(attribute_descriptor(fld_name,String));
+-			break;
+-		    default: // shouldn't get here
+-			clog << "unknown type_oid="<<type_oid<<endl;
+-			desc_.add_descriptor(attribute_descriptor(fld_name,String));
+-			break;
+-		    }	  
+-		}
+-	    }
+-	}
++                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Double,false,length));
++                    case 1042:  // bpchar
++                    case 1043:  // varchar
++                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::String));
++                        break;
++                    default: // shouldn't get here
++                        clog << "unknown type_oid="<<type_oid<<endl;
++                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::String));
++                        break;
++                    }	  
++                }
++            }
++        }
+     }
+ }
+ 
+@@ -188,28 +188,28 @@
+     shared_ptr<Pool<Connection,ConnectionCreator> > pool=mgr->getPool(creator_.id());
+     if (pool)
+     {
+-	const shared_ptr<Connection>& conn = pool->borrowObject();
+-	if (conn && conn->isOK())
+-	{       
+-	    PoolGuard<shared_ptr<Connection>,shared_ptr<Pool<Connection,ConnectionCreator> > > guard(conn,pool);
+-	    std::ostringstream s;
+-	    // can we rely on 'gid' name???
+-	    s << "select ogc_fid,asbinary("<<geometryColumn_<<") as geom";
+-	    std::set<std::string> const& props=q.property_names();
+-	    std::set<std::string>::const_iterator pos=props.begin();
+-	    while (pos!=props.end())
+-	    {
+-		s <<",\""<<*pos<<"\"";
+-		++pos;
+-	    }	
++        const shared_ptr<Connection>& conn = pool->borrowObject();
++        if (conn && conn->isOK())
++        {       
++            PoolGuard<shared_ptr<Connection>,shared_ptr<Pool<Connection,ConnectionCreator> > > guard(conn,pool);
++            std::ostringstream s;
++            // can we rely on 'gid' name???
++            s << "select ogc_fid,asbinary("<<geometryColumn_<<") as geom";
++            std::set<std::string> const& props=q.property_names();
++            std::set<std::string>::const_iterator pos=props.begin();
++            while (pos!=props.end())
++            {
++                s <<",\""<<*pos<<"\"";
++                ++pos;
++            }	
+     
+-	    s << " from " << table_<<" where "<<geometryColumn_<<" && setSRID('BOX3D(";
+-	    s << box.minx() << " " << box.miny() << ",";
+-	    s << box.maxx() << " " << box.maxy() << ")'::box3d,"<<srid_<<")";
+-	    clog << s.str() << endl;
+-	    shared_ptr<ResultSet> rs=conn->executeQuery(s.str(),1);
+-	    fs=new postgis_featureset(rs,props.size());
+-	}
++            s << " from " << table_<<" where "<<geometryColumn_<<" && setSRID('BOX3D(";
++            s << box.minx() << " " << box.miny() << ",";
++            s << box.maxx() << " " << box.maxy() << ")'::box3d,"<<srid_<<")";
++            clog << s.str() << endl;
++            shared_ptr<ResultSet> rs=conn->executeQuery(s.str(),1);
++            fs=new postgis_featureset(rs,props.size());
++        }
+     }
+     return featureset_ptr(fs);
+ }
+
+Modified: trunk/plugins/input/shape/shape.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape.cpp	2006-07-23 19:56:13 UTC (rev 285)
++++ trunk/plugins/input/shape/shape.cpp	2006-07-24 20:06:09 UTC (rev 286)
+@@ -52,18 +52,18 @@
+             case 'D':
+             case 'M':
+             case 'L':		
+-                desc_.add_descriptor(attribute_descriptor(fld_name,String));
++                desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::String));
+                 break;
+             case 'N':
+             case 'F':
+                 {
+                     if (fd.dec_>0)
+                     {   
+-                        desc_.add_descriptor(attribute_descriptor(fld_name,Double,false,8));
++                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Double,false,8));
+                     }
+                     else
+                     {
+-                        desc_.add_descriptor(attribute_descriptor(fld_name,Integer,false,4));
++                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Integer,false,4));
+                     }
+                     break;
+                 }
+
+
+
+From pavlenko at mail.berlios.de  Mon Jul 24 22:09:08 2006
+From: pavlenko at mail.berlios.de (pavlenko at BerliOS)
+Date: Mon, 24 Jul 2006 22:09:08 +0200
+Subject: [Mapnik-svn] r287 - in trunk: include src
+Message-ID: <200607242009.k6OK98ex023817@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-07-24 22:08:32 +0200 (Mon, 24 Jul 2006)
+New Revision: 287
+
+Modified:
+   trunk/include/coord.hpp
+   trunk/include/factory.hpp
+   trunk/include/feature_style_processor.hpp
+   trunk/include/filter_expression.hpp
+   trunk/include/image_util.hpp
+   trunk/include/label_placement.hpp
+   trunk/include/quad_tree.hpp
+   trunk/src/image_reader.cpp
+Log:
+formatting mostly
+
+Modified: trunk/include/coord.hpp
+===================================================================
+--- trunk/include/coord.hpp	2006-07-24 20:06:09 UTC (rev 286)
++++ trunk/include/coord.hpp	2006-07-24 20:08:32 UTC (rev 287)
+@@ -32,68 +32,68 @@
+ {   
+     template <typename T,int dim>
+     struct coord {
+-	typedef T type;
++        typedef T type;
+     };
+     
+     template <typename T>
+     struct coord<T,2> 
+     {
+-	typedef T type;
+-	T x;
+-	T y;
++        typedef T type;
++        T x;
++        T y;
+     public:
+-	coord()
+-	    : x(),y() {}
+-	coord(T x,T y)
+-	    : x(x),y(y) {}
+-	template <typename T2>
+-	coord (const coord<T2,2>& rhs)
+-	    : x(type(rhs.x)),
+-	      y(type(rhs.y)) {}
++        coord()
++            : x(),y() {}
++        coord(T x,T y)
++            : x(x),y(y) {}
++        template <typename T2>
++        coord (const coord<T2,2>& rhs)
++            : x(type(rhs.x)),
++              y(type(rhs.y)) {}
+ 
+-	template <typename T2>
+-	coord<T,2>& operator=(const coord<T2,2>& rhs)
+-	{
+-	    if ((void*)this==(void*)&rhs)
+-	    {
+-		return *this;
+-	    }
+-	    x=type(rhs.x);
+-	    y=type(rhs.y);
+-	    return *this;
+-	}
++        template <typename T2>
++        coord<T,2>& operator=(const coord<T2,2>& rhs)
++        {
++            if ((void*)this==(void*)&rhs)
++            {
++                return *this;
++            }
++            x=type(rhs.x);
++            y=type(rhs.y);
++            return *this;
++        }
+     };
+ 
+     template <typename T>
+     struct coord<T,3> 
+     {
+-	typedef T type;
+-	T x;
+-	T y;
+-	T z;
++        typedef T type;
++        T x;
++        T y;
++        T z;
+     public:
+-	coord()
+-	    : x(),y(),z() {}
+-	coord(T x,T y,T z)
+-	    : x(x),y(y),z(z) {}
+-	template <typename T2>
+-	coord (const coord<T2,3>& rhs)
+-	    : x(type(rhs.x)),
+-	      y(type(rhs.y)),
+-	      z(type(rhs.z)) {}
++        coord()
++            : x(),y(),z() {}
++        coord(T x,T y,T z)
++            : x(x),y(y),z(z) {}
++        template <typename T2>
++        coord (const coord<T2,3>& rhs)
++            : x(type(rhs.x)),
++              y(type(rhs.y)),
++              z(type(rhs.z)) {}
+ 
+-	template <typename T2>
+-	coord<T,3>& operator=(const coord<T2,3>& rhs)
+-	{
+-	    if ((void*)this==(void*)&rhs)
+-	    {
+-		return *this;
+-	    }
+-	    x=type(rhs.x);
+-	    y=type(rhs.y);
+-	    z=type(rhs.z);
+-	    return *this;
+-	}
++        template <typename T2>
++        coord<T,3>& operator=(const coord<T2,3>& rhs)
++        {
++            if ((void*)this==(void*)&rhs)
++            {
++                return *this;
++            }
++            x=type(rhs.x);
++            y=type(rhs.y);
++            z=type(rhs.z);
++            return *this;
++        }
+     };
+ 
+     typedef coord<double,2> coord2d;
+@@ -103,12 +103,12 @@
+     template <typename charT,typename traits,typename T ,int dim>
+     inline std::basic_ostream<charT,traits>&
+     operator << (std::basic_ostream<charT,traits>& out,
+-    		 const coord<T,dim>& c);
++                 const coord<T,dim>& c);
+     
+     template <typename charT,typename traits,typename T>
+     inline std::basic_ostream<charT,traits>&
+     operator << (std::basic_ostream<charT,traits>& out,
+-		 const coord<T,2>& c)
++                 const coord<T,2>& c)
+     {
+         std::basic_ostringstream<charT,traits> s;
+         s.copyfmt(out);
+@@ -121,7 +121,7 @@
+     template <typename charT,typename traits,typename T>
+     inline std::basic_ostream<charT,traits>&
+     operator << (std::basic_ostream<charT,traits>& out,
+-		 const coord<T,3>& c)
++                 const coord<T,3>& c)
+     {
+         std::basic_ostringstream<charT,traits> s;
+         s.copyfmt(out);
+
+Modified: trunk/include/factory.hpp
+===================================================================
+--- trunk/include/factory.hpp	2006-07-24 20:06:09 UTC (rev 286)
++++ trunk/include/factory.hpp	2006-07-24 20:08:32 UTC (rev 287)
+@@ -32,21 +32,21 @@
+ namespace mapnik
+ {
+     template <typename key_type,
+-	      typename product_type>
++              typename product_type>
+     class default_factory_error
+     {
+     public:
+-	struct factory_exception : public std::exception
+-	{
+-	    const char* what() const throw()
+-	    {
+-		return "uknown object type";
+-	    }
+-	};
+-	static product_type* on_unknown_type(const key_type&)
+-	{
+-	    return 0;
+-	}
++        struct factory_exception : public std::exception
++        {
++            const char* what() const throw()
++            {
++                return "uknown object type";
++            }
++        };
++        static product_type* on_unknown_type(const key_type&)
++        {
++            return 0;
++        }
+     };
+ 
+     template
+@@ -55,34 +55,34 @@
+         typename key_type,
+         typename product_creator=product_type* (*)(),
+         template <typename,typename> class factory_error_policy=default_factory_error
+-    >
++        >
+     class factory : public singleton<factory <product_type,key_type,product_creator,factory_error_policy> >,
+-					     factory_error_policy <key_type,product_type>
++        factory_error_policy <key_type,product_type>
+     {
+     private:
+-	typedef std::map<key_type,product_creator> product_map;
+-	product_map map_;
++        typedef std::map<key_type,product_creator> product_map;
++        product_map map_;
+     public:
+ 
+-	bool register_product(const key_type& key,product_creator creator)
+-	{
+-	    return map_.insert(typename product_map::value_type(key,creator)).second;
+-	}
++        bool register_product(const key_type& key,product_creator creator)
++        {
++            return map_.insert(typename product_map::value_type(key,creator)).second;
++        }
+ 
+-	bool unregister_product(const key_type& key)
+-	{
+-	    return map_.erase(key)==1;
+-	}
++        bool unregister_product(const key_type& key)
++        {
++            return map_.erase(key)==1;
++        }
+ 
+-	product_type* create_object(const key_type& key,const std::string& file)
+-	{
+-	    typename product_map::const_iterator pos=map_.find(key);
+-	    if (pos!=map_.end())
+-	    {
+-		return (pos->second)(file);
+-	    }
+-	    return on_unknown_type(key);
+-	}
++        product_type* create_object(const key_type& key,const std::string& file)
++        {
++            typename product_map::const_iterator pos=map_.find(key);
++            if (pos!=map_.end())
++            {
++                return (pos->second)(file);
++            }
++            return on_unknown_type(key);
++        }
+     };
+ }
+ #endif                                            //FACTORY_HPP
+
+Modified: trunk/include/feature_style_processor.hpp
+===================================================================
+--- trunk/include/feature_style_processor.hpp	2006-07-24 20:06:09 UTC (rev 286)
++++ trunk/include/feature_style_processor.hpp	2006-07-24 20:08:32 UTC (rev 287)
+@@ -27,7 +27,7 @@
+ 
+ #include <vector>
+ #include <iostream>
+-
++#include <boost/progress.hpp>
+ #include "envelope.hpp"
+ #include "datasource.hpp"
+ #include "layer.hpp"
+@@ -36,8 +36,7 @@
+ #include "utils.hpp"
+ 
+ namespace mapnik
+-{    
+-    
++{       
+     template <typename Processor>
+     class feature_style_processor 
+     {
+@@ -61,7 +60,7 @@
+ 	
+         void apply()
+         {
+-            timer clock;
++            boost::progress_timer t;
+             Processor & p = static_cast<Processor&>(*this);
+ 
+             p.start_map_processing(m_);
+@@ -76,11 +75,7 @@
+                 }
+                 ++itr;
+             }
+-	    
+             p.end_map_processing(m_);
+-	    
+-            clock.stop();
+-	    
+         }	
+     private:
+         void apply_to_layer(Layer const& lay,Processor & p)
+
+Modified: trunk/include/filter_expression.hpp
+===================================================================
+--- trunk/include/filter_expression.hpp	2006-07-24 20:06:09 UTC (rev 286)
++++ trunk/include/filter_expression.hpp	2006-07-24 20:08:32 UTC (rev 287)
+@@ -35,30 +35,30 @@
+     class filter_to_string : public filter_visitor<FeatureT>
+     {
+     private:
+-	std::string text_;
++        std::string text_;
+     public:
+-	filter_to_string() {}
+-	void visit(filter<FeatureT>& /*filter*/) 
+-	{ 
+-	    //not interested
+-	}
+-	void visit(expression<FeatureT>& exp)
+-	{
+-	    property<FeatureT>* pf;
+-	    if ((pf = dynamic_cast<property<FeatureT>*>(&exp)))
+-	    {
+-		names_.insert(pf->name());
+-	    }
+-	}
+-	std::string const& text() const
+-	{
+-	    return text_;
+-	}
++        filter_to_string() {}
++        void visit(filter<FeatureT>& /*filter*/) 
++        { 
++            //not interested
++        }
++        void visit(expression<FeatureT>& exp)
++        {
++            property<FeatureT>* pf;
++            if ((pf = dynamic_cast<property<FeatureT>*>(&exp)))
++            {
++                names_.insert(pf->name());
++            }
++        }
++        std::string const& text() const
++        {
++            return text_;
++        }
+ 	
+-	virtual ~filter_to_string() {}
++        virtual ~filter_to_string() {}
+     private:
+-	filter_to_string(filter_to_string const&);
+-	filter_to_string& operator=(filter_to_string const&);
++        filter_to_string(filter_to_string const&);
++        filter_to_string& operator=(filter_to_string const&);
+     };
+ }
+ 
+
+Modified: trunk/include/image_util.hpp
+===================================================================
+--- trunk/include/image_util.hpp	2006-07-24 20:06:09 UTC (rev 286)
++++ trunk/include/image_util.hpp	2006-07-24 20:08:32 UTC (rev 287)
+@@ -30,10 +30,10 @@
+     class MAPNIK_DECL ImageUtils
+     {
+     public:
+-	static void save_to_file(const std::string& filename,const std::string& type,const Image32& image);
++        static void save_to_file(const std::string& filename,const std::string& type,const Image32& image);
+     private:
+-	static void save_as_png(const std::string& filename,const Image32& image);
+-	static void save_as_jpeg(const std::string& filename,int quality, const Image32& image);
++        static void save_as_png(const std::string& filename,const Image32& image);
++        static void save_as_jpeg(const std::string& filename,int quality, const Image32& image);
+     };
+ 
+     template <typename T>
+@@ -121,7 +121,7 @@
+     namespace
+     {
+         template <typename Image>
+-	inline void scale_up(Image& target,const Image& source,unsigned scale)
++        inline void scale_up(Image& target,const Image& source,unsigned scale)
+         {
+             int source_width=source.width();
+             int source_height=source.height();
+
+Modified: trunk/include/label_placement.hpp
+===================================================================
+--- trunk/include/label_placement.hpp	2006-07-24 20:06:09 UTC (rev 286)
++++ trunk/include/label_placement.hpp	2006-07-24 20:08:32 UTC (rev 287)
+@@ -28,25 +28,25 @@
+ {
+     struct point_
+     {
+-	double x;
+-	double y;
+-	point_()
+-	    : x(0),y(0) {}
+-	point_(double x_,double y_)
+-	    : x(x_),y(y_) {}	
++        double x;
++        double y;
++        point_()
++            : x(0),y(0) {}
++        point_(double x_,double y_)
++            : x(x_),y(y_) {}	
+     };
+-
++    
+     class label_placement
+     {
+     private:
+-	point_ anchor_;
+-	point_ displacement_;
+-	double rotation_;
++        point_ anchor_;
++        point_ displacement_;
++        double rotation_;
+     public:
+-	label_placement() 
+-	    : anchor_(),
+-	      displacement_(),
+-	      rotation_(0.0) {}
++        label_placement() 
++            : anchor_(),
++              displacement_(),
++              rotation_(0.0) {}
+ 	
+     };
+ }
+
+Modified: trunk/include/quad_tree.hpp
+===================================================================
+--- trunk/include/quad_tree.hpp	2006-07-24 20:06:09 UTC (rev 286)
++++ trunk/include/quad_tree.hpp	2006-07-24 20:08:32 UTC (rev 287)
+@@ -35,174 +35,174 @@
+     template <typename T>
+     class quad_tree : boost::noncopyable
+     {
+-	struct node
+-	{
+-	    typedef T value_t;
+-	    typedef std::vector<T> cont_t;
+-	    typedef typename cont_t::iterator iterator;
+-	    typedef typename cont_t::const_iterator const_iterator;
+-	    Envelope<double> extent_;
+-	    cont_t cont_;
+-	    node * children_[4];
++        struct node
++        {
++            typedef T value_t;
++            typedef std::vector<T> cont_t;
++            typedef typename cont_t::iterator iterator;
++            typedef typename cont_t::const_iterator const_iterator;
++            Envelope<double> extent_;
++            cont_t cont_;
++            node * children_[4];
+ 
+-	    explicit node(Envelope<double> const& ext)
+-		: extent_(ext)
+-	    {
+-		std::memset(children_,0,4*sizeof(node*));
+-	    }
++            explicit node(Envelope<double> const& ext)
++                : extent_(ext)
++            {
++                std::memset(children_,0,4*sizeof(node*));
++            }
+    
+-	    Envelope<double> const& extent() const
+-	    {
+-		return extent_;
+-	    }
++            Envelope<double> const& extent() const
++            {
++                return extent_;
++            }
+ 	    
+-	    iterator begin() 
+-	    {
+-		return cont_.begin();
+-	    }
++            iterator begin() 
++            {
++                return cont_.begin();
++            }
+ 	    
+-	    const_iterator begin() const 
+-	    {
+-		return cont_.begin();
+-	    }
++            const_iterator begin() const 
++            {
++                return cont_.begin();
++            }
+ 	    
+-	    iterator end() 
+-	    {
+-		return cont_.end();
+-	    }
++            iterator end() 
++            {
++                return cont_.end();
++            }
+ 	    
+-	    const_iterator end() const 
+-	    {
+-		return cont_.end();
+-	    }
+-	    ~node () {}
+-	};
++            const_iterator end() const 
++            {
++                return cont_.end();
++            }
++            ~node () {}
++        };
+ 	
+-	typedef boost::ptr_vector<node> nodes_t;	
+-	typedef typename node::cont_t cont_t;
+-	typedef typename cont_t::iterator node_data_iterator;
++        typedef boost::ptr_vector<node> nodes_t;	
++        typedef typename node::cont_t cont_t;
++        typedef typename cont_t::iterator node_data_iterator;
+ 	
+-	nodes_t nodes_;
+-	node * root_;	
+-	const double ratio_; 
++        nodes_t nodes_;
++        node * root_;	
++        const double ratio_; 
+ 	
+     public:
+-	typedef typename nodes_t::iterator iterator;
+-	typedef typename nodes_t::const_iterator const_iterator;
+-	typedef typename boost::ptr_vector<T,boost::view_clone_allocator> result_t;	
+-	typedef typename result_t::iterator query_iterator;
++        typedef typename nodes_t::iterator iterator;
++        typedef typename nodes_t::const_iterator const_iterator;
++        typedef typename boost::ptr_vector<T,boost::view_clone_allocator> result_t;	
++        typedef typename result_t::iterator query_iterator;
+    
+-	result_t query_result_;
++        result_t query_result_;
+ 	
+-	explicit quad_tree(Envelope<double> const& ext,double ratio=0.55) 
+-	    : ratio_(ratio)
+-	{
+-	    nodes_.push_back(new node(ext));
+-	    root_ = &nodes_[0];
+-	}
++        explicit quad_tree(Envelope<double> const& ext,double ratio=0.55) 
++            : ratio_(ratio)
++        {
++            nodes_.push_back(new node(ext));
++            root_ = &nodes_[0];
++        }
+ 		
+-	void insert(T data, Envelope<double> const& box)
+-	{
+-	    do_insert_data(data,box,root_);
+-	}
++        void insert(T data, Envelope<double> const& box)
++        {
++            do_insert_data(data,box,root_);
++        }
+         
+-	query_iterator query_in_box(Envelope<double> const& box)
+-	{
+-	    query_result_.clear();
+-	    query_node(box,query_result_,root_);
+-	    return query_result_.begin();
+-	}
++        query_iterator query_in_box(Envelope<double> const& box)
++        {
++            query_result_.clear();
++            query_node(box,query_result_,root_);
++            return query_result_.begin();
++        }
+ 	
+-	query_iterator query_end()
+-	{
+-	    return query_result_.end();
+-	}
++        query_iterator query_end()
++        {
++            return query_result_.end();
++        }
+ 
+-	iterator begin()
+-	{
+-	    return nodes_.begin();
+-	}
++        iterator begin()
++        {
++            return nodes_.begin();
++        }
+ 	
+-	const_iterator begin() const
+-	{
+-	    return nodes_.begin();
+-	}
++        const_iterator begin() const
++        {
++            return nodes_.begin();
++        }
+ 
+-	iterator end()
+-	{
+-	    return  nodes_.end();
+-	}
++        iterator end()
++        {
++            return  nodes_.end();
++        }
+ 	
+-	const_iterator end() const
+-	{
+-	    return  nodes_.end();
+-	}
++        const_iterator end() const
++        {
++            return  nodes_.end();
++        }
+ 	
+     private:
+         
+-	void query_node(Envelope<double> const& box, result_t & result, node * node_) const
+-	{
+-	    if (node_)
+-	    {
+-		Envelope<double> const& node_extent = node_->extent();
+-		if (box.intersects(node_extent))
+-		{
+-		    node_data_iterator i=node_->begin();
+-		    node_data_iterator end=node_->end();
+-		    while ( i!=end)
+-		    {
+-			result.push_back(&(*i));
+-			++i;
+-		    }
+-		    for (int k = 0; k < 4; ++k)
+-		    {
+-		        query_node(box,result,node_->children_[k]);
+-		    }
+-		}
+-	    }
+-	}
++        void query_node(Envelope<double> const& box, result_t & result, node * node_) const
++        {
++            if (node_)
++            {
++                Envelope<double> const& node_extent = node_->extent();
++                if (box.intersects(node_extent))
++                {
++                    node_data_iterator i=node_->begin();
++                    node_data_iterator end=node_->end();
++                    while ( i!=end)
++                    {
++                        result.push_back(&(*i));
++                        ++i;
++                    }
++                    for (int k = 0; k < 4; ++k)
++                    {
++                        query_node(box,result,node_->children_[k]);
++                    }
++                }
++            }
++        }
+ 	
+-	void do_insert_data(T data, Envelope<double> const& box, node * n)
+-	{
+-	    if (n)
+-	    {
+-		Envelope<double> const& node_extent = n->extent();
+-		Envelope<double> ext[4];
+-		split_box(node_extent,ext);		
+-		for (int i=0;i<4;++i)
+-		{
+-		    if (ext[i].contains(box))
+-		    {
+-			if (!n->children_[i])
+-			{
+-			    nodes_.push_back(new node(ext[i]));
+-			    n->children_[i]=&nodes_.back();
+-			}
+-			do_insert_data(data,box,n->children_[i]);
+-			return;
+-		    }
+-		}
+-		n->cont_.push_back(data);
+-	    }
+-	}
++        void do_insert_data(T data, Envelope<double> const& box, node * n)
++        {
++            if (n)
++            {
++                Envelope<double> const& node_extent = n->extent();
++                Envelope<double> ext[4];
++                split_box(node_extent,ext);		
++                for (int i=0;i<4;++i)
++                {
++                    if (ext[i].contains(box))
++                    {
++                        if (!n->children_[i])
++                        {
++                            nodes_.push_back(new node(ext[i]));
++                            n->children_[i]=&nodes_.back();
++                        }
++                        do_insert_data(data,box,n->children_[i]);
++                        return;
++                    }
++                }
++                n->cont_.push_back(data);
++            }
++        }
+ 	
+-	void split_box(Envelope<double> const& node_extent,Envelope<double> * ext)
+-	{
+-	    coord2d c=node_extent.center();
++        void split_box(Envelope<double> const& node_extent,Envelope<double> * ext)
++        {
++            coord2d c=node_extent.center();
+ 
+-	    double width=node_extent.width();
+-	    double height=node_extent.height();
++            double width=node_extent.width();
++            double height=node_extent.height();
+ 	    
+-	    double lox=node_extent.minx();
+-	    double loy=node_extent.miny();
+-	    double hix=node_extent.maxx();
+-	    double hiy=node_extent.maxy();
++            double lox=node_extent.minx();
++            double loy=node_extent.miny();
++            double hix=node_extent.maxx();
++            double hiy=node_extent.maxy();
+ 	    
+-	    ext[0]=Envelope<double>(lox,loy,lox + width * ratio_,loy + height * ratio_);
+-	    ext[1]=Envelope<double>(hix - width * ratio_,loy,hix,loy + height * ratio_);
+-	    ext[2]=Envelope<double>(lox,hiy - height*ratio_,lox + width * ratio_,hiy);
+-	    ext[3]=Envelope<double>(hix - width * ratio_,hiy - height*ratio_,hix,hiy);
+-	}
++            ext[0]=Envelope<double>(lox,loy,lox + width * ratio_,loy + height * ratio_);
++            ext[1]=Envelope<double>(hix - width * ratio_,loy,hix,loy + height * ratio_);
++            ext[2]=Envelope<double>(lox,hiy - height*ratio_,lox + width * ratio_,hiy);
++            ext[3]=Envelope<double>(hix - width * ratio_,hiy - height*ratio_,hix,hiy);
++        }
+     };    
+ } 
+ 
+
+Modified: trunk/src/image_reader.cpp
+===================================================================
+--- trunk/src/image_reader.cpp	2006-07-24 20:06:09 UTC (rev 286)
++++ trunk/src/image_reader.cpp	2006-07-24 20:08:32 UTC (rev 287)
+@@ -28,16 +28,16 @@
+ namespace mapnik
+ {  
+     typedef factory<ImageReader,std::string, 
+-		    ImageReader* (*)(const std::string&)>  ImageReaderFactory;
++                    ImageReader* (*)(const std::string&)>  ImageReaderFactory;
+     
+     
+     bool register_image_reader(const std::string& type,ImageReader* (* fun)(const std::string&))
+     {
+-	return ImageReaderFactory::instance()->register_product(type,fun);
++        return ImageReaderFactory::instance()->register_product(type,fun);
+     }
+     
+     ImageReader* get_image_reader(const std::string& type,const std::string& file) 
+     {
+-	return ImageReaderFactory::instance()->create_object(type,file);
++        return ImageReaderFactory::instance()->create_object(type,file);
+     }
+ }
+
+
+

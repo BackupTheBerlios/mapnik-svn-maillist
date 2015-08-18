@@ -1,0 +1,700 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r342 - in trunk: bindings/python include/mapnik src	utils/ogcserver
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r342%20-%20in%20trunk%3A%20bindings/python%20include/mapnik%20src%0A%09utils/ogcserver&In-Reply-To=%3C200610171726.k9HHQfFF031573%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000226.html">
+   <LINK REL="Next"  HREF="000228.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r342 - in trunk: bindings/python include/mapnik src	utils/ogcserver</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r342%20-%20in%20trunk%3A%20bindings/python%20include/mapnik%20src%0A%09utils/ogcserver&In-Reply-To=%3C200610171726.k9HHQfFF031573%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r342 - in trunk: bindings/python include/mapnik src	utils/ogcserver">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Tue Oct 17 19:26:41 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000226.html">[Mapnik-svn] r341 - in trunk: bindings/python include/mapnik src
+</A></li>
+        <LI>Next message: <A HREF="000228.html">[Mapnik-svn] r343 - trunk/plugins/input/postgis
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#227">[ date ]</a>
+              <a href="thread.html#227">[ thread ]</a>
+              <a href="subject.html#227">[ subject ]</a>
+              <a href="author.html#227">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-17 19:26:35 +0200 (Tue, 17 Oct 2006)
+New Revision: 342
+
+Added:
+   trunk/include/mapnik/proj_transform.hpp
+   trunk/src/proj_transform.cpp
+   trunk/src/projection.cpp
+Modified:
+   trunk/bindings/python/mapnik_projection.cpp
+   trunk/include/mapnik/ctrans.hpp
+   trunk/include/mapnik/projection.hpp
+   trunk/src/SConscript
+   trunk/src/load_map.cpp
+   trunk/utils/ogcserver/ogcserver
+Log:
+1. refactored proj stuff into separate files
+2. added is_geographic property
+3. added basic support for text_symbolizer in load_map
+
+
+
+
+Modified: trunk/bindings/python/mapnik_projection.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_projection.cpp	2006-10-17 14:12:53 UTC (rev 341)
++++ trunk/bindings/python/mapnik_projection.cpp	2006-10-17 17:26:35 UTC (rev 342)
+@@ -56,6 +56,7 @@
+         .def (&quot;inverse&quot;,&amp;projection::inverse)
+         .def (&quot;params&quot;, make_function(&amp;projection::params,
+                                       return_value_policy&lt;copy_const_reference&gt;()))
++        .add_property (&quot;geographic&quot;,&amp;projection::is_geographic)
+         ;
+     
+     def(&quot;forward&quot;,&amp;forward);
+
+Modified: trunk/include/mapnik/ctrans.hpp
+===================================================================
+--- trunk/include/mapnik/ctrans.hpp	2006-10-17 14:12:53 UTC (rev 341)
++++ trunk/include/mapnik/ctrans.hpp	2006-10-17 17:26:35 UTC (rev 342)
+@@ -27,7 +27,7 @@
+ 
+ #include &lt;mapnik/envelope.hpp&gt;
+ #include &lt;mapnik/coord_array.hpp&gt;
+-#include &lt;mapnik/projection.hpp&gt;
++#include &lt;mapnik/proj_transform.hpp&gt;
+ 
+ namespace mapnik {
+     typedef coord_array&lt;coord2d&gt; CoordinateArray;
+
+Added: trunk/include/mapnik/proj_transform.hpp
+===================================================================
+--- trunk/include/mapnik/proj_transform.hpp	2006-10-17 14:12:53 UTC (rev 341)
++++ trunk/include/mapnik/proj_transform.hpp	2006-10-17 17:26:35 UTC (rev 342)
+@@ -0,0 +1,52 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++//$Id$
++
++#ifndef PROJ_TRANSFORM_HPP
++#define PROJ_TRANSFORM_HPP
++
++// boost
++#include &lt;boost/utility.hpp&gt;
++// mapnik
++#include &lt;mapnik/projection.hpp&gt;
++
++namespace mapnik {
++    
++    class proj_transform : private boost::noncopyable
++    {
++    public:
++        proj_transform(projection const&amp; source, 
++                       projection const&amp; dest);
++        
++        bool forward (double&amp; x, double&amp; y , double&amp; z) const;
++        bool backward (double&amp; x, double&amp; y , double&amp; z) const;
++        
++    private:
++        projection const&amp; source_;
++        projection const&amp; dest_;
++        bool is_source_latlong_;
++        bool is_dest_latlong_;
++    };
++}
++
++#endif // PROJ_TRANSFORM_HPP
+
+Modified: trunk/include/mapnik/projection.hpp
+===================================================================
+--- trunk/include/mapnik/projection.hpp	2006-10-17 14:12:53 UTC (rev 341)
++++ trunk/include/mapnik/projection.hpp	2006-10-17 17:26:35 UTC (rev 342)
+@@ -1,17 +1,41 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
+ 
++//$Id$
++
+ #ifndef PROJECTION_HPP
+ #define PROJECTION_HPP
+ 
++// stl
+ #include &lt;string&gt;
+ #include &lt;iostream&gt;
+ #include &lt;stdexcept&gt;
++// boost
+ #include &lt;boost/utility.hpp&gt;
+-
++// mapnik
+ #include &lt;mapnik/envelope.hpp&gt;
+-#include &lt;proj_api.h&gt;
+ 
+-namespace mapnik
+-{   
++namespace mapnik {
++    
+     class proj_init_error : public std::runtime_error
+     {
+     public:
+@@ -23,152 +47,26 @@
+     {
+         friend class proj_transform;
+     public:
+-        explicit projection(std::string params = &quot;+proj=latlong +ellps=WGS84&quot;)
+-            : params_(params)
+-        { 
+-            init(); //
+-        }
++        explicit projection(std::string params = &quot;+proj=latlong +ellps=WGS84&quot;);
++        projection(projection const&amp; rhs);
++        ~projection();
+         
+-        projection(projection const&amp; rhs)
+-            : params_(rhs.params_) 
+-        {
+-            init(); //
+-        }
++        projection&amp; operator=(projection const&amp; rhs);
++        bool is_initialized() const;
++        bool is_geographic() const;
++        std::string const&amp; params() const;
++      
++        void forward(double &amp; x, double &amp;y ) const;
++        void inverse(double &amp; x,double &amp; y) const;
+         
+-        projection&amp; operator=(projection const&amp; rhs) 
+-        { 
+-            projection tmp(rhs);
+-            swap(tmp);
+-            return *this;
+-        }
+-        
+-        bool is_initialized() const
+-        {
+-            return proj_ ? true : false;
+-        }
+-        
+-        std::string const&amp; params() const
+-        {
+-            return params_;
+-        }
+-        
+-        void forward(double &amp; x, double &amp;y ) const
+-        {
+-            projUV p;
+-            p.u = x * DEG_TO_RAD;
+-            p.v = y * DEG_TO_RAD;
+-            p = pj_fwd(p,proj_);
+-            x = p.u;
+-            y = p.v;
+-        }
+-        
+-        void inverse(double &amp; x,double &amp; y) const
+-        {
+-            projUV p;
+-            p.u = x;
+-            p.v = y;
+-            p = pj_inv(p,proj_);
+-            x = RAD_TO_DEG * p.u;
+-            y = RAD_TO_DEG * p.v;
+-        }
+-        
+-        ~projection() 
+-        {
+-            if (proj_) pj_free(proj_);
+-        }
+     private:
+-        
+-        void init()
+-        {
+-            proj_=pj_init_plus(params_.c_str());
+-            if (!proj_) throw proj_init_error(params_);
+-        }
+-        
+-        void swap (projection&amp; rhs)
+-        {
+-            std::swap(params_,rhs.params_);
+-            init ();
+-        } 
+-        
++        void init(); 
++        void swap (projection&amp; rhs);
++       
+     private:
+         std::string params_;
+-        projPJ proj_;
++        void * proj_;
+     };
+-    
+-    class proj_transform : private boost::noncopyable
+-    {
+-    public:
+-        proj_transform(projection const&amp; source, 
+-                       projection const&amp; dest)
+-            : source_(source),
+-              dest_(dest) 
+-        {
+-            is_source_latlong_ = pj_is_latlong(source_.proj_);
+-            is_dest_latlong_ = pj_is_latlong(dest_.proj_);
+-        }
+-        
+-        bool forward (double &amp; x, double &amp; y , double &amp; z) const
+-        {
+-            if (is_source_latlong_)
+-            {
+-                x *= DEG_TO_RAD;
+-                y *= DEG_TO_RAD;
+-            }
+-            
+-            if (pj_transform( source_.proj_, dest_.proj_, 1, 
+-                              0, &amp;x,&amp;y,&amp;z) != 0)
+-            {
+-                return false;
+-            }
+-            
+-            if (is_dest_latlong_)
+-            {
+-                x *= RAD_TO_DEG;
+-                y *= RAD_TO_DEG;
+-            }
+-            
+-            return true;
+-        } 
+-        
+-        bool forward (Envelope&lt;double&gt; &amp; ext) const
+-        {
+-            if (is_source_latlong_)
+-            {
+-                ext = ext.intersect(Envelope&lt;double&gt;(-180,-90,180,90));
+-            }
+-            // TODO
+-            return true;
+-        }
+-        
+-        bool backward (double &amp; x, double &amp; y , double &amp; z) const
+-        {
+-            if (is_dest_latlong_)
+-            {
+-                x *= DEG_TO_RAD;
+-                y *= DEG_TO_RAD;
+-            }
+-            
+-            if (pj_transform( dest_.proj_, source_.proj_, 1, 
+-                              0, &amp;x,&amp;y,&amp;z) != 0)
+-            {
+-                return false;
+-            }
+-            
+-            if (is_source_latlong_)
+-            {
+-                x *= RAD_TO_DEG;
+-                y *= RAD_TO_DEG;
+-            }
+-            
+-            return true;
+-        } 
+-        
+-    private:
+-        projection const&amp; source_;
+-        projection const&amp; dest_;
+-        bool is_source_latlong_;
+-        bool is_dest_latlong_;
+-    };
+ }
+ 
+ #endif //PROJECTION_HPP
+
+Modified: trunk/src/SConscript
+===================================================================
+--- trunk/src/SConscript	2006-10-17 14:12:53 UTC (rev 341)
++++ trunk/src/SConscript	2006-10-17 17:26:35 UTC (rev 342)
+@@ -56,6 +56,8 @@
+     text_symbolizer.cpp
+     tiff_reader.cpp
+     wkb.cpp
++    projection.cpp
++    proj_transform.cpp
+     &quot;&quot;&quot;
+     )
+ 
+
+Modified: trunk/src/load_map.cpp
+===================================================================
+--- trunk/src/load_map.cpp	2006-10-17 14:12:53 UTC (rev 341)
++++ trunk/src/load_map.cpp	2006-10-17 17:26:35 UTC (rev 342)
+@@ -127,8 +127,30 @@
+                             {
+                                 std::cout &lt;&lt; sym.first &lt;&lt; &quot;\n&quot;;
+                             } 
+-                            else  if ( sym.first == &quot;LineSymbolizer&quot;)
++                            else if ( sym.first == &quot;TextSymbolizer&quot;)
+                             {
++                                std::string name =  
++                                    sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.name&quot;);                      
++                                unsigned size = 
++                                    sym.second.get&lt;unsigned&gt;(&quot;&lt;xmlattr&gt;.size&quot;,10);                      
++                                std::string color_str = 
++                                    sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.fill&quot;,&quot;black&quot;);
++                                Color c = color_factory::from_string(color_str.c_str());
++                                
++                                text_symbolizer text_symbol(name,size,c);
++                                
++                                std::string placement_str = 
++                                    sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.placement&quot;,&quot;point&quot;);
++                                
++                                if (placement_str == &quot;line&quot;)
++                                {
++                                    text_symbol.set_label_placement(line_placement);
++                                }
++                                
++                                rule.append(text_symbol);
++                            }
++                            else if ( sym.first == &quot;LineSymbolizer&quot;)
++                            {
+                                 stroke strk;
+                                 ptree::const_iterator cssIter = sym.second.begin();
+                                 ptree::const_iterator endCss = sym.second.end();
+
+Added: trunk/src/proj_transform.cpp
+===================================================================
+--- trunk/src/proj_transform.cpp	2006-10-17 14:12:53 UTC (rev 341)
++++ trunk/src/proj_transform.cpp	2006-10-17 17:26:35 UTC (rev 342)
+@@ -0,0 +1,85 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++//$Id$
++
++#include &lt;proj_api.h&gt;
++
++#include &lt;mapnik/proj_transform.hpp&gt;
++
++namespace mapnik {
++    
++    proj_transform::proj_transform(projection const&amp; source, 
++                                   projection const&amp; dest)
++            : source_(source),
++              dest_(dest) 
++    {
++        is_source_latlong_ = pj_is_latlong(source_.proj_);
++        is_dest_latlong_ = pj_is_latlong(dest_.proj_);
++    }
++    
++    bool proj_transform::forward (double &amp; x, double &amp; y , double &amp; z) const
++    {
++        if (is_source_latlong_)
++        {
++            x *= DEG_TO_RAD;
++            y *= DEG_TO_RAD;
++        }
++        
++        if (pj_transform( source_.proj_, dest_.proj_, 1, 
++                          0, &amp;x,&amp;y,&amp;z) != 0)
++        {
++            return false;
++        }
++        
++        if (is_dest_latlong_)
++        {
++            x *= RAD_TO_DEG;
++            y *= RAD_TO_DEG;
++        }
++        
++        return true;
++    } 
++        
++    bool proj_transform::backward (double &amp; x, double &amp; y , double &amp; z) const
++    {
++        if (is_dest_latlong_)
++        {
++            x *= DEG_TO_RAD;
++            y *= DEG_TO_RAD;
++        }
++        
++        if (pj_transform( dest_.proj_, source_.proj_, 1, 
++                          0, &amp;x,&amp;y,&amp;z) != 0)
++        {
++            return false;
++        }
++        
++        if (is_source_latlong_)
++        {
++            x *= RAD_TO_DEG;
++            y *= RAD_TO_DEG;
++        }
++        
++        return true;
++    } 
++}
+
+Added: trunk/src/projection.cpp
+===================================================================
+--- trunk/src/projection.cpp	2006-10-17 14:12:53 UTC (rev 341)
++++ trunk/src/projection.cpp	2006-10-17 17:26:35 UTC (rev 342)
+@@ -0,0 +1,101 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++//$Id$
++
++// proj4
++#include &lt;proj_api.h&gt;
++// mapnik
++#include &lt;mapnik/projection.hpp&gt;
++
++namespace mapnik {
++    projection::projection(std::string  params)
++        : params_(params)
++    { 
++        init(); //
++    }
++    
++    projection::projection(projection const&amp; rhs)
++        : params_(rhs.params_) 
++    {
++        init(); //
++    }
++        
++    projection&amp; projection::operator=(projection const&amp; rhs) 
++    { 
++        projection tmp(rhs);
++        swap(tmp);
++        return *this;
++    }
++        
++    bool projection::is_initialized() const
++    {
++        return proj_ ? true : false;
++    }
++    
++    bool projection::is_geographic() const
++    {
++        return pj_is_latlong(proj_);  
++    }
++    
++    std::string const&amp; projection::params() const
++    {
++        return params_;
++    }
++    
++    void projection::forward(double &amp; x, double &amp;y ) const
++    {
++        projUV p;
++        p.u = x * DEG_TO_RAD;
++        p.v = y * DEG_TO_RAD;
++        p = pj_fwd(p,proj_);
++        x = p.u;
++        y = p.v;
++    }
++    
++    void projection::inverse(double &amp; x,double &amp; y) const
++    {
++        projUV p;
++        p.u = x;
++        p.v = y;
++        p = pj_inv(p,proj_);
++        x = RAD_TO_DEG * p.u;
++        y = RAD_TO_DEG * p.v;
++    }
++    
++    projection::~projection() 
++    {
++        if (proj_) pj_free(proj_);
++    }
++    
++    void projection::init()
++    {
++        proj_=pj_init_plus(params_.c_str());
++        if (!proj_) throw proj_init_error(params_);
++    }
++    
++    void projection::swap (projection&amp; rhs)
++    {
++        std::swap(params_,rhs.params_);
++        init ();
++    }
++}
+
+Modified: trunk/utils/ogcserver/ogcserver
+===================================================================
+--- trunk/utils/ogcserver/ogcserver	2006-10-17 14:12:53 UTC (rev 341)
++++ trunk/utils/ogcserver/ogcserver	2006-10-17 17:26:35 UTC (rev 342)
+@@ -1,29 +1,29 @@
+-#!/usr/bin/python2.3
+-#
+-# This file is part of Mapnik (c++ mapping toolkit)
+-#
+-# Copyright (C) 2006 Jean-Francois Doyon
+-#
+-# Mapnik is free software; you can redistribute it and/or
+-# modify it under the terms of the GNU Lesser General Public
+-# License as published by the Free Software Foundation; either
+-# version 2.1 of the License, or (at your option) any later version.
+-#
+-# This library is distributed in the hope that it will be useful,
+-# but WITHOUT ANY WARRANTY; without even the implied warranty of
+-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-# Lesser General Public License for more details.
+-#
+-# You should have received a copy of the GNU Lesser General Public
+-# License along with this library; if not, write to the Free Software
+-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
+-# $Id$
+-
+-from mapnik.ogcserver.cgiserver import Handler
+-from jon import fcgi
+-
+-class OGCServerHandler(Handler):
+-    configpath = '/etc/ogcserver.conf'
+-
+-fcgi.Server({fcgi.FCGI_RESPONDER: OGCServerHandler}).run()
++#!/usr/bin/python2.3
++#
++# This file is part of Mapnik (c++ mapping toolkit)
++#
++# Copyright (C) 2006 Jean-Francois Doyon
++#
++# Mapnik is free software; you can redistribute it and/or
++# modify it under the terms of the GNU Lesser General Public
++# License as published by the Free Software Foundation; either
++# version 2.1 of the License, or (at your option) any later version.
++#
++# This library is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++# Lesser General Public License for more details.
++#
++# You should have received a copy of the GNU Lesser General Public
++# License along with this library; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++#
++# $Id$
++
++from mapnik.ogcserver.cgiserver import Handler
++from jon import fcgi
++
++class OGCServerHandler(Handler):
++    configpath = '/etc/ogcserver.conf'
++
++fcgi.Server({fcgi.FCGI_RESPONDER: OGCServerHandler}).run()
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000226.html">[Mapnik-svn] r341 - in trunk: bindings/python include/mapnik src
+</A></li>
+	<LI>Next message: <A HREF="000228.html">[Mapnik-svn] r343 - trunk/plugins/input/postgis
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#227">[ date ]</a>
+              <a href="thread.html#227">[ thread ]</a>
+              <a href="subject.html#227">[ subject ]</a>
+              <a href="author.html#227">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

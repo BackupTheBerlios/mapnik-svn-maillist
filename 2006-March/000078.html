@@ -1,0 +1,147 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r192 - trunk/include
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r192%20-%20trunk/include&In-Reply-To=%3C200603221546.k2MFk7rW009734%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000077.html">
+   <LINK REL="Next"  HREF="000079.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r192 - trunk/include</H1>
+    <B>pavlenko at berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r192%20-%20trunk/include&In-Reply-To=%3C200603221546.k2MFk7rW009734%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r192 - trunk/include">pavlenko at berlios.de
+       </A><BR>
+    <I>Wed Mar 22 16:46:07 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000077.html">[Mapnik-svn] r191 - trunk/plugins/input/shape
+</A></li>
+        <LI>Next message: <A HREF="000079.html">[Mapnik-svn] r193 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#78">[ date ]</a>
+              <a href="thread.html#78">[ thread ]</a>
+              <a href="subject.html#78">[ subject ]</a>
+              <a href="author.html#78">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-22 16:45:52 +0100 (Wed, 22 Mar 2006)
+New Revision: 192
+
+Removed:
+   trunk/include/property_index.hpp
+Log:
+added __decl(dllexport) to exported symbols\n removed unused files
+
+Deleted: trunk/include/property_index.hpp
+===================================================================
+--- trunk/include/property_index.hpp	2006-03-22 14:57:50 UTC (rev 191)
++++ trunk/include/property_index.hpp	2006-03-22 15:45:52 UTC (rev 192)
+@@ -1,71 +0,0 @@
+-/* This file is part of Mapnik (c++ mapping toolkit)
+- * Copyright (C) 2005 Artem Pavlenko
+- *
+- * Mapnik is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version 2
+- * of the License, or any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+- */
+-
+-//$Id$
+-
+-#ifndef PROPERTY_INDEX_HPP
+-#define PROPERTY_INDEX_HPP
+-
+-#include &quot;filter.hpp&quot;
+-#include &quot;expression.hpp&quot;
+-
+-#include &lt;set&gt;
+-
+-namespace mapnik
+-{
+-
+-    /*
+-    template &lt;typename FeatureT&gt;
+-    class property_index : public filter_visitor&lt;FeatureT&gt;
+-    {
+-    public:
+-	property_index(std::set&lt;std::string&gt; const&amp; names)
+-	    : names_(names)  {}
+-	
+-	void visit(filter&lt;FeatureT&gt;&amp; /*filter*/) 
+-	{ 
+-	    //not interested
+-	}
+-	void visit(expression&lt;FeatureT&gt;&amp; exp)
+-	{
+-	    property&lt;FeatureT&gt;* pf;
+-	    if ((pf = dynamic_cast&lt;property&lt;FeatureT&gt;*&gt;(&amp;exp)))
+-	    {
+-		std::set&lt;std::string&gt;::iterator pos;
+-		pos = names_.find(pf-&gt;name());
+-		if (pos != names_.end())
+-		{
+-		    size_t idx = std::distance(names_.begin(),pos);
+-		    pf-&gt;set_index(idx);
+-		}	
+-	    }
+-	}	
+-	virtual ~property_index() {}
+-    private:
+-	// no copying 
+-	property_index(property_index const&amp;);
+-	property_index&amp; operator=(property_index const&amp;);
+-
+-    private:
+-	std::set&lt;std::string&gt; const&amp; names_;
+-
+-    };
+-*/
+-}
+-
+-#endif //PROPERTY_INDEX_HPP
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000077.html">[Mapnik-svn] r191 - trunk/plugins/input/shape
+</A></li>
+	<LI>Next message: <A HREF="000079.html">[Mapnik-svn] r193 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#78">[ date ]</a>
+              <a href="thread.html#78">[ thread ]</a>
+              <a href="subject.html#78">[ subject ]</a>
+              <a href="author.html#78">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

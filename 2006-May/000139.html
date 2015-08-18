@@ -1,0 +1,254 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r254 - trunk/src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-May/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r254%20-%20trunk/src&In-Reply-To=%3C200605191607.k4JG7Ea9003962%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000138.html">
+   <LINK REL="Next"  HREF="000140.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r254 - trunk/src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r254%20-%20trunk/src&In-Reply-To=%3C200605191607.k4JG7Ea9003962%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r254 - trunk/src">pavlenko at berlios.de
+       </A><BR>
+    <I>Fri May 19 18:07:14 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000138.html">[Mapnik-svn] r253 - in trunk: include plugins/input/shape
+</A></li>
+        <LI>Next message: <A HREF="000140.html">[Mapnik-svn] r255 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#139">[ date ]</a>
+              <a href="thread.html#139">[ thread ]</a>
+              <a href="subject.html#139">[ subject ]</a>
+              <a href="author.html#139">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-05-19 18:07:13 +0200 (Fri, 19 May 2006)
+New Revision: 254
+
+Modified:
+   trunk/src/layer.cpp
+Log:
+added set_name method
+
+
+
+Modified: trunk/src/layer.cpp
+===================================================================
+--- trunk/src/layer.cpp	2006-05-19 12:50:40 UTC (rev 253)
++++ trunk/src/layer.cpp	2006-05-19 16:07:13 UTC (rev 254)
+@@ -35,35 +35,35 @@
+ {
+     using namespace std;
+     Layer::Layer()
+-	: params_(),
+-	  name_(&quot;uknown&quot;),
+-	  minZoom_(0),
+-	  maxZoom_(std::numeric_limits&lt;double&gt;::max()),
+-	  active_(true),
+-	  selectable_(false),
+-	  selection_style_(&quot;default_selection&quot;)
++        : params_(),
++          name_(&quot;unknown&quot;),
++          minZoom_(0),
++          maxZoom_(std::numeric_limits&lt;double&gt;::max()),
++          active_(true),
++          selectable_(false),
++          selection_style_(&quot;default_selection&quot;)
+     {}
+ 
+     Layer::Layer(const parameters&amp; params)
+         :params_(params),
+-	 name_(params_[&quot;name&quot;]),
+-	 minZoom_(0),
+-	 maxZoom_(std::numeric_limits&lt;double&gt;::max()),
+-	 active_(true),
+-	 selectable_(false),
+-	 selection_style_(&quot;default_selection&quot;)
++         name_(params_[&quot;name&quot;]),
++         minZoom_(0),
++         maxZoom_(std::numeric_limits&lt;double&gt;::max()),
++         active_(true),
++         selectable_(false),
++         selection_style_(&quot;default_selection&quot;)
+     {}
+     
+     Layer::Layer(const Layer&amp; rhs)
+         :params_(rhs.params_),
+-	 name_(rhs.name_),
+-	 minZoom_(rhs.minZoom_),
+-	 maxZoom_(rhs.maxZoom_),
+-	 active_(rhs.active_),
+-	 selectable_(rhs.selectable_),
+-	 ds_(rhs.ds_),
+-	 styles_(rhs.styles_),
+-	 selection_style_(rhs.selection_style_) {}
++         name_(rhs.name_),
++         minZoom_(rhs.minZoom_),
++         maxZoom_(rhs.maxZoom_),
++         active_(rhs.active_),
++         selectable_(rhs.selectable_),
++         ds_(rhs.ds_),
++         styles_(rhs.styles_),
++         selection_style_(rhs.selection_style_) {}
+     
+     Layer&amp; Layer::operator=(const Layer&amp; rhs)
+     {
+@@ -74,7 +74,7 @@
+ 
+     bool Layer::operator==(Layer const&amp; other) const
+     {
+-	return (this == &amp;other);
++        return (this == &amp;other);
+     }
+     
+     void Layer::swap(const Layer&amp; rhs)
+@@ -85,11 +85,11 @@
+         maxZoom_=rhs.maxZoom_;
+         active_=rhs.active_;
+         selectable_=rhs.selectable_;
++        //ds_=rhs.ds_;
+         styles_=rhs.styles_;
+-	ds_=rhs.ds_;
+-	selection_style_=rhs.selection_style_;
++        selection_style_=rhs.selection_style_;
+     }
+-    
++
+     Layer::~Layer() {}
+ 
+     parameters const&amp; Layer::params() const
+@@ -97,8 +97,13 @@
+         return params_;
+     }
+     
+-    const string&amp; Layer::name() const
++    void Layer::set_name( std::string const&amp; name)
+     {
++        name_ = name;
++    }
++ 
++    string const&amp; Layer::name() const
++    {
+         return name_;
+     }
+ 
+@@ -159,57 +164,57 @@
+ 
+     const datasource_p&amp; Layer::datasource() const
+     {
+-	if (!ds_)
+-	{
+-	    try
+-	    {
+-		ds_=datasource_cache::instance()-&gt;create(params_);
+-	    }
+-	    catch (...)
+-	    {
+-		std::clog &lt;&lt; &quot;exception caught : can not create datasource&quot; &lt;&lt; std::endl;  
+-	    }
+-	}
+-	return ds_;
++        if (!ds_)
++        {
++            try
++            {
++                ds_=datasource_cache::instance()-&gt;create(params_);
++            }
++            catch (...)
++            {
++                std::clog &lt;&lt; &quot;exception caught : can not create datasource&quot; &lt;&lt; std::endl;  
++            }
++        }
++        return ds_;
+     }
+     // TODO: !!!!
+     void Layer::set_datasource(datasource_p const&amp; ds)
+     {
+-	ds_ = ds;
++        ds_ = ds;
+     }
+     
+     Envelope&lt;double&gt; Layer::envelope() const
+     {
+-	datasource_p const&amp; ds = datasource();
+-	if (ds)
+-	{
+-	    return ds-&gt;envelope();
+-	}
++        datasource_p const&amp; ds = datasource();
++        if (ds)
++        {
++            return ds-&gt;envelope();
++        }
+     	return Envelope&lt;double&gt;();
+     }
+ 
+     void Layer::selection_style(const std::string&amp; name) 
+     {
+-	selection_style_=name;
++        selection_style_=name;
+     }
+     
+     const std::string&amp; Layer::selection_style() const 
+     {
+-	return selection_style_;
++        return selection_style_;
+     }
+ 
+     void Layer::add_to_selection(shared_ptr&lt;Feature&gt;&amp; feature) const
+     {
+-	selection_.push_back(feature);
++        selection_.push_back(feature);
+     }
+  
+     vector&lt;shared_ptr&lt;Feature&gt; &gt;&amp; Layer::selection() const
+     {
+-	return selection_;
++        return selection_;
+     }
+ 
+     void Layer::clear_selection() const 
+     {
+-	selection_.clear();
++        selection_.clear();
+     }
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000138.html">[Mapnik-svn] r253 - in trunk: include plugins/input/shape
+</A></li>
+	<LI>Next message: <A HREF="000140.html">[Mapnik-svn] r255 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#139">[ date ]</a>
+              <a href="thread.html#139">[ thread ]</a>
+              <a href="subject.html#139">[ subject ]</a>
+              <a href="author.html#139">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

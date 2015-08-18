@@ -1,0 +1,1803 @@
+From pavlenko at mail.berlios.de  Sun Aug 20 20:49:25 2006
+From: pavlenko at mail.berlios.de (pavlenko at BerliOS)
+Date: Sun, 20 Aug 2006 20:49:25 +0200
+Subject: [Mapnik-svn] r288 - in trunk: . include src
+Message-ID: <200608201849.k7KInPQb001346@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-08-20 20:49:22 +0200 (Sun, 20 Aug 2006)
+New Revision: 288
+
+Modified:
+   trunk/SConstruct
+   trunk/include/coord.hpp
+   trunk/include/envelope.hpp
+   trunk/include/geom_util.hpp
+   trunk/include/geometry.hpp
+   trunk/include/layer.hpp
+   trunk/include/map.hpp
+   trunk/include/mapnik.hpp
+   trunk/include/params.hpp
+   trunk/include/vertex_vector.hpp
+   trunk/src/mapnik.cpp
+Log:
+1. removed dependency on boost_serialization ( we don't really need it) at this time.
+2. coord and envelope operator<< to use 16 digit precision.
+3. added 'inside polygon' method impl.
+
+
+
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2006-07-24 20:08:32 UTC (rev 287)
++++ trunk/SConstruct	2006-08-20 18:49:22 UTC (rev 288)
+@@ -76,11 +76,6 @@
+ BOOST_LIBSHEADERS = [
+     ['thread', 'boost/thread/mutex.hpp', True],
+     ['filesystem', 'boost/filesystem/operations.hpp', True],
+-    ['serialization', ['boost/archive/text_oarchive.hpp',
+-                        'boost/archive/text_iarchive.hpp',
+-                        'boost/archive/xml_oarchive.hpp',
+-                        'boost/archive/xml_iarchive.hpp'], True
+-    ],
+     ['regex', 'boost/regex.hpp', True],
+     ['program_options', 'boost/program_options.hpp', False]
+ ]
+
+Modified: trunk/include/coord.hpp
+===================================================================
+--- trunk/include/coord.hpp	2006-07-24 20:08:32 UTC (rev 287)
++++ trunk/include/coord.hpp	2006-08-20 18:49:22 UTC (rev 288)
+@@ -26,6 +26,7 @@
+ #define COORD_HPP
+ 
+ #include <iostream>
++#include <iomanip>
+ #include <sstream>
+ 
+ namespace mapnik 
+@@ -113,7 +114,8 @@
+         std::basic_ostringstream<charT,traits> s;
+         s.copyfmt(out);
+         s.width(0);
+-        s<<"coord2("<<c.x<<","<<c.y<<")";
++        s << "coord2(" << std::setprecision(16) 
++          << c.x << "," << c.y<< ")";
+         out << s.str();
+         return out;
+     }
+@@ -126,7 +128,8 @@
+         std::basic_ostringstream<charT,traits> s;
+         s.copyfmt(out);
+         s.width(0);
+-        s<<"coord3("<<c.x<<","<<c.y<<","<<c.z<<")";
++        s << "coord3(" << std::setprecision(16) 
++          << c.x << "," << c.y<< "," << c.z<<")";
+         out << s.str();
+         return out;
+     } 
+
+Modified: trunk/include/envelope.hpp
+===================================================================
+--- trunk/include/envelope.hpp	2006-07-24 20:08:32 UTC (rev 287)
++++ trunk/include/envelope.hpp	2006-08-20 18:49:22 UTC (rev 288)
+@@ -26,6 +26,7 @@
+ #define ENVELOPE_HPP
+ 
+ #include "config.hpp"
++#include <iomanip>
+ #include "coord.hpp"
+ 
+ namespace mapnik
+@@ -34,50 +35,52 @@
+ 	template <class T> class MAPNIK_DECL Envelope
+     {
+     public:
+-	typedef Envelope<T> EnvelopeType;
++        typedef Envelope<T> EnvelopeType;
+     private:
+-	T minx_;
+-	T miny_;
+-	T maxx_;
+-	T maxy_;
++        T minx_;
++        T miny_;
++        T maxx_;
++        T maxy_;
+     public:
+-	Envelope();
+-	Envelope(T minx,T miny,T maxx,T maxy);
+-	Envelope(const coord<T,2>& c0,const coord<T,2>& c1);
+-	Envelope(const EnvelopeType& rhs);
+-	T minx() const;
+-	T miny() const;
+-	T maxx() const;
+-	T maxy() const;
+-	T width() const;
+-	T height() const;
+-	void width(T w);
+-	void height(T h);
+-	coord<T,2> center() const;
+-	void expand_to_include(T x,T y);
+-	void expand_to_include(const coord<T,2>& c);
+-	void expand_to_include(const EnvelopeType& other);
+-	bool contains(const coord<T,2> &c) const;
+-	bool contains(T x,T y) const;
+-	bool contains(const EnvelopeType &other) const;
+-	bool intersects(const coord<T,2> &c) const;
+-	bool intersects(T x,T y) const;
+-	bool intersects(const EnvelopeType &other) const;
+-	EnvelopeType intersect(const EnvelopeType& other) const;
+-	bool operator==(const EnvelopeType &other) const;
+-	void re_center(T cx,T cy);
+-	void init(T x0,T y0,T x1,T y1);
++        Envelope();
++        Envelope(T minx,T miny,T maxx,T maxy);
++        Envelope(const coord<T,2>& c0,const coord<T,2>& c1);
++        Envelope(const EnvelopeType& rhs);
++        T minx() const;
++        T miny() const;
++        T maxx() const;
++        T maxy() const;
++        T width() const;
++        T height() const;
++        void width(T w);
++        void height(T h);
++        coord<T,2> center() const;
++        void expand_to_include(T x,T y);
++        void expand_to_include(const coord<T,2>& c);
++        void expand_to_include(const EnvelopeType& other);
++        bool contains(const coord<T,2> &c) const;
++        bool contains(T x,T y) const;
++        bool contains(const EnvelopeType &other) const;
++        bool intersects(const coord<T,2> &c) const;
++        bool intersects(T x,T y) const;
++        bool intersects(const EnvelopeType &other) const;
++        EnvelopeType intersect(const EnvelopeType& other) const;
++        bool operator==(const EnvelopeType &other) const;
++        void re_center(T cx,T cy);
++        void init(T x0,T y0,T x1,T y1);
+     };
+     
+     template <class charT,class traits,class T>
+     inline std::basic_ostream<charT,traits>&
+     operator << (std::basic_ostream<charT,traits>& out,
+-		 const Envelope<T>& e)
++                 const Envelope<T>& e)
+     {
+         std::basic_ostringstream<charT,traits> s;
+         s.copyfmt(out);
+         s.width(0);
+-        s<<"Envelope("<<e.minx()<<","<<e.miny()<<","<<e.maxx()<<","<<e.maxy()<<")";
++        s <<"Envelope(" << std::setprecision(16) 
++          << e.minx() << "," << e.miny() <<"," 
++          << e.maxx() << "," << e.maxy() <<")";
+         out << s.str();
+         return out;
+     }
+
+Modified: trunk/include/geom_util.hpp
+===================================================================
+--- trunk/include/geom_util.hpp	2006-07-24 20:08:32 UTC (rev 287)
++++ trunk/include/geom_util.hpp	2006-08-20 18:49:22 UTC (rev 288)
+@@ -31,7 +31,7 @@
+ {
+ 
+     template <typename T>
+-        bool clip_test(T p,T q,double& tmin,double& tmax)
++    bool clip_test(T p,T q,double& tmin,double& tmax)
+     {
+         double r;
+         bool result=true;
+@@ -86,78 +86,80 @@
+     template <typename Iter> 
+     inline bool point_inside_path(double x,double y,Iter start,Iter end)
+     {
+-	bool inside=false;
+-	double x0=start->x;
+-	double y0=start->y;
+-	double x1,y1;
+-	while (++start!=end) 
+-	{
+-	    if (start->cmd == SEG_MOVETO)
+-	    {
+-		x0=start->x;
+-		y0=start->y;
+-		continue;
+-	    }		
+-	    x1=start->x;
+-	    y1=start->y;
+-	    if ((((y1 <= y) && (y < y0)) ||
+-		 ((y0 <= y) && (y < y1))) &&
+-		( x < (x0 - x1) * (y - y1)/ (y0 - y1) + x1))
+-		inside=!inside;
+-	    x0=x1;
+-	    y0=y1;
+-	}
++        bool inside=false;
++        double x0=boost::get<0>(*start);
++        double y0=boost::get<1>(*start);
++        
++        double x1,y1;
++        while (++start!=end) 
++        {
++            if ( boost::get<2>(*start) == SEG_MOVETO)
++            {
++                x0 = boost::get<0>(*start);
++                y0 = boost::get<1>(*start);
++                continue;
++            }		
++            x1=boost::get<0>(*start);
++            y1=boost::get<1>(*start);
++            
++            if ((((y1 <= y) && (y < y0)) ||
++                 ((y0 <= y) && (y < y1))) &&
++                ( x < (x0 - x1) * (y - y1)/ (y0 - y1) + x1))
++                inside=!inside;
++            x0=x1;
++            y0=y1;
++        }
+     	return inside;
+     }
+ 
+ #define TOL 0.00001
+ 
+-/*
++    /*
+       (Ay-Cy)(Bx-Ax)-(Ax-Cx)(By-Ay)
+-  s = -----------------------------
+-                 L^2
+-*/
++      s = -----------------------------
++      L^2
++    */
+ 
+     inline bool point_in_circle(double x,double y,double cx,double cy,double r)
+     {
+-	double dx = x - cx;
+-	double dy = y - cy;
+-	double d2 = dx * dx + dy * dy;
+-	return (d2 <= r * r);
++        double dx = x - cx;
++        double dy = y - cy;
++        double d2 = dx * dx + dy * dy;
++        return (d2 <= r * r);
+     }
+     
+     inline bool point_on_segment(double x,double y,double x0,double y0,double x1,double y1)
+     {	
+-	double dx = x1 - x0;
+-	double dy = y1 - y0;
+-	if ( fabs(dx) > TOL  ||  fabs(dy) > TOL )
+-	{
+-	    double s = (y0 - y) * dx - (x0 - x) * dy;
+-	    return ( fabs (s) < TOL ) ;
+-	} 
+-	return false;
++        double dx = x1 - x0;
++        double dy = y1 - y0;
++        if ( fabs(dx) > TOL  ||  fabs(dy) > TOL )
++        {
++            double s = (y0 - y) * dx - (x0 - x) * dy;
++            return ( fabs (s) < TOL ) ;
++        } 
++        return false;
+     }
+ 
+     inline bool point_on_segment2(double x,double y,double x0,double y0,double x1,double y1)
+     {	 
+-	double d  = sqrt ((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0));
+-	double d0 = sqrt ((x0 - x) * (x0 - x) + (y0 - y) * (y0 - y));
+-	double d1 = sqrt ((x1 - x) * (x1 - x) + (y1 - y) * (y1 - y));
+-	double d2 = d0 + d1;
+-	return ( d2 - d < 0.01);
++        double d  = sqrt ((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0));
++        double d0 = sqrt ((x0 - x) * (x0 - x) + (y0 - y) * (y0 - y));
++        double d1 = sqrt ((x1 - x) * (x1 - x) + (y1 - y) * (y1 - y));
++        double d2 = d0 + d1;
++        return ( d2 - d < 0.01);
+     }
+     
+ #undef TOL
+     template <typename Iter> 
+     inline bool point_on_path(double x,double y,Iter start,Iter end)
+     {
+-	return false;
++        return false;
+     }
+     
+     template <typename Iter> 
+     inline bool point_on_points (double x,double y,Iter start,Iter end) 
+     {
+-	return false; 
++        return false; 
+     }
+ 
+     struct filter_in_box
+
+Modified: trunk/include/geometry.hpp
+===================================================================
+--- trunk/include/geometry.hpp	2006-07-24 20:08:32 UTC (rev 287)
++++ trunk/include/geometry.hpp	2006-08-20 18:49:22 UTC (rev 288)
+@@ -45,333 +45,334 @@
+     class geometry : private boost::noncopyable
+     {   
+     public:
+-	typedef T vertex_type;
+-	typedef typename vertex_type::type value_type;
++        typedef T vertex_type;
++        typedef typename vertex_type::type value_type;
+     private:
+-	int srid_;
++        int srid_;
+     public:
+-	geometry (int srid=-1)
+-	    : srid_(srid) {}	
++        geometry (int srid=-1)
++            : srid_(srid) {}	
+ 
+-	int srid() const
+-	{
+-	    return srid_;
+-	}
++        int srid() const
++        {
++            return srid_;
++        }
+ 	
+-	Envelope<double> envelope()
+-	{
+-	    Envelope<double> result;		
+-	    double x,y;
+-	    for (unsigned i=0;i<num_points();++i)
+-	    {
+-		vertex(&x,&y);
+-		if (i==0)
+-		{
+-		    result.init(x,y,x,y);
+-		}
+-		else
+-		{
+-		    result.expand_to_include(x,y);
+-		}
+-	    }
+-	    return result;
+-	}
++        Envelope<double> envelope()
++        {
++            Envelope<double> result;		
++            double x,y;
++            for (unsigned i=0;i<num_points();++i)
++            {
++                vertex(&x,&y);
++                if (i==0)
++                {
++                    result.init(x,y,x,y);
++                }
++                else
++                {
++                    result.expand_to_include(x,y);
++                }
++            }
++            return result;
++        }
+ 
+-	virtual int type() const=0;
+-	virtual bool hit_test(value_type x,value_type y) const=0;	
+-	virtual void label_position(double *x, double *y) const=0;
+-	virtual void move_to(value_type x,value_type y)=0;
+-	virtual void line_to(value_type x,value_type y)=0;
+-	virtual void transform(const mapnik::CoordTransform& t)=0;
+-	virtual unsigned num_points() const = 0;
+-	virtual unsigned vertex(double* x, double* y)=0;
+-	virtual void rewind(unsigned )=0;
+-	virtual void set_capacity(size_t size)=0;
+-	virtual ~geometry() {}
++        virtual int type() const=0;
++        virtual bool hit_test(value_type x,value_type y) const=0;	
++        virtual void label_position(double *x, double *y) const=0;
++        virtual void move_to(value_type x,value_type y)=0;
++        virtual void line_to(value_type x,value_type y)=0;
++        virtual void transform(const mapnik::CoordTransform& t)=0;
++        virtual unsigned num_points() const = 0;
++        virtual unsigned vertex(double* x, double* y)=0;
++        virtual void rewind(unsigned )=0;
++        virtual void set_capacity(size_t size)=0;
++        virtual ~geometry() {}
+     };
+     
+     template <typename T>
+     class point : public geometry<T>
+     {
+-	typedef geometry<T> geometry_base;
+-	typedef typename geometry<T>::vertex_type vertex_type;
+-	typedef typename geometry<T>::value_type value_type;
++        typedef geometry<T> geometry_base;
++        typedef typename geometry<T>::vertex_type vertex_type;
++        typedef typename geometry<T>::value_type value_type;
+     private:
+-	vertex_type pt_;
++        vertex_type pt_;
+     public:
+-	point(int srid)
+-	    : geometry<T>(srid)
+-	{}
++        point(int srid)
++            : geometry<T>(srid)
++        {}
+ 	 
+-	int type() const 
+-	{
+-	    return Point;
+-	}
+-	void label_position(double *x, double *y) const
+-	{
+-	    *x = pt_.x;
+-	    *y = pt_.y;
+-	}
++        int type() const 
++        {
++            return Point;
++        }
++        void label_position(double *x, double *y) const
++        {
++            *x = pt_.x;
++            *y = pt_.y;
++        }
+ 	
+-	void move_to(value_type x,value_type y)
+-	{
+-	    pt_.x = x;
+-	    pt_.y = y;
+-	}
++        void move_to(value_type x,value_type y)
++        {
++            pt_.x = x;
++            pt_.y = y;
++        }
+ 	
+-	void line_to(value_type ,value_type ) {}
++        void line_to(value_type ,value_type ) {}
+ 	
+-	void transform(const mapnik::CoordTransform& t)
+-	{
+-	    t.forward_x(&pt_.x);
+-	    t.forward_y(&pt_.y);
+-	}
++        void transform(const mapnik::CoordTransform& t)
++        {
++            t.forward_x(&pt_.x);
++            t.forward_y(&pt_.y);
++        }
+ 	
+-	unsigned num_points() const
+-	{
+-	    return 1;
+-	}
++        unsigned num_points() const
++        {
++            return 1;
++        }
+ 	
+-	unsigned vertex(double* x, double* y)
+-	{
+-	    *x = pt_.x;
+-	    *y = pt_.y;
+-	    return SEG_LINETO;
+-	}
++        unsigned vertex(double* x, double* y)
++        {
++            *x = pt_.x;
++            *y = pt_.y;
++            return SEG_LINETO;
++        }
+ 	
+-	void rewind(unsigned ) {}
++        void rewind(unsigned ) {}
+ 	
+-	bool hit_test(value_type x,value_type y) const
+-	{
+-	    return false;
+-	}
+-	void set_capacity(size_t) {}
+-	virtual ~point() {}
++        bool hit_test(value_type x,value_type y) const
++        {
++            return false;
++        }
++        void set_capacity(size_t) {}
++        virtual ~point() {}
+     };
+ 
+-    template <typename T, template <typename> class Container=vertex_vector>
++    template <typename T, template <typename> class Container=vertex_vector2>
+     class polygon : public geometry<T>
+     {
+-	typedef geometry<T> geometry_base;
+-	typedef typename geometry<T>::vertex_type vertex_type;
+-	typedef typename geometry_base::value_type value_type;
+-	typedef Container<vertex_type> container_type;
++        typedef geometry<T> geometry_base;
++        typedef typename geometry<T>::vertex_type vertex_type;
++        typedef typename geometry_base::value_type value_type;
++        typedef Container<vertex_type> container_type;
+     private:
+-	container_type cont_;
+-	mutable unsigned itr_;
++        container_type cont_;
++        mutable unsigned itr_;
+     public:
+-	polygon(int srid)
+-	    : geometry_base(srid),
+-	      itr_(0)
+-	{}
++        polygon(int srid)
++            : geometry_base(srid),
++              itr_(0)
++        {}
+         
+-	int type() const 
+-	{
+-	    return Polygon;
+-	}
++        int type() const 
++        {
++            return Polygon;
++        }
+ 	
+-	void label_position(double *x, double *y) const
+-	{
++        void label_position(double *x, double *y) const
++        {
+ 	    
+-	    unsigned size = cont_.size();
+-	    if (size < 3) 
+-	    {
+-		cont_.get_vertex(0,x,y);
+-		return;
+-	    }
++            unsigned size = cont_.size();
++            if (size < 3) 
++            {
++                cont_.get_vertex(0,x,y);
++                return;
++            }
+ 	      
+-	    double ai;
+-	    double atmp = 0;
+-	    double xtmp = 0;
+-	    double ytmp = 0;
+-	    double x0 =0;
+-	    double y0 =0;
+-	    double x1 =0;
+-	    double y1 =0;
++            double ai;
++            double atmp = 0;
++            double xtmp = 0;
++            double ytmp = 0;
++            double x0 =0;
++            double y0 =0;
++            double x1 =0;
++            double y1 =0;
+ 	    
+-	    unsigned i,j;
+-	    for (i = size-1,j = 0; j < size; i = j, ++j)
+-	    {
++            unsigned i,j;
++            for (i = size-1,j = 0; j < size; i = j, ++j)
++            {
+ 		
+-		cont_.get_vertex(i,&x0,&y0);
+-		cont_.get_vertex(j,&x1,&y1);
+-		ai = x0 * y1 - x1 * y0;
+-		atmp += ai;
+-		xtmp += (x1 + x0) * ai;
+-		ytmp += (y1 + y0) * ai;
+-	    }	  
+-	    if (atmp != 0)
+-	    {
+-		*x = xtmp/(3*atmp);
+-		*y = ytmp /(3*atmp);
+-		return;
+-	    }
+-	    *x=x0;
+-	    *y=y0;	    	    
+-	}
++                cont_.get_vertex(i,&x0,&y0);
++                cont_.get_vertex(j,&x1,&y1);
++                ai = x0 * y1 - x1 * y0;
++                atmp += ai;
++                xtmp += (x1 + x0) * ai;
++                ytmp += (y1 + y0) * ai;
++            }	  
++            if (atmp != 0)
++            {
++                *x = xtmp/(3*atmp);
++                *y = ytmp /(3*atmp);
++                return;
++            }
++            *x=x0;
++            *y=y0;	    	    
++        }
+ 
+-	void line_to(value_type x,value_type y)
+-	{
+-	    cont_.push_back(x,y,SEG_LINETO);
+-	}
++        void line_to(value_type x,value_type y)
++        {
++            cont_.push_back(x,y,SEG_LINETO);
++        }
+ 
+-	void move_to(value_type x,value_type y)
+-	{
+-	    cont_.push_back(x,y,SEG_MOVETO);
+-	}
++        void move_to(value_type x,value_type y)
++        {
++            cont_.push_back(x,y,SEG_MOVETO);
++        }
+ 	
+-	void transform(mapnik::CoordTransform const& t)
+-	{
+-	    unsigned size = cont_.size();
+-	    for (unsigned pos=0; pos < size; ++pos)
+-	    {	
+-		cont_.transform_at(pos,t);
+-	    }
+-	}
++        void transform(mapnik::CoordTransform const& t)
++        {
++            unsigned size = cont_.size();
++            for (unsigned pos=0; pos < size; ++pos)
++            {	
++                cont_.transform_at(pos,t);
++            }
++        }
+ 	
+         unsigned num_points() const
+-	{
+-	    return cont_.size();
+-	}
++        {
++            return cont_.size();
++        }
+ 	
+-	unsigned vertex(double* x, double* y)
+-	{
+-	    return cont_.get_vertex(itr_++,x,y);
+-	}
++        unsigned vertex(double* x, double* y)
++        {
++            return cont_.get_vertex(itr_++,x,y);
++        }
+ 	
+-	void rewind(unsigned )
+-	{
+-	    itr_=0;
+-	}
++        void rewind(unsigned )
++        {
++            itr_=0;
++        }
+ 	
+-	bool hit_test(value_type x,value_type y) const
+-	{	    
+-	    return false;
+-	} 
+-	void set_capacity(size_t size) 
+-	{
+-	    cont_.set_capacity(size);
+-	}
+-	virtual ~polygon() {}
++        bool hit_test(value_type x,value_type y) const
++        {	    
++            return point_inside_path(x,y,cont_.begin(),cont_.end());
++        } 
++        
++        void set_capacity(size_t size) 
++        {
++            cont_.set_capacity(size);
++        }
++        virtual ~polygon() {}
+     };
+     
+     template <typename T, template <typename> class Container=vertex_vector>
+     class line_string : public geometry<T>
+     {
+-	typedef geometry<T> geometry_base;
+-	typedef typename geometry_base::value_type value_type;
+-	typedef typename geometry<T>::vertex_type vertex_type;
+-	typedef Container<vertex_type> container_type;
++        typedef geometry<T> geometry_base;
++        typedef typename geometry_base::value_type value_type;
++        typedef typename geometry<T>::vertex_type vertex_type;
++        typedef Container<vertex_type> container_type;
+     private:
+-	container_type cont_;
+-	mutable unsigned itr_;
++        container_type cont_;
++        mutable unsigned itr_;
+     public:
+-	line_string(int srid)
+-	    : geometry_base(srid),
+-	      itr_(0)
+-	{}
++        line_string(int srid)
++            : geometry_base(srid),
++              itr_(0)
++        {}
+         
+-	int type() const 
+-	{
+-	    return LineString;
+-	}
++        int type() const 
++        {
++            return LineString;
++        }
+         void label_position(double *x, double *y) const
+-	{
+-	    // calculate mid point on line string
+-	    double x0=0;
+-	    double y0=0;
+-	    double x1=0;
+-	    double y1=0;
++        {
++            // calculate mid point on line string
++            double x0=0;
++            double y0=0;
++            double x1=0;
++            double y1=0;
+ 	    
+-	    unsigned size = cont_.size();
+-	    if (size == 1)
+-	    {
+-		cont_.get_vertex(0,x,y); 
+-	    }
+-	    else if (size == 2)
+-	    {
++            unsigned size = cont_.size();
++            if (size == 1)
++            {
++                cont_.get_vertex(0,x,y); 
++            }
++            else if (size == 2)
++            {
+ 
+-		cont_.get_vertex(0,&x0,&y0);
+-		cont_.get_vertex(1,&x1,&y1);
+-		*x = 0.5 * (x1 + x0);
+-		*y = 0.5 * (y1 + y0);		
+-	    }
+-	    else
+-	    {
+-		double len=0.0;
+-		for (unsigned pos = 1; pos < size; ++pos)
+-		{
+-		    cont_.get_vertex(pos-1,&x0,&y0);
+-		    cont_.get_vertex(pos,&x1,&y1);
+-		    double dx = x1 - x0;
+-		    double dy = y1 - y0;
+-		    len += sqrt(dx * dx + dy * dy);
+-		}
+-		double midlen = 0.5 * len;
+-		double dist = 0.0;
+-		for (unsigned pos = 1; pos < size;++pos)
+-		{
+-		    cont_.get_vertex(pos-1,&x0,&y0);
+-		    cont_.get_vertex(pos,&x1,&y1);
+-		    double dx = x1 - x0;
+-		    double dy = y1 - y0; 
+-		    double seg_len = sqrt(dx * dx + dy * dy);
+-		    if (( dist + seg_len) >= midlen)
+-		    {
+-			double r = (midlen - dist)/seg_len;
+-			*x = x0 + (x1 - x0) * r;
+-			*y = y0 + (y1 - y0) * r;
+-			break;
+-		    }
+-		    dist += seg_len;
+-		}
+-	    }
++                cont_.get_vertex(0,&x0,&y0);
++                cont_.get_vertex(1,&x1,&y1);
++                *x = 0.5 * (x1 + x0);
++                *y = 0.5 * (y1 + y0);		
++            }
++            else
++            {
++                double len=0.0;
++                for (unsigned pos = 1; pos < size; ++pos)
++                {
++                    cont_.get_vertex(pos-1,&x0,&y0);
++                    cont_.get_vertex(pos,&x1,&y1);
++                    double dx = x1 - x0;
++                    double dy = y1 - y0;
++                    len += sqrt(dx * dx + dy * dy);
++                }
++                double midlen = 0.5 * len;
++                double dist = 0.0;
++                for (unsigned pos = 1; pos < size;++pos)
++                {
++                    cont_.get_vertex(pos-1,&x0,&y0);
++                    cont_.get_vertex(pos,&x1,&y1);
++                    double dx = x1 - x0;
++                    double dy = y1 - y0; 
++                    double seg_len = sqrt(dx * dx + dy * dy);
++                    if (( dist + seg_len) >= midlen)
++                    {
++                        double r = (midlen - dist)/seg_len;
++                        *x = x0 + (x1 - x0) * r;
++                        *y = y0 + (y1 - y0) * r;
++                        break;
++                    }
++                    dist += seg_len;
++                }
++            }
+ 	    
+-	}
+-	void line_to(value_type x,value_type y)
+-	{
+-	    cont_.push_back(x,y,SEG_LINETO);
+-	}
++        }
++        void line_to(value_type x,value_type y)
++        {
++            cont_.push_back(x,y,SEG_LINETO);
++        }
+ 
+-	void move_to(value_type x,value_type y)
+-	{
+-	    cont_.push_back(x,y,SEG_MOVETO);
+-	}
++        void move_to(value_type x,value_type y)
++        {
++            cont_.push_back(x,y,SEG_MOVETO);
++        }
+ 	
+-	void transform(mapnik::CoordTransform const& t)
+-	{
+-	    unsigned size = cont_.size();
+-	    for (unsigned pos=0; pos < size; ++pos)
+-	    {	
+-		cont_.transform_at(pos,t);
+-	    }
+-	}
++        void transform(mapnik::CoordTransform const& t)
++        {
++            unsigned size = cont_.size();
++            for (unsigned pos=0; pos < size; ++pos)
++            {	
++                cont_.transform_at(pos,t);
++            }
++        }
+ 	
+         unsigned num_points() const
+-	{
+-	    return cont_.size();
+-	}
++        {
++            return cont_.size();
++        }
+ 	
+-	unsigned vertex(double* x, double* y)
+-	{
+-	    return cont_.get_vertex(itr_++,x,y);
+-	}
++        unsigned vertex(double* x, double* y)
++        {
++            return cont_.get_vertex(itr_++,x,y);
++        }
+ 	
+-	void rewind(unsigned )
+-	{
+-	    itr_=0;
+-	}
++        void rewind(unsigned )
++        {
++            itr_=0;
++        }
+ 	
+-	bool hit_test(value_type x,value_type y) const
+-	{	    
+-	    return false;
+-	} 
++        bool hit_test(value_type x,value_type y) const
++        {	    
++            return false;
++        } 
+ 	
+-	void set_capacity(size_t size) 
+-	{
+-	    cont_.set_capacity(size);
+-	}
+-	virtual ~line_string() {}
++        void set_capacity(size_t size) 
++        {
++            cont_.set_capacity(size);
++        }
++        virtual ~line_string() {}
+     };
+ 
+     typedef point<vertex2d> point_impl;
+
+Modified: trunk/include/layer.hpp
+===================================================================
+--- trunk/include/layer.hpp	2006-07-24 20:08:32 UTC (rev 287)
++++ trunk/include/layer.hpp	2006-08-20 18:49:22 UTC (rev 288)
+@@ -15,10 +15,11 @@
+  * Lesser General Public License for more details.
+  *
+  * You should have received a copy of the GNU Lesser General Public
+- * License along with this library; if not, write to the Free Software
+- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+- *
+- *****************************************************************************/
++ * #include <boost/serialization/serialization.hpp>
++License along with this library; if not, write to the Free Software
++* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++*
++*****************************************************************************/
+ //$Id: layer.hpp 39 2005-04-10 20:39:53Z pavlenko $
+ 
+ #ifndef LAYER_HPP
+@@ -28,27 +29,11 @@
+ #include "feature.hpp"
+ #include "datasource.hpp"
+ #include <boost/shared_ptr.hpp>
+-#include <boost/serialization/serialization.hpp>
+ 
+ namespace mapnik
+ {
+     class MAPNIK_DECL Layer
+     {
+-        friend class boost::serialization::access;
+-        template <typename Archive>
+-        void serialize(Archive & ar, const unsigned int /*version*/)
+-        {
+-            ar  & boost::serialization::make_nvp("name",name_)
+-            	& boost::serialization::make_nvp("title",title_)
+-            	& boost::serialization::make_nvp("abstract",abstract_)
+-                & boost::serialization::make_nvp("params",params_)
+-                & boost::serialization::make_nvp("min_zoom",minZoom_)
+-                & boost::serialization::make_nvp("max_zoom",maxZoom_)
+-                & boost::serialization::make_nvp("active",active_)
+-                & boost::serialization::make_nvp("selectable",selectable_)
+-                & boost::serialization::make_nvp("styles",styles_)
+-                ;
+-        }
+         parameters params_;
+         std::string name_;
+         std::string title_;
+@@ -102,10 +87,4 @@
+     };
+ }
+ 
+-BOOST_CLASS_IMPLEMENTATION(std::vector<std::string>, boost::serialization::object_serializable)
+-BOOST_CLASS_TRACKING(std::vector<std::string>, boost::serialization::track_never)
+-
+-BOOST_CLASS_IMPLEMENTATION(mapnik::Layer, boost::serialization::object_serializable)
+-BOOST_CLASS_TRACKING(mapnik::Layer, boost::serialization::track_never)
+-
+ #endif //LAYER_HPP
+
+Modified: trunk/include/map.hpp
+===================================================================
+--- trunk/include/map.hpp	2006-07-24 20:08:32 UTC (rev 287)
++++ trunk/include/map.hpp	2006-08-20 18:49:22 UTC (rev 288)
+@@ -24,8 +24,6 @@
+ #ifndef MAP_HPP
+ #define MAP_HPP
+ 
+-#include <boost/serialization/serialization.hpp>
+-#include <boost/serialization/vector.hpp>
+ #include "feature_type_style.hpp"
+ 
+ namespace mapnik
+@@ -33,17 +31,7 @@
+     class Layer;
+ 
+     class MAPNIK_DECL Map
+-    {
+-        friend class boost::serialization::access;
+-        template <typename Archive>
+-        void serialize(Archive & ar, const unsigned int /*version*/)
+-        {
+-            ar  & boost::serialization::make_nvp("width",width_) 
+-                & boost::serialization::make_nvp("height",height_) 
+-                & boost::serialization::make_nvp("srid",srid_)
+-                & boost::serialization::make_nvp("layers",layers_);
+-        }
+-	
++    {	
+         static const unsigned MIN_MAPSIZE=16;
+         static const unsigned MAX_MAPSIZE=2048;
+         unsigned width_;
+@@ -94,10 +82,4 @@
+     };
+ }
+ 
+-BOOST_CLASS_IMPLEMENTATION(std::vector<mapnik::Layer>, boost::serialization::object_serializable)
+-BOOST_CLASS_TRACKING(std::vector<mapnik::Layer>, boost::serialization::track_never)
+-
+-BOOST_CLASS_IMPLEMENTATION(mapnik::Map, boost::serialization::object_serializable)
+-BOOST_CLASS_TRACKING(mapnik::Map, boost::serialization::track_never)
+-
+ #endif //MAP_HPP
+
+Modified: trunk/include/mapnik.hpp
+===================================================================
+--- trunk/include/mapnik.hpp	2006-07-24 20:08:32 UTC (rev 287)
++++ trunk/include/mapnik.hpp	2006-08-20 18:49:22 UTC (rev 288)
+@@ -79,8 +79,6 @@
+ 
+ namespace mapnik
+ {
+-    void MAPNIK_DECL save_to_xml(Map const& map,const char* filename);  
+-    void MAPNIK_DECL load_from_xml(Map & map, const char * filename);
+ }
+ 
+ #endif //MAPNIK_HPP
+
+Modified: trunk/include/params.hpp
+===================================================================
+--- trunk/include/params.hpp	2006-07-24 20:08:32 UTC (rev 287)
++++ trunk/include/params.hpp	2006-08-20 18:49:22 UTC (rev 288)
+@@ -44,36 +44,6 @@
+ 
+     class parameters : public param_map
+     {
+-        friend class boost::serialization::access;
+-        
+-        template <typename Archive>
+-        void save(Archive & ar, const unsigned int /*version*/) const
+-        {
+-            const size_t size = param_map::size();
+-            ar & boost::serialization::make_nvp("count",size);
+-            param_map::const_iterator itr;
+-            for (itr=param_map::begin();itr!=param_map::end();++itr)
+-            {
+-                ar & boost::serialization::make_nvp("name",itr->first);
+-                ar & boost::serialization::make_nvp("value",itr->second);
+-            }
+-        }
+-	
+-        template <typename Archive>
+-        void load(Archive & ar, const unsigned int /*version*/)
+-        {	    
+-            size_t size;
+-            ar & boost::serialization::make_nvp("size",size);
+-            for (size_t i=0;i<size;++i)
+-            {
+-                std::string name;
+-                std::string value;
+-                ar & boost::serialization::make_nvp("name",name);
+-                ar & boost::serialization::make_nvp("value",value);
+-                param_map::insert(make_pair(name,value));
+-            }
+-        }
+-        BOOST_SERIALIZATION_SPLIT_MEMBER()
+      public:
+ 
+         parameters() {}
+@@ -89,10 +59,4 @@
+     };
+ }
+ 
+-BOOST_CLASS_IMPLEMENTATION(mapnik::parameter, boost::serialization::object_serializable)
+-BOOST_CLASS_TRACKING(mapnik::parameter, boost::serialization::track_never)
+-
+-BOOST_CLASS_IMPLEMENTATION(mapnik::parameters, boost::serialization::object_serializable)
+-BOOST_CLASS_TRACKING(mapnik::parameters, boost::serialization::track_never)
+-
+ #endif //PARAMS_HPP
+
+Modified: trunk/include/vertex_vector.hpp
+===================================================================
+--- trunk/include/vertex_vector.hpp	2006-07-24 20:08:32 UTC (rev 287)
++++ trunk/include/vertex_vector.hpp	2006-08-20 18:49:22 UTC (rev 288)
+@@ -42,146 +42,157 @@
+     template <typename T>
+     class vertex_vector : private boost::noncopyable
+     {
+-	typedef typename T::type value_type;
+-	typedef vertex<value_type,2> vertex_type;
+-	enum {
+-	    block_shift = 8,
+-	    block_size  = 1<<block_shift,
+-	    block_mask  = block_size - 1,
+-	    grow_by     = 256
+-	};
++        typedef typename T::type value_type;
++        typedef vertex<value_type,2> vertex_type;
++        enum {
++            block_shift = 8,
++            block_size  = 1<<block_shift,
++            block_mask  = block_size - 1,
++            grow_by     = 256
++        };
+ 
+     private:
+-	unsigned num_blocks_;
+-	unsigned max_blocks_;
+-	value_type** vertexs_;
+-	unsigned char** commands_;
+-	unsigned pos_;
++        unsigned num_blocks_;
++        unsigned max_blocks_;
++        value_type** vertexs_;
++        unsigned char** commands_;
++        unsigned pos_;
+     public:
+ 	
+-	vertex_vector() 
+-	    : num_blocks_(0),
+-	      max_blocks_(0),
+-	      vertexs_(0),
+-	      commands_(0),
+-	      pos_(0) {}
++        vertex_vector() 
++            : num_blocks_(0),
++              max_blocks_(0),
++              vertexs_(0),
++              commands_(0),
++              pos_(0) {}
+ 
+-	~vertex_vector()
+-	{
+-	    if ( num_blocks_ )
+-	    {
+-		value_type** vertexs=vertexs_ + num_blocks_ - 1;
+-		while ( num_blocks_-- )
+-		{
+-		    delete [] *vertexs;
+-		    --vertexs;
+-		}
+-		delete [] vertexs_;
+-	    }
+-	}
+-	unsigned size() const 
+-	{
+-	    return pos_;
+-	}
++        ~vertex_vector()
++        {
++            if ( num_blocks_ )
++            {
++                value_type** vertexs=vertexs_ + num_blocks_ - 1;
++                while ( num_blocks_-- )
++                {
++                    delete [] *vertexs;
++                    --vertexs;
++                }
++                delete [] vertexs_;
++            }
++        }
++        unsigned size() const 
++        {
++            return pos_;
++        }
+ 	
+-	void push_back (value_type x,value_type y,unsigned command)
+-	{
+-	    unsigned block = pos_ >> block_shift;
+-	    if (block >= num_blocks_)
+-	    {
+-		allocate_block(block);
+-	    }
+-	    value_type* vertex = vertexs_[block] + ((pos_ & block_mask) << 1);
+-	    unsigned char* cmd= commands_[block] + (pos_ & block_mask);
++        void push_back (value_type x,value_type y,unsigned command)
++        {
++            unsigned block = pos_ >> block_shift;
++            if (block >= num_blocks_)
++            {
++                allocate_block(block);
++            }
++            value_type* vertex = vertexs_[block] + ((pos_ & block_mask) << 1);
++            unsigned char* cmd= commands_[block] + (pos_ & block_mask);
+ 	    
+-	    *cmd = static_cast<unsigned char>(command);
+-	    *vertex++ = x;
+-	    *vertex   = y;
+-	    ++pos_;
+-	}
+-	unsigned get_vertex(unsigned pos,value_type* x,value_type* y) const
+-	{
+-	    if (pos >= pos_) return SEG_END;
+-	    unsigned block = pos >> block_shift;
+-	    const value_type* vertex = vertexs_[block] + (( pos & block_mask) << 1);
+-	    *x = (*vertex++);
+-	    *y = (*vertex);
+-	    return commands_[block] [pos & block_mask];
+-	}
++            *cmd = static_cast<unsigned char>(command);
++            *vertex++ = x;
++            *vertex   = y;
++            ++pos_;
++        }
++        unsigned get_vertex(unsigned pos,value_type* x,value_type* y) const
++        {
++            if (pos >= pos_) return SEG_END;
++            unsigned block = pos >> block_shift;
++            const value_type* vertex = vertexs_[block] + (( pos & block_mask) << 1);
++            *x = (*vertex++);
++            *y = (*vertex);
++            return commands_[block] [pos & block_mask];
++        }
+         	
+-	void transform_at(unsigned pos,const CoordTransform& t)
+-	{
+-	    if (pos >= pos_) return;
+-	    unsigned block = pos >> block_shift;
+-	    value_type* vertex = vertexs_[block] + (( pos & block_mask) << 1);
+-	    t.forward_x(vertex);
+-	    ++vertex;
+-	    t.forward_y(vertex);
+-	}
+-	void set_capacity(size_t)
+-	{
+-	    //do nothing
+-	}
++        void transform_at(unsigned pos,const CoordTransform& t)
++        {
++            if (pos >= pos_) return;
++            unsigned block = pos >> block_shift;
++            value_type* vertex = vertexs_[block] + (( pos & block_mask) << 1);
++            t.forward_x(vertex);
++            ++vertex;
++            t.forward_y(vertex);
++        }
++        void set_capacity(size_t)
++        {
++            //do nothing
++        }
+     private:
+-	void allocate_block(unsigned block)
+-	{
+-	    if (block >= max_blocks_)
+-	    {
+-		value_type** new_vertexs = new value_type* [(max_blocks_ + grow_by) * 2];
+-		unsigned char** new_commands = (unsigned char**)(new_vertexs + max_blocks_ + grow_by);
+-		if (vertexs_)
+-		{
+-		    std::memcpy(new_vertexs,vertexs_,max_blocks_ * sizeof(value_type*));
+-		    std::memcpy(new_commands,commands_,max_blocks_ * sizeof(unsigned char*));
+-		    delete [] vertexs_;
+-		}
+-		vertexs_ = new_vertexs;
+-		commands_ = new_commands;
+-		max_blocks_ += grow_by;
+-	    }
+-	    vertexs_[block] = new value_type [block_size * 2 + block_size / (sizeof(value_type))];
+-	    commands_[block] = (unsigned char*)(vertexs_[block] + block_size*2);
+-	    ++num_blocks_;
+-	}
++        void allocate_block(unsigned block)
++        {
++            if (block >= max_blocks_)
++            {
++                value_type** new_vertexs = new value_type* [(max_blocks_ + grow_by) * 2];
++                unsigned char** new_commands = (unsigned char**)(new_vertexs + max_blocks_ + grow_by);
++                if (vertexs_)
++                {
++                    std::memcpy(new_vertexs,vertexs_,max_blocks_ * sizeof(value_type*));
++                    std::memcpy(new_commands,commands_,max_blocks_ * sizeof(unsigned char*));
++                    delete [] vertexs_;
++                }
++                vertexs_ = new_vertexs;
++                commands_ = new_commands;
++                max_blocks_ += grow_by;
++            }
++            vertexs_[block] = new value_type [block_size * 2 + block_size / (sizeof(value_type))];
++            commands_[block] = (unsigned char*)(vertexs_[block] + block_size*2);
++            ++num_blocks_;
++        }
+     };
+ 
+     template <typename T>
+     struct vertex_vector2 : boost::noncopyable
+     {
+-	typedef typename T::type value_type;
+-	typedef boost::tuple<value_type,value_type,char> vertex_type;
+-	vertex_vector2() {}
+-	unsigned size() const 
+-	{
+-	    return cont_.size();
+-	}
++        typedef typename T::type value_type;
++        typedef boost::tuple<value_type,value_type,char> vertex_type;
++        typedef typename std::vector<vertex_type>::const_iterator const_iterator;
++        vertex_vector2() {}
++        unsigned size() const 
++        {
++            return cont_.size();
++        }
+ 
+-	void push_back (value_type x,value_type y,unsigned command)
+-	{
+-	    cont_.push_back(vertex_type(x,y,command));
+-	}
+-	unsigned get_vertex(unsigned pos,value_type* x,value_type* y) const
+-	{
+-	    if (pos >= cont_.size()) return SEG_END;
+-	    vertex_type const& c = cont_[pos];
+-	    *x = boost::get<0>(c);
+-	    *y = boost::get<1>(c);
+-	    return boost::get<2>(c);
+-	}
+-	
+-	void transform_at(unsigned pos,const CoordTransform& t)
+-	{
+-	    if (pos >= cont_.size()) return;
+-	    vertex_type & c = cont_[pos];
+-	    t.forward_x(&boost::get<0>(c));
+-	    t.forward_y(&boost::get<1>(c));
+-	}
+-	void set_capacity(size_t size)
+-	{
+-	    cont_.reserve(size);
+-	}
++        void push_back (value_type x,value_type y,unsigned command)
++        {
++            cont_.push_back(vertex_type(x,y,command));
++        }
++        unsigned get_vertex(unsigned pos,value_type* x,value_type* y) const
++        {
++            if (pos >= cont_.size()) return SEG_END;
++            vertex_type const& c = cont_[pos];
++            *x = boost::get<0>(c);
++            *y = boost::get<1>(c);
++            return boost::get<2>(c);
++        }
++        
++        const_iterator begin() const
++        {
++            return cont_.begin();
++        }
++        
++        const_iterator end() const
++        {
++            return cont_.end();
++        }
++
++        void transform_at(unsigned pos,const CoordTransform& t)
++        {
++            if (pos >= cont_.size()) return;
++            vertex_type & c = cont_[pos];
++            t.forward_x(&boost::get<0>(c));
++            t.forward_y(&boost::get<1>(c));
++        }
++        void set_capacity(size_t size)
++        {
++            cont_.reserve(size);
++        }
+     private:
+-	std::vector<vertex_type> cont_;
++        std::vector<vertex_type> cont_;
+     };
+ }
+ 
+
+Modified: trunk/src/mapnik.cpp
+===================================================================
+--- trunk/src/mapnik.cpp	2006-07-24 20:08:32 UTC (rev 287)
++++ trunk/src/mapnik.cpp	2006-08-20 18:49:22 UTC (rev 288)
+@@ -23,27 +23,10 @@
+ //$Id$
+ 
+ #include <fstream>
+-#include <boost/archive/xml_iarchive.hpp>
+-#include <boost/archive/xml_oarchive.hpp>
+ #include "mapnik.hpp"
+ 
+ namespace mapnik
+ {
+-    void save_to_xml(Map const& m,const char* filename)
+-    {
+-	std::ofstream ofs(filename);
+-	assert(ofs.good());
+-	boost::archive::xml_oarchive oa(ofs);
+-	oa << boost::serialization::make_nvp("map",m);
+-    }
+-
+-    void load_from_xml(Map & m,const char* filename)
+-    {
+-	std::ifstream ifs(filename);
+-	assert(ifs.good());
+-	boost::archive::xml_iarchive ia(ifs);
+-	ia >> boost::serialization::make_nvp("map",m);
+-    }
+ }
+ 
+ 
+
+
+
+From pavlenko at mail.berlios.de  Mon Aug 21 17:01:00 2006
+From: pavlenko at mail.berlios.de (pavlenko at BerliOS)
+Date: Mon, 21 Aug 2006 17:01:00 +0200
+Subject: [Mapnik-svn] r289 - trunk/include
+Message-ID: <200608211501.k7LF10DI014548@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-08-21 17:00:59 +0200 (Mon, 21 Aug 2006)
+New Revision: 289
+
+Modified:
+   trunk/include/params.hpp
+Log:
+removed unused headers
+
+Modified: trunk/include/params.hpp
+===================================================================
+--- trunk/include/params.hpp	2006-08-20 18:49:22 UTC (rev 288)
++++ trunk/include/params.hpp	2006-08-21 15:00:59 UTC (rev 289)
+@@ -25,16 +25,6 @@
+ #define PARAMS_HPP
+ 
+ #include <map>
+-#include <boost/serialization/split_member.hpp>
+-#include <boost/serialization/serialization.hpp>
+-#include <boost/serialization/nvp.hpp>
+-#include <boost/serialization/utility.hpp>
+-#include <boost/serialization/vector.hpp>
+-#include <boost/serialization/map.hpp>
+-#include <boost/serialization/string.hpp>
+-#include <boost/serialization/level.hpp>
+-#include <boost/serialization/tracking.hpp>
+-#include <boost/serialization/base_object.hpp>
+ 
+ namespace mapnik
+ {
+
+
+
+From pavlenko at mail.berlios.de  Mon Aug 21 23:25:25 2006
+From: pavlenko at mail.berlios.de (pavlenko at BerliOS)
+Date: Mon, 21 Aug 2006 23:25:25 +0200
+Subject: [Mapnik-svn] r290 - trunk/include
+Message-ID: <200608212125.k7LLPPGH023482@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-08-21 23:25:25 +0200 (Mon, 21 Aug 2006)
+New Revision: 290
+
+Modified:
+   trunk/include/params.hpp
+Log:
+addded missing <string>
+
+Modified: trunk/include/params.hpp
+===================================================================
+--- trunk/include/params.hpp	2006-08-21 15:00:59 UTC (rev 289)
++++ trunk/include/params.hpp	2006-08-21 21:25:25 UTC (rev 290)
+@@ -24,6 +24,7 @@
+ #ifndef PARAMS_HPP
+ #define PARAMS_HPP
+ 
++#include <string>
+ #include <map>
+ 
+ namespace mapnik
+
+
+
+From pavlenko at mail.berlios.de  Wed Aug 23 22:17:17 2006
+From: pavlenko at mail.berlios.de (pavlenko at BerliOS)
+Date: Wed, 23 Aug 2006 22:17:17 +0200
+Subject: [Mapnik-svn] r291 - trunk/bindings/python
+Message-ID: <200608232017.k7NKHHlb007641@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-08-23 22:17:16 +0200 (Wed, 23 Aug 2006)
+New Revision: 291
+
+Modified:
+   trunk/bindings/python/mapnik_map.cpp
+Log:
+added envelope() method to map object
+
+Modified: trunk/bindings/python/mapnik_map.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_map.cpp	2006-08-21 21:25:25 UTC (rev 290)
++++ trunk/bindings/python/mapnik_map.cpp	2006-08-23 20:17:16 UTC (rev 291)
+@@ -59,9 +59,9 @@
+         if (len(state) != 3)
+         {
+             PyErr_SetObject(PyExc_ValueError,
+-			    ("expected 3-item tuple in call to __setstate__; got %s"
+-			     % state).ptr()
+-			    );
++                            ("expected 3-item tuple in call to __setstate__; got %s"
++                             % state).ptr()
++                            );
+             throw_error_already_set();
+         }
+         Envelope<double> ext = extract<Envelope<double> >(state[0]);
+@@ -82,22 +82,28 @@
+     class_<std::vector<Layer> >("Layers")
+     	.def(vector_indexing_suite<std::vector<Layer> >())
+     	;
++    
+     class_<Map>("Map","The map object.",init<int,int,boost::python::optional<int> >())
+         .add_property("width",&Map::getWidth,"The width of the map image.")
+         .add_property("height",&Map::getHeight,"The height of the map image.")
+-	.add_property("srid",&Map::srid)
+-	.add_property("background",make_function
+-		      (&Map::getBackground,return_value_policy<copy_const_reference>()),
+-		      &Map::setBackground, "The background color of the map.")
++        .add_property("srid",&Map::srid)
++        .add_property("background",make_function
++                      (&Map::getBackground,return_value_policy<copy_const_reference>()),
++                      &Map::setBackground, "The background color of the map.")
++        .def("envelope",make_function(&Map::getCurrentExtent,
++                                      return_value_policy<copy_const_reference>()),
++             "The current extent of the map")
++        
+         .def("scale", &Map::scale)
+         .def("zoom_to_box",&Map::zoomToBox, "Set the geographical extent of the map.")
+         .def("pan",&Map::pan)
+         .def("zoom",&Map::zoom)
+         .def("pan_and_zoom",&Map::pan_and_zoom)
+-	.def("append_style",&Map::insert_style)
+-	.def("remove_style",&Map::remove_style)
+-	.add_property("layers",make_function
+-		      (&Map::layers,return_value_policy<reference_existing_object>()), "Get the list of layers in this map.")
++        .def("append_style",&Map::insert_style)
++        .def("remove_style",&Map::remove_style)
++        .add_property("layers",make_function
++                      (&Map::layers,return_value_policy<reference_existing_object>()), 
++                      "Get the list of layers in this map.")
+         .def_pickle(map_pickle_suite())
+         ;
+ }
+
+
+
+From pavlenko at mail.berlios.de  Wed Aug 23 22:34:25 2006
+From: pavlenko at mail.berlios.de (pavlenko at BerliOS)
+Date: Wed, 23 Aug 2006 22:34:25 +0200
+Subject: [Mapnik-svn] r292 - trunk/src
+Message-ID: <200608232034.k7NKYPSf009040@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-08-23 22:34:24 +0200 (Wed, 23 Aug 2006)
+New Revision: 292
+
+Modified:
+   trunk/src/SConscript
+Log:
+small cleanup
+
+Modified: trunk/src/SConscript
+===================================================================
+--- trunk/src/SConscript	2006-08-23 20:17:16 UTC (rev 291)
++++ trunk/src/SConscript	2006-08-23 20:34:24 UTC (rev 292)
+@@ -55,12 +55,6 @@
+     """
+     )
+ 
+-#line_symbolizer.cpp
+-#    line_pattern_symbolizer.cpp
+-#    polygon_symbolizer.cpp
+-#    polygon_pattern_symbolizer.cpp
+-#    image_symbolizer.cpp
+-
+ mapnik = env.SharedLibrary('mapnik', source, LIBS=libraries, LINKFLAGS=linkflags)
+ 
+ env.Alias(target='install', source=env.Install(prefix+'/lib', mapnik))
+
+
+
+From pavlenko at mail.berlios.de  Wed Aug 23 22:35:02 2006
+From: pavlenko at mail.berlios.de (pavlenko at BerliOS)
+Date: Wed, 23 Aug 2006 22:35:02 +0200
+Subject: [Mapnik-svn] r293 - trunk/bindings/python
+Message-ID: <200608232035.k7NKZ25J009147@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-08-23 22:35:01 +0200 (Wed, 23 Aug 2006)
+New Revision: 293
+
+Modified:
+   trunk/bindings/python/mapnik_map.cpp
+Log:
+added zoom_all method
+
+Modified: trunk/bindings/python/mapnik_map.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_map.cpp	2006-08-23 20:34:24 UTC (rev 292)
++++ trunk/bindings/python/mapnik_map.cpp	2006-08-23 20:35:01 UTC (rev 293)
+@@ -93,8 +93,10 @@
+         .def("envelope",make_function(&Map::getCurrentExtent,
+                                       return_value_policy<copy_const_reference>()),
+              "The current extent of the map")
+-        
+         .def("scale", &Map::scale)
++        .def("zoom_all",&Map::zoom_all,
++             "Set the geographical extent of the map "
++             "to the combined extents of all active layers")
+         .def("zoom_to_box",&Map::zoomToBox, "Set the geographical extent of the map.")
+         .def("pan",&Map::pan)
+         .def("zoom",&Map::zoom)
+
+
+
+From pavlenko at mail.berlios.de  Thu Aug 31 23:32:08 2006
+From: pavlenko at mail.berlios.de (pavlenko at BerliOS)
+Date: Thu, 31 Aug 2006 23:32:08 +0200
+Subject: [Mapnik-svn] r294 - in trunk: include plugins/input/postgis src
+Message-ID: <200608312132.k7VLW8H3019446@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-08-31 23:32:07 +0200 (Thu, 31 Aug 2006)
+New Revision: 294
+
+Modified:
+   trunk/include/font_engine_freetype.hpp
+   trunk/plugins/input/postgis/connection.hpp
+   trunk/src/image_util.cpp
+   trunk/src/png_reader.cpp
+   trunk/src/tiff_reader.cpp
+Log:
+wrap C headers with :
+
+extern "C" 
+{
+ // 
+}
+
+
+
+
+Modified: trunk/include/font_engine_freetype.hpp
+===================================================================
+--- trunk/include/font_engine_freetype.hpp	2006-08-23 20:35:01 UTC (rev 293)
++++ trunk/include/font_engine_freetype.hpp	2006-08-31 21:32:07 UTC (rev 294)
+@@ -25,9 +25,12 @@
+ #if !defined FONT_ENGINE_FREETYPE_HPP
+ #define FONT_ENGINE_FREETYPE_HPP
+ 
+-#include <ft2build.h>
+-#include FT_FREETYPE_H
+-#include FT_GLYPH_H
++extern "C"
++{
++  #include <ft2build.h>
++  #include FT_FREETYPE_H
++  #include FT_GLYPH_H
++}
+ 
+ #include <boost/shared_ptr.hpp>
+ #include <boost/utility.hpp>
+
+Modified: trunk/plugins/input/postgis/connection.hpp
+===================================================================
+--- trunk/plugins/input/postgis/connection.hpp	2006-08-23 20:35:01 UTC (rev 293)
++++ trunk/plugins/input/postgis/connection.hpp	2006-08-31 21:32:07 UTC (rev 294)
+@@ -25,8 +25,11 @@
+ #ifndef CONNECTION_HPP
+ #define CONNECTION_HPP
+ 
++extern "C" 
++{
++   #include "libpq-fe.h"
++}
+ 
+-#include "libpq-fe.h"
+ #include "resultset.hpp"
+ 
+ using namespace mapnik;
+
+Modified: trunk/src/image_util.cpp
+===================================================================
+--- trunk/src/image_util.cpp	2006-08-23 20:35:01 UTC (rev 293)
++++ trunk/src/image_util.cpp	2006-08-31 21:32:07 UTC (rev 294)
+@@ -23,12 +23,16 @@
+ //$Id: image_util.cpp 36 2005-04-05 14:32:18Z pavlenko $
+ 
+ #include <string>
+-#include <png.h>
+-#include <jpeglib.h>
+ #include "graphics.hpp"
++#include "memory.hpp"
+ #include "image_util.hpp"
+-#include "memory.hpp"
+ 
++extern "C"
++{
++  #include <png.h>
++  #include <jpeglib.h>
++}
++
+ namespace mapnik
+ {
+ 
+
+Modified: trunk/src/png_reader.cpp
+===================================================================
+--- trunk/src/png_reader.cpp	2006-08-23 20:35:01 UTC (rev 293)
++++ trunk/src/png_reader.cpp	2006-08-31 21:32:07 UTC (rev 294)
+@@ -22,10 +22,15 @@
+ 
+ //$Id: png_reader.cpp 33 2005-04-04 13:01:03Z pavlenko $
+ 
++
++#include <iostream>
+ #include "image_reader.hpp"
+-#include <png.h>
+-#include <iostream>
+ 
++extern "C"
++{
++   #include <png.h>
++}
++
+ namespace mapnik
+ {
+     class PngReader : public ImageReader 
+
+Modified: trunk/src/tiff_reader.cpp
+===================================================================
+--- trunk/src/tiff_reader.cpp	2006-08-23 20:35:01 UTC (rev 293)
++++ trunk/src/tiff_reader.cpp	2006-08-31 21:32:07 UTC (rev 294)
+@@ -22,10 +22,14 @@
+ 
+ //$Id: tiff_reader.cpp 17 2005-03-08 23:58:43Z pavlenko $
+ 
++#include <iostream>
+ #include "image_reader.hpp"
+-#include <tiffio.h>
+-#include <iostream>
++extern "C" 
++{
++   #include <tiffio.h>    
++}
+ 
++
+ namespace mapnik 
+ {
+ 
+@@ -43,12 +47,11 @@
+         int tile_width_;
+         int tile_height_;
+     public:
+-        enum
+-	    {
+-		generic=1,
+-		stripped,
+-		tiled
+-	    };
++        enum {
++            generic=1,
++            stripped,
++            tiled
++        };
+         explicit TiffReader(const std::string& file_name);
+         virtual ~TiffReader();
+         unsigned width() const;
+@@ -75,12 +78,12 @@
+ 
+     TiffReader::TiffReader(const std::string& file_name)
+         : file_name_(file_name),
+-	  read_method_(generic),
+-	  width_(0),
+-	  height_(0),
+-	  rows_per_strip_(0),
+-	  tile_width_(0),
+-	  tile_height_(0)
++          read_method_(generic),
++          width_(0),
++          height_(0),
++          rows_per_strip_(0),
++          tile_width_(0),
++          tile_height_(0)
+     {
+         try
+         {
+
+
+

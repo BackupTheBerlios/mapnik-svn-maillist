@@ -1,0 +1,3053 @@
+From pavlenko at mail.berlios.de  Fri Dec  1 10:37:41 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Fri, 1 Dec 2006 10:37:41 +0100
+Subject: [Mapnik-svn] r393 - in trunk: bindings/python include/mapnik
+	plugins/input/raster src
+Message-ID: <200612010937.kB19bfvC027475@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-01 10:37:37 +0100 (Fri, 01 Dec 2006)
+New Revision: 393
+
+Modified:
+   trunk/bindings/python/mapnik_python.cpp
+   trunk/include/mapnik/agg_renderer.hpp
+   trunk/include/mapnik/ctrans.hpp
+   trunk/plugins/input/raster/raster_featureset.cpp
+   trunk/src/agg_renderer.cpp
+Log:
+Tiling patch from Toby allows for a selected pixel region within an extent
+to be rendered. This allows for a large extent (larger than can be
+rendered into a single image in memory) to be rendered out as tiles.
+Since the full extent is used for the placement calculations text
+crossing tile boundaries will be consistent.
+
+This method is a little inefficient when a large number of labels need
+placed, an improved method would be to cache these placements between
+tiles, but the attached is a start.
+
+c++ users should simple call the render method with a start X and Y
+coordinate specified, 
+
+for (int TileX = 0;TileX < 5;++TileX)
+{
+	for(int TileY = 0;TileY < 5; ++TileY)
+	{
+		int TileSize=250;
+		int StartX = TileX*TileSize;
+		int StartY = TileY*TileSize;
+		
+		Image32 buf(TileSize,TileSize);
+		agg_renderer<Image32> ren(m,buf,StartX,StartY);
+		
+		ren.apply();
+		char name[324];
+		sprintf(name,"tile_%d_%d.png",TileX,TileY);
+		ImageUtils::save_to_file(name,"png",buf);
+	}
+}
+
+python users should call render_tile_to_file
+
+for y in range(tile_count_y):
+	for x in range(tile_count_x):
+		if not os.path.exists("tiles/%d/%d/" % (map_scale, y)):
+			os.makedirs("tiles/%d/%d/" % (map_scale, y))
+		render_tile_to_file(m, x*tile_size, y*tile_size, tile_size, tile_size,
+'tiles/%d/%d/%d.png' % (map_scale,y,x), 'png')
+
+
+
+Modified: trunk/bindings/python/mapnik_python.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_python.cpp	2006-11-29 12:28:17 UTC (rev 392)
++++ trunk/bindings/python/mapnik_python.cpp	2006-12-01 09:37:37 UTC (rev 393)
+@@ -55,7 +55,6 @@
+ #include <mapnik/map.hpp>
+ #include <mapnik/agg_renderer.hpp>
+ #include <mapnik/graphics.hpp>
+-#include <mapnik/datasource_cache.hpp>
+ #include <mapnik/load_map.hpp>
+ #include <mapnik/save_map.hpp>
+ 
+@@ -79,19 +78,11 @@
+ BOOST_PYTHON_MODULE(_mapnik)
+ {
+     using namespace boost::python;
+-    using mapnik::Featureset;
+-    using mapnik::featureset_ptr;
+-    using mapnik::datasource;
+-    using mapnik::coord;
+-    using mapnik::filter_ptr;
++ 
+     using mapnik::load_map;
+     using mapnik::save_map;
+     
+-    export_query();
+-    
+-    class_<Featureset,featureset_ptr,boost::noncopyable>("FeatureSet",no_init)
+-      ;
+-    
++    export_query();    
+     export_datasource();
+     export_parameters();
+     export_color(); 
+@@ -123,5 +114,5 @@
+     def("load_map",&load_map,"load Map object from XML");
+     def("save_map",&load_map,"sace Map object to XML");
+     
+-    register_ptr_to_python<filter_ptr>();
++    register_ptr_to_python<mapnik::filter_ptr>();
+ }
+
+Modified: trunk/include/mapnik/agg_renderer.hpp
+===================================================================
+--- trunk/include/mapnik/agg_renderer.hpp	2006-11-29 12:28:17 UTC (rev 392)
++++ trunk/include/mapnik/agg_renderer.hpp	2006-12-01 09:37:37 UTC (rev 393)
+@@ -41,7 +41,7 @@
+                                      private boost::noncopyable
+     {
+     public:
+-        agg_renderer(Map const& m, T & pixmap);
++        agg_renderer(Map const& m, T & pixmap, unsigned offset_x=0, unsigned offset_y=0);
+         void start_map_processing(Map const& map);
+         void end_map_processing(Map const& map);
+         void start_layer_processing(Layer const& lay);
+
+Modified: trunk/include/mapnik/ctrans.hpp
+===================================================================
+--- trunk/include/mapnik/ctrans.hpp	2006-11-29 12:28:17 UTC (rev 392)
++++ trunk/include/mapnik/ctrans.hpp	2006-12-01 09:37:37 UTC (rev 393)
+@@ -93,9 +93,11 @@
+ 	    int height;
+ 	    double scale_;
+ 	    Envelope<double> extent_;
++        double offset_x_,offset_y_;
+     public:
+-        CoordTransform(int width,int height,const Envelope<double>& extent)
+-            :width(width),height(height),extent_(extent)
++        CoordTransform(int width,int height,const Envelope<double>& extent,
++                       double offset_x = 0, double offset_y = 0)
++            :width(width),height(height),extent_(extent),offset_x_(offset_x),offset_y_(offset_y)
+         {
+             double sx=((double)width)/extent_.width();
+             double sy=((double)height)/extent_.height();
+@@ -110,14 +112,14 @@
+         inline void forward(double * x, double * y) const
+         {
+             
+-            *x = (*x - extent_.minx()) * scale_;
+-            *y = (extent_.maxy() - *y) * scale_;
++            *x = (*x - extent_.minx()) * scale_ - offset_x_;
++            *y = (extent_.maxy() - *y) * scale_ - offset_y_;
+         }
+         
+         inline void backward(double * x, double * y) const
+         {
+-            *x = extent_.minx() + *x/scale_;
+-            *y = extent_.maxy() - *y/scale_;
++            *x = extent_.minx() + (*x + offset_x_)/scale_;
++            *y = extent_.maxy() - (*y + offset_y_)/scale_;
+         }
+         
+         inline coord2d& forward(coord2d& c) const
+
+Modified: trunk/plugins/input/raster/raster_featureset.cpp
+===================================================================
+--- trunk/plugins/input/raster/raster_featureset.cpp	2006-11-29 12:28:17 UTC (rev 392)
++++ trunk/plugins/input/raster/raster_featureset.cpp	2006-12-01 09:37:37 UTC (rev 393)
+@@ -53,7 +53,7 @@
+                 int image_height=reader->height();
+                 if (image_width>0 && image_height>0)
+                 {
+-                    CoordTransform t(image_width,image_height,curIter_->envelope());
++                    CoordTransform t(image_width,image_height,curIter_->envelope(),0,0);
+                     Envelope<double> intersect=extent_.intersect(curIter_->envelope());
+                     Envelope<double> ext=t.forward(intersect);
+                     
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-11-29 12:28:17 UTC (rev 392)
++++ trunk/src/agg_renderer.cpp	2006-12-01 09:37:37 UTC (rev 393)
+@@ -91,10 +91,10 @@
+     };
+ 
+     template <typename T>
+-    agg_renderer<T>::agg_renderer(Map const& m, T & pixmap)
++    agg_renderer<T>::agg_renderer(Map const& m, T & pixmap, unsigned offset_x, unsigned offset_y)
+         : feature_style_processor<agg_renderer>(m),
+           pixmap_(pixmap),
+-          t_(m.getWidth(),m.getHeight(),m.getCurrentExtent()),
++          t_(m.getWidth(),m.getHeight(),m.getCurrentExtent(),offset_x,offset_y),
+           finder_(Envelope<double>(0 ,0, m.getWidth(), m.getHeight()), 64),
+           point_detector_(Envelope<double>(-64 ,-64, m.getWidth() + 64 ,m.getHeight() + 64))
+     {
+
+
+
+From pavlenko at mail.berlios.de  Fri Dec  1 10:42:12 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Fri, 1 Dec 2006 10:42:12 +0100
+Subject: [Mapnik-svn] r394 - trunk/plugins/input/postgis
+Message-ID: <200612010942.kB19gCJ8029147@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-01 10:42:04 +0100 (Fri, 01 Dec 2006)
+New Revision: 394
+
+Modified:
+   trunk/plugins/input/postgis/postgis.cpp
+   trunk/plugins/input/postgis/postgisfs.cpp
+Log:
+1.added missing float4 (pg_type OID 700)
+2.removed printing "..unknown type_oid .."
+
+
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2006-12-01 09:37:37 UTC (rev 393)
++++ trunk/plugins/input/postgis/postgis.cpp	2006-12-01 09:42:04 UTC (rev 394)
+@@ -125,14 +125,12 @@
+                     int type_oid = rs->getTypeOID(i);
+                     switch (type_oid)
+                     {
+-                    case 17285: // geometry
+-                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Geometry));
+-                        break;
+                     case 21:    // int2
+                     case 23:    // int4
+                         desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Integer,false,length));
+                         break;
+-                    case 701:  // float8
++                    case 700:   // float4 
++                    case 701:   // float8
+                         desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::Double,false,length));
+                     case 1042:  // bpchar
+                     case 1043:  // varchar
+@@ -140,8 +138,9 @@
+                         desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::String));
+                         break;
+                     default: // shouldn't get here
++#ifdef MAPNIK_DEBUG
+                         clog << "unknown type_oid="<<type_oid<<endl;
+-                        desc_.add_descriptor(attribute_descriptor(fld_name,mapnik::String));
++#endif
+                         break;
+                     }	  
+                 }
+@@ -207,7 +206,10 @@
+             s << std::setprecision(16);
+             s << box.minx() << " " << box.miny() << ",";
+             s << box.maxx() << " " << box.maxy() << ")'::box3d,"<<srid_<<")";
+-            
++           
++#ifdef MAPNIK_DEBUG
++            std::clog << s.str() << "\n";
++#endif           
+             shared_ptr<ResultSet> rs=conn->executeQuery(s.str(),1);
+             return featureset_ptr(new postgis_featureset(rs,props.size()));
+         }
+
+Modified: trunk/plugins/input/postgis/postgisfs.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgisfs.cpp	2006-12-01 09:37:37 UTC (rev 393)
++++ trunk/plugins/input/postgis/postgisfs.cpp	2006-12-01 09:42:04 UTC (rev 394)
+@@ -56,7 +56,7 @@
+                 std::string name = rs_->getFieldName(pos);
+                 const char* buf=rs_->getValue(pos);
+                 int oid = rs_->getTypeOID(pos);
+-		
++                
+                 if (oid==23) //int4
+                 {
+                     int val = int4net(buf);
+@@ -85,8 +85,10 @@
+                 }
+                 else 
+                 {
++#ifdef MAPNIK_DEBUG
+                     std::clog << "uknown OID = " << oid << " FIXME \n";
+-                    boost::put(*feature,name,0);
++#endif
++                    //boost::put(*feature,name,0);
+                 }
+             }
+             ++count_;
+
+
+
+From pavlenko at mail.berlios.de  Fri Dec  1 11:00:06 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Fri, 1 Dec 2006 11:00:06 +0100
+Subject: [Mapnik-svn] r395 - trunk/agg/include
+Message-ID: <200612011000.kB1A062g003259@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-01 11:00:04 +0100 (Fri, 01 Dec 2006)
+New Revision: 395
+
+Modified:
+   trunk/agg/include/agg_renderer_outline_aa.h
+   trunk/agg/include/agg_renderer_outline_image.h
+Log:
+fixed indefinite loop conditions when len=1
+
+-   while(abs(sx - lp.x1) + abs(sy - lp.y1) > lp2.len)
++   while(abs(sx - lp.x1) + abs(sy - lp.y1) > 1 + lp2.len)
+    {
+        sx = (lp.x1 + sx) >> 1;
+        sy = (lp.y1 + sy) >> 1;
+    }
+
+
+
+
+Modified: trunk/agg/include/agg_renderer_outline_aa.h
+===================================================================
+--- trunk/agg/include/agg_renderer_outline_aa.h	2006-12-01 09:42:04 UTC (rev 394)
++++ trunk/agg/include/agg_renderer_outline_aa.h	2006-12-01 10:00:04 UTC (rev 395)
+@@ -1649,7 +1649,7 @@
+                         }
+                         else
+                         {
+-                            while(abs(sx - lp.x1) + abs(sy - lp.y1) > lp2.len)
++                            while(abs(sx - lp.x1) + abs(sy - lp.y1) > 1 + lp2.len)
+                             {
+                                 sx = (lp.x1 + sx) >> 1;
+                                 sy = (lp.y1 + sy) >> 1;
+@@ -1716,7 +1716,7 @@
+                         }
+                         else
+                         {
+-                            while(abs(ex - lp.x2) + abs(ey - lp.y2) > lp2.len)
++                            while(abs(ex - lp.x2) + abs(ey - lp.y2) > 1 + lp2.len)
+                             {
+                                 ex = (lp.x2 + ex) >> 1;
+                                 ey = (lp.y2 + ey) >> 1;
+@@ -1788,7 +1788,7 @@
+                         }
+                         else
+                         {
+-                            while(abs(sx - lp.x1) + abs(sy - lp.y1) > lp2.len)
++                            while(abs(sx - lp.x1) + abs(sy - lp.y1) > 1 + lp2.len)
+                             {
+                                 sx = (lp.x1 + sx) >> 1;
+                                 sy = (lp.y1 + sy) >> 1;
+@@ -1801,7 +1801,7 @@
+                         }
+                         else
+                         {
+-                            while(abs(ex - lp.x2) + abs(ey - lp.y2) > lp2.len)
++                            while(abs(ex - lp.x2) + abs(ey - lp.y2) > 1 + lp2.len)
+                             {
+                                 ex = (lp.x2 + ex) >> 1;
+                                 ey = (lp.y2 + ey) >> 1;
+
+Modified: trunk/agg/include/agg_renderer_outline_image.h
+===================================================================
+--- trunk/agg/include/agg_renderer_outline_image.h	2006-12-01 09:42:04 UTC (rev 394)
++++ trunk/agg/include/agg_renderer_outline_image.h	2006-12-01 10:00:04 UTC (rev 395)
+@@ -959,7 +959,7 @@
+                         }
+                         else
+                         {
+-                            while(abs(sx - lp.x1) + abs(sy - lp.y1) > lp2.len)
++                            while(abs(sx - lp.x1) + abs(sy - lp.y1) > 1 + lp2.len)
+                             {
+                                 sx = (lp.x1 + sx) >> 1;
+                                 sy = (lp.y1 + sy) >> 1;
+@@ -972,7 +972,7 @@
+                         }
+                         else
+                         {
+-                            while(abs(ex - lp.x2) + abs(ey - lp.y2) > lp2.len)
++                            while(abs(ex - lp.x2) + abs(ey - lp.y2) > 1 + lp2.len)
+                             {
+                                 ex = (lp.x2 + ex) >> 1;
+                                 ey = (lp.y2 + ey) >> 1;
+
+
+
+From pavlenko at mail.berlios.de  Fri Dec  1 11:08:15 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Fri, 1 Dec 2006 11:08:15 +0100
+Subject: [Mapnik-svn] r396 - trunk/bindings/python
+Message-ID: <200612011008.kB1A8Fv6006571@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-01 11:08:13 +0100 (Fri, 01 Dec 2006)
+New Revision: 396
+
+Modified:
+   trunk/bindings/python/mapnik_datasource.cpp
+Log:
+Reflect featureset and feature classes in Python. Featureset follows Python iterator protocol e.g:
+
+    ds = Shapefile(file="/../..")
+    for f in ds.features_at_point(Coord(-2,51)):
+        print f
+TODO: 
+    1.access to Feature properties
+    2.feature_at_point to accept screen coordinates
+    3.apply hit_test for geometries.
+      
+
+
+Modified: trunk/bindings/python/mapnik_datasource.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_datasource.cpp	2006-12-01 10:00:04 UTC (rev 395)
++++ trunk/bindings/python/mapnik_datasource.cpp	2006-12-01 10:08:13 UTC (rev 396)
+@@ -27,6 +27,7 @@
+ #include <sstream>
+ // mapnik
+ #include <mapnik/envelope.hpp>
++#include <mapnik/feature.hpp>
+ #include <mapnik/datasource.hpp>
+ #include <mapnik/datasource_cache.hpp>
+ #include <mapnik/feature_layer_desc.hpp>
+@@ -68,16 +69,44 @@
+     }
+ }
+ 
++inline object pass_through(object const& o) { return o; }
++
++inline mapnik::feature_ptr next(mapnik::featureset_ptr const& itr)
++{
++    mapnik::feature_ptr f = itr->next();
++    if (!f)
++    {
++        PyErr_SetString(PyExc_StopIteration, "No more features.");
++        boost::python::throw_error_already_set();
++    }
++    return f; 
++}
++
+ void export_datasource()
+ {
+     using namespace boost::python;
+     using mapnik::datasource;
++    using mapnik::Featureset;
++    using mapnik::Feature;
++
++    class_<Feature,boost::shared_ptr<Feature>,
++        boost::noncopyable>("Feature",no_init)
++        .def("id",&Feature::id)
++        .def("__str__",&Feature::to_string)
++        ;
+     
++    class_<Featureset,boost::shared_ptr<Featureset>,
++        boost::noncopyable>("Datasource",no_init)
++        .def("next",next)
++        .def("__iter__",pass_through)
++        ;
++    
+     class_<datasource,boost::shared_ptr<datasource>,
+         boost::noncopyable>("Datasource",no_init)
+         .def("envelope",&datasource::envelope)
+         .def("descriptor",&datasource::get_descriptor) //todo
+         .def("features",&datasource::features)
++        .def("features_at_point",&datasource::features_at_point)
+         .def("params",&datasource::params,return_value_policy<copy_const_reference>(), 
+              "The configuration parameters of the data source. "  
+              "These vary depending on the type of data source.")
+
+
+
+From pavlenko at mail.berlios.de  Fri Dec  1 11:37:17 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Fri, 1 Dec 2006 11:37:17 +0100
+Subject: [Mapnik-svn] r397 - in trunk: plugins/input/postgis src
+Message-ID: <200612011037.kB1AbHkC019183@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-01 11:37:15 +0100 (Fri, 01 Dec 2006)
+New Revision: 397
+
+Modified:
+   trunk/plugins/input/postgis/postgisfs.cpp
+   trunk/src/agg_renderer.cpp
+Log:
+trim strings at data source level
+
+
+
+Modified: trunk/plugins/input/postgis/postgisfs.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgisfs.cpp	2006-12-01 10:08:13 UTC (rev 396)
++++ trunk/plugins/input/postgis/postgisfs.cpp	2006-12-01 10:37:15 UTC (rev 397)
+@@ -22,12 +22,14 @@
+ 
+ //$Id: postgisfs.cc 34 2005-04-04 13:27:23Z pavlenko $
+ 
++#include <boost/algorithm/string.hpp>
+ #include <mapnik/global.hpp>
+ #include <mapnik/wkb.hpp>
+ #include "postgis.hpp"
+ 
+ using boost::lexical_cast;
+ using boost::bad_lexical_cast;
++using boost::trim;
+ using std::string;
+ 
+ postgis_featureset::postgis_featureset(boost::shared_ptr<ResultSet> const& rs,
+@@ -81,7 +83,9 @@
+                 }
+                 else if (oid==25 || oid==1042 || oid==1043) // text or bpchar or varchar
+                 {
+-                    boost::put(*feature,name,buf);
++                    std::string str(buf);
++                    trim(str);
++                    boost::put(*feature,name,str);
+                 }
+                 else 
+                 {
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-12-01 10:08:13 UTC (rev 396)
++++ trunk/src/agg_renderer.cpp	2006-12-01 10:37:15 UTC (rev 397)
+@@ -25,7 +25,6 @@
+ #include <iostream>
+ // boost
+ #include <boost/utility.hpp>
+-#include <boost/algorithm/string.hpp>
+ // agg
+ #include "agg_basics.h"
+ #include "agg_rendering_buffer.h"
+@@ -336,7 +335,6 @@
+         if (geom)
+         {
+             std::wstring text = to_unicode(feature[sym.get_name()].to_string());
+-            boost::trim(text);
+             boost::shared_ptr<ImageData32> const& data = sym.get_data();
+             
+             if (text.length() > 0 && data)
+@@ -497,7 +495,6 @@
+         if (geom)
+         {
+             std::wstring text = to_unicode(feature[sym.get_name()].to_string());
+-            boost::trim(text);
+             if (text.length() > 0)
+             {
+                 Color const& fill  = sym.get_fill();
+
+
+
+From pavlenko at mail.berlios.de  Fri Dec  1 12:45:22 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Fri, 1 Dec 2006 12:45:22 +0100
+Subject: [Mapnik-svn] r398 - trunk/plugins/input/postgis
+Message-ID: <200612011145.kB1BjMvv010142@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-01 12:45:08 +0100 (Fri, 01 Dec 2006)
+New Revision: 398
+
+Modified:
+   trunk/plugins/input/postgis/postgis.cpp
+Log:
+features at point impl
+
+
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2006-12-01 10:37:15 UTC (rev 397)
++++ trunk/plugins/input/postgis/postgis.cpp	2006-12-01 11:45:08 UTC (rev 398)
+@@ -197,7 +197,8 @@
+             s << "select asbinary("<<geometryColumn_<<") as geom";
+             std::set<std::string> const& props=q.property_names();
+             std::set<std::string>::const_iterator pos=props.begin();
+-            while (pos!=props.end())
++            std::set<std::string>::const_iterator end=props.end();
++            while (pos != end)
+             {
+                 s <<",\""<<*pos<<"\"";
+                 ++pos;
+@@ -206,7 +207,7 @@
+             s << std::setprecision(16);
+             s << box.minx() << " " << box.miny() << ",";
+             s << box.maxx() << " " << box.maxy() << ")'::box3d,"<<srid_<<")";
+-           
++            
+ #ifdef MAPNIK_DEBUG
+             std::clog << s.str() << "\n";
+ #endif           
+@@ -219,6 +220,40 @@
+ 
+ featureset_ptr postgis_datasource::features_at_point(coord2d const& pt) const
+ {
++    ConnectionManager *mgr=ConnectionManager::instance();
++    shared_ptr<Pool<Connection,ConnectionCreator> > pool=mgr->getPool(creator_.id());
++    if (pool)
++    {
++        shared_ptr<Connection> conn = pool->borrowObject();
++        if (conn && conn->isOK())
++        {       
++            PoolGuard<shared_ptr<Connection>,shared_ptr<Pool<Connection,ConnectionCreator> > > guard(conn,pool);
++            std::ostringstream s;
++            
++            s << "select asbinary(" << geometryColumn_ << ") as geom";
++            
++            std::vector<attribute_descriptor>::const_iterator itr = desc_.get_descriptors().begin();
++            std::vector<attribute_descriptor>::const_iterator end = desc_.get_descriptors().end();
++            unsigned size=0;
++            while (itr != end)
++            {
++                s <<",\""<< itr->get_name() << "\"";
++                ++itr;
++                ++size;
++            }
++            
++            s << " from " << table_<<" where "<<geometryColumn_<<" && setSRID('BOX3D(";
++            s << std::setprecision(16);
++            s << pt.x << " " << pt.y << ",";
++            s << pt.x << " " << pt.y << ")'::box3d,"<<srid_<<")";
++            
++#ifdef MAPNIK_DEBUG
++            std::clog << s.str() << "\n";
++#endif           
++            shared_ptr<ResultSet> rs=conn->executeQuery(s.str(),1);
++            return featureset_ptr(new postgis_featureset(rs, size));
++        }
++    }
+     return featureset_ptr();
+ }
+ 
+
+
+
+From pavlenko at mail.berlios.de  Fri Dec  1 16:23:21 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Fri, 1 Dec 2006 16:23:21 +0100
+Subject: [Mapnik-svn] r399 - trunk/src
+Message-ID: <200612011523.kB1FNLrg024146@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-01 16:23:19 +0100 (Fri, 01 Dec 2006)
+New Revision: 399
+
+Modified:
+   trunk/src/png_reader.cpp
+Log:
+fixed png reader bug : 
+fill alpha channel with 0xff on expansion
+
+
+
+
+Modified: trunk/src/png_reader.cpp
+===================================================================
+--- trunk/src/png_reader.cpp	2006-12-01 11:45:08 UTC (rev 398)
++++ trunk/src/png_reader.cpp	2006-12-01 15:23:19 UTC (rev 399)
+@@ -189,8 +189,8 @@
+             png_set_gray_to_rgb(png_ptr);
+ 
+         // quick hack -- only work in >=libpng 1.2.7
+-        png_set_add_alpha(png_ptr,1,1);
+-
++        png_set_add_alpha(png_ptr,0xff,PNG_FILLER_AFTER); //rgba
++        
+         double gamma;
+         if (png_get_gAMA(png_ptr, info_ptr, &gamma))
+             png_set_gamma(png_ptr, 2.2, gamma);
+
+
+
+From pavlenko at mail.berlios.de  Mon Dec  4 12:36:42 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Mon, 4 Dec 2006 12:36:42 +0100
+Subject: [Mapnik-svn] r400 - trunk/src
+Message-ID: <200612041136.kB4BagU7004403@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-04 12:36:39 +0100 (Mon, 04 Dec 2006)
+New Revision: 400
+
+Modified:
+   trunk/src/load_map.cpp
+Log:
+added support for PolygonPatternSymbolizer
+
+Modified: trunk/src/load_map.cpp
+===================================================================
+--- trunk/src/load_map.cpp	2006-12-01 15:23:19 UTC (rev 399)
++++ trunk/src/load_map.cpp	2006-12-04 11:36:39 UTC (rev 400)
+@@ -158,14 +158,26 @@
+                                 rule.append(line_pattern_symbolizer(file,type,width,height));
+                                 
+                             }
++                            else if ( sym.first == "PolygonPatternSymbolizer")
++                            {
++                                std::string file =  
++                                    sym.second.get<std::string>("<xmlattr>.file"); 
++                                std::string type =  
++                                    sym.second.get<std::string>("<xmlattr>.type");
++                                unsigned width =  
++                                    sym.second.get<unsigned>("<xmlattr>.width");
++                                unsigned height =  
++                                    sym.second.get<unsigned>("<xmlattr>.height");
++                                rule.append(polygon_pattern_symbolizer(file,type,width,height)); 
++                            }
+                             else if ( sym.first == "TextSymbolizer")
+                             {
+                                 std::string name =  
+-                                    sym.second.get<std::string>("<xmlattr>.name");                      
++                                    sym.second.get<std::string>("<xmlattr>.name");                     
+                                 std::string face_name =  
+                                     sym.second.get<std::string>("<xmlattr>.face_name");              
+                                 unsigned size = 
+-                                    sym.second.get<unsigned>("<xmlattr>.size",10);                      
++                                    sym.second.get<unsigned>("<xmlattr>.size",10); 
+                                 std::string color_str = 
+                                     sym.second.get<std::string>("<xmlattr>.fill","black");
+                                 Color c = color_factory::from_string(color_str.c_str());
+
+
+
+From pavlenko at mail.berlios.de  Mon Dec  4 21:13:02 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Mon, 4 Dec 2006 21:13:02 +0100
+Subject: [Mapnik-svn] r401 - trunk/bindings/python
+Message-ID: <200612042013.kB4KD2fa004553@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-04 21:12:58 +0100 (Mon, 04 Dec 2006)
+New Revision: 401
+
+Modified:
+   trunk/bindings/python/mapnik_python.cpp
+Log:
+applied missing part from mapnik_tile patch
+
+
+
+Modified: trunk/bindings/python/mapnik_python.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_python.cpp	2006-12-04 11:36:39 UTC (rev 400)
++++ trunk/bindings/python/mapnik_python.cpp	2006-12-04 20:12:58 UTC (rev 401)
+@@ -58,20 +58,28 @@
+ #include <mapnik/load_map.hpp>
+ #include <mapnik/save_map.hpp>
+ 
+-void render_to_file(const mapnik::Map& map,
++
++void render(const mapnik::Map& map,mapnik::Image32& image, unsigned offset_x = 0, unsigned offset_y = 0)
++{
++    mapnik::agg_renderer<mapnik::Image32> ren(map,image,offset_x, offset_y);
++    ren.apply();
++}
++
++void render_tile_to_file(const mapnik::Map& map, unsigned offset_x, unsigned offset_y,
++                    unsigned width, unsigned height,
+                     const std::string& file,
+                     const std::string& format)
+ {
+-    mapnik::Image32 image(map.getWidth(),map.getHeight());
+-    mapnik::agg_renderer<mapnik::Image32> ren(map,image);
+-    ren.apply();
++    mapnik::Image32 image(width,height);
++    render(map,image,offset_x, offset_y);
+     image.saveToFile(file,format);
+ }
+ 
+-void render(const mapnik::Map& map,mapnik::Image32& image)
++void render_to_file(const mapnik::Map& map,
++                    const std::string& file,
++                    const std::string& format)
+ {
+-    mapnik::agg_renderer<mapnik::Image32> ren(map,image);
+-    ren.apply();
++    render_tile_to_file(map,0,0,map.getWidth(),map.getHeight(),file,format);
+ }
+ 
+ 
+@@ -109,6 +117,7 @@
+     export_map();
+     
+     def("render_to_file",&render_to_file);
++    def("render_tile_to_file",&render_tile_to_file);
+     def("render",&render);
+     
+     def("load_map",&load_map,"load Map object from XML");
+
+
+
+From pavlenko at mail.berlios.de  Tue Dec  5 01:16:07 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Tue, 5 Dec 2006 01:16:07 +0100
+Subject: [Mapnik-svn] r402 - trunk/src
+Message-ID: <200612050016.kB50G79W008956@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-05 01:16:05 +0100 (Tue, 05 Dec 2006)
+New Revision: 402
+
+Modified:
+   trunk/src/agg_renderer.cpp
+   trunk/src/placement_finder.cpp
+Log:
+1. placement_finder.cpp  
+    fixed 'for' loops to work correctly when geom->num_points() < 2
+    always use prefix increment even for built-in types (good practice!)
+    e.g ++i 
+
+2. agg_renderer.cpp 
+    check for number points in geometries when 
+    applying text/shield_symbolizer.
+
+      
+
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-12-04 20:12:58 UTC (rev 401)
++++ trunk/src/agg_renderer.cpp	2006-12-05 00:16:05 UTC (rev 402)
+@@ -332,7 +332,7 @@
+                                    proj_transform const& prj_trans)
+     {
+         geometry_ptr const& geom=feature.get_geometry();
+-        if (geom)
++        if (geom && geom->num_points() > 0)
+         {
+             std::wstring text = to_unicode(feature[sym.get_name()].to_string());
+             boost::shared_ptr<ImageData32> const& data = sym.get_data();
+@@ -492,7 +492,7 @@
+     {
+         geometry_ptr const& geom=feature.get_geometry();
+        
+-        if (geom)
++        if (geom && geom->num_points() > 0)
+         {
+             std::wstring text = to_unicode(feature[sym.get_name()].to_string());
+             if (text.length() > 0)
+
+Modified: trunk/src/placement_finder.cpp
+===================================================================
+--- trunk/src/placement_finder.cpp	2006-12-04 20:12:58 UTC (rev 401)
++++ trunk/src/placement_finder.cpp	2006-12-05 00:16:05 UTC (rev 402)
+@@ -75,7 +75,8 @@
+     
+         shape_path.rewind(0);
+         shape_path.vertex(&new_x,&new_y);
+-        for (unsigned i = 0; i < geom->num_points() - 1; i++)
++        unsigned num_points =  geom->num_points();
++        for (unsigned i = 1; i < num_points; ++i)
+         {
+             double dx, dy;
+ 
+@@ -113,13 +114,13 @@
+             shape_path.vertex(&old_x,&old_y);
+ 
+             total_distance_ = 0.0;
+-      
+-            for (unsigned i = 0; i < geom->num_points() - 1; i++)
++            
++            unsigned num_points = geom->num_points();
++            for (unsigned i = 1; i < num_points ; ++i)
+             {
+                 double dx, dy;
+-          
+                 shape_path.vertex(&new_x,&new_y);
+-          
++                
+                 dx = new_x - old_x;
+                 dy = new_y - old_y;
+           
+@@ -330,7 +331,8 @@
+         p->shape_path.vertex(&new_x,&new_y);
+         old_x = new_x;
+         old_y = new_y;
+-        for (unsigned i = 0; i < p->geom->num_points() - 1; i++)
++        unsigned num_points = geom->num_points();
++        for (unsigned i = 1; i < num_points; ++i)
+         {
+             double dx, dy;
+ 
+
+
+
+From pavlenko at mail.berlios.de  Tue Dec  5 14:15:45 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Tue, 5 Dec 2006 14:15:45 +0100
+Subject: [Mapnik-svn] r403 - trunk/src
+Message-ID: <200612051315.kB5DFjws027219@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-05 14:15:43 +0100 (Tue, 05 Dec 2006)
+New Revision: 403
+
+Modified:
+   trunk/src/placement_finder.cpp
+Log:
+oops, fixed
+
+Modified: trunk/src/placement_finder.cpp
+===================================================================
+--- trunk/src/placement_finder.cpp	2006-12-05 00:16:05 UTC (rev 402)
++++ trunk/src/placement_finder.cpp	2006-12-05 13:15:43 UTC (rev 403)
+@@ -143,7 +143,7 @@
+   
+   
+     placement_finder::placement_finder(Envelope<double> e, unsigned buffer)
+-      : dimensions_(e), detector_(Envelope<double>(e.minx() - buffer, e.miny() - buffer, e.maxx() + buffer, e.maxy() + buffer))
++        : dimensions_(e), detector_(Envelope<double>(e.minx() - buffer, e.miny() - buffer, e.maxx() + buffer, e.maxy() + buffer))
+     {
+     }
+ 
+@@ -168,9 +168,9 @@
+         double string_width = string_dimensions.first;
+         //    double string_height = string_dimensions.second;
+     
+-//         for (unsigned int ii = 0; ii < p->info->num_characters(); ++ii)
+-//             std::clog << static_cast<char> (p->info->at(ii).character);
+-//         std::clog << std::endl;
++        //         for (unsigned int ii = 0; ii < p->info->num_characters(); ++ii)
++        //             std::clog << static_cast<char> (p->info->at(ii).character);
++        //         std::clog << std::endl;
+ 
+         double distance = p->get_total_distance();
+     
+@@ -252,8 +252,8 @@
+             }
+         }    
+     
+-//         if (FoundPlacement)
+-//             std::clog << "Found Placement" << string_width << " " << distance << std::endl;
++        //         if (FoundPlacement)
++        //             std::clog << "Found Placement" << string_width << " " << distance << std::endl;
+ 
+         return FoundPlacement;
+     }
+@@ -306,7 +306,7 @@
+     }
+ 
+     bool placement_finder::build_path_follow(placement *p, double target_distance)
+-     {
++    {
+         double new_x, new_y, old_x, old_y;
+         unsigned cur_node = 0;
+         double next_char_x = 0;
+@@ -331,7 +331,7 @@
+         p->shape_path.vertex(&new_x,&new_y);
+         old_x = new_x;
+         old_y = new_y;
+-        unsigned num_points = geom->num_points();
++        unsigned num_points = p->geom->num_points();
+         for (unsigned i = 1; i < num_points; ++i)
+         {
+             double dx, dy;
+@@ -632,5 +632,4 @@
+     
+         return true;
+     }
+-
+ } // namespace
+
+
+
+From pavlenko at mail.berlios.de  Tue Dec  5 16:43:55 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Tue, 5 Dec 2006 16:43:55 +0100
+Subject: [Mapnik-svn] r404 - trunk/bindings/python
+Message-ID: <200612051543.kB5FhtiS016007@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-05 16:43:52 +0100 (Tue, 05 Dec 2006)
+New Revision: 404
+
+Modified:
+   trunk/bindings/python/mapnik_python.cpp
+Log:
+added method 'render' with old signiture
+    render(...)
+    C++ signature:
+    render(mapnik::Map, mapnik::Image32 {lvalue}) -> void*
+
+
+
+
+Modified: trunk/bindings/python/mapnik_python.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_python.cpp	2006-12-05 13:15:43 UTC (rev 403)
++++ trunk/bindings/python/mapnik_python.cpp	2006-12-05 15:43:52 UTC (rev 404)
+@@ -65,6 +65,12 @@
+     ren.apply();
+ }
+ 
++void render2(const mapnik::Map& map,mapnik::Image32& image)
++{
++    mapnik::agg_renderer<mapnik::Image32> ren(map,image);
++    ren.apply();
++}
++
+ void render_tile_to_file(const mapnik::Map& map, unsigned offset_x, unsigned offset_y,
+                     unsigned width, unsigned height,
+                     const std::string& file,
+@@ -118,7 +124,7 @@
+     
+     def("render_to_file",&render_to_file);
+     def("render_tile_to_file",&render_tile_to_file);
+-    def("render",&render);
++    def("render",&render2);
+     
+     def("load_map",&load_map,"load Map object from XML");
+     def("save_map",&load_map,"sace Map object to XML");
+
+
+
+From pavlenko at mail.berlios.de  Tue Dec  5 17:32:55 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Tue, 5 Dec 2006 17:32:55 +0100
+Subject: [Mapnik-svn] r405 - trunk/bindings/python
+Message-ID: <200612051632.kB5GWtin022948@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-05 17:32:53 +0100 (Tue, 05 Dec 2006)
+New Revision: 405
+
+Modified:
+   trunk/bindings/python/mapnik_map.cpp
+Log:
+made width and height read-write 
+
+
+
+Modified: trunk/bindings/python/mapnik_map.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_map.cpp	2006-12-05 15:43:52 UTC (rev 404)
++++ trunk/bindings/python/mapnik_map.cpp	2006-12-05 16:32:53 UTC (rev 405)
+@@ -89,8 +89,8 @@
+     	;
+     
+     class_<Map>("Map","The map object.",init<int,int,optional<std::string const&> >())
+-        .add_property("width",&Map::getWidth,"The width of the map image.")
+-        .add_property("height",&Map::getHeight,"The height of the map image.")
++        .add_property("width",&Map::getWidth, &Map::setWidth, "The width of the map.")
++        .add_property("height",&Map::getHeight, &Map::setHeight, "The height of the map.")
+         .add_property("srs",make_function(&Map::srs,return_value_policy<copy_const_reference>()),
+                       &Map::set_srs,"Spatial reference in proj4 format e.g. \"+proj=latlong +datum=WGS84\"")
+         .add_property("background",make_function
+
+
+
+From pavlenko at mail.berlios.de  Wed Dec  6 21:27:14 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Wed, 6 Dec 2006 21:27:14 +0100
+Subject: [Mapnik-svn] r406 - in trunk: bindings/python include/mapnik src
+Message-ID: <200612062027.kB6KREnk032121@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-06 21:26:59 +0100 (Wed, 06 Dec 2006)
+New Revision: 406
+
+Added:
+   trunk/bindings/python/mapnik_feature.cpp
+   trunk/bindings/python/mapnik_featureset.cpp
+   trunk/include/mapnik/filter_featureset.hpp
+   trunk/include/mapnik/hit_test_filter.hpp
+   trunk/include/mapnik/memory_datasource.hpp
+   trunk/include/mapnik/memory_featureset.hpp
+   trunk/src/memory_datasource.cpp
+Modified:
+   trunk/bindings/python/mapnik_datasource.cpp
+   trunk/bindings/python/mapnik_map.cpp
+   trunk/bindings/python/mapnik_python.cpp
+   trunk/include/mapnik/feature.hpp
+   trunk/include/mapnik/map.hpp
+   trunk/src/SConscript
+   trunk/src/map.cpp
+Log:
+implemented query_map_point method on map object:
+   fs = m.query_map_point(x,y)  # Map (screen) coordinates
+   for feature in fs:
+       print feature
+
+TODO: provide interface to feature in Python, at the moment only __str__ implemented which dumps attributes
+
+
+     
+
+
+Modified: trunk/bindings/python/mapnik_datasource.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_datasource.cpp	2006-12-05 16:32:53 UTC (rev 405)
++++ trunk/bindings/python/mapnik_datasource.cpp	2006-12-06 20:26:59 UTC (rev 406)
+@@ -27,7 +27,6 @@
+ #include <sstream>
+ // mapnik
+ #include <mapnik/envelope.hpp>
+-#include <mapnik/feature.hpp>
+ #include <mapnik/datasource.hpp>
+ #include <mapnik/datasource_cache.hpp>
+ #include <mapnik/feature_layer_desc.hpp>
+@@ -69,38 +68,11 @@
+     }
+ }
+ 
+-inline object pass_through(object const& o) { return o; }
+-
+-inline mapnik::feature_ptr next(mapnik::featureset_ptr const& itr)
+-{
+-    mapnik::feature_ptr f = itr->next();
+-    if (!f)
+-    {
+-        PyErr_SetString(PyExc_StopIteration, "No more features.");
+-        boost::python::throw_error_already_set();
+-    }
+-    return f; 
+-}
+-
+ void export_datasource()
+ {
+     using namespace boost::python;
+     using mapnik::datasource;
+-    using mapnik::Featureset;
+-    using mapnik::Feature;
+-
+-    class_<Feature,boost::shared_ptr<Feature>,
+-        boost::noncopyable>("Feature",no_init)
+-        .def("id",&Feature::id)
+-        .def("__str__",&Feature::to_string)
+-        ;
+-    
+-    class_<Featureset,boost::shared_ptr<Featureset>,
+-        boost::noncopyable>("Datasource",no_init)
+-        .def("next",next)
+-        .def("__iter__",pass_through)
+-        ;
+-    
++        
+     class_<datasource,boost::shared_ptr<datasource>,
+         boost::noncopyable>("Datasource",no_init)
+         .def("envelope",&datasource::envelope)
+
+Added: trunk/bindings/python/mapnik_feature.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_feature.cpp	2006-12-05 16:32:53 UTC (rev 405)
++++ trunk/bindings/python/mapnik_feature.cpp	2006-12-06 20:26:59 UTC (rev 406)
+@@ -0,0 +1,39 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko, Jean-Francois Doyon
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++//$Id$
++
++// boost
++#include <boost/python.hpp>
++// mapnik
++#include <mapnik/feature.hpp>
++
++void export_feature()
++{
++    using namespace boost::python;
++    using mapnik::Feature;
++    class_<Feature,boost::shared_ptr<Feature>,
++        boost::noncopyable>("Feature",no_init)
++        .def("id",&Feature::id)
++        //.def("__iter__", range<>())
++        .def("__str__",&Feature::to_string)
++        ;
++}
+
+Added: trunk/bindings/python/mapnik_featureset.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_featureset.cpp	2006-12-05 16:32:53 UTC (rev 405)
++++ trunk/bindings/python/mapnik_featureset.cpp	2006-12-06 20:26:59 UTC (rev 406)
+@@ -0,0 +1,58 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko, Jean-Francois Doyon
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++//$Id$
++
++// boost
++#include <boost/python.hpp>
++// mapnik
++#include <mapnik/feature.hpp>
++#include <mapnik/datasource.hpp>
++
++namespace {
++    using namespace boost::python;
++    inline object pass_through(object const& o) { return o; }
++    
++    inline mapnik::feature_ptr next(mapnik::featureset_ptr const& itr)
++    {
++        mapnik::feature_ptr f = itr->next();
++        if (!f)
++        {
++            PyErr_SetString(PyExc_StopIteration, "No more features.");
++            boost::python::throw_error_already_set();
++        }
++        return f; 
++    }    
++}
++
++void export_featureset()
++{
++    using namespace boost::python;
++    using mapnik::Feature;
++    using mapnik::Featureset;
++    
++    class_<Featureset,boost::shared_ptr<Featureset>,
++        boost::noncopyable>("Featureset",no_init)
++        .def("next",next)
++        .def("__iter__",pass_through)
++        ;
++}
++
+
+Modified: trunk/bindings/python/mapnik_map.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_map.cpp	2006-12-05 16:32:53 UTC (rev 405)
++++ trunk/bindings/python/mapnik_map.cpp	2006-12-06 20:26:59 UTC (rev 406)
+@@ -110,6 +110,7 @@
+         .def("pan_and_zoom",&Map::pan_and_zoom)
+         .def("append_style",&Map::insert_style)
+         .def("remove_style",&Map::remove_style)
++        .def("query_map_point",&Map::query_map_point)
+         .add_property("layers",make_function
+                       (layers_nonconst,return_value_policy<reference_existing_object>()), 
+                       "Get the list of layers in this map.")
+
+Modified: trunk/bindings/python/mapnik_python.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_python.cpp	2006-12-05 16:32:53 UTC (rev 405)
++++ trunk/bindings/python/mapnik_python.cpp	2006-12-06 20:26:59 UTC (rev 406)
+@@ -39,6 +39,8 @@
+ void export_rule();
+ void export_style();
+ void export_stroke();
++void export_feature();
++void export_featureset();
+ void export_datasource();
+ void export_datasource_cache();
+ void export_point_symbolizer();
+@@ -97,6 +99,8 @@
+     using mapnik::save_map;
+     
+     export_query();    
++    export_feature();
++    export_featureset();
+     export_datasource();
+     export_parameters();
+     export_color(); 
+@@ -124,6 +128,7 @@
+     
+     def("render_to_file",&render_to_file);
+     def("render_tile_to_file",&render_tile_to_file);
++    def("render",&render); 
+     def("render",&render2);
+     
+     def("load_map",&load_map,"load Map object from XML");
+
+Modified: trunk/include/mapnik/feature.hpp
+===================================================================
+--- trunk/include/mapnik/feature.hpp	2006-12-05 16:32:53 UTC (rev 405)
++++ trunk/include/mapnik/feature.hpp	2006-12-06 20:26:59 UTC (rev 406)
+@@ -48,12 +48,14 @@
+     public:
+         typedef T1 geometry_type;
+         typedef T2 raster_type;
++       
+     private:
+         int id_;
+         geometry_type geom_;
+         raster_type   raster_;
+         std::map<std::string,value> props_;
+     public:
++        typedef std::map<std::string,value>::iterator iterator;
+         explicit feature(int id)
+             : properties(props_),
+               id_(id),
+@@ -70,7 +72,7 @@
+         {
+             return id_;
+         }
+-	
++        
+         void set_geometry(geometry_type& geom)
+         {
+             geom_=geom;
+@@ -94,7 +96,17 @@
+         {
+             return props_;
+         }
+-	
++        
++        iterator begin() const
++        {
++            return props_.begin();
++        }
++        
++        iterator end() const
++        {
++            return props_.end();
++        }
++        
+         std::string to_string() const
+         {
+             std::stringstream ss;
+
+Added: trunk/include/mapnik/filter_featureset.hpp
+===================================================================
+--- trunk/include/mapnik/filter_featureset.hpp	2006-12-05 16:32:53 UTC (rev 405)
++++ trunk/include/mapnik/filter_featureset.hpp	2006-12-06 20:26:59 UTC (rev 406)
+@@ -0,0 +1,52 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++//$Id$
++
++#include <mapnik/datasource.hpp>
++
++namespace mapnik {
++    
++    template <typename T> 
++    class filter_featureset : public Featureset 
++    {
++        typedef T filter_type;
++        
++    public:
++        filter_featureset(featureset_ptr fs, filter_type const& filter)
++            : fs_(fs), filter_(filter) {}
++        
++        feature_ptr next()
++        {
++            feature_ptr feature = fs_->next();
++            while (feature && !filter_.pass(*feature))
++            {
++                feature = fs_->next();
++            }
++            return feature;
++        }
++        
++    private:
++        featureset_ptr fs_;
++        filter_type filter_;
++    };
++}
+
+Added: trunk/include/mapnik/hit_test_filter.hpp
+===================================================================
+--- trunk/include/mapnik/hit_test_filter.hpp	2006-12-05 16:32:53 UTC (rev 405)
++++ trunk/include/mapnik/hit_test_filter.hpp	2006-12-06 20:26:59 UTC (rev 406)
+@@ -0,0 +1,54 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++//$Id$
++
++#ifndef HIT_TEST_FILTER_HPP
++#define HIT_TEST_FILTER_HPP
++
++#include <mapnik/feature.hpp>
++
++namespace mapnik {
++    class hit_test_filter
++    {
++    public:
++        hit_test_filter(double x, double y, double tol)
++            : x_(x),
++              y_(y), 
++              tol_(tol) {}
++        
++        bool pass(Feature const& feature)
++        {
++            geometry_ptr geom = feature.get_geometry();
++            if (geom && geom->hit_test(x_,y_,tol_))
++                return true;
++            return false;
++        }
++        
++    private:
++        double x_;
++        double y_;
++        double tol_;
++    };
++}
++
++#endif // HIT_TEST_FILTER_HPP
+
+Modified: trunk/include/mapnik/map.hpp
+===================================================================
+--- trunk/include/mapnik/map.hpp	2006-12-05 16:32:53 UTC (rev 405)
++++ trunk/include/mapnik/map.hpp	2006-12-06 20:26:59 UTC (rev 406)
+@@ -25,6 +25,7 @@
+ #define MAP_HPP
+ 
+ #include <mapnik/feature_type_style.hpp>
++#include <mapnik/datasource.hpp>
+ 
+ namespace mapnik
+ {
+@@ -79,6 +80,7 @@
+         const Envelope<double>& getCurrentExtent() const;
+         double scale() const;
+         CoordTransform view_transform() const;
++        featureset_ptr query_map_point(unsigned index, double x, double y) const;
+         ~Map();
+     private:
+         void fixAspectRatio();
+
+Added: trunk/include/mapnik/memory_datasource.hpp
+===================================================================
+--- trunk/include/mapnik/memory_datasource.hpp	2006-12-05 16:32:53 UTC (rev 405)
++++ trunk/include/mapnik/memory_datasource.hpp	2006-12-06 20:26:59 UTC (rev 406)
+@@ -0,0 +1,51 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++//$Id$
++
++#ifndef MEMORY_DATASOURCE_HPP
++#define MEMORY_DATASOURCE_HPP
++
++#include <vector>
++#include <mapnik/datasource.hpp>
++
++namespace mapnik {
++    
++    class memory_datasource : public datasource
++    {
++        friend class memory_featureset;
++    public:
++        memory_datasource();
++        virtual ~memory_datasource();
++        void push(feature_ptr feature);
++        int type() const;
++        featureset_ptr features(const query& q) const;
++        featureset_ptr features_at_point(coord2d const& pt) const;
++        Envelope<double> envelope() const;
++        layer_descriptor get_descriptor() const;
++        size_t size() const;
++    private:
++        std::vector<mapnik::feature_ptr> features_;
++    }; 
++}
++
++#endif // MEMORY_DATASOURCE_HPP
+
+Added: trunk/include/mapnik/memory_featureset.hpp
+===================================================================
+--- trunk/include/mapnik/memory_featureset.hpp	2006-12-05 16:32:53 UTC (rev 405)
++++ trunk/include/mapnik/memory_featureset.hpp	2006-12-06 20:26:59 UTC (rev 406)
+@@ -0,0 +1,63 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++//$Id$
++#ifndef MEMORY_FEATURESET_HPP
++#define MEMORY_FEATURESET_HPP
++
++#include <boost/utility.hpp>
++#include <mapnik/memory_datasource.hpp>
++
++namespace mapnik {
++    
++    class memory_featureset : public Featureset, private boost::noncopyable
++    {
++    public:
++        memory_featureset(Envelope<double> const& bbox, memory_datasource const& ds)
++            : bbox_(bbox),
++              pos_(ds.features_.begin()),
++              end_(ds.features_.end())
++        {}
++        virtual ~memory_featureset() {}
++        
++        feature_ptr next()
++        {
++            while (pos_ != end_)
++            {
++                geometry_ptr geom = (*pos_)->get_geometry();
++                if (geom && bbox_.intersects(geom->envelope()))
++                {
++                    return *pos_++;
++                }
++                ++pos_;
++            }
++            return feature_ptr();
++        }
++        
++    private:
++        Envelope<double> const& bbox_;
++        std::vector<feature_ptr>::const_iterator pos_;
++        std::vector<feature_ptr>::const_iterator end_; 
++    };
++}
++
++#endif // MEMORY_FEATURESET_HPP
+
+Modified: trunk/src/SConscript
+===================================================================
+--- trunk/src/SConscript	2006-12-05 16:32:53 UTC (rev 405)
++++ trunk/src/SConscript	2006-12-06 20:26:59 UTC (rev 406)
+@@ -60,6 +60,7 @@
+     proj_transform.cpp
+     distance.cpp
+     scale_denominator.cpp
++    memory_datasource.cpp
+     """
+     )
+ source += Split(
+
+Modified: trunk/src/map.cpp
+===================================================================
+--- trunk/src/map.cpp	2006-12-05 16:32:53 UTC (rev 405)
++++ trunk/src/map.cpp	2006-12-06 20:26:59 UTC (rev 406)
+@@ -26,6 +26,8 @@
+ #include <mapnik/datasource.hpp>
+ #include <mapnik/projection.hpp>
+ #include <mapnik/layer.hpp>
++#include <mapnik/filter_featureset.hpp>
++#include <mapnik/hit_test_filter.hpp>
+ #include <mapnik/map.hpp>
+ 
+ namespace mapnik
+@@ -305,6 +307,52 @@
+     {
+         return CoordTransform(width_,height_,currentExtent_);
+     }
+-    
++
++    featureset_ptr Map::query_map_point(unsigned index, double x, double y) const
++    {
++        if ( index< layers_.size())
++        {
++            mapnik::Layer const& layer = layers_[index];
++            CoordTransform tr = view_transform();
++            tr.backward(&x,&y);
++            
++            try
++            {
++                mapnik::projection dest(srs_);
++                mapnik::projection source(layer.srs());
++                proj_transform prj_trans(source,dest);
++                double z;
++                prj_trans.backward(x,y,z);
++                
++                double minx = currentExtent_.minx();
++                double miny = currentExtent_.miny();
++                double maxx = currentExtent_.maxx();
++                double maxy = currentExtent_.maxy();
++                
++                prj_trans.backward(minx,miny,z);
++                prj_trans.backward(maxx,maxy,z);
++                double tol = (maxx - minx) / width_ * 3;
++                mapnik::datasource_ptr ds = layer.datasource();
++                if (ds)
++                {
++#ifdef MAPNIK_DEBUG
++                    std::clog << " query at point tol = " << tol << " (" << x << "," << y << ")\n";
++#endif
++                    
++                    featureset_ptr fs(new filter_featureset<hit_test_filter>(ds->features_at_point(mapnik::coord2d(x,y)),
++                                                                             hit_test_filter(x,y,tol)));
++                    return fs;
++                }
++            }
++            catch (...)
++            {
++#ifdef MAPNIK_DEBUG
++                std::clog << "exception caught in \"query_map_point\"\n";
++#endif
++            }
++        }
++        return featureset_ptr();
++    }
++
+     Map::~Map() {}
+ }
+
+Added: trunk/src/memory_datasource.cpp
+===================================================================
+--- trunk/src/memory_datasource.cpp	2006-12-05 16:32:53 UTC (rev 405)
++++ trunk/src/memory_datasource.cpp	2006-12-06 20:26:59 UTC (rev 406)
+@@ -0,0 +1,95 @@
++/*****************************************************************************
++ * 
++ * This file is part of Mapnik (c++ mapping toolkit)
++ *
++ * Copyright (C) 2006 Artem Pavlenko
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ *****************************************************************************/
++
++//$Id$
++#include <algorithm>
++#include <mapnik/memory_featureset.hpp>
++
++namespace mapnik {
++    
++    struct accumulate_extent
++    {
++        accumulate_extent(Envelope<double> & ext)
++            : ext_(ext),first_(true) {}
++        
++        void operator() (feature_ptr feat)
++        {
++            geometry_ptr geom = feat->get_geometry();
++            if ( !geom ) return;
++            if ( first_ ) 
++            {
++                first_ = false;
++                ext_ = geom->envelope();
++            }
++            else
++            {
++                ext_.expand_to_include(geom->envelope());
++            }
++        }
++        
++        Envelope<double> & ext_;
++        bool first_;
++    };
++    
++    memory_datasource::memory_datasource()
++        : datasource(parameters()) {}
++    memory_datasource::~memory_datasource() {}
++    
++    void memory_datasource::push(feature_ptr feature)
++    {
++        features_.push_back(feature);
++    }
++    
++    int memory_datasource::type() const
++    {
++        return datasource::Vector;
++    }
++    
++    featureset_ptr memory_datasource::features(const query& q) const
++    {
++        return featureset_ptr(new memory_featureset(q.get_bbox(),*this));
++    }
++
++
++    featureset_ptr memory_datasource::features_at_point(coord2d const& pt) const
++    {
++        return featureset_ptr();
++    }
++    
++    Envelope<double> memory_datasource::envelope() const
++    {
++        Envelope<double> ext;
++        accumulate_extent func(ext);
++        std::for_each(features_.begin(),features_.end(),func);
++        return ext;      
++    }
++    
++    layer_descriptor memory_datasource::get_descriptor() const
++    {
++        return layer_descriptor("in-memory datasource");
++    }
++    
++    size_t memory_datasource::size() const
++    {
++        return features_.size();
++    }
++}
+
+
+
+From pavlenko at mail.berlios.de  Wed Dec  6 22:21:22 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Wed, 6 Dec 2006 22:21:22 +0100
+Subject: [Mapnik-svn] r407 - in trunk: bindings/python include/mapnik src
+Message-ID: <200612062121.kB6LLMQx004928@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-06 22:21:17 +0100 (Wed, 06 Dec 2006)
+New Revision: 407
+
+Modified:
+   trunk/bindings/python/mapnik_map.cpp
+   trunk/include/mapnik/map.hpp
+   trunk/src/map.cpp
+Log:
+added query_point method that accepts lat,lon coordinates :
+
+>>> for f in m.query_point([ layer.name for layer in m.layers ].index('world'),51,0):
+..     print f
+..
+
+feature (
+  f_code:FA001
+  fac_id:193
+  id:3147
+  na2:UK
+  na3:E
+  nam:ENGLAND
+  tile_id:10
+)
+
+>>>
+
+
+
+Modified: trunk/bindings/python/mapnik_map.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_map.cpp	2006-12-06 20:26:59 UTC (rev 406)
++++ trunk/bindings/python/mapnik_map.cpp	2006-12-06 21:21:17 UTC (rev 407)
+@@ -110,6 +110,7 @@
+         .def("pan_and_zoom",&Map::pan_and_zoom)
+         .def("append_style",&Map::insert_style)
+         .def("remove_style",&Map::remove_style)
++        .def("query_point",&Map::query_point)
+         .def("query_map_point",&Map::query_map_point)
+         .add_property("layers",make_function
+                       (layers_nonconst,return_value_policy<reference_existing_object>()), 
+
+Modified: trunk/include/mapnik/map.hpp
+===================================================================
+--- trunk/include/mapnik/map.hpp	2006-12-06 20:26:59 UTC (rev 406)
++++ trunk/include/mapnik/map.hpp	2006-12-06 21:21:17 UTC (rev 407)
+@@ -80,6 +80,7 @@
+         const Envelope<double>& getCurrentExtent() const;
+         double scale() const;
+         CoordTransform view_transform() const;
++        featureset_ptr query_point(unsigned index, double x, double y) const;
+         featureset_ptr query_map_point(unsigned index, double x, double y) const;
+         ~Map();
+     private:
+
+Modified: trunk/src/map.cpp
+===================================================================
+--- trunk/src/map.cpp	2006-12-06 20:26:59 UTC (rev 406)
++++ trunk/src/map.cpp	2006-12-06 21:21:17 UTC (rev 407)
+@@ -307,7 +307,52 @@
+     {
+         return CoordTransform(width_,height_,currentExtent_);
+     }
+-
++    
++    featureset_ptr Map::query_point(unsigned index, double lat, double lon) const
++    {
++        if ( index< layers_.size())
++        {
++            mapnik::Layer const& layer = layers_[index];    
++            try
++            {
++                double x = lon;
++                double y = lat;
++                double z = 0;
++                mapnik::projection dest(srs_); 
++                dest.forward(x,y);
++                mapnik::projection source(layer.srs());
++                proj_transform prj_trans(source,dest);
++                prj_trans.backward(x,y,z);
++                
++                double minx = currentExtent_.minx();
++                double miny = currentExtent_.miny();
++                double maxx = currentExtent_.maxx();
++                double maxy = currentExtent_.maxy();
++                
++                prj_trans.backward(minx,miny,z);
++                prj_trans.backward(maxx,maxy,z);
++                double tol = (maxx - minx) / width_ * 3;
++                mapnik::datasource_ptr ds = layer.datasource();
++                if (ds)
++                {
++#ifdef MAPNIK_DEBUG
++                    std::clog << " query at point tol = " << tol << " (" << x << "," << y << ")\n";
++#endif    
++                    featureset_ptr fs(new filter_featureset<hit_test_filter>(ds->features_at_point(mapnik::coord2d(x,y)),
++                                                                             hit_test_filter(x,y,tol)));
++                    return fs;
++                }
++            }
++            catch (...)
++            {
++#ifdef MAPNIK_DEBUG
++                std::clog << "exception caught in \"query_map_point\"\n";
++#endif
++            }
++        }
++        return featureset_ptr();
++    }
++    
+     featureset_ptr Map::query_map_point(unsigned index, double x, double y) const
+     {
+         if ( index< layers_.size())
+@@ -321,7 +366,7 @@
+                 mapnik::projection dest(srs_);
+                 mapnik::projection source(layer.srs());
+                 proj_transform prj_trans(source,dest);
+-                double z;
++                double z = 0;
+                 prj_trans.backward(x,y,z);
+                 
+                 double minx = currentExtent_.minx();
+
+
+
+From jdoyon at mail.berlios.de  Thu Dec  7 04:15:13 2006
+From: jdoyon at mail.berlios.de (jdoyon at BerliOS)
+Date: Thu, 7 Dec 2006 04:15:13 +0100
+Subject: [Mapnik-svn] r408 - trunk/tinyxml
+Message-ID: <200612070315.kB73FDnX022356@sheep.berlios.de>
+
+Author: jdoyon
+Date: 2006-12-07 04:15:12 +0100 (Thu, 07 Dec 2006)
+New Revision: 408
+
+Modified:
+   trunk/tinyxml/
+Log:
+- Ignore some build-only files.
+
+
+Property changes on: trunk/tinyxml
+___________________________________________________________________
+Name: svn:ignore
+   + .sconsign
+*.os
+
+
+
+
+From pavlenko at mail.berlios.de  Thu Dec  7 16:02:10 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Thu, 7 Dec 2006 16:02:10 +0100
+Subject: [Mapnik-svn] r409 - trunk/src
+Message-ID: <200612071502.kB7F2A1f017086@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-07 16:02:08 +0100 (Thu, 07 Dec 2006)
+New Revision: 409
+
+Modified:
+   trunk/src/map.cpp
+Log:
+check if featureset is valid before passing to filter_featureset
+
+
+
+Modified: trunk/src/map.cpp
+===================================================================
+--- trunk/src/map.cpp	2006-12-07 03:15:12 UTC (rev 408)
++++ trunk/src/map.cpp	2006-12-07 15:02:08 UTC (rev 409)
+@@ -338,9 +338,9 @@
+ #ifdef MAPNIK_DEBUG
+                     std::clog << " query at point tol = " << tol << " (" << x << "," << y << ")\n";
+ #endif    
+-                    featureset_ptr fs(new filter_featureset<hit_test_filter>(ds->features_at_point(mapnik::coord2d(x,y)),
+-                                                                             hit_test_filter(x,y,tol)));
+-                    return fs;
++                    featureset_ptr fs = ds->features_at_point(mapnik::coord2d(x,y));
++                    if (fs) 
++                        return featureset_ptr(new filter_featureset<hit_test_filter>(fs,hit_test_filter(x,y,tol)));
+                 }
+             }
+             catch (...)
+@@ -383,10 +383,9 @@
+ #ifdef MAPNIK_DEBUG
+                     std::clog << " query at point tol = " << tol << " (" << x << "," << y << ")\n";
+ #endif
+-                    
+-                    featureset_ptr fs(new filter_featureset<hit_test_filter>(ds->features_at_point(mapnik::coord2d(x,y)),
+-                                                                             hit_test_filter(x,y,tol)));
+-                    return fs;
++                    featureset_ptr fs = ds->features_at_point(mapnik::coord2d(x,y));
++                    if (fs) 
++                        return featureset_ptr(new filter_featureset<hit_test_filter>(fs,hit_test_filter(x,y,tol)));
+                 }
+             }
+             catch (...)
+
+
+
+From pavlenko at mail.berlios.de  Thu Dec  7 16:20:35 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Thu, 7 Dec 2006 16:20:35 +0100
+Subject: [Mapnik-svn] r410 - trunk/bindings/python
+Message-ID: <200612071520.kB7FKZsY019283@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-07 16:20:33 +0100 (Thu, 07 Dec 2006)
+New Revision: 410
+
+Modified:
+   trunk/bindings/python/mapnik_python.cpp
+Log:
+applied from patch from Krzysztof Godlewski :
+    reflects scale_denominator(..) into Python
+
+    
+
+
+Modified: trunk/bindings/python/mapnik_python.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_python.cpp	2006-12-07 15:02:08 UTC (rev 409)
++++ trunk/bindings/python/mapnik_python.cpp	2006-12-07 15:20:33 UTC (rev 410)
+@@ -90,7 +90,12 @@
+     render_tile_to_file(map,0,0,map.getWidth(),map.getHeight(),file,format);
+ }
+ 
++double scale_denominator(mapnik::Map const &map, bool geographic)
++{
++	return mapnik::scale_denominator(map, geographic);
++}
+ 
++
+ BOOST_PYTHON_MODULE(_mapnik)
+ {
+     using namespace boost::python;
+@@ -130,6 +135,7 @@
+     def("render_tile_to_file",&render_tile_to_file);
+     def("render",&render); 
+     def("render",&render2);
++    def("scale_denominator", &scale_denominator);
+     
+     def("load_map",&load_map,"load Map object from XML");
+     def("save_map",&load_map,"sace Map object to XML");
+
+
+
+From pavlenko at mail.berlios.de  Fri Dec  8 00:43:34 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Fri, 8 Dec 2006 00:43:34 +0100
+Subject: [Mapnik-svn] r411 - trunk/demo/c++
+Message-ID: <200612072343.kB7NhYNr017654@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-08 00:43:31 +0100 (Fri, 08 Dec 2006)
+New Revision: 411
+
+Modified:
+   trunk/demo/c++/rundemo.cpp
+Log:
+updated to latest mapnik
+
+
+
+Modified: trunk/demo/c++/rundemo.cpp
+===================================================================
+--- trunk/demo/c++/rundemo.cpp	2006-12-07 15:20:33 UTC (rev 410)
++++ trunk/demo/c++/rundemo.cpp	2006-12-07 23:43:31 UTC (rev 411)
+@@ -237,8 +237,8 @@
+     agg_renderer<Image32> ren(m,buf);
+     ren.apply();
+     
+-    ImageUtils::save_to_file("demo.jpg","jpeg",buf);
+-    ImageUtils::save_to_file("demo.png","png",buf);
++    save_to_file<ImageData32>("demo.jpg","jpeg",buf.data());
++    save_to_file<ImageData32>("demo.png","png",buf.data());
+     
+     std::cout << "Two maps have been rendered in the current directory:\n"
+         "- demo.jpg\n"
+
+
+
+From jdoyon at mail.berlios.de  Sat Dec 16 18:49:31 2006
+From: jdoyon at mail.berlios.de (jdoyon at BerliOS)
+Date: Sat, 16 Dec 2006 18:49:31 +0100
+Subject: [Mapnik-svn] r412 - trunk/demo/data
+Message-ID: <200612161749.kBGHnVcc011501@sheep.berlios.de>
+
+Author: jdoyon
+Date: 2006-12-16 18:49:30 +0100 (Sat, 16 Dec 2006)
+New Revision: 412
+
+Modified:
+   trunk/demo/data/COPYRIGHT.txt
+Log:
+Update the link to the data license.
+
+Modified: trunk/demo/data/COPYRIGHT.txt
+===================================================================
+--- trunk/demo/data/COPYRIGHT.txt	2006-12-07 23:43:31 UTC (rev 411)
++++ trunk/demo/data/COPYRIGHT.txt	2006-12-16 17:49:30 UTC (rev 412)
+@@ -1,3 +1,3 @@
+-????? 2003. Government of Canada with permission from Natural Resources Canada
+-
+-Original License: http://geogratis.cgdi.gc.ca/e_license.html
++? 2003. Government of Canada with permission from Natural Resources Canada
++
++Original License: http://geogratis.cgdi.gc.ca/geogratis/en/licence.jsp
+
+
+
+From pavlenko at mail.berlios.de  Sun Dec 17 12:57:08 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Sun, 17 Dec 2006 12:57:08 +0100
+Subject: [Mapnik-svn] r413 - in trunk: . include/mapnik
+Message-ID: <200612171157.kBHBv8l0017649@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-17 12:56:57 +0100 (Sun, 17 Dec 2006)
+New Revision: 413
+
+Modified:
+   trunk/SConstruct
+   trunk/include/mapnik/unicode.hpp
+Log:
+added support for right to left languages by using
+the fribidi library (patch from Ehud Shabtai, thanks!)
+
+
+
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2006-12-16 17:49:30 UTC (rev 412)
++++ trunk/SConstruct	2006-12-17 11:56:57 UTC (rev 413)
+@@ -32,6 +32,8 @@
+ opts.Add(PathOption('BOOST_INCLUDES', 'Search path for boost include files', '/usr/include'))
+ opts.Add(PathOption('BOOST_LIBS', 'Search path for boost library files', '/usr/' + LIBDIR_SCHEMA))
+ opts.Add(PathOption('FREETYPE_CONFIG', 'The path to the freetype-config executable.', '/usr/bin/freetype-config'))
++opts.Add(PathOption('FRIBIDI_INCLUDES', 'Search path for fribidi include files', '/usr/include'))
++opts.Add(PathOption('FRIBIDI_LIBS','Search path for fribidi include files','/usr/' + LIBDIR_SCHEMA))
+ opts.Add(PathOption('PNG_INCLUDES', 'Search path for libpng include files', '/usr/include'))
+ opts.Add(PathOption('PNG_LIBS','Search path for libpng include files','/usr/' + LIBDIR_SCHEMA))
+ opts.Add(PathOption('JPEG_INCLUDES', 'Search path for libjpeg include files', '/usr/include'))
+@@ -46,6 +48,7 @@
+ opts.Add(ListOption('INPUT_PLUGINS','Input drivers to include','all',['postgis','shape','raster']))
+ opts.Add(ListOption('BINDINGS','Language bindings to build','all',['python']))
+ opts.Add('DEBUG', 'Compile a debug version of mapnik', '')
++opts.Add('BIDI', 'BIDI support', '')
+ 
+ env = Environment(ENV=os.environ, options=opts)
+ env['LIBDIR_SCHEMA'] = LIBDIR_SCHEMA
+@@ -78,6 +81,14 @@
+     
+ env.ParseConfig(env['FREETYPE_CONFIG'] + ' --libs --cflags')
+ 
++if env['BIDI']:
++    env.Append(CXXFLAGS = '-DUSE_FRIBIDI')
++    if env['FRIBIDI_INCLUDES'] not in env['CPPPATH']:
++        env['CPPPATH'].append(env['FRIBIDI_INCLUDES'])
++    if env['FRIBIDI_LIBS'] not in env['LIBPATH']:
++        env['CPPPATH'].append(env['FRIBIDI_LIBS'])  
++    env['LIBS'].append('fribidi')
++
+ C_LIBSHEADERS = [
+     ['m', 'math.h', True],
+     ['ltdl', 'ltdl.h', True],
+@@ -89,6 +100,8 @@
+     ['pq', 'libpq-fe.h', False]
+ ]
+ 
++if env['BIDI'] : C_LIBSHEADERS.append(['fribidi','fribidi/fribidi.h',True])
++
+ BOOST_LIBSHEADERS = [
+     ['thread', 'boost/thread/mutex.hpp', True],
+     ['filesystem', 'boost/filesystem/operations.hpp', True],
+
+Modified: trunk/include/mapnik/unicode.hpp
+===================================================================
+--- trunk/include/mapnik/unicode.hpp	2006-12-16 17:49:30 UTC (rev 412)
++++ trunk/include/mapnik/unicode.hpp	2006-12-17 11:56:57 UTC (rev 413)
+@@ -26,8 +26,53 @@
+ 
+ #include <string>
+ 
++#ifdef USE_FRIBIDI
++#include <fribidi/fribidi.h>
++#endif
++
+ namespace mapnik {
+     
++/*
++** Use FRIBIDI to encode the string.
++** The return value must be freed by the caller.
++*/
++
++#ifdef USE_FRIBIDI
++    inline wchar_t* bidi_string(const wchar_t *logical)
++    {
++        FriBidiCharType base = FRIBIDI_TYPE_ON;
++        size_t len;
++
++        len = wcslen(logical);
++
++        FriBidiChar *visual;
++
++        FriBidiStrIndex *ltov, *vtol;
++        FriBidiLevel *levels;
++        FriBidiStrIndex new_len;
++        fribidi_boolean log2vis;
++        
++        visual = (FriBidiChar *) malloc (sizeof (FriBidiChar) * (len + 1));
++        ltov = 0;
++        vtol = 0;
++        levels = 0;
++
++        /* Create a bidi string. */
++        log2vis = fribidi_log2vis ((FriBidiChar *)logical, len, &base,
++                /* output */
++                visual, ltov, vtol, levels);
++
++        if (!log2vis) {
++            return 0;
++        }
++
++        new_len = len;
++
++        return (wchar_t *)visual;
++    }
++#endif
++
++
+     inline std::wstring to_unicode(std::string const& text)
+     {
+         std::wstring out;
+@@ -75,6 +120,12 @@
+             }
+             out.push_back(wchar_t(code));
+         }
++#ifdef USE_FRIBIDI
++        wchar_t *bidi_text = bidi_string(out.c_str());
++        out = bidi_text;
++        free(bidi_text);
++#endif
++        
+         return out;
+     }
+ }
+
+
+
+From pavlenko at mail.berlios.de  Sun Dec 17 13:06:09 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Sun, 17 Dec 2006 13:06:09 +0100
+Subject: [Mapnik-svn] r414 - in trunk: . bindings/python fonts
+	plugins/input/postgis plugins/input/raster
+	plugins/input/shape src utils/shapeindex
+Message-ID: <200612171206.kBHC69px024297@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-17 13:05:47 +0100 (Sun, 17 Dec 2006)
+New Revision: 414
+
+Modified:
+   trunk/SConstruct
+   trunk/bindings/python/SConscript
+   trunk/fonts/SConscript
+   trunk/plugins/input/postgis/SConscript
+   trunk/plugins/input/raster/SConscript
+   trunk/plugins/input/shape/SConscript
+   trunk/src/SConscript
+   trunk/utils/shapeindex/SConscript
+Log:
+Added DESTDIR option which is used as an additional prefix for the purposes of
+installing files. It is useful for binary distributions (eg
+RPM etc). Thanks to Dominic Hargreaves!
+
+
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2006-12-17 11:56:57 UTC (rev 413)
++++ trunk/SConstruct	2006-12-17 12:05:47 UTC (rev 414)
+@@ -48,6 +48,7 @@
+ opts.Add(ListOption('INPUT_PLUGINS','Input drivers to include','all',['postgis','shape','raster']))
+ opts.Add(ListOption('BINDINGS','Language bindings to build','all',['python']))
+ opts.Add('DEBUG', 'Compile a debug version of mapnik', '')
++opts.Add('DESTDIR', 'The root directory to install into. Useful mainly for binary package building', '/')
+ opts.Add('BIDI', 'BIDI support', '')
+ 
+ env = Environment(ENV=os.environ, options=opts)
+
+Modified: trunk/bindings/python/SConscript
+===================================================================
+--- trunk/bindings/python/SConscript	2006-12-17 11:56:57 UTC (rev 413)
++++ trunk/bindings/python/SConscript	2006-12-17 12:05:47 UTC (rev 414)
+@@ -24,6 +24,7 @@
+ Import('env')
+ 
+ prefix = env['PYTHON_PREFIX'] + '/'+ 'lib' + '/python' + env['PYTHON_VERSION'] + '/site-packages/'
++install_prefix = env['DESTDIR'] + '/' + prefix
+ 
+ libraries = ['mapnik', 'boost_python%s' % env['BOOST_APPEND']]
+ headers = [env['PYTHON_PREFIX'] + '/include/python' + env['PYTHON_VERSION']] + env['CPPPATH']
+@@ -39,8 +40,8 @@
+ file('mapnik/paths.py','w').write(paths % (env['PREFIX'] + '/'+env['LIBDIR_SCHEMA']+'/mapnik',))
+ 
+ pymapnik = glob.glob('mapnik/*.py')
+-env.Alias(target='install', source=env.Install(prefix+'/mapnik', pymapnik))
++env.Alias(target='install', source=env.Install(install_prefix+'/mapnik', pymapnik))
+ pymapnik2 = glob.glob('mapnik/ogcserver/*.py')
+-env.Alias(target='install', source=env.Install(prefix+'/mapnik/ogcserver', pymapnik2))
+-pymapniklib = env.Install(prefix+'/mapnik',_mapnik)
++env.Alias(target='install', source=env.Install(install_prefix+'/mapnik/ogcserver', pymapnik2))
++pymapniklib = env.Install(install_prefix+'/mapnik',_mapnik)
+ env.Alias(target="install",source=pymapniklib)
+
+Modified: trunk/fonts/SConscript
+===================================================================
+--- trunk/fonts/SConscript	2006-12-17 11:56:57 UTC (rev 413)
++++ trunk/fonts/SConscript	2006-12-17 12:05:47 UTC (rev 414)
+@@ -22,6 +22,7 @@
+ Import('env')
+ 
+ prefix = env['PREFIX']
++install_prefix = env['DESTDIR'] + '/' + prefix
+ 
+ includes = glob.glob('*/*.ttf')
+-env.Alias(target='install', source=env.Install(prefix+'/' + env['LIBDIR_SCHEMA'] + '/mapnik/fonts', includes))
++env.Alias(target='install', source=env.Install(install_prefix+'/' + env['LIBDIR_SCHEMA'] + '/mapnik/fonts', includes))
+
+Modified: trunk/plugins/input/postgis/SConscript
+===================================================================
+--- trunk/plugins/input/postgis/SConscript	2006-12-17 11:56:57 UTC (rev 413)
++++ trunk/plugins/input/postgis/SConscript	2006-12-17 12:05:47 UTC (rev 414)
+@@ -22,6 +22,7 @@
+ Import ('env')
+ 
+ prefix = env['PREFIX']
++install_prefix = env['DESTDIR'] + '/' + prefix
+ 
+ postgis_src = Split(
+ 	"""
+@@ -32,5 +33,5 @@
+ 
+ postgis_inputdriver = env.SharedLibrary('postgis', source=postgis_src, SHLIBPREFIX='', LIBS='pq')
+ 
+-env.Install(prefix + '/' + env['LIBDIR_SCHEMA'] + '/mapnik/input', postgis_inputdriver)
+-env.Alias('install', prefix + '/' + env['LIBDIR_SCHEMA'] + '/mapnik/input')
++env.Install(install_prefix + '/' + env['LIBDIR_SCHEMA'] + '/mapnik/input', postgis_inputdriver)
++env.Alias('install', install_prefix + '/' + env['LIBDIR_SCHEMA'] + '/mapnik/input')
+
+Modified: trunk/plugins/input/raster/SConscript
+===================================================================
+--- trunk/plugins/input/raster/SConscript	2006-12-17 11:56:57 UTC (rev 413)
++++ trunk/plugins/input/raster/SConscript	2006-12-17 12:05:47 UTC (rev 414)
+@@ -22,6 +22,7 @@
+ Import ('env')
+ 
+ prefix = env['PREFIX']
++install_prefix = env['DESTDIR'] + '/' + prefix
+ 
+ raster_src = Split(
+ 	"""
+@@ -33,5 +34,5 @@
+ 
+ raster_inputdriver = env.SharedLibrary('raster', source=raster_src, SHLIBPREFIX='', LIBS=[])
+ 
+-env.Install(prefix + '/' + env['LIBDIR_SCHEMA'] + '/mapnik/input', raster_inputdriver)
+-env.Alias('install', prefix + '/' + env['LIBDIR_SCHEMA'] + '/mapnik/input')
++env.Install(install_prefix + '/' + env['LIBDIR_SCHEMA'] + '/mapnik/input', raster_inputdriver)
++env.Alias('install', install_prefix + '/' + env['LIBDIR_SCHEMA'] + '/mapnik/input')
+
+Modified: trunk/plugins/input/shape/SConscript
+===================================================================
+--- trunk/plugins/input/shape/SConscript	2006-12-17 11:56:57 UTC (rev 413)
++++ trunk/plugins/input/shape/SConscript	2006-12-17 12:05:47 UTC (rev 414)
+@@ -23,6 +23,7 @@
+ Import ('env')
+ 
+ prefix = env['PREFIX']
++install_prefix = env['DESTDIR'] + '/' + prefix
+ 
+ shape_src = Split(
+ 	"""
+@@ -38,5 +39,5 @@
+ 
+ shape_inputdriver = env.SharedLibrary('shape', source=shape_src, SHLIBPREFIX='', LIBS=[])
+ 
+-env.Install(prefix + '/' + env['LIBDIR_SCHEMA'] + '/mapnik/input', shape_inputdriver)
+-env.Alias('install', prefix + '/' + env['LIBDIR_SCHEMA'] + '/mapnik/input')
++env.Install(install_prefix + '/' + env['LIBDIR_SCHEMA'] + '/mapnik/input', shape_inputdriver)
++env.Alias('install', install_prefix + '/' + env['LIBDIR_SCHEMA'] + '/mapnik/input')
+
+Modified: trunk/src/SConscript
+===================================================================
+--- trunk/src/SConscript	2006-12-17 11:56:57 UTC (rev 413)
++++ trunk/src/SConscript	2006-12-17 12:05:47 UTC (rev 414)
+@@ -25,6 +25,7 @@
+ Import('env')
+ 
+ prefix = env['PREFIX']
++install_prefix = env['DESTDIR'] + '/' + prefix
+ 
+ libraries = ['agg'] + env['LIBS']
+ 
+@@ -73,6 +74,6 @@
+ 
+ mapnik = env.SharedLibrary('mapnik', source, LIBS=libraries, LINKFLAGS=linkflags)
+ 
+-env.Alias(target='install', source=env.Install(prefix + '/' + env['LIBDIR_SCHEMA'], mapnik))
++env.Alias(target='install', source=env.Install(install_prefix + '/' + env['LIBDIR_SCHEMA'], mapnik))
+ includes = glob.glob('../include/mapnik/*.hpp')
+-env.Alias(target='install', source=env.Install(prefix+'/include/mapnik', includes))
++env.Alias(target='install', source=env.Install(install_prefix+'/include/mapnik', includes))
+
+Modified: trunk/utils/shapeindex/SConscript
+===================================================================
+--- trunk/utils/shapeindex/SConscript	2006-12-17 11:56:57 UTC (rev 413)
++++ trunk/utils/shapeindex/SConscript	2006-12-17 12:05:47 UTC (rev 414)
+@@ -24,6 +24,7 @@
+ Import ('env')
+ 
+ prefix = env['PREFIX']
++install_prefix = env['DESTDIR'] + '/' + prefix
+ 
+ source = Split(
+     """
+@@ -37,5 +38,5 @@
+ 
+ shapeindex = env.Program('shapeindex', source, CPPPATH=headers, LIBS='boost_program_options%s' % env['BOOST_APPEND'])
+ 
+-env.Install(prefix + '/bin', shapeindex)
+-env.Alias('install', prefix + '/bin')
++env.Install(install_prefix + '/bin', shapeindex)
++env.Alias('install', install_prefix + '/bin')
+
+
+
+From pavlenko at mail.berlios.de  Sun Dec 17 13:08:15 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Sun, 17 Dec 2006 13:08:15 +0100
+Subject: [Mapnik-svn] r415 - trunk/bindings/python
+Message-ID: <200612171208.kBHC8FfI026626@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-17 13:08:11 +0100 (Sun, 17 Dec 2006)
+New Revision: 415
+
+Modified:
+   trunk/bindings/python/mapnik_layer.cpp
+Log:
+reflected Layer 'active' property in Python ( Thanks, Luiz Fernando Vital!)
+
+
+
+Modified: trunk/bindings/python/mapnik_layer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_layer.cpp	2006-12-17 12:05:47 UTC (rev 414)
++++ trunk/bindings/python/mapnik_layer.cpp	2006-12-17 12:08:11 UTC (rev 415)
+@@ -74,6 +74,10 @@
+                       &Layer::datasource,
+                       &Layer::set_datasource,
+                       "The datasource attached to this layer")
++
++        .add_property("active",
++                      &Layer::isActive,
++                      &Layer::setActive)
+         
+         .def("envelope",&Layer::envelope, 
+              "Return the geographic envelope/bounding box "
+
+
+
+From pavlenko at mail.berlios.de  Sun Dec 17 13:10:32 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Sun, 17 Dec 2006 13:10:32 +0100
+Subject: [Mapnik-svn] r416 - trunk/include/mapnik
+Message-ID: <200612171210.kBHCAWLN028489@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-17 13:10:28 +0100 (Sun, 17 Dec 2006)
+New Revision: 416
+
+Modified:
+   trunk/include/mapnik/css_color_parser.hpp
+Log:
+added 'transparent' named colour = Color(0,0,0,0) (from Luiz Vital)
+TODO: support transparency for any background colour.
+ 
+
+
+Modified: trunk/include/mapnik/css_color_parser.hpp
+===================================================================
+--- trunk/include/mapnik/css_color_parser.hpp	2006-12-17 12:08:11 UTC (rev 415)
++++ trunk/include/mapnik/css_color_parser.hpp	2006-12-17 12:10:28 UTC (rev 416)
+@@ -183,6 +183,7 @@
+                 ("whitesmoke", ColorT(245, 245, 245))
+                 ("yellow", ColorT(255, 255, 0))
+                 ("yellowgreen", ColorT(154, 205, 50))
++                ("transparent", ColorT(0, 0, 0, 0))
+                 ;
+         }
+     };
+
+
+
+From pavlenko at mail.berlios.de  Mon Dec 18 11:27:11 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Mon, 18 Dec 2006 11:27:11 +0100
+Subject: [Mapnik-svn] r417 - trunk/src
+Message-ID: <200612181027.kBIARBv8010223@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-18 11:27:09 +0100 (Mon, 18 Dec 2006)
+New Revision: 417
+
+Modified:
+   trunk/src/image_util.cpp
+Log:
+use PNG_MMX_CODE_SUPPORTED instead of PNG_ASSEMBLER_CODE_SUPPORTED (mmx.patch from Dominic Hargreaves)
+
+
+
+Modified: trunk/src/image_util.cpp
+===================================================================
+--- trunk/src/image_util.cpp	2006-12-17 12:10:28 UTC (rev 416)
++++ trunk/src/image_util.cpp	2006-12-18 10:27:09 UTC (rev 417)
+@@ -66,7 +66,7 @@
+         if (!png_ptr) return;
+ 
+         // switch on optimization only if supported
+-#if defined(PNG_LIBPNG_VER) && (PNG_LIBPNG_VER >= 10200) && defined(PNG_ASSEMBLER_CODE_SUPPORTED)
++#if defined(PNG_LIBPNG_VER) && (PNG_LIBPNG_VER >= 10200) && defined(PNG_MMX_CODE_SUPPORTED)
+         png_uint_32 mask, flags;
+ 
+         flags = png_get_asm_flags(png_ptr);
+
+
+
+From pavlenko at mail.berlios.de  Wed Dec 20 01:23:04 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Wed, 20 Dec 2006 01:23:04 +0100
+Subject: [Mapnik-svn] r418 - in trunk: bindings/python include/mapnik src
+Message-ID: <200612200023.kBK0N4lZ024195@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-20 01:22:45 +0100 (Wed, 20 Dec 2006)
+New Revision: 418
+
+Modified:
+   trunk/bindings/python/mapnik_layer.cpp
+   trunk/include/mapnik/color.hpp
+   trunk/include/mapnik/feature_type_style.hpp
+   trunk/include/mapnik/layer.hpp
+   trunk/include/mapnik/map.hpp
+   trunk/include/mapnik/params.hpp
+   trunk/src/layer.cpp
+   trunk/src/map.cpp
+   trunk/src/tiff_reader.cpp
+Log:
+1.added more accessors
+2.in tiff_reader check for valid file prior opening.
+
+
+
+Modified: trunk/bindings/python/mapnik_layer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_layer.cpp	2006-12-18 10:27:09 UTC (rev 417)
++++ trunk/bindings/python/mapnik_layer.cpp	2006-12-20 00:22:45 UTC (rev 418)
+@@ -30,6 +30,8 @@
+ using mapnik::Layer;
+ using mapnik::parameters;
+ 
++std::vector<std::string> & (mapnik::Layer::*_styles_)() = &mapnik::Layer::styles;
++
+ void export_layer()
+ {
+     using namespace boost::python;
+@@ -67,7 +69,7 @@
+                       &Layer::setMaxZoom)
+         
+         .add_property("styles",
+-                      make_function(&Layer::styles,
++                      make_function(_styles_,
+                                     return_value_policy<reference_existing_object>()))
+ 
+         .add_property("datasource",
+
+Modified: trunk/include/mapnik/color.hpp
+===================================================================
+--- trunk/include/mapnik/color.hpp	2006-12-18 10:27:09 UTC (rev 417)
++++ trunk/include/mapnik/color.hpp	2006-12-20 00:22:45 UTC (rev 418)
+@@ -117,9 +117,10 @@
+         
+         inline std::string to_hex_string() const
+         {
+-            std::stringstream ss;
+-            ss << boost::format("#%1$02x%2$02x%3$02x") % red() % green() % blue();
+-            return ss.str();
++            return (boost::format("#%1$02x%2$02x%3$02x") 
++		    % red() 
++		    % green() 
++		    % blue() ).str();
+         }
+     };    
+ }
+
+Modified: trunk/include/mapnik/feature_type_style.hpp
+===================================================================
+--- trunk/include/mapnik/feature_type_style.hpp	2006-12-18 10:27:09 UTC (rev 417)
++++ trunk/include/mapnik/feature_type_style.hpp	2006-12-20 00:22:45 UTC (rev 418)
+@@ -59,7 +59,7 @@
+         {
+             return rules_;
+         }
+-	
++        
+         ~feature_type_style() {}
+     };
+ }
+
+Modified: trunk/include/mapnik/layer.hpp
+===================================================================
+--- trunk/include/mapnik/layer.hpp	2006-12-18 10:27:09 UTC (rev 417)
++++ trunk/include/mapnik/layer.hpp	2006-12-20 00:22:45 UTC (rev 418)
+@@ -65,6 +65,7 @@
+         std::string const& srs() const;
+         void add_style(std::string const& stylename);
+         std::vector<std::string> const& styles() const;
++        std::vector<std::string>& styles();
+         void selection_style(const std::string& name);
+         const std::string& selection_style() const;
+         void setMinZoom(double minZoom);
+
+Modified: trunk/include/mapnik/map.hpp
+===================================================================
+--- trunk/include/mapnik/map.hpp	2006-12-18 10:27:09 UTC (rev 417)
++++ trunk/include/mapnik/map.hpp	2006-12-20 00:22:45 UTC (rev 418)
+@@ -44,14 +44,17 @@
+         Envelope<double> currentExtent_;
+         
+     public:
+-        typedef std::map<std::string,feature_type_style>::const_iterator style_iterator;
++        typedef std::map<std::string,feature_type_style>::const_iterator const_style_iterator;
++        typedef std::map<std::string,feature_type_style>::iterator style_iterator;
+         
+         Map();
+         Map(int width, int height, std::string const& srs="+proj=latlong +datum=WGS84");
+         Map(const Map& rhs);
+         Map& operator=(const Map& rhs);
+-        style_iterator begin_styles() const;
+-        style_iterator end_styles() const;
++        const_style_iterator begin_styles() const;
++        const_style_iterator end_styles() const;
++        style_iterator begin_styles();
++        style_iterator end_styles();
+         bool insert_style(std::string const& name,feature_type_style const& style);
+         void remove_style(const std::string& name);
+         feature_type_style const& find_style(std::string const& name) const;
+
+Modified: trunk/include/mapnik/params.hpp
+===================================================================
+--- trunk/include/mapnik/params.hpp	2006-12-18 10:27:09 UTC (rev 417)
++++ trunk/include/mapnik/params.hpp	2006-12-20 00:22:45 UTC (rev 418)
+@@ -47,6 +47,17 @@
+             }
+             return std::string();
+         }
++        
++        param_map::const_iterator iterator(std::string const& key) const
++        {
++	    return find(key);
++        }
++        
++        param_map::iterator iterator(std::string const& key)
++        {
++	    return find(key);
++        }
++        
+     };
+ }
+ 
+
+Modified: trunk/src/layer.cpp
+===================================================================
+--- trunk/src/layer.cpp	2006-12-18 10:27:09 UTC (rev 417)
++++ trunk/src/layer.cpp	2006-12-20 00:22:45 UTC (rev 418)
+@@ -140,6 +140,11 @@
+     {
+         return styles_;
+     }
++    
++    std::vector<std::string> & Layer::styles()
++    {
++        return styles_;
++    }
+ 
+     void Layer::setMinZoom(double minZoom)
+     {
+
+Modified: trunk/src/map.cpp
+===================================================================
+--- trunk/src/map.cpp	2006-12-18 10:27:09 UTC (rev 417)
++++ trunk/src/map.cpp	2006-12-20 00:22:45 UTC (rev 418)
+@@ -64,15 +64,26 @@
+         return *this;
+     }
+     
+-    Map::style_iterator  Map::begin_styles() const
++    Map::style_iterator Map::begin_styles()
+     {
+         return styles_.begin();
+     }
+-    Map::style_iterator  Map::end_styles() const
++    
++    Map::style_iterator Map::end_styles()
+     {
+         return styles_.end();
+     }
+     
++    Map::const_style_iterator  Map::begin_styles() const
++    {
++        return styles_.begin();
++    }
++    
++    Map::const_style_iterator  Map::end_styles() const
++    {
++        return styles_.end();
++    }
++    
+     bool Map::insert_style(std::string const& name,feature_type_style const& style) 
+     {
+         return styles_.insert(make_pair(name,style)).second;
+
+Modified: trunk/src/tiff_reader.cpp
+===================================================================
+--- trunk/src/tiff_reader.cpp	2006-12-18 10:27:09 UTC (rev 417)
++++ trunk/src/tiff_reader.cpp	2006-12-20 00:22:45 UTC (rev 418)
+@@ -23,6 +23,7 @@
+ //$Id: tiff_reader.cpp 17 2005-03-08 23:58:43Z pavlenko $
+ // stl
+ #include <iostream>
++#include <boost/filesystem/operations.hpp>
+ // mapnik
+ #include <mapnik/image_reader.hpp>
+ 
+@@ -65,6 +66,7 @@
+         void read_generic(unsigned x,unsigned y,ImageData32& image);
+         void read_stripped(unsigned x,unsigned y,ImageData32& image);
+         void read_tiled(unsigned x,unsigned y,ImageData32& image);
++        TIFF* load_if_exists(const std::string& filename);
+     };
+ 
+     namespace
+@@ -100,8 +102,9 @@
+ 
+     void TiffReader::init()
+     {
+-        TIFF* tif = TIFFOpen(file_name_.c_str(), "rb");
+-        if (!tif) throw ImageReaderException("cannot open "+file_name_);
++	TIFF* tif = load_if_exists(file_name_);
++        if (!tif) return;
++	
+         char msg[1024];
+ 
+         if (TIFFRGBAImageOK(tif,msg))
+@@ -165,7 +168,7 @@
+ 
+     void TiffReader::read_generic(unsigned x,unsigned y,ImageData32& image)
+     {
+-        TIFF* tif = TIFFOpen(file_name_.c_str(), "rb");
++	TIFF* tif = load_if_exists(file_name_);
+         if (tif)
+         {
+             std::clog<<"TODO:tiff is not stripped or tiled\n";
+@@ -176,7 +179,7 @@
+ 
+     void TiffReader::read_tiled(unsigned x0,unsigned y0,ImageData32& image)
+     {
+-        TIFF* tif=TIFFOpen(file_name_.c_str(), "rb");
++	TIFF* tif = load_if_exists(file_name_);
+         if (tif)
+         {
+             uint32* buf = (uint32*)_TIFFmalloc(tile_width_*tile_height_*sizeof(uint32));
+@@ -221,7 +224,7 @@
+ 
+     void TiffReader::read_stripped(unsigned x0,unsigned y0,ImageData32& image)
+     {
+-        TIFF* tif = TIFFOpen(file_name_.c_str(), "rb");
++	TIFF* tif = load_if_exists(file_name_);
+         if (tif)
+         {
+             uint32* buf = (uint32*)_TIFFmalloc(width_*rows_per_strip_*sizeof(uint32));
+@@ -258,5 +261,21 @@
+             TIFFClose(tif);
+         }
+     }
++    
++    TIFF* TiffReader::load_if_exists(const std::string& filename)
++    {
++        TIFF* tif = 0;
++        boost::filesystem::path path(file_name_);
++        if (exists(path) && is_regular(path)) {
++            // File path is a full file path and does exist
++            tif = TIFFOpen(filename.c_str(), "rb");
++        } else {
++            return 0;
++        }
++        if (!tif) {
++            throw ImageReaderException("cannot open "+file_name_);
++        }
++        return tif;
++    }
+ }
+ 
+
+
+
+From pavlenko at mail.berlios.de  Thu Dec 21 23:51:56 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Thu, 21 Dec 2006 23:51:56 +0100
+Subject: [Mapnik-svn] r419 - trunk/src
+Message-ID: <200612212251.kBLMpuQu000589@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-21 23:51:53 +0100 (Thu, 21 Dec 2006)
+New Revision: 419
+
+Modified:
+   trunk/src/tiff_reader.cpp
+Log:
+1. is_regular is not supported in boost 1.33.*
+2. cleanups
+
+
+
+Modified: trunk/src/tiff_reader.cpp
+===================================================================
+--- trunk/src/tiff_reader.cpp	2006-12-20 00:22:45 UTC (rev 418)
++++ trunk/src/tiff_reader.cpp	2006-12-21 22:51:53 UTC (rev 419)
+@@ -23,7 +23,7 @@
+ //$Id: tiff_reader.cpp 17 2005-03-08 23:58:43Z pavlenko $
+ // stl
+ #include <iostream>
+-#include <boost/filesystem/operations.hpp>
++#include <boost/filesystem.hpp>
+ // mapnik
+ #include <mapnik/image_reader.hpp>
+ 
+@@ -262,19 +262,16 @@
+         }
+     }
+     
+-    TIFF* TiffReader::load_if_exists(const std::string& filename)
++    TIFF* TiffReader::load_if_exists(std::string const& filename)
+     {
+-        TIFF* tif = 0;
++        TIFF * tif = 0;
+         boost::filesystem::path path(file_name_);
+-        if (exists(path) && is_regular(path)) {
++        if (exists(path)) //  && is_regular(path)) { -- not supported in boost-1.33.*
++        {    
+             // File path is a full file path and does exist
+             tif = TIFFOpen(filename.c_str(), "rb");
+-        } else {
+-            return 0;
+         }
+-        if (!tif) {
+-            throw ImageReaderException("cannot open "+file_name_);
+-        }
++        
+         return tif;
+     }
+ }
+
+
+
+From pavlenko at mail.berlios.de  Fri Dec 22 12:57:05 2006
+From: pavlenko at mail.berlios.de (pavlenko at mail.berlios.de)
+Date: Fri, 22 Dec 2006 12:57:05 +0100
+Subject: [Mapnik-svn] r420 - trunk/plugins/input/postgis
+Message-ID: <200612221157.kBMBv5Sq001624@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-22 12:57:02 +0100 (Fri, 22 Dec 2006)
+New Revision: 420
+
+Modified:
+   trunk/plugins/input/postgis/connection.hpp
+Log:
+Added connect_timeout parameter to postgis connection (set to 4 sec).
+ 
+
+
+Modified: trunk/plugins/input/postgis/connection.hpp
+===================================================================
+--- trunk/plugins/input/postgis/connection.hpp	2006-12-21 22:51:53 UTC (rev 419)
++++ trunk/plugins/input/postgis/connection.hpp	2006-12-22 11:57:02 UTC (rev 420)
+@@ -52,6 +52,7 @@
+         connStr+=" dbname="+dbname;
+         connStr+=" user="+username;
+         connStr+=" password="+password;
++        connStr+=" connect_timeout=4"; // todo: set by client (param) 
+         
+         conn_=PQconnectdb(connStr.c_str());
+         if (PQstatus(conn_) == CONNECTION_BAD)
+@@ -60,6 +61,7 @@
+                       << PQerrorMessage(conn_)<< std::endl;
+         }
+     }
++    
+     bool execute(const std::string& sql) const
+     {
+         PGresult *result=PQexec(conn_,sql.c_str());
+
+
+
+From pavlenko at mail.berlios.de  Sat Dec 30 22:48:15 2006
+From: pavlenko at mail.berlios.de (pavlenko at BerliOS)
+Date: Sat, 30 Dec 2006 22:48:15 +0100
+Subject: [Mapnik-svn] r421 - trunk/src
+Message-ID: <200612302148.kBULmFYN022280@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-30 22:48:15 +0100 (Sat, 30 Dec 2006)
+New Revision: 421
+
+Modified:
+   trunk/src/tiff_reader.cpp
+Log:
+boost/filesystem.hpp is not in boost 1.33.1
+reverted to <boost/filesystem/operations.hpp>
+
+
+
+Modified: trunk/src/tiff_reader.cpp
+===================================================================
+--- trunk/src/tiff_reader.cpp	2006-12-22 11:57:02 UTC (rev 420)
++++ trunk/src/tiff_reader.cpp	2006-12-30 21:48:15 UTC (rev 421)
+@@ -23,7 +23,7 @@
+ //$Id: tiff_reader.cpp 17 2005-03-08 23:58:43Z pavlenko $
+ // stl
+ #include <iostream>
+-#include <boost/filesystem.hpp>
++#include "boost/filesystem/operations.hpp"
+ // mapnik
+ #include <mapnik/image_reader.hpp>
+ 
+
+
+
+From pavlenko at mail.berlios.de  Sun Dec 31 12:42:59 2006
+From: pavlenko at mail.berlios.de (pavlenko at BerliOS)
+Date: Sun, 31 Dec 2006 12:42:59 +0100
+Subject: [Mapnik-svn] r422 - trunk/src
+Message-ID: <200612311142.kBVBgwbe000465@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-31 12:42:57 +0100 (Sun, 31 Dec 2006)
+New Revision: 422
+
+Modified:
+   trunk/src/map.cpp
+Log:
+don't project query point if host projection is geographic
+
+
+
+Modified: trunk/src/map.cpp
+===================================================================
+--- trunk/src/map.cpp	2006-12-30 21:48:15 UTC (rev 421)
++++ trunk/src/map.cpp	2006-12-31 11:42:57 UTC (rev 422)
+@@ -329,8 +329,13 @@
+                 double x = lon;
+                 double y = lat;
+                 double z = 0;
+-                mapnik::projection dest(srs_); 
+-                dest.forward(x,y);
++                mapnik::projection dest(srs_);
++
++		if (!dest.is_geographic())
++		{
++		    dest.forward(x,y);
++		}
++		
+                 mapnik::projection source(layer.srs());
+                 proj_transform prj_trans(source,dest);
+                 prj_trans.backward(x,y,z);
+@@ -371,7 +376,7 @@
+             mapnik::Layer const& layer = layers_[index];
+             CoordTransform tr = view_transform();
+             tr.backward(&x,&y);
+-            
++	    
+             try
+             {
+                 mapnik::projection dest(srs_);
+
+
+
+From pavlenko at mail.berlios.de  Sun Dec 31 12:44:35 2006
+From: pavlenko at mail.berlios.de (pavlenko at BerliOS)
+Date: Sun, 31 Dec 2006 12:44:35 +0100
+Subject: [Mapnik-svn] r423 - in trunk: bindings/python include/mapnik
+Message-ID: <200612311144.kBVBiZp4001578@sheep.berlios.de>
+
+Author: pavlenko
+Date: 2006-12-31 12:44:34 +0100 (Sun, 31 Dec 2006)
+New Revision: 423
+
+Modified:
+   trunk/bindings/python/mapnik_feature.cpp
+   trunk/include/mapnik/feature.hpp
+Log:
+reflect feature's properties in Python
+(see wiki for more info and usage)
+
+
+
+Modified: trunk/bindings/python/mapnik_feature.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_feature.cpp	2006-12-31 11:42:57 UTC (rev 422)
++++ trunk/bindings/python/mapnik_feature.cpp	2006-12-31 11:44:34 UTC (rev 423)
+@@ -22,6 +22,7 @@
+ //$Id$
+ 
+ // boost
++#include <boost/python/suite/indexing/map_indexing_suite.hpp>
+ #include <boost/python.hpp>
+ // mapnik
+ #include <mapnik/feature.hpp>
+@@ -33,7 +34,19 @@
+     class_<Feature,boost::shared_ptr<Feature>,
+         boost::noncopyable>("Feature",no_init)
+         .def("id",&Feature::id)
+-        //.def("__iter__", range<>())
+         .def("__str__",&Feature::to_string)
++	.add_property("properties", 
++		      make_function(&Feature::props,return_value_policy<reference_existing_object>()))
+         ;
++    
++    //implicitly_convertible<std::string,mapnik::value>();
++    
++    class_<std::map<std::string, mapnik::value> >("Properties")
++	.def(map_indexing_suite<std::map<std::string, mapnik::value
++	     > >())
++	;
++    
++    class_<mapnik::value>("Value")
++	.def("__str__",&mapnik::value::to_string)
++	;
+ }
+
+Modified: trunk/include/mapnik/feature.hpp
+===================================================================
+--- trunk/include/mapnik/feature.hpp	2006-12-31 11:42:57 UTC (rev 422)
++++ trunk/include/mapnik/feature.hpp	2006-12-31 11:44:34 UTC (rev 423)
+@@ -92,7 +92,7 @@
+             raster_=raster;
+         }
+ 	
+-        const properties& get_properties() const 
++        std::map<std::string,value> const& props() const 
+         {
+             return props_;
+         }
+
+
+

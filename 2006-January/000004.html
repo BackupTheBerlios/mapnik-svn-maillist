@@ -1,0 +1,198 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r117 - trunk/include
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-January/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r117%20-%20trunk/include&In-Reply-To=%3C200601231025.k0NAPdWU023948%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000003.html">
+   <LINK REL="Next"  HREF="000005.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r117 - trunk/include</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r117%20-%20trunk/include&In-Reply-To=%3C200601231025.k0NAPdWU023948%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r117 - trunk/include">pavlenko at berlios.de
+       </A><BR>
+    <I>Mon Jan 23 11:25:39 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000003.html">[Mapnik-svn] r116 - trunk/include
+</A></li>
+        <LI>Next message: <A HREF="000005.html">[Mapnik-svn] r118 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4">[ date ]</a>
+              <a href="thread.html#4">[ thread ]</a>
+              <a href="subject.html#4">[ subject ]</a>
+              <a href="author.html#4">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-01-23 11:25:38 +0100 (Mon, 23 Jan 2006)
+New Revision: 117
+
+Modified:
+   trunk/include/geometry.hpp
+   trunk/include/vertex_vector.hpp
+Log:
+added alternative vertex storage impl
+
+Modified: trunk/include/geometry.hpp
+===================================================================
+--- trunk/include/geometry.hpp	2006-01-19 16:40:24 UTC (rev 116)
++++ trunk/include/geometry.hpp	2006-01-23 10:25:38 UTC (rev 117)
+@@ -57,7 +57,6 @@
+ 	virtual int type() const=0;
+ 	virtual bool hit_test(value_type x,value_type y) const=0;
+ 	virtual void move_to(value_type x,value_type y)=0;
+-
+ 	virtual void line_to(value_type x,value_type y)=0;
+ 	virtual void transform(const mapnik::CoordTransform&amp; t)=0;
+ 	virtual unsigned num_points() const = 0;
+@@ -244,8 +243,8 @@
+     };
+ 
+     typedef point&lt;vertex2d&gt; point_impl;
+-    typedef line_string&lt;vertex2d&gt; line_string_impl;
+-    typedef polygon&lt;vertex2d&gt; polygon_impl;
++    typedef line_string&lt;vertex2d,vertex_vector&gt; line_string_impl;
++    typedef polygon&lt;vertex2d,vertex_vector&gt; polygon_impl;
+     
+     typedef geometry&lt;vertex2d&gt; geometry_type;
+     typedef boost::shared_ptr&lt;geometry_type&gt; geometry_ptr;
+
+Modified: trunk/include/vertex_vector.hpp
+===================================================================
+--- trunk/include/vertex_vector.hpp	2006-01-19 16:40:24 UTC (rev 116)
++++ trunk/include/vertex_vector.hpp	2006-01-23 10:25:38 UTC (rev 117)
+@@ -30,10 +30,14 @@
+ #include &quot;vertex.hpp&quot;
+ #include &quot;ctrans.hpp&quot;
+ 
++#include &lt;vector&gt;
++#include &lt;boost/utility.hpp&gt;
++#include &lt;boost/tuple/tuple.hpp&gt;
++
+ namespace mapnik
+ {
+     template &lt;typename T&gt;
+-    class vertex_vector 
++    class vertex_vector : private boost::noncopyable
+     {
+ 	typedef typename T::type value_type;
+ 	typedef vertex&lt;value_type,2&gt; vertex_type;
+@@ -101,27 +105,7 @@
+ 	    *y = (*vertex);
+ 	    return commands_[block] [pos &amp; block_mask];
+ 	}
+-	unsigned get_at(unsigned pos,value_type&amp; x,value_type&amp; y) const
+-	{
+-	    if (pos &gt;= pos_) return SEG_END;
+-	    unsigned block = pos &gt;&gt; block_shift;
+-	    const value_type* vertex = vertexs_[block] + (( pos &amp; block_mask) &lt;&lt; 1);
+-	    x = (*vertex++);
+-	    y = (*vertex);
+-	    return commands_[block] [pos &amp; block_mask];
+-	}
+-	    
+-	unsigned get_at(unsigned pos,vertex_type&amp; v) const 
+-	{
+-	    if (pos &gt;= pos_) return SEG_END;
+-	    unsigned block = pos &gt;&gt; block_shift;
+-	    const value_type* vertex = vertexs_[block] + (( pos &amp; block_mask) &lt;&lt; 1);
+-	    unsigned char* cmd= commands_[block] + (pos_ &amp; block_mask);
+-	    v.x=(*vertex++);
+-	    v.y=(*vertex);
+-	    return commands_[block] [pos &amp; block_mask];
+-	}
+-	
++        	
+ 	void transform_at(unsigned pos,const CoordTransform&amp; t)
+ 	{
+ 	    if (pos &gt;= pos_) return;
+@@ -133,8 +117,6 @@
+ 	}
+ 	
+     private:
+-	vertex_vector(const vertex_vector&amp;);
+-	vertex_vector&amp; operator=(const vertex_vector&amp;);
+ 	void allocate_block(unsigned block)
+ 	{
+ 	    if (block &gt;= max_blocks_)
+@@ -156,6 +138,43 @@
+ 	    ++num_blocks_;
+ 	}
+     };
++
++    template &lt;typename T&gt;
++    struct vertex_vector2 : boost::noncopyable
++    {
++	typedef typename T::type value_type;
++	typedef boost::tuple&lt;value_type,value_type,char&gt; coord;
++	vertex_vector2() {}
++	
++	unsigned size() const 
++	{
++	    return cont_.size();
++	}
++
++	void push_back (value_type x,value_type y,unsigned command)
++	{
++	    cont_.push_back(coord(x,y,command));
++	}
++	unsigned get_vertex(unsigned pos,value_type* x,value_type* y) const
++	{
++	    if (pos &gt;= cont_.size()) return SEG_END;
++	    coord const&amp; c = cont_[pos];
++	    *x = boost::get&lt;0&gt;(c);
++	    *y = boost::get&lt;1&gt;(c);
++	    return boost::get&lt;2&gt;(c);
++	}
++
++	void transform_at(unsigned pos,const CoordTransform&amp; t)
++	{
++	    if (pos &gt;= cont_.size()) return;
++	    coord &amp; c = cont_[pos];
++	    t.forward_x(&amp;boost::get&lt;0&gt;(c));
++	    t.forward_y(&amp;boost::get&lt;1&gt;(c));
++	}
++	
++    private:
++	std::vector&lt;coord&gt; cont_;
++    };
+ }
+ 
+ #endif //VERTEX_VECTOR_HPP
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000003.html">[Mapnik-svn] r116 - trunk/include
+</A></li>
+	<LI>Next message: <A HREF="000005.html">[Mapnik-svn] r118 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4">[ date ]</a>
+              <a href="thread.html#4">[ thread ]</a>
+              <a href="subject.html#4">[ subject ]</a>
+              <a href="author.html#4">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

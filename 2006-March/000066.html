@@ -1,0 +1,829 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r180 - in trunk: include plugins/input/postgis plugins/input/raster plugins/input/shape src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r180%20-%20in%20trunk%3A%20include%20plugins/input/postgis%20plugins/input/raster%20plugins/input/shape%20src&In-Reply-To=%3C200603192153.k2JLrmqt000298%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000065.html">
+   <LINK REL="Next"  HREF="000067.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r180 - in trunk: include plugins/input/postgis plugins/input/raster plugins/input/shape src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r180%20-%20in%20trunk%3A%20include%20plugins/input/postgis%20plugins/input/raster%20plugins/input/shape%20src&In-Reply-To=%3C200603192153.k2JLrmqt000298%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r180 - in trunk: include plugins/input/postgis plugins/input/raster plugins/input/shape src">pavlenko at berlios.de
+       </A><BR>
+    <I>Sun Mar 19 22:53:48 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000065.html">[Mapnik-svn] r179 - in trunk: include src
+</A></li>
+        <LI>Next message: <A HREF="000067.html">[Mapnik-svn] r181 - trunk/utils/shapeindex
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#66">[ date ]</a>
+              <a href="thread.html#66">[ thread ]</a>
+              <a href="subject.html#66">[ subject ]</a>
+              <a href="author.html#66">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-19 22:53:47 +0100 (Sun, 19 Mar 2006)
+New Revision: 180
+
+Modified:
+   trunk/include/feature_layer_desc.hpp
+   trunk/include/filter_factory.hpp
+   trunk/include/filter_parser.hpp
+   trunk/include/filter_parser_ast.hpp
+   trunk/include/font_engine_freetype.hpp
+   trunk/include/geometry.hpp
+   trunk/include/pool.hpp
+   trunk/include/utils.hpp
+   trunk/plugins/input/postgis/connection.hpp
+   trunk/plugins/input/postgis/postgis.cpp
+   trunk/plugins/input/postgis/postgisfs.cpp
+   trunk/plugins/input/raster/raster_datasource.cpp
+   trunk/plugins/input/raster/raster_featureset.cpp
+   trunk/plugins/input/shape/shape.cpp
+   trunk/plugins/input/shape/shape_featureset.cpp
+   trunk/plugins/input/shape/shape_index_featureset.cpp
+   trunk/src/SConscript
+   trunk/src/agg_renderer.cpp
+   trunk/src/datasource_cache.cpp
+   trunk/src/layer.cpp
+   trunk/src/line_pattern_symbolizer.cpp
+   trunk/src/memory.cpp
+   trunk/src/png_reader.cpp
+   trunk/src/point_symbolizer.cpp
+   trunk/src/polygon_pattern_symbolizer.cpp
+   trunk/src/render.cpp
+   trunk/src/tiff_reader.cpp
+Log:
+replaced cout and cerr with clog (by default redirected to cerr)
+
+
+
+Modified: trunk/include/feature_layer_desc.hpp
+===================================================================
+--- trunk/include/feature_layer_desc.hpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/include/feature_layer_desc.hpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -21,8 +21,6 @@
+ #ifndef FEATURE_LAYER_DESC_HPP
+ #define FEATURE_LAYER_DESC_HPP
+ 
+-//#include &quot;array.hpp&quot;
+-
+ #include &lt;string&gt;
+ #include &lt;vector&gt;
+ #include &lt;iostream&gt;
+@@ -32,8 +30,7 @@
+     
+     using std::string;
+     using std::vector;
+-    using std::cout;
+-    using std::cerr;
++    using std::clog;
+     using std::endl;
+     
+     enum {
+@@ -231,7 +228,7 @@
+ 	{
+ 	    string name = wkb+pos;
+ 	    pos += name.size()+1;
+-	    //std::cout&lt;&lt;&quot;name=&quot;&lt;&lt;name&lt;&lt;&quot;\n&quot;;
++	    //std::clog&lt;&lt;&quot;name=&quot;&lt;&lt;name&lt;&lt;&quot;\n&quot;;
+ 	    
+ 	    int type;
+ 	    memcpy(&amp;type,wkb+pos,sizeof(int));
+
+Modified: trunk/include/filter_factory.hpp
+===================================================================
+--- trunk/include/filter_factory.hpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/include/filter_factory.hpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -16,6 +16,8 @@
+  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+  */
+ 
++//#include &quot;array.hpp&quot;
++
+ //$Id$
+ 
+ #ifndef FILTER_FACTORY_HPP
+@@ -44,7 +46,7 @@
+ 	    }
+ 	    else 
+ 	    {
+-		cerr &lt;&lt; &quot;failed at :&quot; &lt;&lt; info.stop &lt;&lt; &quot;\n&quot;;
++		clog &lt;&lt; &quot;failed at :&quot; &lt;&lt; info.stop &lt;&lt; &quot;\n&quot;;
+ 		return filter_ptr(new none_filter&lt;FeatureT&gt;());
+ 	    }  
+ 	}
+
+Modified: trunk/include/filter_parser.hpp
+===================================================================
+--- trunk/include/filter_parser.hpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/include/filter_parser.hpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -39,7 +39,7 @@
+ 
+ using namespace boost::spirit;
+ using std::string;
+-using std::cerr;
++using std::clog;
+ using std::stack;
+ 
+ namespace mapnik
+@@ -154,7 +154,7 @@
+ 		    }
+ 		    catch (...)//boost::regex_error&amp; ex)
+ 		    {
+-		      cerr&lt;&lt;&quot;error\n&quot;;//ex.what()&lt;&lt;&quot;\n&quot;;
++		      clog&lt;&lt;&quot;error\n&quot;;//ex.what()&lt;&lt;&quot;\n&quot;;
+ 		    }
+ 		    
+ 		}
+
+Modified: trunk/include/filter_parser_ast.hpp
+===================================================================
+--- trunk/include/filter_parser_ast.hpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/include/filter_parser_ast.hpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -162,10 +162,10 @@
+     
+     void process_node(iter_t const&amp; i,string&amp; text)
+     {
+-	//cout &lt;&lt; &quot;In eval_expression. i-&gt;value = &quot; &lt;&lt;
++	//clog &lt;&lt; &quot;In eval_expression. i-&gt;value = &quot; &lt;&lt;
+ 	//   string(i-&gt;value.begin(), i-&gt;value.end()) &lt;&lt;
+ 	//   &quot; i-&gt;children.size() = &quot; &lt;&lt; i-&gt;children.size() &lt;&lt; endl;
+-	//std::cout&lt;&lt;typeid(*i).name()&lt;&lt;&quot;\n&quot;;
++	//std::clog&lt;&lt;typeid(*i).name()&lt;&lt;&quot;\n&quot;;
+ 
+ 	if (i-&gt;value.id() == filter_grammar_ast::integerID)
+ 	{	
+
+Modified: trunk/include/font_engine_freetype.hpp
+===================================================================
+--- trunk/include/font_engine_freetype.hpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/include/font_engine_freetype.hpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -82,7 +82,7 @@
+ 	
+     	~font_face()
+     	{
+-    	    std::cout &lt;&lt; &quot;clean up face:&quot; &lt;&lt; family_name()&lt;&lt;&quot;:&quot; &lt;&lt; style_name() &lt;&lt; std::endl;
++    	    std::clog &lt;&lt; &quot;clean up face:&quot; &lt;&lt; family_name()&lt;&lt;&quot;:&quot; &lt;&lt; style_name() &lt;&lt; std::endl;
+     	    FT_Done_Face(face_);
+     	}
+ 	
+
+Modified: trunk/include/geometry.hpp
+===================================================================
+--- trunk/include/geometry.hpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/include/geometry.hpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -53,8 +53,27 @@
+ 	    return srid_;
+ 	}
+ 	
++	Envelope&lt;double&gt; envelope()
++	{
++	    Envelope&lt;double&gt; result;		
++	    double x,y;
++	    for (unsigned i=0;i&lt;num_points();++i)
++	    {
++		vertex(&amp;x,&amp;y);
++		if (i==0)
++		{
++		    result.init(x,y,x,y);
++		}
++		else
++		{
++		    result.expand_to_include(x,y);
++		}
++	    }
++	    return result;
++	}
++
+ 	virtual int type() const=0;
+-	virtual bool hit_test(value_type x,value_type y) const=0;
++	virtual bool hit_test(value_type x,value_type y) const=0;	
+ 	virtual void label_position(double *x, double *y) const=0;
+ 	virtual void move_to(value_type x,value_type y)=0;
+ 	virtual void line_to(value_type x,value_type y)=0;
+@@ -148,21 +167,27 @@
+ 	
+ 	void label_position(double *x, double *y) const
+ 	{
++	    
+ 	    unsigned size = cont_.size();
+ 	    if (size &lt; 3) 
+ 	    {
+ 		cont_.get_vertex(0,x,y);
+ 		return;
+ 	    }
+-	    
+-	    value_type x0,y0,x1,y1;
++	      
+ 	    double ai;
+ 	    double atmp = 0;
+ 	    double xtmp = 0;
+ 	    double ytmp = 0;
++	    double x0 =0;
++	    double y0 =0;
++	    double x1 =0;
++	    double y1 =0;
++	    
+ 	    unsigned i,j;
+ 	    for (i = size-1,j = 0; j &lt; size; i = j, ++j)
+ 	    {
++		
+ 		cont_.get_vertex(i,&amp;x0,&amp;y0);
+ 		cont_.get_vertex(j,&amp;x1,&amp;y1);
+ 		ai = x0 * y1 - x1 * y0;
+@@ -248,6 +273,11 @@
+         void label_position(double *x, double *y) const
+ 	{
+ 	    // calculate mid point on line string
++	    double x0=0;
++	    double y0=0;
++	    double x1=0;
++	    double y1=0;
++	    
+ 	    unsigned size = cont_.size();
+ 	    if (size == 1)
+ 	    {
+@@ -255,10 +285,7 @@
+ 	    }
+ 	    else if (size == 2)
+ 	    {
+-		double x0;
+-		double y0;
+-		double x1;
+-		double y1;
++
+ 		cont_.get_vertex(0,&amp;x0,&amp;y0);
+ 		cont_.get_vertex(1,&amp;x1,&amp;y1);
+ 		*x = 0.5 * (x1 + x0);
+@@ -266,10 +293,6 @@
+ 	    }
+ 	    else
+ 	    {
+-		double x0;
+-		double y0;
+-		double x1;
+-		double y1;
+ 		double len=0.0;
+ 		for (unsigned pos = 1; pos &lt; size; ++pos)
+ 		{
+
+Modified: trunk/include/pool.hpp
+===================================================================
+--- trunk/include/pool.hpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/include/pool.hpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -85,7 +85,7 @@
+ 	    typename ContType::iterator itr=unusedPool_.begin();
+ 	    if (itr!=unusedPool_.end())
+ 	    {  
+-		std::cout&lt;&lt;&quot;borrow &quot;&lt;&lt;(*itr).get()&lt;&lt;&quot;\n&quot;;
++		std::clog&lt;&lt;&quot;borrow &quot;&lt;&lt;(*itr).get()&lt;&lt;&quot;\n&quot;;
+ 		usedPool_.push_back(*itr);
+ 		itr=unusedPool_.erase(itr);
+ 		return usedPool_[usedPool_.size()-1];
+@@ -102,7 +102,7 @@
+ 	    {
+ 		if (obj.get()==(*itr).get()) 
+ 		{
+-		    std::cout&lt;&lt;&quot;return &quot;&lt;&lt;(*itr).get()&lt;&lt;&quot;\n&quot;;
++		    std::clog&lt;&lt;&quot;return &quot;&lt;&lt;(*itr).get()&lt;&lt;&quot;\n&quot;;
+ 		    unusedPool_.push_back(*itr);
+ 		    usedPool_.erase(itr);
+ 		    return;
+
+Modified: trunk/include/utils.hpp
+===================================================================
+--- trunk/include/utils.hpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/include/utils.hpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -184,7 +184,7 @@
+             long sec=1000*(tv.tv_sec-tv_.tv_sec);
+             long total_ms=sec+static_cast&lt;long&gt;(0.001*(tv.tv_usec-tv_.tv_usec));
+             s &lt;&lt; &quot;elapsed time is &quot;&lt;&lt;total_ms&lt;&lt;&quot; ms&quot;;
+-            std::cout&lt;&lt;s.str()&lt;&lt;std::endl;
++            std::clog&lt;&lt;s.str()&lt;&lt;std::endl;
+         }
+     };
+     
+
+Modified: trunk/plugins/input/postgis/connection.hpp
+===================================================================
+--- trunk/plugins/input/postgis/connection.hpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/plugins/input/postgis/connection.hpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -41,12 +41,12 @@
+ 	conn_=PQconnectdb(connStr.c_str());
+ 	if (PQstatus(conn_) == CONNECTION_BAD)
+ 	{
+-	    std::cerr &lt;&lt; &quot;connection to &quot;&lt;&lt; connStr &lt;&lt; &quot; failed\n&quot;
++	    std::clog &lt;&lt; &quot;connection to &quot;&lt;&lt; connStr &lt;&lt; &quot; failed\n&quot;
+ 		      &lt;&lt; PQerrorMessage(conn_)&lt;&lt; std::endl;
+ 	}
+ 	else
+ 	{
+-	    std::cout &lt;&lt;&quot;connected ok &quot;&lt;&lt;std::endl;
++	    std::clog &lt;&lt;&quot;connected ok &quot;&lt;&lt;std::endl;
+ 	}
+     }
+     bool execute(const std::string&amp; sql) const
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/plugins/input/postgis/postgis.cpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -30,8 +30,8 @@
+ const std::string postgis_datasource::GEOMETRY_COLUMNS=&quot;geometry_columns&quot;;
+ const std::string postgis_datasource::SPATIAL_REF_SYS=&quot;spatial_ref_system&quot;;
+ 
+-using std::cerr;
+-using std::cout;
++using std::clog;
++using std::clog;
+ using std::endl;
+ 
+ using boost::lexical_cast;
+@@ -76,7 +76,7 @@
+ 		}
+ 		catch (bad_lexical_cast &amp;ex)
+ 		{
+-		    cerr &lt;&lt; ex.what() &lt;&lt; endl;
++		    clog &lt;&lt; ex.what() &lt;&lt; endl;
+ 		}
+ 		geometryColumn_=rs-&gt;getValue(&quot;f_geometry_column&quot;);
+ 		std::string postgisType=rs-&gt;getValue(&quot;type&quot;);
+@@ -99,7 +99,7 @@
+ 		}
+ 		catch (bad_lexical_cast &amp;ex)
+ 		{
+-		    cerr &lt;&lt; ex.what() &lt;&lt; endl;
++		    clog &lt;&lt; ex.what() &lt;&lt; endl;
+ 		}
+ 	    }
+ 	    rs-&gt;close();
+@@ -133,7 +133,7 @@
+ 			desc_.add_descriptor(attribute_descriptor(fld_name,String));
+ 			break;
+ 		    default: // shouldn't get here
+-			cout &lt;&lt; &quot;unknown type_oid=&quot;&lt;&lt;type_oid&lt;&lt;endl;
++			clog &lt;&lt; &quot;unknown type_oid=&quot;&lt;&lt;type_oid&lt;&lt;endl;
+ 			desc_.add_descriptor(attribute_descriptor(fld_name,String));
+ 			break;
+ 		    }	  
+@@ -201,7 +201,7 @@
+ 	    s &lt;&lt; &quot; from &quot; &lt;&lt; table_&lt;&lt;&quot; where &quot;&lt;&lt;geometryColumn_&lt;&lt;&quot; &amp;&amp; setSRID('BOX3D(&quot;;
+ 	    s &lt;&lt; box.minx() &lt;&lt; &quot; &quot; &lt;&lt; box.miny() &lt;&lt; &quot;,&quot;;
+ 	    s &lt;&lt; box.maxx() &lt;&lt; &quot; &quot; &lt;&lt; box.maxy() &lt;&lt; &quot;)'::box3d,&quot;&lt;&lt;srid_&lt;&lt;&quot;)&quot;;
+-	    cout &lt;&lt; s.str() &lt;&lt; endl;
++	    clog &lt;&lt; s.str() &lt;&lt; endl;
+ 	    shared_ptr&lt;ResultSet&gt; rs=conn-&gt;executeQuery(s.str(),1);
+ 	    fs=new postgis_featureset(rs,props.size());
+ 	}
+
+Modified: trunk/plugins/input/postgis/postgisfs.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgisfs.cpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/plugins/input/postgis/postgisfs.cpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -95,8 +95,8 @@
+     else
+     {
+         rs_-&gt;close();
+-        std::cout &lt;&lt; &quot;totalGeomSize=&quot;&lt;&lt;totalGeomSize_&lt;&lt;&quot; bytes&quot;&lt;&lt;std::endl;
+-        std::cout &lt;&lt; &quot;count=&quot;&lt;&lt;count_&lt;&lt;std::endl;
++        std::clog &lt;&lt; &quot;totalGeomSize=&quot;&lt;&lt;totalGeomSize_&lt;&lt;&quot; bytes&quot;&lt;&lt;std::endl;
++        std::clog &lt;&lt; &quot;count=&quot;&lt;&lt;count_&lt;&lt;std::endl;
+ 	return feature_ptr();
+     }
+ }
+
+Modified: trunk/plugins/input/raster/raster_datasource.cpp
+===================================================================
+--- trunk/plugins/input/raster/raster_datasource.cpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/plugins/input/raster/raster_datasource.cpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -26,7 +26,7 @@
+ 
+ DATASOURCE_PLUGIN(raster_datasource)
+ 
+-using std::cerr;
++using std::clog;
+ using std::endl;
+ using boost::lexical_cast;
+ using boost::bad_lexical_cast;
+@@ -47,7 +47,7 @@
+     }
+     catch (bad_lexical_cast&amp; ex)
+     {
+-	cerr &lt;&lt; ex.what() &lt;&lt; endl;
++	clog &lt;&lt; ex.what() &lt;&lt; endl;
+     }  
+ }
+ 
+
+Modified: trunk/plugins/input/raster/raster_featureset.cpp
+===================================================================
+--- trunk/plugins/input/raster/raster_featureset.cpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/plugins/input/raster/raster_featureset.cpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -42,9 +42,9 @@
+ 	feature_ptr feature(new Feature(+id_));
+         try
+         {
+-	    std::cout&lt;&lt;&quot;raster_featureset &quot;&lt;&lt;curIter_-&gt;format()&lt;&lt;&quot; &quot;&lt;&lt;curIter_-&gt;file()&lt;&lt;std::endl;
++	    std::clog&lt;&lt;&quot;raster_featureset &quot;&lt;&lt;curIter_-&gt;format()&lt;&lt;&quot; &quot;&lt;&lt;curIter_-&gt;file()&lt;&lt;std::endl;
+             std::auto_ptr&lt;ImageReader&gt; reader(get_image_reader(curIter_-&gt;format(),curIter_-&gt;file()));
+-	    std::cout&lt;&lt;reader.get()&lt;&lt;std::endl;
++	    std::clog&lt;&lt;reader.get()&lt;&lt;std::endl;
+ 	    if (reader.get())
+             {
+                 int image_width=reader-&gt;width();
+
+Modified: trunk/plugins/input/shape/shape.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape.cpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/plugins/input/shape/shape.cpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -65,7 +65,7 @@
+ 		}
+ 	    default:
+ 		//
+-		std::cout &lt;&lt; &quot;uknown type &quot;&lt;&lt;fd.type_&lt;&lt;&quot;\n&quot;;
++		std::clog &lt;&lt; &quot;uknown type &quot;&lt;&lt;fd.type_&lt;&lt;&quot;\n&quot;;
+ 		break;
+ 		
+ 	    }
+@@ -73,7 +73,7 @@
+     }
+     catch  (datasource_exception&amp; ex)
+     {
+-        std::cerr&lt;&lt;ex.what()&lt;&lt;std::endl;
++        std::clog&lt;&lt;ex.what()&lt;&lt;std::endl;
+         throw;
+     }
+ }
+@@ -115,9 +115,9 @@
+ 	file.close();
+     }
+ 
+-    std::cout&lt;&lt;extent_&lt;&lt;std::endl;
+-    std::cout&lt;&lt;&quot;file_length=&quot;&lt;&lt;file_length_&lt;&lt;std::endl;
+-    std::cout&lt;&lt;&quot;shape_type=&quot;&lt;&lt;shape_type&lt;&lt;std::endl;
++    std::clog &lt;&lt; extent_ &lt;&lt; std::endl;
++    std::clog &lt;&lt; &quot;file_length=&quot; &lt;&lt; file_length_ &lt;&lt; std::endl;
++    std::clog &lt;&lt; &quot;shape_type=&quot; &lt;&lt; shape_type &lt;&lt; std::endl;
+ }
+ 
+ 
+
+Modified: trunk/plugins/input/shape/shape_featureset.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape_featureset.cpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/plugins/input/shape/shape_featureset.cpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -166,7 +166,7 @@
+ 		}
+ 		catch (...)
+ 		{
+-		    std::cerr &lt;&lt; &quot;error processing attributes &quot; &lt;&lt; std::endl;
++		    std::clog &lt;&lt; &quot;error processing attributes &quot; &lt;&lt; std::endl;
+ 		}
+ 		++pos;
+ 	    }
+@@ -175,7 +175,7 @@
+     }
+     else
+     {
+-	std::cout&lt;&lt;&quot; total shapes read=&quot;&lt;&lt;count_&lt;&lt;&quot;\n&quot;;
++	std::clog&lt;&lt;&quot; total shapes read=&quot;&lt;&lt;count_&lt;&lt;&quot;\n&quot;;
+ 	return feature_ptr();
+     }
+ }
+
+Modified: trunk/plugins/input/shape/shape_index_featureset.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape_index_featureset.cpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/plugins/input/shape/shape_index_featureset.cpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -39,7 +39,7 @@
+         shp_index&lt;filterT&gt;::query(filter,file,ids_);
+         file.close();
+     }
+-    std::cout&lt;&lt; &quot;query size=&quot; &lt;&lt; ids_.size() &lt;&lt; &quot;\n&quot;;
++    std::clog&lt;&lt; &quot;query size=&quot; &lt;&lt; ids_.size() &lt;&lt; &quot;\n&quot;;
+     itr_ = ids_.begin();
+ 
+     // deal with attributes
+@@ -168,7 +168,7 @@
+ 		}
+ 		catch (...)
+ 		{
+-		    std::cerr&lt;&lt;&quot;exception caught\n&quot;;
++		    std::clog&lt;&lt;&quot;exception caught\n&quot;;
+ 		}
+ 		++pos;
+ 	    }
+@@ -177,7 +177,7 @@
+     }
+     else
+     {
+-	std::cout&lt;&lt;count_&lt;&lt;&quot; features\n&quot;;
++	std::clog&lt;&lt;count_&lt;&lt;&quot; features\n&quot;;
+ 	return feature_ptr();
+     }
+ }
+
+Modified: trunk/src/SConscript
+===================================================================
+--- trunk/src/SConscript	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/src/SConscript	2006-03-19 21:53:47 UTC (rev 180)
+@@ -41,7 +41,6 @@
+     params.cpp
+     plugin.cpp
+     png_reader.cpp
+-    text.cpp
+     tiff_reader.cpp
+     wkb.cpp
+     agg_renderer.cpp
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/src/agg_renderer.cpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -87,31 +87,31 @@
+     {
+ 	Color const&amp; bg=m.getBackground();
+ 	pixmap_.setBackground(bg);
+-	std::cout &lt;&lt; &quot;scale=&quot;&lt;&lt;m.scale()&lt;&lt;std::endl;
++	std::clog &lt;&lt; &quot;scale=&quot;&lt;&lt;m.scale()&lt;&lt;std::endl;
+     }
+     
+     template &lt;typename T&gt;
+     void agg_renderer&lt;T&gt;::start_map_processing(Map const&amp; map)
+     {
+-	std::cout &lt;&lt; &quot;start map processing bbox=&quot; &lt;&lt; map.getCurrentExtent() &lt;&lt;  std::endl;
++	std::clog &lt;&lt; &quot;start map processing bbox=&quot; &lt;&lt; map.getCurrentExtent() &lt;&lt;  std::endl;
+     }
+ 
+     template &lt;typename T&gt;
+     void agg_renderer&lt;T&gt;::end_map_processing(Map const&amp; )
+     {
+-	std::cout &lt;&lt; &quot;end map processing&quot; &lt;&lt; std::endl;
++	std::clog &lt;&lt; &quot;end map processing&quot; &lt;&lt; std::endl;
+     }
+     
+     template &lt;typename T&gt;
+     void agg_renderer&lt;T&gt;::start_layer_processing(Layer const&amp; lay)
+     {
+-	std::cout &lt;&lt; &quot;start layer processing : &quot; &lt;&lt; lay.name()  &lt;&lt; std::endl;
++	std::clog &lt;&lt; &quot;start layer processing : &quot; &lt;&lt; lay.name()  &lt;&lt; std::endl;
+     }
+     
+     template &lt;typename T&gt;
+     void agg_renderer&lt;T&gt;::end_layer_processing(Layer const&amp;)
+     {
+-	std::cout &lt;&lt; &quot;end layer processing&quot; &lt;&lt; std::endl;
++	std::clog &lt;&lt; &quot;end layer processing&quot; &lt;&lt; std::endl;
+     }
+     
+     template &lt;typename T&gt;	
+@@ -300,7 +300,7 @@
+ 	typedef agg::rasterizer_outline_aa&lt;renderer_type&gt; rasterizer_type;
+ 
+ 	geometry_ptr const&amp; geom=feature.get_geometry();
+-	if (geom)
++	if (geom &amp;&amp; geom-&gt;num_points() &gt; 1)
+ 	{
+ 	    unsigned width = pixmap_.width();
+ 	    unsigned height = pixmap_.height();
+@@ -336,7 +336,7 @@
+ 	    agg::span_allocator&lt;agg::rgba8&gt;,
+ 	    span_gen_type&gt; renderer_type;  
+ 	geometry_ptr const&amp; geom=feature.get_geometry();
+-	if (geom)
++	if (geom &amp;&amp; geom-&gt;num_points() &gt; 2)
+ 	{
+ 	    ImageData32 const&amp; pattern = sym.get_pattern();
+ 	    
+
+Modified: trunk/src/datasource_cache.cpp
+===================================================================
+--- trunk/src/datasource_cache.cpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/src/datasource_cache.cpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -1,4 +1,4 @@
+-/* This file is part of Mapnik (c++ mapping toolkit)
++ /* This file is part of Mapnik (c++ mapping toolkit)
+  * Copyright (C) 2005 Artem Pavlenko
+  *
+  * Mapnik is free software; you can redistribute it and/or
+@@ -58,7 +58,7 @@
+                     create_ds* create_datasource = (create_ds*) lt_dlsym(itr-&gt;second-&gt;handle(), &quot;create&quot;);
+                     if (!create_datasource)
+                     {
+-                        std::cerr &lt;&lt; &quot;Cannot load symbols: &quot; &lt;&lt; lt_dlerror() &lt;&lt; std::endl;
++                        std::clog &lt;&lt; &quot;Cannot load symbols: &quot; &lt;&lt; lt_dlerror() &lt;&lt; std::endl;
+                     }
+                     else
+                     {
+@@ -67,18 +67,18 @@
+                 }
+                 else
+                 {
+-                    std::cerr &lt;&lt; &quot;Cannot load library: &quot; &lt;&lt; &quot;  &quot;&lt;&lt; lt_dlerror() &lt;&lt; std::endl;
++                    std::clog &lt;&lt; &quot;Cannot load library: &quot; &lt;&lt; &quot;  &quot;&lt;&lt; lt_dlerror() &lt;&lt; std::endl;
+                 }
+             }
+-            std::cout&lt;&lt;&quot;datasource=&quot;&lt;&lt;ds&lt;&lt;&quot; type=&quot;&lt;&lt;type&lt;&lt;std::endl;
++            std::clog&lt;&lt;&quot;datasource=&quot;&lt;&lt;ds&lt;&lt;&quot; type=&quot;&lt;&lt;type&lt;&lt;std::endl;
+         }
+ 	catch (datasource_exception&amp; ex)
+ 	{
+-	    std::cerr&lt;&lt;ex.what()&lt;&lt;std::endl;
++	    std::clog&lt;&lt;ex.what()&lt;&lt;std::endl;
+ 	}
+         catch (...)
+         {
+-            std::cerr&lt;&lt;&quot;exception caught &quot;&lt;&lt;std::endl;
++            std::clog&lt;&lt;&quot;exception caught &quot;&lt;&lt;std::endl;
+         }
+         return ds;
+     }
+@@ -106,13 +106,13 @@
+ 			datasource_name* ds_name = (datasource_name*) lt_dlsym(module, &quot;datasource_name&quot;);
+ 			if (ds_name &amp;&amp; insert(ds_name(),module))
+ 			{                           
+-			    std::cout&lt;&lt;&quot;registered datasource : &quot;&lt;&lt;ds_name()&lt;&lt;std::endl;
++			    std::clog&lt;&lt;&quot;registered datasource : &quot;&lt;&lt;ds_name()&lt;&lt;std::endl;
+ 			    registered_=true;
+ 			}
+ 		    }
+ 		    else
+ 		    {
+-			std::cerr&lt;&lt;lt_dlerror()&lt;&lt;std::endl;
++			std::clog&lt;&lt;lt_dlerror()&lt;&lt;std::endl;
+ 		    }
+                 }
+             }   
+
+Modified: trunk/src/layer.cpp
+===================================================================
+--- trunk/src/layer.cpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/src/layer.cpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -154,7 +154,7 @@
+ 	    }
+ 	    catch (...)
+ 	    {
+-		std::cerr &lt;&lt; &quot;exception caught : can not create datasorce&quot; &lt;&lt; std::endl;  
++		std::clog &lt;&lt; &quot;exception caught : can not create datasorce&quot; &lt;&lt; std::endl;  
+ 	    }
+ 	}
+ 	return ds_;
+
+Modified: trunk/src/line_pattern_symbolizer.cpp
+===================================================================
+--- trunk/src/line_pattern_symbolizer.cpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/src/line_pattern_symbolizer.cpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -37,7 +37,7 @@
+ 	} 
+ 	catch (...) 
+ 	{
+-	    std::cerr &lt;&lt; &quot;exception caught...&quot; &lt;&lt; std::endl;
++	    std::clog &lt;&lt; &quot;exception caught...&quot; &lt;&lt; std::endl;
+ 	}
+     }
+ 
+
+Modified: trunk/src/memory.cpp
+===================================================================
+--- trunk/src/memory.cpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/src/memory.cpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -47,7 +47,7 @@
+ 
+     void Object::operator delete(void* p, MemoryManager* manager)
+     {
+-        std::cout &lt;&lt;&quot;operator delete with Manager &quot;&lt;&lt;std::hex&lt;&lt;p&lt;&lt;&quot; &quot;&lt;&lt;manager&lt;&lt;std::endl;
++        std::clog &lt;&lt;&quot;operator delete with Manager &quot;&lt;&lt;std::hex&lt;&lt;p&lt;&lt;&quot; &quot;&lt;&lt;manager&lt;&lt;std::endl;
+     }
+ 
+     inline size_t MemoryUtils::alignPointerSize(size_t ptrSize)
+
+Modified: trunk/src/png_reader.cpp
+===================================================================
+--- trunk/src/png_reader.cpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/src/png_reader.cpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -66,7 +66,7 @@
+ 	} 
+ 	catch (const ImageReaderException&amp; e) 
+ 	{
+-	    std::cerr&lt;&lt;e.what()&lt;&lt;std::endl;
++	    std::clog&lt;&lt;e.what()&lt;&lt;std::endl;
+ 	    throw;
+ 	}
+     }
+@@ -112,7 +112,7 @@
+ 	width_=width;
+ 	height_=height;
+ 	
+-	std::cout&lt;&lt;&quot;bit_depth=&quot;&lt;&lt;bit_depth_&lt;&lt;&quot; color_type=&quot;&lt;&lt;color_type_&lt;&lt;std::endl;
++	std::clog&lt;&lt;&quot;bit_depth=&quot;&lt;&lt;bit_depth_&lt;&lt;&quot; color_type=&quot;&lt;&lt;color_type_&lt;&lt;std::endl;
+ 	png_destroy_read_struct(&amp;png_ptr,&amp;info_ptr,0);	
+ 	fclose(fp);
+     }
+
+Modified: trunk/src/point_symbolizer.cpp
+===================================================================
+--- trunk/src/point_symbolizer.cpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/src/point_symbolizer.cpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -36,7 +36,7 @@
+ 	} 
+ 	catch (...) 
+ 	{
+-	    std::cerr&lt;&lt;&quot;exception caught...&quot; &lt;&lt; std::endl;
++	    std::clog&lt;&lt;&quot;exception caught...&quot; &lt;&lt; std::endl;
+ 	}
+     }
+     
+
+Modified: trunk/src/polygon_pattern_symbolizer.cpp
+===================================================================
+--- trunk/src/polygon_pattern_symbolizer.cpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/src/polygon_pattern_symbolizer.cpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -36,7 +36,7 @@
+ 	} 
+ 	catch (...) 
+ 	{
+-	    std::cerr&lt;&lt;&quot;exception caught...&quot;&lt;&lt;std::endl;
++	    std::clog&lt;&lt;&quot;exception caught...&quot;&lt;&lt;std::endl;
+ 	}
+     }
+     polygon_pattern_symbolizer::polygon_pattern_symbolizer(polygon_pattern_symbolizer const&amp; rhs)
+
+Modified: trunk/src/render.cpp
+===================================================================
+--- trunk/src/render.cpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/src/render.cpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -163,9 +163,9 @@
+         timer clock;
+         //////////////////////////////////////////////////////
+ 	Envelope&lt;double&gt; const&amp; extent=map.getCurrentExtent();
+-	std::cout&lt;&lt;&quot;BBOX:&quot;&lt;&lt;extent&lt;&lt;std::endl;
++	std::clog&lt;&lt;&quot;BBOX:&quot;&lt;&lt;extent&lt;&lt;std::endl;
+         double scale=map.scale();
+-        std::cout&lt;&lt;&quot; scale=&quot;&lt;&lt;scale&lt;&lt;std::endl;
++        std::clog&lt;&lt;&quot; scale=&quot;&lt;&lt;scale&lt;&lt;std::endl;
+         
+ 	unsigned width=map.getWidth();
+         unsigned height=map.getHeight();
+
+Modified: trunk/src/tiff_reader.cpp
+===================================================================
+--- trunk/src/tiff_reader.cpp	2006-03-19 21:51:40 UTC (rev 179)
++++ trunk/src/tiff_reader.cpp	2006-03-19 21:53:47 UTC (rev 180)
+@@ -81,7 +81,7 @@
+ 	}
+ 	catch (ImageReaderException&amp; ex)
+ 	{
+-	    std::cerr&lt;&lt;ex.what()&lt;&lt;std::endl;
++	    std::clog&lt;&lt;ex.what()&lt;&lt;std::endl;
+ 	    throw;
+ 	}
+     }
+@@ -157,7 +157,7 @@
+ 	TIFF* tif = TIFFOpen(file_name_.c_str(), &quot;r&quot;);
+ 	if (tif)
+ 	{
+-	    std::cerr&lt;&lt;&quot;TODO:tiff is not stripped or tiled\n&quot;;
++	    std::clog&lt;&lt;&quot;TODO:tiff is not stripped or tiled\n&quot;;
+ 	    TIFFClose(tif);
+ 	}
+     }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000065.html">[Mapnik-svn] r179 - in trunk: include src
+</A></li>
+	<LI>Next message: <A HREF="000067.html">[Mapnik-svn] r181 - trunk/utils/shapeindex
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#66">[ date ]</a>
+              <a href="thread.html#66">[ thread ]</a>
+              <a href="subject.html#66">[ subject ]</a>
+              <a href="author.html#66">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

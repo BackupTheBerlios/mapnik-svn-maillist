@@ -1,0 +1,355 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r381 - in trunk: include/mapnik plugins/input/postgis
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-November/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r381%20-%20in%20trunk%3A%20include/mapnik%20plugins/input/postgis&In-Reply-To=%3C200611272113.kARLDKC7008148%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000265.html">
+   <LINK REL="Next"  HREF="000267.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r381 - in trunk: include/mapnik plugins/input/postgis</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r381%20-%20in%20trunk%3A%20include/mapnik%20plugins/input/postgis&In-Reply-To=%3C200611272113.kARLDKC7008148%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r381 - in trunk: include/mapnik plugins/input/postgis">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Mon Nov 27 22:13:20 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000265.html">[Mapnik-svn] r380 - trunk/demo/python
+</A></li>
+        <LI>Next message: <A HREF="000267.html">[Mapnik-svn] r382 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#266">[ date ]</a>
+              <a href="thread.html#266">[ thread ]</a>
+              <a href="subject.html#266">[ subject ]</a>
+              <a href="author.html#266">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-11-27 22:13:15 +0100 (Mon, 27 Nov 2006)
+New Revision: 381
+
+Modified:
+   trunk/include/mapnik/pool.hpp
+   trunk/include/mapnik/utils.hpp
+   trunk/plugins/input/postgis/connection.hpp
+   trunk/plugins/input/postgis/connection_manager.hpp
+   trunk/plugins/input/postgis/postgis.cpp
+Log:
+1. register singleton destruction with std::atexit
+2. allow connection pool to grow (up to max)
+ 
+
+
+Modified: trunk/include/mapnik/pool.hpp
+===================================================================
+--- trunk/include/mapnik/pool.hpp	2006-11-25 11:06:56 UTC (rev 380)
++++ trunk/include/mapnik/pool.hpp	2006-11-27 21:13:15 UTC (rev 381)
+@@ -68,25 +68,25 @@
+         typedef std::deque&lt;HolderType&gt; ContType;	
+ 	
+         Creator&lt;T&gt; creator_;
+-        const int initialSize_; 
+-        const int maxSize_;
++        const unsigned initialSize_; 
++        const unsigned maxSize_;
+         ContType usedPool_;
+         ContType unusedPool_;
+         boost::mutex mutex_;
+     public:
+ 
+-        Pool(const Creator&lt;T&gt;&amp; creator,int initialSize=5,int maxSize=20)
++        Pool(const Creator&lt;T&gt;&amp; creator,unsigned initialSize=1, unsigned maxSize=10)
+             :creator_(creator),
+              initialSize_(initialSize),
+              maxSize_(maxSize)
+         {
+-            for (int i=0;i&lt;initialSize_;++i) 
++            for (unsigned i=0; i &lt; initialSize_; ++i) 
+             {
+                 unusedPool_.push_back(HolderType(creator_()));
+             }
+         }
+ 
+-        const HolderType&amp; borrowObject()
++        HolderType borrowObject()
+         {	    
+             mutex::scoped_lock lock(mutex_);
+             typename ContType::iterator itr=unusedPool_.begin();
+@@ -99,11 +99,20 @@
+                 itr=unusedPool_.erase(itr);
+                 return usedPool_[usedPool_.size()-1];
+             }
+-            static const HolderType defaultObj;
+-            return defaultObj;
++            else if (unusedPool_.size() &lt; maxSize_)
++            {
++                HolderType conn(creator_());
++                usedPool_.push_back(conn);
++#ifdef MAPNIK_DEBUG
++                std::clog &lt;&lt; &quot;create &lt;&lt; &quot; &lt;&lt; conn.get() &lt;&lt; &quot;\n&quot;;
++#endif
++                return conn;
++            }
++            
++            return HolderType();
+         } 
+ 
+-        void returnObject(const HolderType&amp; obj)
++        void returnObject(HolderType obj)
+         {
+             mutex::scoped_lock lock(mutex_);
+             typename ContType::iterator itr=usedPool_.begin();
+
+Modified: trunk/include/mapnik/utils.hpp
+===================================================================
+--- trunk/include/mapnik/utils.hpp	2006-11-25 11:06:56 UTC (rev 380)
++++ trunk/include/mapnik/utils.hpp	2006-11-27 21:13:15 UTC (rev 381)
+@@ -22,6 +22,7 @@
+ #define UTILS_HPP
+ // stl
+ #include &lt;stdexcept&gt;
++#include &lt;cstdlib&gt;
+ #include &lt;limits&gt;
+ #include &lt;ctime&gt;
+ #include &lt;sstream&gt;
+@@ -66,18 +67,21 @@
+             int Test::* pMember_;
+             int (Test::*pMemberFn_)(int);
+         };
++
+     public:
++        
+         static T* create()
+         {
+             static MaxAlign staticMemory;
+             return new(&amp;staticMemory) T;
+         }
++        
+         static void destroy(volatile T* obj)
+         {
+             obj-&gt;~T();
+         }
+     };
+-
++    
+     template &lt;typename T,
+               template &lt;typename T&gt; class CreatePolicy=CreateStatic&gt; class singleton
+               {
+@@ -90,14 +94,20 @@
+                   {
+                       throw std::runtime_error(&quot;dead reference!&quot;);
+                   }
+-              protected:
+-                  static mutex mutex_;
+-                  singleton() {}
+-                  virtual ~singleton()
++                  
++                  static void DestroySingleton()
+                   {
+                       CreatePolicy&lt;T&gt;::destroy(pInstance_);
++                      pInstance_ = 0;
+                       destroyed_=true;
++#ifdef MAPNIK_DEBUG
++                      std::clog &lt;&lt; &quot; destroyed singleton \n&quot;;
++#endif
+                   }
++                  
++              protected:
++                  static mutex mutex_;
++                  singleton() {}
+               public:
+                   static  T* instance()
+                   {
+@@ -113,6 +123,8 @@
+                               else
+                               {
+                                   pInstance_=CreatePolicy&lt;T&gt;::create();
++                                  // register destruction
++                                  std::atexit(&amp;DestroySingleton);
+                               }
+                           }
+                       }
+@@ -126,72 +138,7 @@
+               template &lt;typename T&gt; class CreatePolicy&gt; T* singleton&lt;T,CreatePolicy&gt;::pInstance_=0;
+     template &lt;typename T,
+               template &lt;typename T&gt; class CreatePolicy&gt; bool singleton&lt;T,CreatePolicy&gt;::destroyed_=false;
+-
+-    template &lt;class T&gt; class Handle
+-    {
+-        T* ptr_;
+-        int* pCount_;
+-    public:
+-        T* operator-&gt;() {return ptr_;}
+-        const T* operator-&gt;() const {return ptr_;}
+-        Handle(T* ptr)
+-            :ptr_(ptr),pCount_(new int(1)) {}
+-        Handle(const Handle&amp; rhs)
+-            :ptr_(rhs.ptr_),pCount_(rhs.pCount_)
+-        {
+-            (*pCount_)++;
+-        }
+-        Handle&amp; operator=(const Handle&amp; rhs)
+-        {
+-            if (ptr_==rhs.ptr_) return *this;
+-            if (--(*pCount_)==0)
+-            {
+-                delete ptr_;
+-                delete pCount_;
+-            }
+-            ptr_=rhs.ptr_;
+-            pCount_=rhs.pCount_;
+-            (*pCount_)++;
+-            return *this;
+-        }
+-        ~Handle()
+-        {
+-            if (--(*pCount_)==0)
+-            {
+-                delete ptr_;
+-                delete pCount_;
+-            }
+-        }
+-    };
+-    
+-    //converters
+-    class BadConversion : public std::runtime_error
+-    {
+-    public:
+-        BadConversion(const std::string&amp; s)
+-            :std::runtime_error(s)
+-        {}
+-    };
+-    
+-    template &lt;typename T&gt;
+-    inline std::string toString(const T&amp; x)
+-    {
+-        std::ostringstream o;
+-        if (!(o &lt;&lt; x))
+-            throw BadConversion(std::string(&quot;toString(&quot;)
+-                                + typeid(x).name() + &quot;)&quot;);
+-        return o.str();
+-    }
+-    
+-    template&lt;typename T&gt;
+-    inline void fromString(const std::string&amp; s, T&amp; x,
+-                           bool failIfLeftoverChars = true)
+-    {
+-        std::istringstream i(s);
+-        char c;
+-        if (!(i &gt;&gt; x) || (failIfLeftoverChars &amp;&amp; i.get(c)))
+-            throw BadConversion(&quot;fromString(&quot;+s+&quot;)&quot;);
+-    }
++   
+ }
+ 
+ 
+
+Modified: trunk/plugins/input/postgis/connection.hpp
+===================================================================
+--- trunk/plugins/input/postgis/connection.hpp	2006-11-25 11:06:56 UTC (rev 380)
++++ trunk/plugins/input/postgis/connection.hpp	2006-11-27 21:13:15 UTC (rev 381)
+@@ -89,6 +89,9 @@
+     ~Connection()
+     {
+         PQfinish(conn_);
++#ifdef MAPNIK_DEBUG
++        std::clog &lt;&lt; &quot;close connection &quot; &lt;&lt; conn_ &lt;&lt; &quot;\n&quot;;
++#endif 
+     }
+ };
+ 
+
+Modified: trunk/plugins/input/postgis/connection_manager.hpp
+===================================================================
+--- trunk/plugins/input/postgis/connection_manager.hpp	2006-11-25 11:06:56 UTC (rev 380)
++++ trunk/plugins/input/postgis/connection_manager.hpp	2006-11-27 21:13:15 UTC (rev 381)
+@@ -76,7 +76,7 @@
+ 
+ public:
+ 	
+-    bool registerPool(const ConnectionCreator&lt;Connection&gt;&amp; creator,int initialSize,int maxSize) 
++    bool registerPool(const ConnectionCreator&lt;Connection&gt;&amp; creator,unsigned initialSize,unsigned maxSize) 
+     {	    
+         mutex::scoped_lock lock(mutex_);
+         if (pools_.find(creator.id())==pools_.end())
+@@ -89,7 +89,7 @@
+ 	   	     
+     }
+     
+-    const boost::shared_ptr&lt;PoolType&gt;&amp; getPool(const std::string&amp; key) 
++    boost::shared_ptr&lt;PoolType&gt; getPool(std::string const&amp; key) 
+     {
+         mutex::scoped_lock lock(mutex_);
+         ContType::const_iterator itr=pools_.find(key);
+@@ -101,7 +101,7 @@
+         return emptyPool;
+     }
+ 	
+-    const HolderType&amp; get(const std::string&amp; key)
++    HolderType get(std::string const&amp; key)
+     {
+         mutex::scoped_lock lock(mutex_);
+         ContType::const_iterator itr=pools_.find(key);
+@@ -110,10 +110,9 @@
+             boost::shared_ptr&lt;PoolType&gt; pool=itr-&gt;second;
+             return pool-&gt;borrowObject();
+         }
+-        static const HolderType EmptyConn;
+-        return EmptyConn;
++        return HolderType();
+     }
+-        
++    
+ private:
+     ConnectionManager() {}
+     ConnectionManager(const ConnectionManager&amp;);
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2006-11-25 11:06:56 UTC (rev 380)
++++ trunk/plugins/input/postgis/postgis.cpp	2006-11-27 21:13:15 UTC (rev 381)
+@@ -54,7 +54,7 @@
+                params.get(&quot;password&quot;))    
+ {     
+     ConnectionManager *mgr=ConnectionManager::instance();   
+-    mgr-&gt;registerPool(creator_,10,20);
++    mgr-&gt;registerPool(creator_,5,10);
+     
+     shared_ptr&lt;Pool&lt;Connection,ConnectionCreator&gt; &gt; pool=mgr-&gt;getPool(creator_.id());
+     if (pool)
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000265.html">[Mapnik-svn] r380 - trunk/demo/python
+</A></li>
+	<LI>Next message: <A HREF="000267.html">[Mapnik-svn] r382 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#266">[ date ]</a>
+              <a href="thread.html#266">[ thread ]</a>
+              <a href="subject.html#266">[ subject ]</a>
+              <a href="author.html#266">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

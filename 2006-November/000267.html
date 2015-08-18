@@ -1,0 +1,114 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r382 - trunk/src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-November/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r382%20-%20trunk/src&In-Reply-To=%3C200611280013.kAS0DXmF002664%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000266.html">
+   <LINK REL="Next"  HREF="000268.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r382 - trunk/src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r382%20-%20trunk/src&In-Reply-To=%3C200611280013.kAS0DXmF002664%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r382 - trunk/src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Tue Nov 28 01:13:33 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000266.html">[Mapnik-svn] r381 - in trunk: include/mapnik plugins/input/postgis
+</A></li>
+        <LI>Next message: <A HREF="000268.html">[Mapnik-svn] r383 - trunk/plugins/input/postgis
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#267">[ date ]</a>
+              <a href="thread.html#267">[ thread ]</a>
+              <a href="subject.html#267">[ subject ]</a>
+              <a href="author.html#267">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-11-28 01:13:31 +0100 (Tue, 28 Nov 2006)
+New Revision: 382
+
+Modified:
+   trunk/src/image_util.cpp
+Log:
+use libpng native alloc/dealloc 
+(/valgrind-new-delete2.patch from Jon Burgess)
+
+
+
+
+Modified: trunk/src/image_util.cpp
+===================================================================
+--- trunk/src/image_util.cpp	2006-11-27 21:13:15 UTC (rev 381)
++++ trunk/src/image_util.cpp	2006-11-28 00:13:31 UTC (rev 382)
+@@ -37,17 +37,7 @@
+ }
+ 
+ namespace mapnik
+-{
+-    //use memory manager for mem allocation in libpng
+-    png_voidp malloc_fn(png_structp png_ptr,png_size_t size)
+-    {
+-        return Object::operator new(size);
+-    }
+-    void free_fn(png_structp png_ptr, png_voidp ptr)
+-    {
+-        Object::operator delete(ptr);
+-    }
+-    
++{ 
+     template &lt;typename T&gt;
+     void save_to_file(std::string const&amp; filename,
+                       std::string const&amp; type,
+@@ -69,12 +59,11 @@
+     {
+         FILE *fp=fopen(filename.c_str(), &quot;wb&quot;);
+         if (!fp) return;
+-        png_voidp mem_ptr=0;
++        png_voidp error_ptr=0;
+         png_structp png_ptr=png_create_write_struct(PNG_LIBPNG_VER_STRING,
+-                                                    (png_voidp)mem_ptr,0, 0);
+-	
++                                                    error_ptr,0, 0);
++
+         if (!png_ptr) return;
+-        png_set_mem_fn(png_ptr,mem_ptr,malloc_fn,free_fn);
+ 
+         // switch on optimization only if supported
+ #if defined(PNG_LIBPNG_VER) &amp;&amp; (PNG_LIBPNG_VER &gt;= 10200) &amp;&amp; defined(PNG_ASSEMBLER_CODE_SUPPORTED)
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000266.html">[Mapnik-svn] r381 - in trunk: include/mapnik plugins/input/postgis
+</A></li>
+	<LI>Next message: <A HREF="000268.html">[Mapnik-svn] r383 - trunk/plugins/input/postgis
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#267">[ date ]</a>
+              <a href="thread.html#267">[ thread ]</a>
+              <a href="subject.html#267">[ subject ]</a>
+              <a href="author.html#267">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

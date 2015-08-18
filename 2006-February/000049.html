@@ -1,0 +1,185 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r163 - in trunk: include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-February/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r163%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200602212017.k1LKHeZC025813%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000048.html">
+   <LINK REL="Next"  HREF="000050.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r163 - in trunk: include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r163%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200602212017.k1LKHeZC025813%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r163 - in trunk: include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Tue Feb 21 21:17:40 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000048.html">[Mapnik-svn] r162 - in trunk: . include src
+</A></li>
+        <LI>Next message: <A HREF="000050.html">[Mapnik-svn] r164 - in trunk: bindings/python bindings/python/mapnik include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#49">[ date ]</a>
+              <a href="thread.html#49">[ thread ]</a>
+              <a href="subject.html#49">[ subject ]</a>
+              <a href="author.html#49">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-02-21 21:17:08 +0100 (Tue, 21 Feb 2006)
+New Revision: 163
+
+Modified:
+   trunk/include/agg_renderer.hpp
+   trunk/include/feature_style_processor.hpp
+   trunk/src/agg_renderer.cpp
+Log:
+added:
+1. start/end map/layer handlers 
+2. some cleanups
+
+
+
+
+Modified: trunk/include/agg_renderer.hpp
+===================================================================
+--- trunk/include/agg_renderer.hpp	2006-02-21 19:55:24 UTC (rev 162)
++++ trunk/include/agg_renderer.hpp	2006-02-21 20:17:08 UTC (rev 163)
+@@ -23,7 +23,6 @@
+ 
+ #include &quot;feature_style_processor.hpp&quot;
+ #include &lt;boost/utility.hpp&gt;
+-//#include &quot;agg_font_freetype.h&quot;
+ #include &quot;font_engine_freetype.hpp&quot;
+ 
+ namespace mapnik
+@@ -35,8 +34,8 @@
+ 	agg_renderer(Map const&amp; m, T &amp; pixmap);
+ 	void start_map_processing();
+ 	void end_map_processing();
+-	void start_layer_processing();
+-	void end_layer_processing();
++	void start_layer_processing(Layer const&amp; lay);
++	void end_layer_processing(Layer const&amp; lay);
+ 	void process(point_symbolizer const&amp; sym,Feature const&amp; feature);	    	       
+ 	void process(line_symbolizer const&amp; sym,Feature const&amp; feature);
+ 	void process(line_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
+
+Modified: trunk/include/feature_style_processor.hpp
+===================================================================
+--- trunk/include/feature_style_processor.hpp	2006-02-21 19:55:24 UTC (rev 162)
++++ trunk/include/feature_style_processor.hpp	2006-02-21 20:17:08 UTC (rev 163)
+@@ -58,8 +58,10 @@
+ 	void apply()
+ 	{
+ 	    timer clock;
++	    Processor &amp; p = static_cast&lt;Processor&amp;&gt;(*this);
++
++	    p.start_map_processing();
+ 	    
+-	    Processor &amp; p = static_cast&lt;Processor&amp;&gt;(*this);
+ 	    std::vector&lt;Layer&gt;::const_iterator itr = m_.layers().begin();
+ 	    while (itr != m_.layers().end())
+ 	    {
+@@ -70,11 +72,16 @@
+ 		}
+ 		++itr;
+ 	    }
++	    
++	    p.end_map_processing();
++	    
+ 	    clock.stop();
++	    
+ 	}	
+     private:
+ 	void apply_to_layer(Layer const&amp; lay,Processor &amp; p)
+ 	{
++	    p.start_layer_processing(lay);
+ 	    datasource *ds=lay.datasource().get();
+ 	    if (ds)
+ 	    {
+@@ -87,7 +94,6 @@
+ 		{
+ 		    std::set&lt;std::string&gt; names;
+ 		    attribute_collector&lt;Feature&gt; collector(names);
+-		    //property_index&lt;Feature&gt; indexer(names);
+ 		    std::vector&lt;rule_type*&gt; if_rules;
+ 		    std::vector&lt;rule_type*&gt; else_rules;
+ 		
+@@ -104,10 +110,8 @@
+ 			if (ruleIter-&gt;active(scale))
+ 			{
+ 			    active_rules=true;
+-			    //filter_ptr&amp; filter=const_cast&lt;filter_ptr&amp;&gt;(ruleIter-&gt;get_filter());
+-			    //filter-&gt;accept(collector);
+ 			    ruleIter-&gt;accept(collector);
+-			    //filter-&gt;accept(indexer);
++
+ 			    if (ruleIter-&gt;has_else_filter())
+ 			    {
+ 				else_rules.push_back(const_cast&lt;rule_type*&gt;(&amp;(*ruleIter)));
+@@ -171,6 +175,7 @@
+ 		    }
+ 		}
+ 	    }
++	    p.end_layer_processing(lay);
+ 	}
+ 	
+ 	Map const&amp; m_;
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-02-21 19:55:24 UTC (rev 162)
++++ trunk/src/agg_renderer.cpp	2006-02-21 20:17:08 UTC (rev 163)
+@@ -102,13 +102,13 @@
+     }
+     
+     template &lt;typename T&gt;
+-    void agg_renderer&lt;T&gt;::start_layer_processing()
++    void agg_renderer&lt;T&gt;::start_layer_processing(Layer const&amp; lay)
+     {
+-	std::cout &lt;&lt; &quot;start layer processing&quot; &lt;&lt; std::endl;
++	std::cout &lt;&lt; &quot;start layer processing : &quot; &lt;&lt; lay.name()  &lt;&lt; std::endl;
+     }
+     
+     template &lt;typename T&gt;
+-    void agg_renderer&lt;T&gt;::end_layer_processing()
++    void agg_renderer&lt;T&gt;::end_layer_processing(Layer const&amp;)
+     {
+ 	std::cout &lt;&lt; &quot;end layer processing&quot; &lt;&lt; std::endl;
+     }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000048.html">[Mapnik-svn] r162 - in trunk: . include src
+</A></li>
+	<LI>Next message: <A HREF="000050.html">[Mapnik-svn] r164 - in trunk: bindings/python bindings/python/mapnik include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#49">[ date ]</a>
+              <a href="thread.html#49">[ thread ]</a>
+              <a href="subject.html#49">[ subject ]</a>
+              <a href="author.html#49">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

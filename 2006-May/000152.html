@@ -1,0 +1,349 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r267 - trunk/include
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-May/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r267%20-%20trunk/include&In-Reply-To=%3C200605231653.k4NGrdB9001371%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000151.html">
+   <LINK REL="Next"  HREF="000153.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r267 - trunk/include</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r267%20-%20trunk/include&In-Reply-To=%3C200605231653.k4NGrdB9001371%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r267 - trunk/include">pavlenko at berlios.de
+       </A><BR>
+    <I>Tue May 23 18:53:39 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000151.html">[Mapnik-svn] r266 - in trunk: include plugins/input/postgis plugins/input/raster plugins/input/shape src
+</A></li>
+        <LI>Next message: <A HREF="000153.html">[Mapnik-svn] r268 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#152">[ date ]</a>
+              <a href="thread.html#152">[ thread ]</a>
+              <a href="subject.html#152">[ subject ]</a>
+              <a href="author.html#152">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-05-23 18:53:38 +0200 (Tue, 23 May 2006)
+New Revision: 267
+
+Modified:
+   trunk/include/feature_style_processor.hpp
+Log:
+replace tabs with spaces
+
+Modified: trunk/include/feature_style_processor.hpp
+===================================================================
+--- trunk/include/feature_style_processor.hpp	2006-05-23 16:52:10 UTC (rev 266)
++++ trunk/include/feature_style_processor.hpp	2006-05-23 16:53:38 UTC (rev 267)
+@@ -41,148 +41,148 @@
+     template &lt;typename Processor&gt;
+     class feature_style_processor 
+     {
+-	struct symbol_dispatch : public boost::static_visitor&lt;&gt;
+-	{
+-	    symbol_dispatch (Processor &amp; output,Feature const&amp; f)
+-		: output_(output),f_(f) {}
++        struct symbol_dispatch : public boost::static_visitor&lt;&gt;
++        {
++            symbol_dispatch (Processor &amp; output,Feature const&amp; f)
++                : output_(output),f_(f) {}
+ 	    
+-	    template &lt;typename T&gt;
+-	    void operator () (T const&amp; sym) const
+-	    {
+-		output_.process(sym,f_);
+-	    }
++            template &lt;typename T&gt;
++            void operator () (T const&amp; sym) const
++            {
++                output_.process(sym,f_);
++            }
+ 
+-	    Processor &amp; output_;
+-	    Feature const&amp; f_;
+-	};
++            Processor &amp; output_;
++            Feature const&amp; f_;
++        };
+     public:
+-	feature_style_processor(Map const&amp; m)
+-	    : m_(m) {}
++        feature_style_processor(Map const&amp; m)
++            : m_(m) {}
+ 	
+-	void apply()
+-	{
+-	    timer clock;
+-	    Processor &amp; p = static_cast&lt;Processor&amp;&gt;(*this);
++        void apply()
++        {
++            timer clock;
++            Processor &amp; p = static_cast&lt;Processor&amp;&gt;(*this);
+ 
+-	    p.start_map_processing(m_);
++            p.start_map_processing(m_);
+ 	    
+-	    std::vector&lt;Layer&gt;::const_iterator itr = m_.layers().begin();
+-	    while (itr != m_.layers().end())
+-	    {
+-		if (itr-&gt;isVisible(m_.scale()) &amp;&amp; 
+-		    itr-&gt;envelope().intersects(m_.getCurrentExtent()))
+-		{
+-		    apply_to_layer(*itr,p);
+-		}
+-		++itr;
+-	    }
++            std::vector&lt;Layer&gt;::const_iterator itr = m_.layers().begin();
++            while (itr != m_.layers().end())
++            {
++                if (itr-&gt;isVisible(m_.scale()) &amp;&amp; 
++                    itr-&gt;envelope().intersects(m_.getCurrentExtent()))
++                {
++                    apply_to_layer(*itr,p);
++                }
++                ++itr;
++            }
+ 	    
+-	    p.end_map_processing(m_);
++            p.end_map_processing(m_);
+ 	    
+-	    clock.stop();
++            clock.stop();
+ 	    
+-	}	
++        }	
+     private:
+-	void apply_to_layer(Layer const&amp; lay,Processor &amp; p)
+-	{
+-	    p.start_layer_processing(lay);
+-	    datasource *ds=lay.datasource().get();
+-	    if (ds)
+-	    {
+-		Envelope&lt;double&gt; const&amp; bbox=m_.getCurrentExtent();
+-		double scale = m_.scale();
++        void apply_to_layer(Layer const&amp; lay,Processor &amp; p)
++        {
++            p.start_layer_processing(lay);
++            datasource *ds=lay.datasource().get();
++            if (ds)
++            {
++                Envelope&lt;double&gt; const&amp; bbox=m_.getCurrentExtent();
++                double scale = m_.scale();
+ 	
+-		std::vector&lt;std::string&gt; const&amp; style_names = lay.styles();
+-		std::vector&lt;std::string&gt;::const_iterator stylesIter = style_names.begin();
+-		while (stylesIter != style_names.end())
+-		{
+-		    std::set&lt;std::string&gt; names;
+-		    attribute_collector&lt;Feature&gt; collector(names);
+-		    std::vector&lt;rule_type*&gt; if_rules;
+-		    std::vector&lt;rule_type*&gt; else_rules;
++                std::vector&lt;std::string&gt; const&amp; style_names = lay.styles();
++                std::vector&lt;std::string&gt;::const_iterator stylesIter = style_names.begin();
++                while (stylesIter != style_names.end())
++                {
++                    std::set&lt;std::string&gt; names;
++                    attribute_collector&lt;Feature&gt; collector(names);
++                    std::vector&lt;rule_type*&gt; if_rules;
++                    std::vector&lt;rule_type*&gt; else_rules;
+ 		
+-		    bool active_rules=false;
++                    bool active_rules=false;
+ 		    
+-		    feature_type_style const&amp; style=m_.find_style(*stylesIter++);
++                    feature_type_style const&amp; style=m_.find_style(*stylesIter++);
+ 		    
+-		    const std::vector&lt;rule_type&gt;&amp; rules=style.get_rules();
+-		    std::vector&lt;rule_type&gt;::const_iterator ruleIter=rules.begin();
++                    const std::vector&lt;rule_type&gt;&amp; rules=style.get_rules();
++                    std::vector&lt;rule_type&gt;::const_iterator ruleIter=rules.begin();
+ 		    
+-		    query q(bbox,m_.getWidth(),m_.getHeight());
+-		    while (ruleIter!=rules.end())
+-		    {
+-			if (ruleIter-&gt;active(scale))
+-			{
+-			    active_rules=true;
+-			    ruleIter-&gt;accept(collector);
++                    query q(bbox,m_.getWidth(),m_.getHeight());
++                    while (ruleIter!=rules.end())
++                    {
++                        if (ruleIter-&gt;active(scale))
++                        {
++                            active_rules=true;
++                            ruleIter-&gt;accept(collector);
+ 
+-			    if (ruleIter-&gt;has_else_filter())
+-			    {
+-				else_rules.push_back(const_cast&lt;rule_type*&gt;(&amp;(*ruleIter)));
+-			    }
+-			    else
+-			    {
+-				if_rules.push_back(const_cast&lt;rule_type*&gt;(&amp;(*ruleIter))); 		    
+-			    }
+-			}
+-			++ruleIter;
+-		    }
+-		    std::set&lt;std::string&gt;::const_iterator namesIter=names.begin();
+-		    // push all property names
+-		    while (namesIter!=names.end())
+-		    {
+-			q.add_property_name(*namesIter);
+-			++namesIter;
+-		    }
+-		    if (active_rules)
+-		    {
+-			featureset_ptr fs=ds-&gt;features(q);
+-			if (fs)
+-			{   	    
+-			    feature_ptr feature;
+-			    while ((feature = fs-&gt;next()))
+-			    {		   
+-				bool do_else=true;		    
+-				std::vector&lt;rule_type*&gt;::const_iterator itr=if_rules.begin();
+-				while (itr!=if_rules.end())
+-				{
+-				    filter_ptr const&amp; filter=(*itr)-&gt;get_filter();    
+-				    if (filter-&gt;pass(*feature))
+-				    {   
+-					do_else=false;
+-					const symbolizers&amp; symbols = (*itr)-&gt;get_symbolizers();
+-					symbolizers::const_iterator symIter=symbols.begin();
+-					while (symIter!=symbols.end())
+-					{   
+-					    boost::apply_visitor(symbol_dispatch(p,*feature),*symIter++);
+-					}
+-				    }			    
+-				    ++itr;
+-				}
+-				if (do_else)
+-				{
+-				    //else filter
+-				    std::vector&lt;rule_type*&gt;::const_iterator itr=else_rules.begin();
+-				    while (itr != else_rules.end())
+-				    {
+-					const symbolizers&amp; symbols = (*itr)-&gt;get_symbolizers();
+-					symbolizers::const_iterator symIter=symbols.begin();
+-					while (symIter!=symbols.end())
+-					{
+-					    boost::apply_visitor(symbol_dispatch(p,*feature),*symIter++);
+-					}
+-					++itr;
+-				    }
+-				}	  
+-			    }
+-			}
+-		    }
+-		}
+-	    }
+-	    p.end_layer_processing(lay);
+-	}
++                            if (ruleIter-&gt;has_else_filter())
++                            {
++                                else_rules.push_back(const_cast&lt;rule_type*&gt;(&amp;(*ruleIter)));
++                            }
++                            else
++                            {
++                                if_rules.push_back(const_cast&lt;rule_type*&gt;(&amp;(*ruleIter))); 		    
++                            }
++                        }
++                        ++ruleIter;
++                    }
++                    std::set&lt;std::string&gt;::const_iterator namesIter=names.begin();
++                    // push all property names
++                    while (namesIter!=names.end())
++                    {
++                        q.add_property_name(*namesIter);
++                        ++namesIter;
++                    }
++                    if (active_rules)
++                    {
++                        featureset_ptr fs=ds-&gt;features(q);
++                        if (fs)
++                        {   	    
++                            feature_ptr feature;
++                            while ((feature = fs-&gt;next()))
++                            {		   
++                                bool do_else=true;		    
++                                std::vector&lt;rule_type*&gt;::const_iterator itr=if_rules.begin();
++                                while (itr!=if_rules.end())
++                                {
++                                    filter_ptr const&amp; filter=(*itr)-&gt;get_filter();    
++                                    if (filter-&gt;pass(*feature))
++                                    {   
++                                        do_else=false;
++                                        const symbolizers&amp; symbols = (*itr)-&gt;get_symbolizers();
++                                        symbolizers::const_iterator symIter=symbols.begin();
++                                        while (symIter!=symbols.end())
++                                        {   
++                                            boost::apply_visitor(symbol_dispatch(p,*feature),*symIter++);
++                                        }
++                                    }			    
++                                    ++itr;
++                                }
++                                if (do_else)
++                                {
++                                    //else filter
++                                    std::vector&lt;rule_type*&gt;::const_iterator itr=else_rules.begin();
++                                    while (itr != else_rules.end())
++                                    {
++                                        const symbolizers&amp; symbols = (*itr)-&gt;get_symbolizers();
++                                        symbolizers::const_iterator symIter=symbols.begin();
++                                        while (symIter!=symbols.end())
++                                        {
++                                            boost::apply_visitor(symbol_dispatch(p,*feature),*symIter++);
++                                        }
++                                        ++itr;
++                                    }
++                                }	  
++                            }
++                        }
++                    }
++                }
++            }
++            p.end_layer_processing(lay);
++        }
+ 	
+-	Map const&amp; m_;
++        Map const&amp; m_;
+     };
+ }
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000151.html">[Mapnik-svn] r266 - in trunk: include plugins/input/postgis plugins/input/raster plugins/input/shape src
+</A></li>
+	<LI>Next message: <A HREF="000153.html">[Mapnik-svn] r268 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#152">[ date ]</a>
+              <a href="thread.html#152">[ thread ]</a>
+              <a href="subject.html#152">[ subject ]</a>
+              <a href="author.html#152">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

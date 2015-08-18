@@ -1,0 +1,146 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r176 - in trunk: include plugins/input/postgis plugins/input/raster plugins/input/shape
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r176%20-%20in%20trunk%3A%20include%20plugins/input/postgis%20plugins/input/raster%20plugins/input/shape&In-Reply-To=%3C200603082302.k28N2TpR008831%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000061.html">
+   <LINK REL="Next"  HREF="000063.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r176 - in trunk: include plugins/input/postgis plugins/input/raster plugins/input/shape</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r176%20-%20in%20trunk%3A%20include%20plugins/input/postgis%20plugins/input/raster%20plugins/input/shape&In-Reply-To=%3C200603082302.k28N2TpR008831%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r176 - in trunk: include plugins/input/postgis plugins/input/raster plugins/input/shape">pavlenko at berlios.de
+       </A><BR>
+    <I>Thu Mar  9 00:02:29 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000061.html">[Mapnik-svn] r175 - trunk
+</A></li>
+        <LI>Next message: <A HREF="000063.html">[Mapnik-svn] r177 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#62">[ date ]</a>
+              <a href="thread.html#62">[ thread ]</a>
+              <a href="subject.html#62">[ subject ]</a>
+              <a href="author.html#62">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-09 00:02:28 +0100 (Thu, 09 Mar 2006)
+New Revision: 176
+
+Modified:
+   trunk/include/geometry.hpp
+   trunk/include/math_expr.hpp
+   trunk/plugins/input/postgis/postgis.cpp
+   trunk/plugins/input/raster/raster_datasource.cpp
+   trunk/plugins/input/shape/shape.cpp
+Log:
+minor syntax corrections to comply with ansi c++
+
+
+
+Modified: trunk/include/geometry.hpp
+===================================================================
+--- trunk/include/geometry.hpp	2006-03-08 13:49:59 UTC (rev 175)
++++ trunk/include/geometry.hpp	2006-03-08 23:02:28 UTC (rev 176)
+@@ -33,7 +33,7 @@
+     enum {
+     	Point = 1,
+     	LineString = 2,
+-    	Polygon = 3,
++    	Polygon = 3
+     };
+              
+     template &lt;typename T&gt;
+
+Modified: trunk/include/math_expr.hpp
+===================================================================
+--- trunk/include/math_expr.hpp	2006-03-08 13:49:59 UTC (rev 175)
++++ trunk/include/math_expr.hpp	2006-03-08 23:02:28 UTC (rev 176)
+@@ -120,7 +120,7 @@
+ 	expression&lt;FeatureT&gt;* left_;
+ 	expression&lt;FeatureT&gt;* right_;	
+     }; 
+-};
++}
+ 
+ 
+ #endif //
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2006-03-08 13:49:59 UTC (rev 175)
++++ trunk/plugins/input/postgis/postgis.cpp	2006-03-08 23:02:28 UTC (rev 176)
+@@ -25,7 +25,7 @@
+ #include &lt;sstream&gt;
+ #include &quot;connection_manager.hpp&quot;
+ 
+-DATASOURCE_PLUGIN(postgis_datasource);
++DATASOURCE_PLUGIN(postgis_datasource)
+ 
+ const std::string postgis_datasource::GEOMETRY_COLUMNS=&quot;geometry_columns&quot;;
+ const std::string postgis_datasource::SPATIAL_REF_SYS=&quot;spatial_ref_system&quot;;
+
+Modified: trunk/plugins/input/raster/raster_datasource.cpp
+===================================================================
+--- trunk/plugins/input/raster/raster_datasource.cpp	2006-03-08 13:49:59 UTC (rev 175)
++++ trunk/plugins/input/raster/raster_datasource.cpp	2006-03-08 23:02:28 UTC (rev 176)
+@@ -24,7 +24,7 @@
+ #include &quot;raster_info.hpp&quot;
+ #include &lt;boost/lexical_cast.hpp&gt;
+ 
+-DATASOURCE_PLUGIN(raster_datasource);
++DATASOURCE_PLUGIN(raster_datasource)
+ 
+ using std::cerr;
+ using std::endl;
+
+Modified: trunk/plugins/input/shape/shape.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape.cpp	2006-03-08 13:49:59 UTC (rev 175)
++++ trunk/plugins/input/shape/shape.cpp	2006-03-08 23:02:28 UTC (rev 176)
+@@ -24,7 +24,7 @@
+ #include &lt;iostream&gt;
+ #include &lt;stdexcept&gt;
+ 
+-DATASOURCE_PLUGIN(shape_datasource);
++DATASOURCE_PLUGIN(shape_datasource)
+ 
+ shape_datasource::shape_datasource(const parameters &amp;params)
+     : shape_name_(params.get(&quot;file&quot;)),
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000061.html">[Mapnik-svn] r175 - trunk
+</A></li>
+	<LI>Next message: <A HREF="000063.html">[Mapnik-svn] r177 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#62">[ date ]</a>
+              <a href="thread.html#62">[ thread ]</a>
+              <a href="subject.html#62">[ subject ]</a>
+              <a href="author.html#62">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,147 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r402 - trunk/src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-December/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r402%20-%20trunk/src&In-Reply-To=%3C200612050016.kB50G79W008956%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000286.html">
+   <LINK REL="Next"  HREF="000288.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r402 - trunk/src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r402%20-%20trunk/src&In-Reply-To=%3C200612050016.kB50G79W008956%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r402 - trunk/src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Tue Dec  5 01:16:07 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000286.html">[Mapnik-svn] r401 - trunk/bindings/python
+</A></li>
+        <LI>Next message: <A HREF="000288.html">[Mapnik-svn] r403 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#287">[ date ]</a>
+              <a href="thread.html#287">[ thread ]</a>
+              <a href="subject.html#287">[ subject ]</a>
+              <a href="author.html#287">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-12-05 01:16:05 +0100 (Tue, 05 Dec 2006)
+New Revision: 402
+
+Modified:
+   trunk/src/agg_renderer.cpp
+   trunk/src/placement_finder.cpp
+Log:
+1. placement_finder.cpp  
+    fixed 'for' loops to work correctly when geom-&gt;num_points() &lt; 2
+    always use prefix increment even for built-in types (good practice!)
+    e.g ++i 
+
+2. agg_renderer.cpp 
+    check for number points in geometries when 
+    applying text/shield_symbolizer.
+
+      
+
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-12-04 20:12:58 UTC (rev 401)
++++ trunk/src/agg_renderer.cpp	2006-12-05 00:16:05 UTC (rev 402)
+@@ -332,7 +332,7 @@
+                                    proj_transform const&amp; prj_trans)
+     {
+         geometry_ptr const&amp; geom=feature.get_geometry();
+-        if (geom)
++        if (geom &amp;&amp; geom-&gt;num_points() &gt; 0)
+         {
+             std::wstring text = to_unicode(feature[sym.get_name()].to_string());
+             boost::shared_ptr&lt;ImageData32&gt; const&amp; data = sym.get_data();
+@@ -492,7 +492,7 @@
+     {
+         geometry_ptr const&amp; geom=feature.get_geometry();
+        
+-        if (geom)
++        if (geom &amp;&amp; geom-&gt;num_points() &gt; 0)
+         {
+             std::wstring text = to_unicode(feature[sym.get_name()].to_string());
+             if (text.length() &gt; 0)
+
+Modified: trunk/src/placement_finder.cpp
+===================================================================
+--- trunk/src/placement_finder.cpp	2006-12-04 20:12:58 UTC (rev 401)
++++ trunk/src/placement_finder.cpp	2006-12-05 00:16:05 UTC (rev 402)
+@@ -75,7 +75,8 @@
+     
+         shape_path.rewind(0);
+         shape_path.vertex(&amp;new_x,&amp;new_y);
+-        for (unsigned i = 0; i &lt; geom-&gt;num_points() - 1; i++)
++        unsigned num_points =  geom-&gt;num_points();
++        for (unsigned i = 1; i &lt; num_points; ++i)
+         {
+             double dx, dy;
+ 
+@@ -113,13 +114,13 @@
+             shape_path.vertex(&amp;old_x,&amp;old_y);
+ 
+             total_distance_ = 0.0;
+-      
+-            for (unsigned i = 0; i &lt; geom-&gt;num_points() - 1; i++)
++            
++            unsigned num_points = geom-&gt;num_points();
++            for (unsigned i = 1; i &lt; num_points ; ++i)
+             {
+                 double dx, dy;
+-          
+                 shape_path.vertex(&amp;new_x,&amp;new_y);
+-          
++                
+                 dx = new_x - old_x;
+                 dy = new_y - old_y;
+           
+@@ -330,7 +331,8 @@
+         p-&gt;shape_path.vertex(&amp;new_x,&amp;new_y);
+         old_x = new_x;
+         old_y = new_y;
+-        for (unsigned i = 0; i &lt; p-&gt;geom-&gt;num_points() - 1; i++)
++        unsigned num_points = geom-&gt;num_points();
++        for (unsigned i = 1; i &lt; num_points; ++i)
+         {
+             double dx, dy;
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000286.html">[Mapnik-svn] r401 - trunk/bindings/python
+</A></li>
+	<LI>Next message: <A HREF="000288.html">[Mapnik-svn] r403 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#287">[ date ]</a>
+              <a href="thread.html#287">[ thread ]</a>
+              <a href="subject.html#287">[ subject ]</a>
+              <a href="author.html#287">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

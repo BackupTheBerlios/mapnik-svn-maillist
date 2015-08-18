@@ -1,0 +1,1816 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r210 - in trunk/bindings/python: . pyprojection
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r210%20-%20in%20trunk/bindings/python%3A%20.%20pyprojection&In-Reply-To=%3C200603262235.k2QMZsWn025193%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000094.html">
+   <LINK REL="Next"  HREF="000096.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r210 - in trunk/bindings/python: . pyprojection</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r210%20-%20in%20trunk/bindings/python%3A%20.%20pyprojection&In-Reply-To=%3C200603262235.k2QMZsWn025193%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r210 - in trunk/bindings/python: . pyprojection">jdoyon at berlios.de
+       </A><BR>
+    <I>Mon Mar 27 00:35:54 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000094.html">[Mapnik-svn] r209 - in trunk: . fonts/ttf-bitstream-vera-1.10
+</A></li>
+        <LI>Next message: <A HREF="000096.html">[Mapnik-svn] r211 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#95">[ date ]</a>
+              <a href="thread.html#95">[ thread ]</a>
+              <a href="subject.html#95">[ subject ]</a>
+              <a href="author.html#95">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-03-27 00:35:37 +0200 (Mon, 27 Mar 2006)
+New Revision: 210
+
+Added:
+   trunk/bindings/python/pyprojection/
+   trunk/bindings/python/pyprojection/LICENSE
+   trunk/bindings/python/pyprojection/Projection.py
+   trunk/bindings/python/pyprojection/Projection_wrap.c
+   trunk/bindings/python/pyprojection/SConscript
+Log:
+Add python PROJ.4 module under mapnik python API.
+
+This makes the Projection class available from mapnik:
+
+&gt;&gt;&gt;<i> from mapnik import Projection
+</I>registered datasource : raster
+registered datasource : shape
+registered datasource : postgis
+&gt;&gt;&gt;<i> Projection
+</I>&lt;class mapnik.Projection.Projection at 0xb7f7250c&gt;
+&gt;&gt;&gt;<i>
+</I>
+
+
+
+Property changes on: trunk/bindings/python/pyprojection
+___________________________________________________________________
+Name: svn:ignore
+   + .sconsign
+
+
+Added: trunk/bindings/python/pyprojection/LICENSE
+===================================================================
+--- trunk/bindings/python/pyprojection/LICENSE	2006-03-26 22:32:03 UTC (rev 209)
++++ trunk/bindings/python/pyprojection/LICENSE	2006-03-26 22:35:37 UTC (rev 210)
+@@ -0,0 +1,27 @@
++Projection.i: SWIG interface file for PROJ.4 projection library.
++
++Copyright (c) 2001 Meridian Environmental Technology, Inc
++All rights reserved.
++
++Author: Douglas K. Rand &lt;<A HREF="https://lists.berlios.de/mailman/listinfo/mapnik-svn">rand at meridian-enviro.com</A>&gt;
++
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions
++are met:
++1. Redistributions of source code must retain the above copyright
++   notice, this list of conditions and the following disclaimer.
++2. Redistributions in binary form must reproduce the above copyright
++   notice, this list of conditions and the following disclaimer in the
++   documentation and/or other materials provided with the distribution.
++
++THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
++FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++SUCH DAMAGE.
+
+Added: trunk/bindings/python/pyprojection/Projection.py
+===================================================================
+--- trunk/bindings/python/pyprojection/Projection.py	2006-03-26 22:32:03 UTC (rev 209)
++++ trunk/bindings/python/pyprojection/Projection.py	2006-03-26 22:35:37 UTC (rev 210)
+@@ -0,0 +1,93 @@
++# This file was created automatically by SWIG.
++import Projectionc
++class Projection:
++    def __init__(self,*args):
++        self.this = apply(Projectionc.new_Projection,args)
++        self.thisown = 1
++
++    def __del__(self,Projectionc=Projectionc):
++        if self.thisown == 1 :
++            Projectionc.delete_Projection(self)
++    def Forward(*args):
++        val = apply(Projectionc.Projection_Forward,args)
++        return val
++    def Inverse(*args):
++        val = apply(Projectionc.Projection_Inverse,args)
++        return val
++    def cobject(*args):
++        val = apply(Projectionc.Projection_cobject,args)
++        return val
++    __setmethods__ = {
++        &quot;units&quot; : Projectionc.Projection_units_set,
++        &quot;proj&quot; : Projectionc.Projection_proj_set,
++    }
++    def __setattr__(self,name,value):
++        if (name == &quot;this&quot;) or (name == &quot;thisown&quot;): self.__dict__[name] = value; return
++        method = Projection.__setmethods__.get(name,None)
++        if method: return method(self,value)
++        self.__dict__[name] = value
++    __getmethods__ = {
++        &quot;units&quot; : Projectionc.Projection_units_get,
++        &quot;proj&quot; : Projectionc.Projection_proj_get,
++    }
++    def __getattr__(self,name):
++        method = Projection.__getmethods__.get(name,None)
++        if method: return method(self)
++        raise AttributeError,name
++    def __repr__(self):
++        return &quot;&lt;C Projection instance at %s&gt;&quot; % (self.this,)
++    
++    def __del__(self,Projectionc=Projectionc):
++        if getattr(self, 'thisown', 0):
++            Projectionc.delete_Projection(self)
++    
++class ProjectionPtr(Projection):
++    def __init__(self,this):
++        self.this = this
++        self.thisown = 0
++        self.__class__ = Projection
++
++
++
++
++
++#-------------- FUNCTION WRAPPERS ------------------
++
++int_array = Projectionc.int_array
++
++int_destroy = Projectionc.int_destroy
++
++int_get = Projectionc.int_get
++
++int_set = Projectionc.int_set
++
++double_array = Projectionc.double_array
++
++double_destroy = Projectionc.double_destroy
++
++double_get = Projectionc.double_get
++
++double_set = Projectionc.double_set
++
++float_array = Projectionc.float_array
++
++float_destroy = Projectionc.float_destroy
++
++float_get = Projectionc.float_get
++
++float_set = Projectionc.float_set
++
++string_array = Projectionc.string_array
++
++string_destroy = Projectionc.string_destroy
++
++string_get = Projectionc.string_get
++
++string_set = Projectionc.string_set
++
++
++
++#-------------- VARIABLE WRAPPERS ------------------
++
++DEGREES = Projectionc.DEGREES
++RADIANS = Projectionc.RADIANS
+
+Added: trunk/bindings/python/pyprojection/Projection_wrap.c
+===================================================================
+--- trunk/bindings/python/pyprojection/Projection_wrap.c	2006-03-26 22:32:03 UTC (rev 209)
++++ trunk/bindings/python/pyprojection/Projection_wrap.c	2006-03-26 22:35:37 UTC (rev 210)
+@@ -0,0 +1,1549 @@
++/* ----------------------------------------------------------------------------
++ * This file was automatically generated by SWIG (<A HREF="http://www.swig.org">http://www.swig.org</A>).
++ * Version 1.3u-20020503-1857 (Alpha 5)
++ * 
++ * This file is not intended to be easily readable and contains a number of 
++ * coding conventions designed to improve portability and efficiency. Do not make
++ * changes to this file unless you know what you are doing--modify the SWIG 
++ * interface file instead. 
++ * ----------------------------------------------------------------------------- */
++
++#define SWIGPYTHON
++/***********************************************************************
++ * common.swg
++ *
++ *     This file contains generic SWIG runtime support for pointer
++ *     type checking as well as a few commonly used macros to control
++ *     external linkage.
++ *
++ * Author : David Beazley (<A HREF="https://lists.berlios.de/mailman/listinfo/mapnik-svn">beazley at cs.uchicago.edu</A>)
++ *
++ * Copyright (c) 1999-2000, The University of Chicago
++ * 
++ * This file may be freely redistributed without license or fee provided
++ * this copyright message remains intact.
++ ************************************************************************/
++
++#include &lt;string.h&gt;
++
++#if defined(_WIN32) || defined(__WIN32__)
++#       if defined(_MSC_VER)
++#               if defined(STATIC_LINKED)
++#                       define SWIGEXPORT(a) a
++#               else
++#                       define SWIGEXPORT(a) __declspec(dllexport) a
++#               endif
++#       else
++#               if defined(__BORLANDC__)
++#                       define SWIGEXPORT(a) a _export
++#               else
++#                       define SWIGEXPORT(a) a
++#       endif
++#endif
++#else
++#       define SWIGEXPORT(a) a
++#endif
++
++#ifdef SWIG_GLOBAL
++#define SWIGRUNTIME(a) SWIGEXPORT(a)
++#else
++#define SWIGRUNTIME(a) static a
++#endif
++
++#ifdef __cplusplus
++extern &quot;C&quot; {
++#endif
++
++typedef struct swig_type_info {
++  char  *name;                 
++  void *(*converter)(void *);
++  char  *str;
++  struct swig_type_info  *next;
++  struct swig_type_info  *prev;
++} swig_type_info;
++
++#ifdef SWIG_NOINCLUDE
++SWIGEXPORT(swig_type_info *) SWIG_TypeRegister(swig_type_info *);
++SWIGEXPORT(swig_type_info *) SWIG_TypeCheck(char *c, swig_type_info *);
++SWIGEXPORT(void *) SWIG_TypeCast(swig_type_info *, void *);
++#else
++
++static swig_type_info *swig_type_list = 0;
++
++/* Register a type mapping with the type-checking */
++SWIGRUNTIME(swig_type_info *)
++SWIG_TypeRegister(swig_type_info *ti)
++{
++  swig_type_info *tc, *head, *ret, *next;
++  /* Check to see if this type has already been registered */
++  tc = swig_type_list;
++  while (tc) {
++    if (strcmp(tc-&gt;name, ti-&gt;name) == 0) {
++      /* Already exists in the table.  Just add additional types to the list */
++      head = tc;
++      next = tc-&gt;next;
++      goto l1;
++    }
++    tc = tc-&gt;prev;
++  }
++  head = ti;
++  next = 0;
++
++  /* Place in list */
++  ti-&gt;prev = swig_type_list;
++  swig_type_list = ti;
++
++  /* Build linked lists */
++ l1:
++  ret = head;
++  tc = ti + 1;
++  /* Patch up the rest of the links */
++  while (tc-&gt;name) {
++    head-&gt;next = tc;
++    tc-&gt;prev = head;
++    head = tc;
++    tc++;
++  }
++  head-&gt;next = next;
++  return ret;
++}
++
++/* Check the typename */
++SWIGRUNTIME(swig_type_info *) 
++SWIG_TypeCheck(char *c, swig_type_info *ty)
++{
++  swig_type_info *s;
++  if (!ty) return 0;        /* Void pointer */
++  s = ty-&gt;next;             /* First element always just a name */
++  while (s) {
++    if (strcmp(s-&gt;name,c) == 0) {
++      if (s == ty-&gt;next) return s;
++      /* Move s to the top of the linked list */
++      s-&gt;prev-&gt;next = s-&gt;next;
++      if (s-&gt;next) {
++	s-&gt;next-&gt;prev = s-&gt;prev;
++      }
++      /* Insert s as second element in the list */
++      s-&gt;next = ty-&gt;next;
++      if (ty-&gt;next) ty-&gt;next-&gt;prev = s;
++      ty-&gt;next = s;
++      return s;
++    }
++    s = s-&gt;next;
++  }
++  return 0;
++}
++
++/* Cast a pointer (needed for C++ inheritance */
++SWIGRUNTIME(void *) 
++SWIG_TypeCast(swig_type_info *ty, void *ptr) 
++{
++  if ((!ty) || (!ty-&gt;converter)) return ptr;
++  return (*ty-&gt;converter)(ptr);
++}
++
++/* Search for a swig_type_info structure */
++SWIGRUNTIME(void *)
++SWIG_TypeQuery(const char *name) {
++  swig_type_info *ty = swig_type_list;
++  while (ty) {
++    if (ty-&gt;str &amp;&amp; (strcmp(name,ty-&gt;str) == 0)) return ty;
++    if (ty-&gt;name &amp;&amp; (strcmp(name,ty-&gt;name) == 0)) return ty;
++    ty = ty-&gt;prev;
++  }
++  return 0;
++}
++
++#endif
++
++#ifdef __cplusplus
++}
++#endif
++
++
++
++/***********************************************************************
++ * python.swg
++ *
++ *     This file contains the runtime support for Python modules
++ *     and includes code for managing global variables and pointer
++ *     type checking.
++ *
++ * Author : David Beazley (<A HREF="https://lists.berlios.de/mailman/listinfo/mapnik-svn">beazley at cs.uchicago.edu</A>)
++ ************************************************************************/
++
++#include &lt;stdlib.h&gt;
++#include &quot;Python.h&quot;
++
++#ifdef __cplusplus
++extern &quot;C&quot; {
++#endif
++
++#define SWIG_PY_INT     1
++#define SWIG_PY_FLOAT   2
++#define SWIG_PY_STRING  3
++#define SWIG_PY_POINTER 4
++
++/* Constant information structure */
++typedef struct swig_const_info {
++    int type;
++    char *name;
++    long lvalue;
++    double dvalue;
++    void   *pvalue;
++    swig_type_info **ptype;
++} swig_const_info;
++
++#ifdef SWIG_NOINCLUDE
++
++SWIGEXPORT(PyObject *)        SWIG_newvarlink();
++SWIGEXPORT(void)              SWIG_addvarlink(PyObject *, char *, PyObject *(*)(void), int (*)(PyObject *));
++SWIGEXPORT(int)               SWIG_ConvertPtr(PyObject *, void **, swig_type_info *, int);
++SWIGEXPORT(void)              SWIG_MakePtr(char *c, void *, swig_type_info *);
++SWIGEXPORT(PyObject *)        SWIG_NewPointerObj(void *, swig_type_info *);
++SWIGEXPORT(void)              SWIG_InstallConstants(PyObject *d, swig_const_info constants[]);
++
++#else
++
++/* -----------------------------------------------------------------------------
++ * global variable support code.
++ * ----------------------------------------------------------------------------- */
++
++typedef struct swig_globalvar {   
++  char       *name;                  /* Name of global variable */
++  PyObject *(*get_attr)(void);       /* Return the current value */
++  int       (*set_attr)(PyObject *); /* Set the value */
++  struct swig_globalvar *next;
++} swig_globalvar;
++
++typedef struct swig_varlinkobject {
++  PyObject_HEAD
++  swig_globalvar *vars;
++} swig_varlinkobject;
++
++static PyObject *
++swig_varlink_repr(swig_varlinkobject *v) {
++  v = v;
++  return PyString_FromString(&quot;&lt;Global variables&gt;&quot;);
++}
++
++static int
++swig_varlink_print(swig_varlinkobject *v, FILE *fp, int flags) {
++  swig_globalvar  *var;
++  flags = flags;
++  fprintf(fp,&quot;Global variables { &quot;);
++  for (var = v-&gt;vars; var; var=var-&gt;next) {
++    fprintf(fp,&quot;%s&quot;, var-&gt;name);
++    if (var-&gt;next) fprintf(fp,&quot;, &quot;);
++  }
++  fprintf(fp,&quot; }\n&quot;);
++  return 0;
++}
++
++static PyObject *
++swig_varlink_getattr(swig_varlinkobject *v, char *n) {
++  swig_globalvar *var = v-&gt;vars;
++  while (var) {
++    if (strcmp(var-&gt;name,n) == 0) {
++      return (*var-&gt;get_attr)();
++    }
++    var = var-&gt;next;
++  }
++  PyErr_SetString(PyExc_NameError,&quot;Unknown C global variable&quot;);
++  return NULL;
++}
++
++static int
++swig_varlink_setattr(swig_varlinkobject *v, char *n, PyObject *p) {
++  swig_globalvar *var = v-&gt;vars;
++  while (var) {
++    if (strcmp(var-&gt;name,n) == 0) {
++      return (*var-&gt;set_attr)(p);
++    }
++    var = var-&gt;next;
++  }
++  PyErr_SetString(PyExc_NameError,&quot;Unknown C global variable&quot;);
++  return 1;
++}
++
++statichere PyTypeObject varlinktype = {
++  PyObject_HEAD_INIT(0)              
++  0,
++  &quot;swigvarlink&quot;,                      /* Type name    */
++  sizeof(swig_varlinkobject),         /* Basic size   */
++  0,                                  /* Itemsize     */
++  0,                                  /* Deallocator  */ 
++  (printfunc) swig_varlink_print,     /* Print        */
++  (getattrfunc) swig_varlink_getattr, /* get attr     */
++  (setattrfunc) swig_varlink_setattr, /* Set attr     */
++  0,                                  /* tp_compare   */
++  (reprfunc) swig_varlink_repr,       /* tp_repr      */    
++  0,                                  /* tp_as_number */
++  0,                                  /* tp_as_mapping*/
++  0,                                  /* tp_hash      */
++};
++
++/* Create a variable linking object for use later */
++SWIGRUNTIME(PyObject *)
++SWIG_newvarlink(void) {
++  swig_varlinkobject *result = 0;
++  result = PyMem_NEW(swig_varlinkobject,1);
++  varlinktype.ob_type = &amp;PyType_Type;    /* Patch varlinktype into a PyType */
++  result-&gt;ob_type = &varlinktype;
++  result-&gt;vars = 0;
++  result-&gt;ob_refcnt = 0;
++  Py_XINCREF((PyObject *) result);
++  return ((PyObject*) result);
++}
++
++SWIGRUNTIME(void)
++SWIG_addvarlink(PyObject *p, char *name,
++	   PyObject *(*get_attr)(void), int (*set_attr)(PyObject *p)) {
++  swig_varlinkobject *v;
++  swig_globalvar *gv;
++  v= (swig_varlinkobject *) p;
++  gv = (swig_globalvar *) malloc(sizeof(swig_globalvar));
++  gv-&gt;name = (char *) malloc(strlen(name)+1);
++  strcpy(gv-&gt;name,name);
++  gv-&gt;get_attr = get_attr;
++  gv-&gt;set_attr = set_attr;
++  gv-&gt;next = v-&gt;vars;
++  v-&gt;vars = gv;
++}
++/* Convert a pointer value */
++SWIGRUNTIME(int)
++SWIG_ConvertPtr(PyObject *obj, void **ptr, swig_type_info *ty, int flags) {
++  unsigned long p;
++  register int d;
++  swig_type_info *tc;
++  char  *c;
++  static PyObject *SWIG_this = 0;
++  int    newref = 0;
++
++  if (!obj || (obj == Py_None)) {
++    *ptr = 0;
++    return 0;
++  }
++#ifdef SWIG_COBJECT_TYPES
++  if (!(PyCObject_Check(obj))) {
++    if (!SWIG_this)
++      SWIG_this = PyString_InternFromString(&quot;this&quot;);
++    obj = PyObject_GetAttr(obj,SWIG_this);
++    newref = 1;
++    if (!obj) goto type_error;
++    if (!PyCObject_Check(obj)) {
++      Py_DECREF(obj);
++      goto type_error;
++    }
++  } 
++  *ptr = PyCObject_AsVoidPtr(obj);
++  c = (char *) PyCObject_GetDesc(obj);
++  if (newref) Py_DECREF(obj);
++  goto cobject;
++#else
++  if (!(PyString_Check(obj))) {
++    if (!SWIG_this)
++      SWIG_this = PyString_InternFromString(&quot;this&quot;);
++    obj = PyObject_GetAttr(obj,SWIG_this);
++    newref = 1;
++    if (!obj) goto type_error;
++    if (!PyString_Check(obj)) {
++      Py_DECREF(obj);
++      goto type_error;
++    }
++  } 
++  c = PyString_AsString(obj);
++  p = 0;
++  /* Pointer values must start with leading underscore */
++  if (*c != '_') {
++    *ptr = (void *) 0;
++    if (strcmp(c,&quot;NULL&quot;) == 0) {
++      if (newref) Py_DECREF(obj);
++      return 0;
++    } else {
++      if (newref) Py_DECREF(obj);
++      goto type_error;
++    }
++  }
++  c++;
++  /* Extract hex value from pointer */
++  while ((d = *c)) {
++    if ((d &gt;= '0') &amp;&amp; (d &lt;= '9'))
++      p = (p &lt;&lt; 4) + (d - '0');
++    else if ((d &gt;= 'a') &amp;&amp; (d &lt;= 'f'))
++      p = (p &lt;&lt; 4) + (d - ('a'-10));
++    else
++      break; 
++    c++;
++  }
++  *ptr = (void *) p;
++  if (newref) Py_DECREF(obj);
++#endif
++
++#ifdef SWIG_COBJECT_TYPES
++cobject:
++#endif
++
++  if (ty) {
++    tc = SWIG_TypeCheck(c,ty);
++    if (!tc) goto type_error;
++    *ptr = SWIG_TypeCast(tc,(void*)p);
++  }
++  return 0;
++
++type_error:
++
++  if (flags) {
++    if (ty) {
++      char *temp = (char *) malloc(64+strlen(ty-&gt;name));
++      sprintf(temp,&quot;Type error. Expected %s&quot;, ty-&gt;name);
++      PyErr_SetString(PyExc_TypeError, temp);
++      free((char *) temp);
++    } else {
++      PyErr_SetString(PyExc_TypeError,&quot;Expected a pointer&quot;);
++    }
++  }
++  return -1;
++}
++
++/* Take a pointer and convert it to a string */
++SWIGRUNTIME(void) 
++SWIG_MakePtr(char *c, void *ptr, swig_type_info *ty) {
++  static char hex[17] = &quot;0123456789abcdef&quot;;
++  unsigned long p, s;
++  char result[32], *r; 
++  r = result;
++  p = (unsigned long) ptr;
++  if (p &gt; 0) {
++    while (p &gt; 0) {
++      s = p &amp; 0xf;
++      *(r++) = hex[s];
++      p = p &gt;&gt; 4;
++    }
++    *r = '_';
++    while (r &gt;= result)
++      *(c++) = *(r--);
++    strcpy (c, ty-&gt;name);
++  } else {
++    strcpy (c, &quot;NULL&quot;);
++  }
++}
++
++/* Create a new pointer object */
++SWIGRUNTIME(PyObject *)
++SWIG_NewPointerObj(void *ptr, swig_type_info *type) {
++  char result[512];
++  PyObject *robj;
++  if (!ptr) {
++    Py_INCREF(Py_None);
++    return Py_None;
++  }
++#ifdef SWIG_COBJECT_TYPES
++  robj = PyCObject_FromVoidPtrAndDesc((void *) ptr, type-&gt;name, NULL);
++#else
++  SWIG_MakePtr(result,ptr,type);
++  robj = PyString_FromString(result);
++#endif
++  return robj;
++}
++
++/* Install Constants */
++SWIGRUNTIME(void)
++SWIG_InstallConstants(PyObject *d, swig_const_info constants[]) {
++  int i;
++  PyObject *obj;
++  for (i = 0; constants[i].type; i++) {
++    switch(constants[i].type) {
++    case SWIG_PY_INT:
++      obj = PyInt_FromLong(constants[i].lvalue);
++      break;
++    case SWIG_PY_FLOAT:
++      obj = PyFloat_FromDouble(constants[i].dvalue);
++      break;
++    case SWIG_PY_STRING:
++      obj = PyString_FromString((char *) constants[i].pvalue);
++      break;
++    case SWIG_PY_POINTER:
++      obj = SWIG_NewPointerObj(constants[i].pvalue, *(constants[i]).ptype);
++      break;
++    default:
++      obj = 0;
++      break;
++    }
++    if (obj) {
++      PyDict_SetItemString(d,constants[i].name,obj);
++      Py_DECREF(obj);
++    }
++  }
++}
++
++#endif
++
++#ifdef __cplusplus
++}
++#endif
++
++
++
++/* -------- TYPES TABLE (BEGIN) -------- */
++
++#define  SWIGTYPE_p_float swig_types[0] 
++#define  SWIGTYPE_p_double swig_types[1] 
++#define  SWIGTYPE_p_p_char swig_types[2] 
++#define  SWIGTYPE_p_PJ swig_types[3] 
++#define  SWIGTYPE_p_int swig_types[4] 
++#define  SWIGTYPE_p_Projection swig_types[5] 
++static swig_type_info *swig_types[7];
++
++/* -------- TYPES TABLE (END) -------- */
++
++
++/*-----------------------------------------------
++              @(target):= Projectionc.so
++  ------------------------------------------------*/
++#define SWIG_init    initProjectionc
++
++#define SWIG_name    &quot;Projectionc&quot;
++
++#include &lt;projects.h&gt;
++
++    // We wrap the PJ structure in our own so we can keep the
++    // type of units the user wants to operate in along.
++    typedef enum {DEGREES, RADIANS} Units;
++    typedef struct {
++	Units units;
++	PJ *proj;
++    } Projection;
++
++static PyObject* l_output_helper(PyObject* target, PyObject* o) {
++    PyObject*   o2;
++    if (!target) {                   
++        target = o;
++    } else if (target == Py_None) {  
++        Py_DECREF(Py_None);
++        target = o;
++    } else {                         
++        if (!PyList_Check(target)) {
++            o2 = target;
++            target = PyList_New(0);
++            PyList_Append(target, o2);
++	    Py_XDECREF(o2);
++        }
++        PyList_Append(target,o);
++	Py_XDECREF(o);
++    }
++    return target;
++}
++
++static PyObject* t_output_helper(PyObject* target, PyObject* o) {
++    PyObject*   o2;
++    PyObject*   o3;
++
++    if (!target) {                   
++        target = o;
++    } else if (target == Py_None) {  
++        Py_DECREF(Py_None);
++        target = o;
++    } else {                         
++        if (!PyTuple_Check(target)) {
++            o2 = target;
++            target = PyTuple_New(1);
++            PyTuple_SetItem(target, 0, o2);
++        }
++        o3 = PyTuple_New(1);            
++        PyTuple_SetItem(o3, 0, o);      
++
++        o2 = target;
++        target = PySequence_Concat(o2, o3); 
++        Py_DECREF(o2);                      
++        Py_DECREF(o3);
++    }
++    return target;
++}
++
++#define  SWIG_MemoryError    1
++#define  SWIG_IOError        2
++#define  SWIG_RuntimeError   3
++#define  SWIG_IndexError     4
++#define  SWIG_TypeError      5
++#define  SWIG_DivisionByZero 6
++#define  SWIG_OverflowError  7
++#define  SWIG_SyntaxError    8
++#define  SWIG_ValueError     9
++#define  SWIG_SystemError   10
++#define  SWIG_UnknownError  99
++
++static void _SWIG_exception(int code, char *msg) {
++  switch(code) {
++  case SWIG_MemoryError:
++    PyErr_SetString(PyExc_MemoryError,msg);
++    break;
++  case SWIG_IOError:
++    PyErr_SetString(PyExc_IOError,msg);
++    break;
++  case SWIG_RuntimeError:
++    PyErr_SetString(PyExc_RuntimeError,msg);
++    break;
++  case SWIG_IndexError:
++    PyErr_SetString(PyExc_IndexError,msg);
++    break;
++  case SWIG_TypeError:
++    PyErr_SetString(PyExc_TypeError,msg);
++    break;
++  case SWIG_DivisionByZero:
++    PyErr_SetString(PyExc_ZeroDivisionError,msg);
++    break;
++  case SWIG_OverflowError:
++    PyErr_SetString(PyExc_OverflowError,msg);
++    break;
++  case SWIG_SyntaxError:
++    PyErr_SetString(PyExc_SyntaxError,msg);
++    break;
++  case SWIG_ValueError:
++    PyErr_SetString(PyExc_ValueError,msg);
++    break;
++  case SWIG_SystemError:
++    PyErr_SetString(PyExc_SystemError,msg);
++    break;
++  default:
++    PyErr_SetString(PyExc_RuntimeError,msg);
++    break;
++  }
++}
++
++#define SWIG_exception(a,b) { _SWIG_exception(a,b); return NULL; }
++
++#include &lt;limits.h&gt;
++
++/* Create a new integer array */
++
++  static int *int_array(int size) {
++#ifdef __cplusplus
++    return new int[size];
++#else
++    return (int *) malloc(size*sizeof(int));
++#endif
++  }
++
++  /* Destroy an integer array */
++
++  static void int_destroy(int *array) {
++    if (array) {
++#ifdef __cplusplus
++      delete [] array;
++#else
++      free(array);
++#endif
++    }
++  }
++
++  /* Return an element */
++
++  static int int_get(int *array, int index) {
++    if (array) {
++      return array[index];
++    } else {
++      return INT_MIN;
++    }
++  }
++   
++  /* Set an element */
++  
++  static int int_set(int *array, int index, int value) {
++    if (array) {
++      return (array[index] = value);
++    } else {
++      return INT_MIN;
++    }
++  }
++
++
++  #include &lt;float.h&gt;
++
++  /* Create a new float array */
++
++  static float *float_array(int size) {
++#ifdef __cplusplus
++    return new float[size];
++#else
++    return (float *) malloc(size*sizeof(float));
++#endif
++  }
++
++  /* Destroy an array */
++
++  static void float_destroy(float *array) {
++    if (array) {
++#ifdef __cplusplus
++      delete [] array;
++#else
++      free(array);
++#endif
++    }
++  }
++
++  /* Return an element */
++
++  static float float_get(float *array, int index) {
++    if (array) {
++      return array[index];
++    } else {
++      return FLT_MIN;
++    }
++  }
++   
++  /* Set an element */
++  
++  static float float_set(float *array, int index, float value) {
++    if (array) {
++      return (array[index] = value);
++    } else {
++      return FLT_MIN;
++    }
++  }
++
++  /* Create a new double array */
++
++  static double *double_array(int size) {
++#ifdef __cplusplus
++    return new double[size];
++#else
++    return (double *) malloc(size*sizeof(double));
++#endif
++  }
++
++  /* Destroy an array */
++
++  static void double_destroy(double *array) {
++    if (array) {
++#ifdef __cplusplus
++      delete [] array;
++#else
++      free(array);
++#endif
++    }
++  }
++
++  /* Return an element */
++
++  static double double_get(double *array, int index) {
++    if (array) {
++      return array[index];
++    } else {
++      return FLT_MIN;
++    }
++  }
++   
++  /* Set an element */
++  
++  static double double_set(double *array, int index, double value) {
++    if (array) {
++      return (array[index] = value);
++    } else {
++      return FLT_MIN;
++    }
++  }
++
++
++/* Create character string arrays */
++
++static char **string_array(int size) {
++  char **a;
++  int i;
++#ifdef __cplusplus
++  a = new char *[size];
++#else
++  a = (char **) malloc(size*sizeof(char *));
++#endif
++  for (i = 0; i &lt; size; i++)
++    a[i] = 0;
++  return a;
++}
++
++/* Destroy a string array */
++
++static void string_destroy(char **array) {
++  int i = 0;
++  if (array) {
++      while (array[i]) {
++#ifdef __cplusplus
++            delete array[i];
++#else
++            free(array[i]);
++#endif
++            i++;
++      }          	
++#ifdef __cplusplus
++     delete [] array;
++#else
++     free(array);
++#endif
++   }      
++}
++
++/* Get an element */
++
++static char *string_get(char **array_string, int index) {
++  if (array_string) 
++    if (array_string[index]) return (array_string[index]);
++    else return &quot;&quot;;
++  else 
++    return &quot;&quot;;
++}
++
++/* Set an element */
++
++static char *string_set(char **array_string, int index, char * val) {
++  if (array_string) {
++    if (array_string[index]) {
++#ifdef __cplusplus
++	delete array_string[index];
++#else
++        free(array_string[index]);
++#endif
++    }	
++    if (strlen(val) &gt; 0) {
++#ifdef __cplusplus
++      array_string[index] = new char[strlen(val)+1];
++#else
++      array_string[index] = (char *) malloc(strlen(val)+1);
++#endif
++      strcpy(array_string[index],val);
++      return array_string[index];
++    } else {
++      array_string[index] = 0;
++      return val;
++    }
++  } else return val;
++}
++
++
++    // Make a brand new projection
++    Projection *new_Projection(char **argv, Units units) {
++	int argc = 0;
++	char **p;
++	PJ *proj;
++	Projection *pj = NULL;
++	
++	for(p = argv; p != NULL &amp;&amp; *p != NULL; p++) argc++;
++	proj = pj_init(argc, argv);
++	if(proj != NULL) {
++	    pj = (Projection *) malloc(sizeof(Projection));
++	    pj-&gt;units = units;
++	    pj-&gt;proj = proj;
++	}
++	return pj;
++    }
++
++    // Get rid of a projection
++    void delete_Projection(Projection *self) {
++	if(self != NULL) {
++	    if(self-&gt;proj != NULL)
++		pj_free(self-&gt;proj);
++	    free(self);  
++	} 
++    }
++
++    // Do a forward (lat/lon --&gt; world) translation
++    void Projection_Forward(Projection *self, double lat, double lon, double *u, double *v) {
++	projUV latlon, result;
++	latlon.u = lat;
++	latlon.v = lon;
++	if(self-&gt;units == DEGREES) {
++	    latlon.u *= DEG_TO_RAD;
++	    latlon.v *= DEG_TO_RAD;
++	}
++	result = pj_fwd(latlon, self-&gt;proj);
++	*u = result.u;
++	*v = result.v;
++    }
++
++    // Do a reverse (world --&gt; lat/lon) translation
++    void Projection_Inverse(Projection *self, double u, double v, double *lat, double *lon) {
++	projUV world, result;
++	world.u = u;
++	world.v = v;
++	result = pj_inv(world, self-&gt;proj);
++	if(self-&gt;units == DEGREES) {
++	    result.u *= RAD_TO_DEG;
++	    result.v *= RAD_TO_DEG;
++	}
++	*lat = result.u;
++	*lon = result.v;
++    }
++#ifdef __cplusplus
++extern &quot;C&quot; {
++#endif
++static PyObject *_wrap_int_array(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    int arg0 ;
++    int *result ;
++    
++    if(!PyArg_ParseTuple(args,&quot;i:int_array&quot;,&amp;arg0)) return NULL;
++    result = (int *)int_array(arg0);
++    resultobj = SWIG_NewPointerObj((void *) result, SWIGTYPE_p_int);
++    {
++        if (!result) {
++            SWIG_exception(SWIG_MemoryError,&quot;Out of memory.&quot;);
++        }
++    }
++    return resultobj;
++}
++
++
++static PyObject *_wrap_int_destroy(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    int *arg0 ;
++    PyObject * argo0 =0 ;
++    
++    if(!PyArg_ParseTuple(args,&quot;O:int_destroy&quot;,&amp;argo0)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_int,1)) == -1) return NULL;
++    {
++        if (!arg0) {
++            SWIG_exception(SWIG_ValueError,&quot;Received a NULL Pointer&quot;);
++        }
++    }
++    int_destroy(arg0);
++    Py_INCREF(Py_None);
++    resultobj = Py_None;
++    return resultobj;
++}
++
++
++static PyObject *_wrap_int_get(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    int *arg0 ;
++    int arg1 ;
++    PyObject * argo0 =0 ;
++    int result ;
++    
++    if(!PyArg_ParseTuple(args,&quot;Oi:int_get&quot;,&amp;argo0,&amp;arg1)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_int,1)) == -1) return NULL;
++    {
++        if (!arg0) {
++            SWIG_exception(SWIG_ValueError,&quot;Received a NULL Pointer&quot;);
++        }
++    }
++    result = (int )int_get(arg0,arg1);
++    resultobj = PyInt_FromLong((long)result);
++    return resultobj;
++}
++
++
++static PyObject *_wrap_int_set(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    int *arg0 ;
++    int arg1 ;
++    int arg2 ;
++    PyObject * argo0 =0 ;
++    int result ;
++    
++    if(!PyArg_ParseTuple(args,&quot;Oii:int_set&quot;,&amp;argo0,&amp;arg1,&amp;arg2)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_int,1)) == -1) return NULL;
++    {
++        if (!arg0) {
++            SWIG_exception(SWIG_ValueError,&quot;Received a NULL Pointer&quot;);
++        }
++    }
++    result = (int )int_set(arg0,arg1,arg2);
++    resultobj = PyInt_FromLong((long)result);
++    return resultobj;
++}
++
++
++static PyObject *_wrap_double_array(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    int arg0 ;
++    double *result ;
++    
++    if(!PyArg_ParseTuple(args,&quot;i:double_array&quot;,&amp;arg0)) return NULL;
++    result = (double *)double_array(arg0);
++    resultobj = SWIG_NewPointerObj((void *) result, SWIGTYPE_p_double);
++    {
++        if (!result) {
++            SWIG_exception(SWIG_MemoryError,&quot;Out of memory.&quot;);
++        }
++    }
++    return resultobj;
++}
++
++
++static PyObject *_wrap_double_destroy(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    double *arg0 ;
++    PyObject * argo0 =0 ;
++    
++    if(!PyArg_ParseTuple(args,&quot;O:double_destroy&quot;,&amp;argo0)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_double,1)) == -1) return NULL;
++    {
++        if (!arg0) {
++            SWIG_exception(SWIG_ValueError,&quot;Received a NULL Pointer&quot;);
++        }
++    }
++    double_destroy(arg0);
++    Py_INCREF(Py_None);
++    resultobj = Py_None;
++    return resultobj;
++}
++
++
++static PyObject *_wrap_double_get(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    double *arg0 ;
++    int arg1 ;
++    PyObject * argo0 =0 ;
++    double result ;
++    
++    if(!PyArg_ParseTuple(args,&quot;Oi:double_get&quot;,&amp;argo0,&amp;arg1)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_double,1)) == -1) return NULL;
++    {
++        if (!arg0) {
++            SWIG_exception(SWIG_ValueError,&quot;Received a NULL Pointer&quot;);
++        }
++    }
++    result = (double )double_get(arg0,arg1);
++    resultobj = PyFloat_FromDouble(result);
++    return resultobj;
++}
++
++
++static PyObject *_wrap_double_set(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    double *arg0 ;
++    int arg1 ;
++    double arg2 ;
++    PyObject * argo0 =0 ;
++    double result ;
++    
++    if(!PyArg_ParseTuple(args,&quot;Oid:double_set&quot;,&amp;argo0,&amp;arg1,&amp;arg2)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_double,1)) == -1) return NULL;
++    {
++        if (!arg0) {
++            SWIG_exception(SWIG_ValueError,&quot;Received a NULL Pointer&quot;);
++        }
++    }
++    result = (double )double_set(arg0,arg1,arg2);
++    resultobj = PyFloat_FromDouble(result);
++    return resultobj;
++}
++
++
++static PyObject *_wrap_float_array(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    int arg0 ;
++    float *result ;
++    
++    if(!PyArg_ParseTuple(args,&quot;i:float_array&quot;,&amp;arg0)) return NULL;
++    result = (float *)float_array(arg0);
++    resultobj = SWIG_NewPointerObj((void *) result, SWIGTYPE_p_float);
++    {
++        if (!result) {
++            SWIG_exception(SWIG_MemoryError,&quot;Out of memory.&quot;);
++        }
++    }
++    return resultobj;
++}
++
++
++static PyObject *_wrap_float_destroy(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    float *arg0 ;
++    PyObject * argo0 =0 ;
++    
++    if(!PyArg_ParseTuple(args,&quot;O:float_destroy&quot;,&amp;argo0)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_float,1)) == -1) return NULL;
++    {
++        if (!arg0) {
++            SWIG_exception(SWIG_ValueError,&quot;Received a NULL Pointer&quot;);
++        }
++    }
++    float_destroy(arg0);
++    Py_INCREF(Py_None);
++    resultobj = Py_None;
++    return resultobj;
++}
++
++
++static PyObject *_wrap_float_get(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    float *arg0 ;
++    int arg1 ;
++    PyObject * argo0 =0 ;
++    float result ;
++    
++    if(!PyArg_ParseTuple(args,&quot;Oi:float_get&quot;,&amp;argo0,&amp;arg1)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_float,1)) == -1) return NULL;
++    {
++        if (!arg0) {
++            SWIG_exception(SWIG_ValueError,&quot;Received a NULL Pointer&quot;);
++        }
++    }
++    result = (float )float_get(arg0,arg1);
++    resultobj = PyFloat_FromDouble(result);
++    return resultobj;
++}
++
++
++static PyObject *_wrap_float_set(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    float *arg0 ;
++    int arg1 ;
++    float arg2 ;
++    PyObject * argo0 =0 ;
++    float result ;
++    
++    if(!PyArg_ParseTuple(args,&quot;Oif:float_set&quot;,&amp;argo0,&amp;arg1,&amp;arg2)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_float,1)) == -1) return NULL;
++    {
++        if (!arg0) {
++            SWIG_exception(SWIG_ValueError,&quot;Received a NULL Pointer&quot;);
++        }
++    }
++    result = (float )float_set(arg0,arg1,arg2);
++    resultobj = PyFloat_FromDouble(result);
++    return resultobj;
++}
++
++
++static PyObject *_wrap_string_array(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    int arg0 ;
++    char **result ;
++    
++    if(!PyArg_ParseTuple(args,&quot;i:string_array&quot;,&amp;arg0)) return NULL;
++    result = (char **)string_array(arg0);
++    resultobj = SWIG_NewPointerObj((void *) result, SWIGTYPE_p_p_char);
++    {
++        if (!result) {
++            SWIG_exception(SWIG_MemoryError,&quot;Out of memory.&quot;);
++        }
++    }
++    return resultobj;
++}
++
++
++static PyObject *_wrap_string_destroy(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    char **arg0 ;
++    PyObject * argo0 =0 ;
++    
++    if(!PyArg_ParseTuple(args,&quot;O:string_destroy&quot;,&amp;argo0)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_p_char,1)) == -1) return NULL;
++    {
++        if (!arg0) {
++            SWIG_exception(SWIG_ValueError,&quot;Received a NULL Pointer&quot;);
++        }
++    }
++    string_destroy(arg0);
++    Py_INCREF(Py_None);
++    resultobj = Py_None;
++    return resultobj;
++}
++
++
++static PyObject *_wrap_string_get(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    char **arg0 ;
++    int arg1 ;
++    PyObject * argo0 =0 ;
++    char *result ;
++    
++    if(!PyArg_ParseTuple(args,&quot;Oi:string_get&quot;,&amp;argo0,&amp;arg1)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_p_char,1)) == -1) return NULL;
++    {
++        if (!arg0) {
++            SWIG_exception(SWIG_ValueError,&quot;Received a NULL Pointer&quot;);
++        }
++    }
++    result = (char *)string_get(arg0,arg1);
++    resultobj = PyString_FromString(result);
++    return resultobj;
++}
++
++
++static PyObject *_wrap_string_set(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    char **arg0 ;
++    int arg1 ;
++    char *arg2 ;
++    PyObject * argo0 =0 ;
++    char *result ;
++    
++    if(!PyArg_ParseTuple(args,&quot;Ois:string_set&quot;,&amp;argo0,&amp;arg1,&amp;arg2)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_p_char,1)) == -1) return NULL;
++    {
++        if (!arg0) {
++            SWIG_exception(SWIG_ValueError,&quot;Received a NULL Pointer&quot;);
++        }
++    }
++    result = (char *)string_set(arg0,arg1,arg2);
++    resultobj = PyString_FromString(result);
++    return resultobj;
++}
++
++
++static PyObject *_wrap_Projection_units_set(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    Projection *arg0 ;
++    int arg1 ;
++    PyObject * argo0 =0 ;
++    
++    if(!PyArg_ParseTuple(args,&quot;Oi:Projection_units_set&quot;,&amp;argo0,&amp;arg1)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_Projection,1)) == -1) return NULL;
++    arg0-&gt;units = (Units )arg1;
++    Py_INCREF(Py_None);
++    resultobj = Py_None;
++    return resultobj;
++}
++
++
++static PyObject *_wrap_Projection_units_get(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    Projection *arg0 ;
++    PyObject * argo0 =0 ;
++    int result ;
++    
++    if(!PyArg_ParseTuple(args,&quot;O:Projection_units_get&quot;,&amp;argo0)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_Projection,1)) == -1) return NULL;
++    result = (int ) (arg0-&gt;units);
++    resultobj = PyInt_FromLong((long)result);
++    return resultobj;
++}
++
++
++static PyObject *_wrap_Projection_proj_set(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    Projection *arg0 ;
++    PJ *arg1 ;
++    PyObject * argo0 =0 ;
++    PyObject * argo1 =0 ;
++    
++    if(!PyArg_ParseTuple(args,&quot;OO:Projection_proj_set&quot;,&amp;argo0,&amp;argo1)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_Projection,1)) == -1) return NULL;
++    if ((SWIG_ConvertPtr(argo1,(void **) &amp;arg1,SWIGTYPE_p_PJ,1)) == -1) return NULL;
++    arg0-&gt;proj = arg1;
++    Py_INCREF(Py_None);
++    resultobj = Py_None;
++    return resultobj;
++}
++
++
++static PyObject *_wrap_Projection_proj_get(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    Projection *arg0 ;
++    PyObject * argo0 =0 ;
++    PJ *result ;
++    
++    if(!PyArg_ParseTuple(args,&quot;O:Projection_proj_get&quot;,&amp;argo0)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_Projection,1)) == -1) return NULL;
++    result = (PJ *) (arg0-&gt;proj);
++    resultobj = SWIG_NewPointerObj((void *) result, SWIGTYPE_p_PJ);
++    return resultobj;
++}
++
++
++static PyObject *_wrap_new_Projection(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    char **arg0 ;
++    int arg1 = DEGREES ;
++    PyObject * obj0  = 0 ;
++    Projection *result ;
++    
++    if(!PyArg_ParseTuple(args,&quot;O|i:new_Projection&quot;,&amp;obj0,&amp;arg1)) return NULL;
++    {
++        /* Check if is a list */ 
++        if (PyList_Check(obj0)) {
++            int size = PyList_Size(obj0); 
++            int i = 0; 
++            arg0 = (char **) malloc((size+1)*sizeof(char *)); 
++            for (i = 0; i &lt; size; i++) {
++                PyObject *o = PyList_GetItem(obj0,i); 
++                if (PyString_Check(o)) 
++                arg0[i] = PyString_AsString(PyList_GetItem(obj0,i)); 
++                else {
++                    PyErr_SetString(PyExc_TypeError,&quot;list must contain strings&quot;); 
++                    free(arg0); 
++                    return NULL; 
++                }
++            }
++            arg0[i] = 0; 
++        }else {
++            PyErr_SetString(PyExc_TypeError,&quot;not a list&quot;); return NULL; 
++        }
++    }
++    {
++        if (!arg0) {
++            SWIG_exception(SWIG_ValueError,&quot;Received a NULL Pointer&quot;);
++        }
++    }
++    {
++        /* Use pj_get_errno_ref to access the pj_errno because directly
++        * accessing pj_errno doesn't work on windows if the proj library is
++     * in a DLL */
++    *pj_get_errno_ref() = 0;
++    result = (Projection *)new_Projection(arg0,(Units )arg1);
++;
++    if (!result)
++    {
++	/* FIXME: There's a case where result is NULL and pj_errno is
++        * not set, namely when memory allocation of the Projection
++        * struct fails. */
++        SWIG_exception(SWIG_IOError, pj_strerrno(*pj_get_errno_ref()));
++    }
++}resultobj = SWIG_NewPointerObj((void *) result, SWIGTYPE_p_Projection);
++{
++    free((char *) arg0);
++}
++return resultobj;
++}
++
++
++static PyObject *_wrap_delete_Projection(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    Projection *arg0 ;
++    PyObject * argo0 =0 ;
++    
++    if(!PyArg_ParseTuple(args,&quot;O:delete_Projection&quot;,&amp;argo0)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_Projection,1)) == -1) return NULL;
++    delete_Projection(arg0);
++    Py_INCREF(Py_None);
++    resultobj = Py_None;
++    return resultobj;
++}
++
++
++static PyObject *_wrap_Projection_Forward(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    Projection *arg0 ;
++    double arg1 ;
++    double arg2 ;
++    double *arg3 ;
++    double *arg4 ;
++    double temp ;
++    double temp0 ;
++    PyObject * argo0 =0 ;
++    
++    {
++        arg3 = &temp;
++    }
++    {
++        arg4 = &amp;temp0;
++    }
++    if(!PyArg_ParseTuple(args,&quot;Odd:Projection_Forward&quot;,&amp;argo0,&amp;arg1,&amp;arg2)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_Projection,1)) == -1) return NULL;
++    {
++        if (!arg3) {
++            SWIG_exception(SWIG_ValueError,&quot;Received a NULL Pointer&quot;);
++        }
++    }
++    {
++        if (!arg4) {
++            SWIG_exception(SWIG_ValueError,&quot;Received a NULL Pointer&quot;);
++        }
++    }
++    Projection_Forward(arg0,arg1,arg2,arg3,arg4);
++    Py_INCREF(Py_None);
++    resultobj = Py_None;
++    {
++        PyObject *o; 
++        o = PyFloat_FromDouble(*arg3); 
++        if ((!resultobj) || (resultobj == Py_None)) {
++            resultobj = o; 
++        }else {
++            if (!PyList_Check(resultobj)) {
++                PyObject *o2 = resultobj; 
++                resultobj = PyList_New(0); 
++                PyList_Append(resultobj,o2); 
++                Py_XDECREF(o2); 
++            }
++            PyList_Append(resultobj,o); 
++            Py_XDECREF(o); 
++        }
++    }
++    {
++        PyObject *o; 
++        o = PyFloat_FromDouble(*arg4); 
++        if ((!resultobj) || (resultobj == Py_None)) {
++            resultobj = o; 
++        }else {
++            if (!PyList_Check(resultobj)) {
++                PyObject *o2 = resultobj; 
++                resultobj = PyList_New(0); 
++                PyList_Append(resultobj,o2); 
++                Py_XDECREF(o2); 
++            }
++            PyList_Append(resultobj,o); 
++            Py_XDECREF(o); 
++        }
++    }
++    return resultobj;
++}
++
++
++static PyObject *_wrap_Projection_Inverse(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    Projection *arg0 ;
++    double arg1 ;
++    double arg2 ;
++    double *arg3 ;
++    double *arg4 ;
++    double temp ;
++    double temp0 ;
++    PyObject * argo0 =0 ;
++    
++    {
++        arg3 = &temp;
++    }
++    {
++        arg4 = &amp;temp0;
++    }
++    if(!PyArg_ParseTuple(args,&quot;Odd:Projection_Inverse&quot;,&amp;argo0,&amp;arg1,&amp;arg2)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_Projection,1)) == -1) return NULL;
++    {
++        if (!arg3) {
++            SWIG_exception(SWIG_ValueError,&quot;Received a NULL Pointer&quot;);
++        }
++    }
++    {
++        if (!arg4) {
++            SWIG_exception(SWIG_ValueError,&quot;Received a NULL Pointer&quot;);
++        }
++    }
++    Projection_Inverse(arg0,arg1,arg2,arg3,arg4);
++    Py_INCREF(Py_None);
++    resultobj = Py_None;
++    {
++        PyObject *o; 
++        o = PyFloat_FromDouble(*arg3); 
++        if ((!resultobj) || (resultobj == Py_None)) {
++            resultobj = o; 
++        }else {
++            if (!PyList_Check(resultobj)) {
++                PyObject *o2 = resultobj; 
++                resultobj = PyList_New(0); 
++                PyList_Append(resultobj,o2); 
++                Py_XDECREF(o2); 
++            }
++            PyList_Append(resultobj,o); 
++            Py_XDECREF(o); 
++        }
++    }
++    {
++        PyObject *o; 
++        o = PyFloat_FromDouble(*arg4); 
++        if ((!resultobj) || (resultobj == Py_None)) {
++            resultobj = o; 
++        }else {
++            if (!PyList_Check(resultobj)) {
++                PyObject *o2 = resultobj; 
++                resultobj = PyList_New(0); 
++                PyList_Append(resultobj,o2); 
++                Py_XDECREF(o2); 
++            }
++            PyList_Append(resultobj,o); 
++            Py_XDECREF(o); 
++        }
++    }
++    return resultobj;
++}
++
++
++PyObject * Projection_cobject(Projection *self) {
++    {
++        return PyCObject_FromVoidPtr(self-&gt;proj, NULL);
++    }
++}
++
++
++static PyObject *_wrap_Projection_cobject(PyObject *self, PyObject *args) {
++    PyObject *resultobj;
++    Projection *arg0 ;
++    PyObject * argo0 =0 ;
++    PyObject *result ;
++    
++    if(!PyArg_ParseTuple(args,&quot;O:Projection_cobject&quot;,&amp;argo0)) return NULL;
++    if ((SWIG_ConvertPtr(argo0,(void **) &amp;arg0,SWIGTYPE_p_Projection,1)) == -1) return NULL;
++    result = (PyObject *)Projection_cobject(arg0);
++    {
++        resultobj = result;
++    }
++    return resultobj;
++}
++
++
++static PyMethodDef ProjectioncMethods[] = {
++	 { &quot;int_array&quot;, _wrap_int_array, METH_VARARGS },
++	 { &quot;int_destroy&quot;, _wrap_int_destroy, METH_VARARGS },
++	 { &quot;int_get&quot;, _wrap_int_get, METH_VARARGS },
++	 { &quot;int_set&quot;, _wrap_int_set, METH_VARARGS },
++	 { &quot;double_array&quot;, _wrap_double_array, METH_VARARGS },
++	 { &quot;double_destroy&quot;, _wrap_double_destroy, METH_VARARGS },
++	 { &quot;double_get&quot;, _wrap_double_get, METH_VARARGS },
++	 { &quot;double_set&quot;, _wrap_double_set, METH_VARARGS },
++	 { &quot;float_array&quot;, _wrap_float_array, METH_VARARGS },
++	 { &quot;float_destroy&quot;, _wrap_float_destroy, METH_VARARGS },
++	 { &quot;float_get&quot;, _wrap_float_get, METH_VARARGS },
++	 { &quot;float_set&quot;, _wrap_float_set, METH_VARARGS },
++	 { &quot;string_array&quot;, _wrap_string_array, METH_VARARGS },
++	 { &quot;string_destroy&quot;, _wrap_string_destroy, METH_VARARGS },
++	 { &quot;string_get&quot;, _wrap_string_get, METH_VARARGS },
++	 { &quot;string_set&quot;, _wrap_string_set, METH_VARARGS },
++	 { &quot;Projection_units_set&quot;, _wrap_Projection_units_set, METH_VARARGS },
++	 { &quot;Projection_units_get&quot;, _wrap_Projection_units_get, METH_VARARGS },
++	 { &quot;Projection_proj_set&quot;, _wrap_Projection_proj_set, METH_VARARGS },
++	 { &quot;Projection_proj_get&quot;, _wrap_Projection_proj_get, METH_VARARGS },
++	 { &quot;new_Projection&quot;, _wrap_new_Projection, METH_VARARGS },
++	 { &quot;delete_Projection&quot;, _wrap_delete_Projection, METH_VARARGS },
++	 { &quot;Projection_Forward&quot;, _wrap_Projection_Forward, METH_VARARGS },
++	 { &quot;Projection_Inverse&quot;, _wrap_Projection_Inverse, METH_VARARGS },
++	 { &quot;Projection_cobject&quot;, _wrap_Projection_cobject, METH_VARARGS },
++	 { NULL, NULL }
++};
++
++#ifdef __cplusplus
++}
++#endif
++
++/* -------- TYPE CONVERSION AND EQUIVALENCE RULES (BEGIN) -------- */
++
++static swig_type_info _swigt__p_float[] = {{&quot;_p_float&quot;, 0, &quot;float *&quot;},{&quot;_p_float&quot;},{0}};
++static swig_type_info _swigt__p_double[] = {{&quot;_p_double&quot;, 0, &quot;double *&quot;},{&quot;_p_double&quot;},{0}};
++static swig_type_info _swigt__p_p_char[] = {{&quot;_p_p_char&quot;, 0, &quot;char **&quot;},{&quot;_p_p_char&quot;},{0}};
++static swig_type_info _swigt__p_PJ[] = {{&quot;_p_PJ&quot;, 0, &quot;PJ *&quot;},{&quot;_p_PJ&quot;},{0}};
++static swig_type_info _swigt__p_int[] = {{&quot;_p_int&quot;, 0, &quot;int *&quot;},{&quot;_p_int&quot;},{0}};
++static swig_type_info _swigt__p_Projection[] = {{&quot;_p_Projection&quot;, 0, &quot;Projection *&quot;},{&quot;_p_Projection&quot;},{0}};
++
++static swig_type_info *swig_types_initial[] = {
++_swigt__p_float, 
++_swigt__p_double, 
++_swigt__p_p_char, 
++_swigt__p_PJ, 
++_swigt__p_int, 
++_swigt__p_Projection, 
++0
++};
++
++
++/* -------- TYPE CONVERSION AND EQUIVALENCE RULES (END) -------- */
++
++static swig_const_info swig_const_table[] = {
++    { SWIG_PY_INT,     &quot;DEGREES&quot;, (long) DEGREES, 0, 0, 0},
++    { SWIG_PY_INT,     &quot;RADIANS&quot;, (long) RADIANS, 0, 0, 0},
++{0}};
++
++static PyObject *SWIG_globals;
++#ifdef __cplusplus
++extern &quot;C&quot; 
++#endif
++SWIGEXPORT(void) initProjectionc(void) {
++    PyObject *m, *d;
++    int i;
++    SWIG_globals = SWIG_newvarlink();
++    m = Py_InitModule(&quot;Projectionc&quot;, ProjectioncMethods);
++    d = PyModule_GetDict(m);
++    for (i = 0; swig_types_initial[i]; i++) {
++        swig_types[i] = SWIG_TypeRegister(swig_types_initial[i]);
++    }
++    SWIG_InstallConstants(d,swig_const_table);
++}
++
+
+Added: trunk/bindings/python/pyprojection/SConscript
+===================================================================
+--- trunk/bindings/python/pyprojection/SConscript	2006-03-26 22:32:03 UTC (rev 209)
++++ trunk/bindings/python/pyprojection/SConscript	2006-03-26 22:35:37 UTC (rev 210)
+@@ -0,0 +1,30 @@
++#  This file is part of Mapnik (c++ mapping toolkit)
++#  Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
++#
++#  Mapnik is free software; you can redistribute it and/or
++#  modify it under the terms of the GNU General Public License
++#  as published by the Free Software Foundation; either version 2
++#  of the License, or any later version.
++# 
++#  This program is distributed in the hope that it will be useful,
++#  but WITHOUT ANY WARRANTY; without even the implied warranty of
++#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++#  GNU General Public License for more details.
++# 
++#  You should have received a copy of the GNU General Public License
++#  along with this program; if not, write to the Free Software
++#  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++# 
++# $Id$
++
++import glob
++
++Import('env')
++
++prefix = env['PYTHON_PREFIX'] + '/lib/python' + env['PYTHON_VERSION'] + '/site-packages/'
++
++headers = [env['PYTHON_PREFIX'] + '/include/python' + env['PYTHON_VERSION']] + env['CPPPATH']
++
++projection = env.SharedLibrary('Projectionc', 'Projection_wrap.c', LIBS=['proj','pthread'], SHLIBPREFIX='', CPPPATH=headers)
++
++env.Alias(target='install', source=env.Install(prefix+'/mapnik/', [projection, 'Projection.py']))
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000094.html">[Mapnik-svn] r209 - in trunk: . fonts/ttf-bitstream-vera-1.10
+</A></li>
+	<LI>Next message: <A HREF="000096.html">[Mapnik-svn] r211 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#95">[ date ]</a>
+              <a href="thread.html#95">[ thread ]</a>
+              <a href="subject.html#95">[ subject ]</a>
+              <a href="author.html#95">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

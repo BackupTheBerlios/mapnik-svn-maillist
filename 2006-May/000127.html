@@ -1,0 +1,87 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r242 - trunk/bindings/python
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-May/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r242%20-%20trunk/bindings/python&In-Reply-To=%3C200605040001.k4401rKe016904%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000126.html">
+   <LINK REL="Next"  HREF="000128.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r242 - trunk/bindings/python</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r242%20-%20trunk/bindings/python&In-Reply-To=%3C200605040001.k4401rKe016904%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r242 - trunk/bindings/python">jdoyon at berlios.de
+       </A><BR>
+    <I>Thu May  4 02:01:53 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000126.html">[Mapnik-svn] r241 - trunk/src
+</A></li>
+        <LI>Next message: <A HREF="000128.html">[Mapnik-svn] r243 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#127">[ date ]</a>
+              <a href="thread.html#127">[ thread ]</a>
+              <a href="subject.html#127">[ subject ]</a>
+              <a href="author.html#127">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-05-04 02:00:20 +0200 (Thu, 04 May 2006)
+New Revision: 242
+
+Modified:
+   trunk/bindings/python/mapnik_image.cpp
+Log:
+Make the background property of an Image available to Python.
+
+
+
+Modified: trunk/bindings/python/mapnik_image.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_image.cpp	2006-05-03 23:56:47 UTC (rev 241)
++++ trunk/bindings/python/mapnik_image.cpp	2006-05-04 00:00:20 UTC (rev 242)
+@@ -44,6 +44,9 @@
+     class_&lt;Image32&gt;(&quot;Image&quot;,&quot;This class represents a 32 bit image.&quot;,init&lt;int,int&gt;())
+ 	.def(&quot;width&quot;,&amp;Image32::width)
+ 	.def(&quot;height&quot;,&amp;Image32::height)
++        .add_property(&quot;background&quot;,make_function
++                      (&amp;Image32::getBackground,return_value_policy&lt;copy_const_reference&gt;()),
++                       &amp;Image32::setBackground, &quot;The background color of the image.&quot;)
+ 	;    
+     def(&quot;rawdata&quot;,&amp;rawdata);
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000126.html">[Mapnik-svn] r241 - trunk/src
+</A></li>
+	<LI>Next message: <A HREF="000128.html">[Mapnik-svn] r243 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#127">[ date ]</a>
+              <a href="thread.html#127">[ thread ]</a>
+              <a href="subject.html#127">[ subject ]</a>
+              <a href="author.html#127">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

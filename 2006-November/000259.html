@@ -1,0 +1,322 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r374 - trunk/plugins/input/postgis
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-November/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r374%20-%20trunk/plugins/input/postgis&In-Reply-To=%3C200611172110.kAHLAYhu001487%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000258.html">
+   <LINK REL="Next"  HREF="000260.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r374 - trunk/plugins/input/postgis</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r374%20-%20trunk/plugins/input/postgis&In-Reply-To=%3C200611172110.kAHLAYhu001487%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r374 - trunk/plugins/input/postgis">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Fri Nov 17 22:10:34 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000258.html">[Mapnik-svn] r373 - in trunk: bindings/python include/mapnik src
+</A></li>
+        <LI>Next message: <A HREF="000260.html">[Mapnik-svn] r375 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#259">[ date ]</a>
+              <a href="thread.html#259">[ thread ]</a>
+              <a href="subject.html#259">[ subject ]</a>
+              <a href="author.html#259">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-11-17 22:10:28 +0100 (Fri, 17 Nov 2006)
+New Revision: 374
+
+Modified:
+   trunk/plugins/input/postgis/connection.hpp
+   trunk/plugins/input/postgis/connection_manager.hpp
+   trunk/plugins/input/postgis/postgis.cpp
+Log:
+added port parameter support
+
+Modified: trunk/plugins/input/postgis/connection.hpp
+===================================================================
+--- trunk/plugins/input/postgis/connection.hpp	2006-11-17 14:07:41 UTC (rev 373)
++++ trunk/plugins/input/postgis/connection.hpp	2006-11-17 21:10:28 UTC (rev 374)
+@@ -27,7 +27,7 @@
+ 
+ extern &quot;C&quot; 
+ {
+-   #include &quot;libpq-fe.h&quot;
++#include &quot;libpq-fe.h&quot;
+ }
+ 
+ #include &quot;resultset.hpp&quot;
+@@ -41,50 +41,58 @@
+ private:
+     PGconn *conn_;
+ public:
+-    Connection(const std::string&amp; uri,const std::string&amp; dbname, 
+-	       const std::string&amp; username,const std::string&amp; password)
++    Connection(std::string const&amp; uri, 
++               std::string const&amp; port,
++               std::string const&amp; dbname, 
++               std::string const&amp; username,
++               std::string const&amp; password)
+     {
+-	std::string connStr=&quot;host=&quot;+uri+&quot; dbname=&quot;+dbname+&quot; user=&quot;+username+&quot; password=&quot;+password;
+-	conn_=PQconnectdb(connStr.c_str());
+-	if (PQstatus(conn_) == CONNECTION_BAD)
+-	{
+-	    std::clog &lt;&lt; &quot;connection to &quot;&lt;&lt; connStr &lt;&lt; &quot; failed\n&quot;
+-		      &lt;&lt; PQerrorMessage(conn_)&lt;&lt; std::endl;
+-	}
+-	else
+-	{
+-	    std::clog &lt;&lt;&quot;connected ok &quot;&lt;&lt;std::endl;
+-	}
++        std::string connStr=&quot;host=&quot;+uri;
++        if (port.length()) connStr+=&quot; port=&quot;+port;
++        connStr+=&quot; dbname=&quot;+dbname;
++        connStr+=&quot; user=&quot;+username;
++        connStr+=&quot; password=&quot;+password;
++        
++        conn_=PQconnectdb(connStr.c_str());
++        if (PQstatus(conn_) == CONNECTION_BAD)
++        {
++            std::clog &lt;&lt; &quot;connection to &quot;&lt;&lt; connStr &lt;&lt; &quot; failed\n&quot;
++                      &lt;&lt; PQerrorMessage(conn_)&lt;&lt; std::endl;
++        }
++        else
++        {
++            std::clog &lt;&lt;&quot;connected ok &quot;&lt;&lt;std::endl;
++        }
+     }
+     bool execute(const std::string&amp; sql) const
+     {
+-	PGresult *result=PQexec(conn_,sql.c_str());
+-	bool ok=(result &amp;&amp; PQresultStatus(result)==PGRES_COMMAND_OK);
+-	PQclear(result);
+-	return ok;
++        PGresult *result=PQexec(conn_,sql.c_str());
++        bool ok=(result &amp;&amp; PQresultStatus(result)==PGRES_COMMAND_OK);
++        PQclear(result);
++        return ok;
+     }
+     boost::shared_ptr&lt;ResultSet&gt; executeQuery(const std::string&amp; sql,int type=0) const
+     {
+-	PGresult *result=0;
+-	if (type==1)
+-	{
+-	    result=PQexecParams(conn_,sql.c_str(),0,0,0,0,0,1);
+-	    return boost::shared_ptr&lt;ResultSet&gt;(new ResultSet(result));
+-	}
+-	result=PQexec(conn_,sql.c_str());
+-	return boost::shared_ptr&lt;ResultSet&gt;(new ResultSet(result));
++        PGresult *result=0;
++        if (type==1)
++        {
++            result=PQexecParams(conn_,sql.c_str(),0,0,0,0,0,1);
++            return boost::shared_ptr&lt;ResultSet&gt;(new ResultSet(result));
++        }
++        result=PQexec(conn_,sql.c_str());
++        return boost::shared_ptr&lt;ResultSet&gt;(new ResultSet(result));
+     }
+     bool isOK() const
+     {
+-	return (PQstatus(conn_)!=CONNECTION_BAD);
++        return (PQstatus(conn_)!=CONNECTION_BAD);
+     }
+     void close()
+     {
+-	PQfinish(conn_);
++        PQfinish(conn_);
+     }
+     ~Connection()
+     {
+-	PQfinish(conn_);
++        PQfinish(conn_);
+     }
+ };
+ 
+
+Modified: trunk/plugins/input/postgis/connection_manager.hpp
+===================================================================
+--- trunk/plugins/input/postgis/connection_manager.hpp	2006-11-17 14:07:41 UTC (rev 373)
++++ trunk/plugins/input/postgis/connection_manager.hpp	2006-11-17 21:10:28 UTC (rev 374)
+@@ -39,24 +39,29 @@
+ class ConnectionCreator
+ {
+     string url_;
++    string port_;
+     string dbname_;
+     string user_;
+     string pass_;
+ public:
+-    ConnectionCreator(const string&amp; url,const string&amp; dbname,
+-		      const string&amp; user,const string&amp; pass)
+-	: url_(url),
+-	  dbname_(dbname),
+-	  user_(user),
+-	  pass_(pass) {}
++    ConnectionCreator(string const&amp; url,
++                      string const&amp; port,
++                      string const&amp; dbname,
++                      string const&amp; user,
++                      string const&amp; pass)
++        : url_(url),
++          port_(port),
++          dbname_(dbname),
++          user_(user),
++          pass_(pass) {}
+     
+     T* operator()() const
+     {
+-	return new T(url_,dbname_,user_,pass_);
++        return new T(url_,port_,dbname_,user_,pass_);
+     }
+     std::string id() const 
+     {
+-	return url_+&quot;:&quot;+dbname_+&quot;:&quot;+user_+&quot;:&quot;+pass_;
++        return url_ + &quot;:&quot; + dbname_;
+     }
+ };
+ 
+@@ -73,39 +78,40 @@
+ 	
+     bool registerPool(const ConnectionCreator&lt;Connection&gt;&amp; creator,int initialSize,int maxSize) 
+     {	    
+-	mutex::scoped_lock lock(mutex_);
+-	if (pools_.find(creator.id())==pools_.end())
+-	{
+-	    return pools_.insert(std::make_pair(creator.id(),
+-						boost::shared_ptr&lt;PoolType&gt;(new PoolType(creator,initialSize,maxSize)))).second;
+-	}
++        mutex::scoped_lock lock(mutex_);
++        if (pools_.find(creator.id())==pools_.end())
++        {
++            return pools_.insert(std::make_pair(creator.id(),
++                                                boost::shared_ptr&lt;PoolType&gt;(new PoolType(creator,initialSize,maxSize)))).second;
++        }
+ 
+-	return false;
++        return false;
+ 	   	     
+     }
++    
+     const boost::shared_ptr&lt;PoolType&gt;&amp; getPool(const std::string&amp; key) 
+     {
+-	mutex::scoped_lock lock(mutex_);
+-	ContType::const_iterator itr=pools_.find(key);
+-	if (itr!=pools_.end())
+-	{
+-	    return itr-&gt;second;
+-	}
+-	static const boost::shared_ptr&lt;PoolType&gt; emptyPool;
+-	return emptyPool;
++        mutex::scoped_lock lock(mutex_);
++        ContType::const_iterator itr=pools_.find(key);
++        if (itr!=pools_.end())
++        {
++            return itr-&gt;second;
++        }
++        static const boost::shared_ptr&lt;PoolType&gt; emptyPool;
++        return emptyPool;
+     }
+ 	
+     const HolderType&amp; get(const std::string&amp; key)
+     {
+-	mutex::scoped_lock lock(mutex_);
+-	ContType::const_iterator itr=pools_.find(key);
+-	if (itr!=pools_.end()) 
+-	{
+-	    boost::shared_ptr&lt;PoolType&gt; pool=itr-&gt;second;
+-	    return pool-&gt;borrowObject();
+-	}
+-	static const HolderType EmptyConn;
+-	return EmptyConn;
++        mutex::scoped_lock lock(mutex_);
++        ContType::const_iterator itr=pools_.find(key);
++        if (itr!=pools_.end()) 
++        {
++            boost::shared_ptr&lt;PoolType&gt; pool=itr-&gt;second;
++            return pool-&gt;borrowObject();
++        }
++        static const HolderType EmptyConn;
++        return EmptyConn;
+     }
+         
+ private:
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2006-11-17 14:07:41 UTC (rev 373)
++++ trunk/plugins/input/postgis/postgis.cpp	2006-11-17 21:10:28 UTC (rev 374)
+@@ -43,20 +43,20 @@
+ using boost::bad_lexical_cast;
+ using boost::shared_ptr;
+ 
+-postgis_datasource::postgis_datasource(const parameters&amp; params)
++postgis_datasource::postgis_datasource(parameters const&amp; params)
+     : datasource (params),
+       table_(params.get(&quot;table&quot;)),
+       type_(datasource::Vector), 
+-      desc_(params.get(&quot;name&quot;)),
++      desc_(params.get(&quot;type&quot;)),
+       creator_(params.get(&quot;host&quot;),
++               params.get(&quot;port&quot;),
+                params.get(&quot;dbname&quot;),
+                params.get(&quot;user&quot;),
+-               params.get(&quot;password&quot;))
+-      
++               params.get(&quot;password&quot;))    
+ {     
+     ConnectionManager *mgr=ConnectionManager::instance();   
+     mgr-&gt;registerPool(creator_,10,20);
+-
++    
+     shared_ptr&lt;Pool&lt;Connection,ConnectionCreator&gt; &gt; pool=mgr-&gt;getPool(creator_.id());
+     if (pool)
+     {
+@@ -64,9 +64,7 @@
+         if (conn &amp;&amp; conn-&gt;isOK())
+         {
+             PoolGuard&lt;shared_ptr&lt;Connection&gt;,shared_ptr&lt;Pool&lt;Connection,ConnectionCreator&gt; &gt; &gt; guard(conn,pool);
+-
+             std::string table_name=table_from_sql(table_);
+-	    
+             std::ostringstream s;
+             s &lt;&lt; &quot;select f_geometry_column,srid,type from &quot;;
+             s &lt;&lt; GEOMETRY_COLUMNS &lt;&lt;&quot; where f_table_name='&quot; &lt;&lt; table_name&lt;&lt;&quot;'&quot;;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000258.html">[Mapnik-svn] r373 - in trunk: bindings/python include/mapnik src
+</A></li>
+	<LI>Next message: <A HREF="000260.html">[Mapnik-svn] r375 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#259">[ date ]</a>
+              <a href="thread.html#259">[ thread ]</a>
+              <a href="subject.html#259">[ subject ]</a>
+              <a href="author.html#259">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

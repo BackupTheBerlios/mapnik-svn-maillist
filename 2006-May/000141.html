@@ -1,0 +1,98 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r256 - trunk/src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-May/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r256%20-%20trunk/src&In-Reply-To=%3C200605191609.k4JG9XNF004278%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000140.html">
+   <LINK REL="Next"  HREF="000142.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r256 - trunk/src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r256%20-%20trunk/src&In-Reply-To=%3C200605191609.k4JG9XNF004278%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r256 - trunk/src">pavlenko at berlios.de
+       </A><BR>
+    <I>Fri May 19 18:09:33 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000140.html">[Mapnik-svn] r255 - trunk/include
+</A></li>
+        <LI>Next message: <A HREF="000142.html">[Mapnik-svn] r257 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#141">[ date ]</a>
+              <a href="thread.html#141">[ thread ]</a>
+              <a href="subject.html#141">[ subject ]</a>
+              <a href="author.html#141">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-05-19 18:09:32 +0200 (Fri, 19 May 2006)
+New Revision: 256
+
+Modified:
+   trunk/src/image_util.cpp
+Log:
+replaced tabs with spaces
+
+
+
+Modified: trunk/src/image_util.cpp
+===================================================================
+--- trunk/src/image_util.cpp	2006-05-19 16:08:42 UTC (rev 255)
++++ trunk/src/image_util.cpp	2006-05-19 16:09:32 UTC (rev 256)
+@@ -45,15 +45,15 @@
+     //
+     void ImageUtils::save_to_file(const std::string&amp; filename,const std::string&amp; type,const Image32&amp; image)
+     {
+-	//all that should go into image_writer factory
++        //all that should go into image_writer factory
+         if (type==&quot;png&quot;)
+         {
+             save_as_png(filename,image);
+         } 
+-	else if (type==&quot;jpeg&quot;)
+-	{
+-	    save_as_jpeg(filename,85,image);
+-	}
++        else if (type==&quot;jpeg&quot;)
++        {
++            save_as_jpeg(filename,85,image);
++        }
+     }
+ 
+     void ImageUtils::save_as_png(const std::string&amp; filename,const Image32&amp; image)
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000140.html">[Mapnik-svn] r255 - trunk/include
+</A></li>
+	<LI>Next message: <A HREF="000142.html">[Mapnik-svn] r257 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#141">[ date ]</a>
+              <a href="thread.html#141">[ thread ]</a>
+              <a href="subject.html#141">[ subject ]</a>
+              <a href="author.html#141">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

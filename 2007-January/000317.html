@@ -1,0 +1,88 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r432 - trunk
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r432%20-%20trunk&In-Reply-To=%3C200701232249.l0NMn9mn032378%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000316.html">
+   <LINK REL="Next"  HREF="000318.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r432 - trunk</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r432%20-%20trunk&In-Reply-To=%3C200701232249.l0NMn9mn032378%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r432 - trunk">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Tue Jan 23 23:49:09 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000316.html">[Mapnik-svn] r431 - trunk/plugins/input/postgis
+</A></li>
+        <LI>Next message: <A HREF="000318.html">[Mapnik-svn] r433 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#317">[ date ]</a>
+              <a href="thread.html#317">[ thread ]</a>
+              <a href="subject.html#317">[ subject ]</a>
+              <a href="author.html#317">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2007-01-23 23:49:09 +0100 (Tue, 23 Jan 2007)
+New Revision: 432
+
+Modified:
+   trunk/SConstruct
+Log:
+fixed to work with boost-1_33_1
+
+
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2007-01-17 20:05:23 UTC (rev 431)
++++ trunk/SConstruct	2007-01-23 22:49:09 UTC (rev 432)
+@@ -107,8 +107,8 @@
+ 
+ BOOST_LIBSHEADERS = [
+     ['thread', 'boost/thread/mutex.hpp', True],
+-    ['system', 'boost/system/system_error.hpp', True],
+-    ['filesystem', 'boost/filesystem.hpp', True],
++    #['system', 'boost/system/system_error.hpp', True],
++    ['filesystem', 'boost/filesystem/operations.hpp', True],
+     ['regex', 'boost/regex.hpp', True],
+     ['program_options', 'boost/program_options.hpp', False]
+ ]
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000316.html">[Mapnik-svn] r431 - trunk/plugins/input/postgis
+</A></li>
+	<LI>Next message: <A HREF="000318.html">[Mapnik-svn] r433 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#317">[ date ]</a>
+              <a href="thread.html#317">[ thread ]</a>
+              <a href="subject.html#317">[ subject ]</a>
+              <a href="author.html#317">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

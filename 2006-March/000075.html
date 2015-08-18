@@ -1,0 +1,136 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r189 - trunk/demo/python
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r189%20-%20trunk/demo/python&In-Reply-To=%3C200603220241.k2M2fOaK028918%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000074.html">
+   <LINK REL="Next"  HREF="000076.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r189 - trunk/demo/python</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r189%20-%20trunk/demo/python&In-Reply-To=%3C200603220241.k2M2fOaK028918%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r189 - trunk/demo/python">jdoyon at berlios.de
+       </A><BR>
+    <I>Wed Mar 22 03:41:24 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000074.html">[Mapnik-svn] r188 - in trunk/demo: . python
+</A></li>
+        <LI>Next message: <A HREF="000076.html">[Mapnik-svn] r190 - trunk/plugins/input/shape
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#75">[ date ]</a>
+              <a href="thread.html#75">[ thread ]</a>
+              <a href="subject.html#75">[ subject ]</a>
+              <a href="author.html#75">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-03-22 03:41:13 +0100 (Wed, 22 Mar 2006)
+New Revision: 189
+
+Added:
+   trunk/demo/python/README.txt
+Modified:
+   trunk/demo/python/rundemo.py
+Log:
+- Remove the python interpreter from the script, have the user supply it instead
+- Add a little README.txt
+
+Added: trunk/demo/python/README.txt
+===================================================================
+--- trunk/demo/python/README.txt	2006-03-22 02:32:38 UTC (rev 188)
++++ trunk/demo/python/README.txt	2006-03-22 02:41:13 UTC (rev 189)
+@@ -0,0 +1,22 @@
++# $Id$
++
++This directory contains a sample python script implementing the Mapnik API.
++
++The script is thoroughly commented and also acts as a mini tutorial.  Reading
++it should get you on your way, and you can use it as a base for your work.
++
++You must compile and install mapnik and the python bindings FIRST.
++
++Once this is done, run it:
++
++/path/to/python rundemo.py
++
++If all goes well, it should render 2 map images:
++
++demo.jpg
++demo.png
++
++Have a look!
++
++Cheers,
++J.F.
+
+
+Property changes on: trunk/demo/python/README.txt
+___________________________________________________________________
+Name: svn:keywords
+   + Id
+
+Modified: trunk/demo/python/rundemo.py
+===================================================================
+--- trunk/demo/python/rundemo.py	2006-03-22 02:32:38 UTC (rev 188)
++++ trunk/demo/python/rundemo.py	2006-03-22 02:41:13 UTC (rev 189)
+@@ -1,5 +1,5 @@
+-#!/usr/bin/python2.3
+-
++# $Id$
++#
+ # This file is part of Mapnik (c++ mapping toolkit)
+ # Copyright (C) 2005 Jean-Francois Doyon
+ #
+@@ -294,3 +294,9 @@
+ 
+ render_to_file(m, 'demo.png', 'png')
+ render_to_file(m, 'demo.jpg', 'jpeg')
++
++print &quot;&quot;&quot;\n\nTwo maps have been rendered in the current directory:
++- demo.jpg
++- demo.png
++
++Have a look!\n\n&quot;&quot;&quot;
+
+
+Property changes on: trunk/demo/python/rundemo.py
+___________________________________________________________________
+Name: svn:keywords
+   + Id
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000074.html">[Mapnik-svn] r188 - in trunk/demo: . python
+</A></li>
+	<LI>Next message: <A HREF="000076.html">[Mapnik-svn] r190 - trunk/plugins/input/shape
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#75">[ date ]</a>
+              <a href="thread.html#75">[ thread ]</a>
+              <a href="subject.html#75">[ subject ]</a>
+              <a href="author.html#75">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

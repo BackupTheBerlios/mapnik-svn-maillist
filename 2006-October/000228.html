@@ -1,0 +1,92 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r343 - trunk/plugins/input/postgis
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r343%20-%20trunk/plugins/input/postgis&In-Reply-To=%3C200610172136.k9HLaDTB032060%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000227.html">
+   <LINK REL="Next"  HREF="000229.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r343 - trunk/plugins/input/postgis</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r343%20-%20trunk/plugins/input/postgis&In-Reply-To=%3C200610172136.k9HLaDTB032060%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r343 - trunk/plugins/input/postgis">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Tue Oct 17 23:36:13 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000227.html">[Mapnik-svn] r342 - in trunk: bindings/python include/mapnik src	utils/ogcserver
+</A></li>
+        <LI>Next message: <A HREF="000229.html">[Mapnik-svn] r344 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#228">[ date ]</a>
+              <a href="thread.html#228">[ thread ]</a>
+              <a href="subject.html#228">[ subject ]</a>
+              <a href="author.html#228">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-17 23:36:11 +0200 (Tue, 17 Oct 2006)
+New Revision: 343
+
+Modified:
+   trunk/plugins/input/postgis/postgisfs.cpp
+Log:
+treat oid=25 (TEXT) types as string
+
+
+
+Modified: trunk/plugins/input/postgis/postgisfs.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgisfs.cpp	2006-10-17 17:26:35 UTC (rev 342)
++++ trunk/plugins/input/postgis/postgisfs.cpp	2006-10-17 21:36:11 UTC (rev 343)
+@@ -80,12 +80,13 @@
+                     float8net(val,buf);
+                     boost::put(*feature,name,val);
+                 }
+-                else if (oid==1042 || oid==1043) //bpchar or varchar
++                else if (oid==25 || oid==1042 || oid==1043) // text or bpchar or varchar
+                 {
+                     boost::put(*feature,name,buf);
+                 }
+                 else 
+                 {
++                    std::clog &lt;&lt; &quot;uknown OID = &quot; &lt;&lt; oid &lt;&lt; &quot; FIXME \n&quot;;
+                     boost::put(*feature,name,0);
+                 }
+             }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000227.html">[Mapnik-svn] r342 - in trunk: bindings/python include/mapnik src	utils/ogcserver
+</A></li>
+	<LI>Next message: <A HREF="000229.html">[Mapnik-svn] r344 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#228">[ date ]</a>
+              <a href="thread.html#228">[ thread ]</a>
+              <a href="subject.html#228">[ subject ]</a>
+              <a href="author.html#228">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

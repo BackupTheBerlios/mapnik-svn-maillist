@@ -1,0 +1,89 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r120 - trunk/include
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-January/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r120%20-%20trunk/include&In-Reply-To=%3C200601231031.k0NAVA3Z025992%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000006.html">
+   <LINK REL="Next"  HREF="000008.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r120 - trunk/include</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r120%20-%20trunk/include&In-Reply-To=%3C200601231031.k0NAVA3Z025992%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r120 - trunk/include">pavlenko at berlios.de
+       </A><BR>
+    <I>Mon Jan 23 11:31:10 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000006.html">[Mapnik-svn] r119 - trunk/include
+</A></li>
+        <LI>Next message: <A HREF="000008.html">[Mapnik-svn] r121 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#7">[ date ]</a>
+              <a href="thread.html#7">[ thread ]</a>
+              <a href="subject.html#7">[ subject ]</a>
+              <a href="author.html#7">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-01-23 11:31:10 +0100 (Mon, 23 Jan 2006)
+New Revision: 120
+
+Modified:
+   trunk/include/expression.hpp
+Log:
+ fixed to_string() method for filter expressions
+
+Modified: trunk/include/expression.hpp
+===================================================================
+--- trunk/include/expression.hpp	2006-01-23 10:29:28 UTC (rev 119)
++++ trunk/include/expression.hpp	2006-01-23 10:31:10 UTC (rev 120)
+@@ -68,12 +68,11 @@
+ 	}
+ 	std::string to_string() const
+ 	{
+-	    return &quot;'&quot;+value_.to_string()+&quot;'&quot;;
++	    return value_.to_string();
+ 	}
+         ~literal() {}
+     private:
+ 	value value_;
+-	
+     };
+   
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000006.html">[Mapnik-svn] r119 - trunk/include
+</A></li>
+	<LI>Next message: <A HREF="000008.html">[Mapnik-svn] r121 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#7">[ date ]</a>
+              <a href="thread.html#7">[ thread ]</a>
+              <a href="subject.html#7">[ subject ]</a>
+              <a href="author.html#7">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

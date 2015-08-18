@@ -1,0 +1,428 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r442 - trunk/include/mapnik
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r442%20-%20trunk/include/mapnik&In-Reply-To=%3C200702061553.l16FrYt6023106%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000326.html">
+   <LINK REL="Next"  HREF="000328.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r442 - trunk/include/mapnik</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r442%20-%20trunk/include/mapnik&In-Reply-To=%3C200702061553.l16FrYt6023106%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r442 - trunk/include/mapnik">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Tue Feb  6 16:53:34 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000326.html">[Mapnik-svn] r441 - trunk/plugins/input/postgis
+</A></li>
+        <LI>Next message: <A HREF="000328.html">[Mapnik-svn] r443 - trunk/utils/shapeindex
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#327">[ date ]</a>
+              <a href="thread.html#327">[ thread ]</a>
+              <a href="subject.html#327">[ subject ]</a>
+              <a href="author.html#327">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2007-02-06 16:53:32 +0100 (Tue, 06 Feb 2007)
+New Revision: 442
+
+Modified:
+   trunk/include/mapnik/feature_style_processor.hpp
+Log:
+Disabled timer print-outs by default. Use -DMAPNIK_DEBUG to enable.
+
+
+
+Modified: trunk/include/mapnik/feature_style_processor.hpp
+===================================================================
+--- trunk/include/mapnik/feature_style_processor.hpp	2007-02-06 15:29:04 UTC (rev 441)
++++ trunk/include/mapnik/feature_style_processor.hpp	2007-02-06 15:53:32 UTC (rev 442)
+@@ -41,197 +41,199 @@
+ 
+ namespace mapnik
+ {       
+-    template &lt;typename Processor&gt;
+-    class feature_style_processor 
+-    {
+-        struct symbol_dispatch : public boost::static_visitor&lt;&gt;
+-        {
+-            symbol_dispatch (Processor &amp; output,
+-                             Feature const&amp; f, 
+-                             proj_transform const&amp; prj_trans)
+-                : output_(output),
+-                  f_(f),
+-                  prj_trans_(prj_trans)  {}
++   template &lt;typename Processor&gt;
++   class feature_style_processor 
++   {
++         struct symbol_dispatch : public boost::static_visitor&lt;&gt;
++         {
++               symbol_dispatch (Processor &amp; output,
++                                Feature const&amp; f, 
++                                proj_transform const&amp; prj_trans)
++                  : output_(output),
++                    f_(f),
++                    prj_trans_(prj_trans)  {}
+             
+-            template &lt;typename T&gt;
+-            void operator () (T const&amp; sym) const
+-            {
+-                output_.process(sym,f_,prj_trans_);
+-            }
++               template &lt;typename T&gt;
++               void operator () (T const&amp; sym) const
++               {
++                  output_.process(sym,f_,prj_trans_);
++               }
+             
+-            Processor &amp; output_;
+-            Feature const&amp; f_;
+-            proj_transform const&amp; prj_trans_;
+-        };
+-    public:
+-        feature_style_processor(Map const&amp; m)
++               Processor &amp; output_;
++               Feature const&amp; f_;
++               proj_transform const&amp; prj_trans_;
++         };
++      public:
++         feature_style_processor(Map const&amp; m)
+             : m_(m) {}
+ 	
+-        void apply()
+-        {
+-            boost::progress_timer t(std::clog);            
++         void apply()
++         {
++#ifdef MAPNIK_DEBUG           
++            boost::progress_timer t(std::clog);  
++#endif          
+             Processor &amp; p = static_cast&lt;Processor&amp;&gt;(*this);
+             p.start_map_processing(m_);
+                        
+             try
+             {
+-                projection proj(m_.srs()); // map projection
+-                double scale_denom = scale_denominator(m_,proj.is_geographic());
++               projection proj(m_.srs()); // map projection
++               double scale_denom = scale_denominator(m_,proj.is_geographic());
+ #ifdef MAPNIK_DEBUG
+-                std::clog &lt;&lt; &quot;scale denominator = &quot; &lt;&lt; scale_denom &lt;&lt; &quot;\n&quot;;
++               std::clog &lt;&lt; &quot;scale denominator = &quot; &lt;&lt; scale_denom &lt;&lt; &quot;\n&quot;;
+ #endif
+-                std::vector&lt;Layer&gt;::const_iterator itr = m_.layers().begin();
+-                std::vector&lt;Layer&gt;::const_iterator end = m_.layers().end();
++               std::vector&lt;Layer&gt;::const_iterator itr = m_.layers().begin();
++               std::vector&lt;Layer&gt;::const_iterator end = m_.layers().end();
+             
+-                while (itr != end)
+-                {
+-                    if (itr-&gt;isVisible(scale_denom))
+-                    {
+-                        apply_to_layer(*itr, p, proj, scale_denom);
+-                    }
+-                    ++itr;
+-                }
++               while (itr != end)
++               {
++                  if (itr-&gt;isVisible(scale_denom))
++                  {
++                     apply_to_layer(*itr, p, proj, scale_denom);
++                  }
++                  ++itr;
++               }
+             }
+             catch (proj_init_error&amp; ex)
+             {
+-                std::clog &lt;&lt; ex.what() &lt;&lt; &quot;\n&quot;; 
++               std::clog &lt;&lt; ex.what() &lt;&lt; &quot;\n&quot;; 
+             }
+ 
+             p.end_map_processing(m_);
+-        }	
+-    private:
+-        void apply_to_layer(Layer const&amp; lay, Processor &amp; p, 
+-                            projection const&amp; proj0,double scale_denom)
+-        {
++         }	
++      private:
++         void apply_to_layer(Layer const&amp; lay, Processor &amp; p, 
++                             projection const&amp; proj0,double scale_denom)
++         {
+             p.start_layer_processing(lay);
+             boost::shared_ptr&lt;datasource&gt; ds=lay.datasource();
+             if (ds)
+             {
+-                Envelope&lt;double&gt; const&amp; ext=m_.getCurrentExtent();
++               Envelope&lt;double&gt; const&amp; ext=m_.getCurrentExtent();
+               
+-                projection proj1(lay.srs());
+-                proj_transform prj_trans(proj0,proj1);
++               projection proj1(lay.srs());
++               proj_transform prj_trans(proj0,proj1);
+                 
+-                double x0 = ext.minx();
+-                double y0 = ext.miny();
+-                double z0 = 0.0;
+-                double x1 = ext.maxx();
+-                double y1 = ext.maxy();
+-                double z1 = 0.0;
+-                prj_trans.forward(x0,y0,z0);
+-                prj_trans.forward(x1,y1,z1);
+-                Envelope&lt;double&gt; bbox(x0,y0,x1,y1);
++               double x0 = ext.minx();
++               double y0 = ext.miny();
++               double z0 = 0.0;
++               double x1 = ext.maxx();
++               double y1 = ext.maxy();
++               double z1 = 0.0;
++               prj_trans.forward(x0,y0,z0);
++               prj_trans.forward(x1,y1,z1);
++               Envelope&lt;double&gt; bbox(x0,y0,x1,y1);
+ #ifdef MAPNIK_DEBUG
+-                std::clog &lt;&lt; bbox &lt;&lt; &quot;\n&quot;;
++               std::clog &lt;&lt; bbox &lt;&lt; &quot;\n&quot;;
+ #endif                
+-                std::vector&lt;std::string&gt; const&amp; style_names = lay.styles();
+-                std::vector&lt;std::string&gt;::const_iterator stylesIter = style_names.begin();
+-                std::vector&lt;std::string&gt;::const_iterator stylesEnd = style_names.end();
++               std::vector&lt;std::string&gt; const&amp; style_names = lay.styles();
++               std::vector&lt;std::string&gt;::const_iterator stylesIter = style_names.begin();
++               std::vector&lt;std::string&gt;::const_iterator stylesEnd = style_names.end();
+                 
+-                while (stylesIter != stylesEnd)
+-                {
+-                    std::set&lt;std::string&gt; names;
+-                    attribute_collector&lt;Feature&gt; collector(names);
+-                    std::vector&lt;rule_type*&gt; if_rules;
+-                    std::vector&lt;rule_type*&gt; else_rules;
++               while (stylesIter != stylesEnd)
++               {
++                  std::set&lt;std::string&gt; names;
++                  attribute_collector&lt;Feature&gt; collector(names);
++                  std::vector&lt;rule_type*&gt; if_rules;
++                  std::vector&lt;rule_type*&gt; else_rules;
+                     
+-                    bool active_rules=false;
++                  bool active_rules=false;
+                     
+-                    feature_type_style const&amp; style=m_.find_style(*stylesIter++);
++                  feature_type_style const&amp; style=m_.find_style(*stylesIter++);
+                         
+-                    query q(bbox); //BBOX query
++                  query q(bbox); //BBOX query
+ 
+-                    const std::vector&lt;rule_type&gt;&amp; rules=style.get_rules();
+-                    std::vector&lt;rule_type&gt;::const_iterator ruleIter=rules.begin();
+-                    std::vector&lt;rule_type&gt;::const_iterator ruleEnd=rules.end();
++                  const std::vector&lt;rule_type&gt;&amp; rules=style.get_rules();
++                  std::vector&lt;rule_type&gt;::const_iterator ruleIter=rules.begin();
++                  std::vector&lt;rule_type&gt;::const_iterator ruleEnd=rules.end();
+                                         
+-                    while (ruleIter!=ruleEnd)
+-                    {
+-                        if (ruleIter-&gt;active(scale_denom))
++                  while (ruleIter!=ruleEnd)
++                  {
++                     if (ruleIter-&gt;active(scale_denom))
++                     {
++                        active_rules=true;
++                        ruleIter-&gt;accept(collector);
++
++                        if (ruleIter-&gt;has_else_filter())
+                         {
+-                            active_rules=true;
+-                            ruleIter-&gt;accept(collector);
+-
+-                            if (ruleIter-&gt;has_else_filter())
+-                            {
+-                                else_rules.push_back(const_cast&lt;rule_type*&gt;(&amp;(*ruleIter)));
+-                            }
+-                            else
+-                            {
+-                                if_rules.push_back(const_cast&lt;rule_type*&gt;(&amp;(*ruleIter))); 		    
+-                            }
++                           else_rules.push_back(const_cast&lt;rule_type*&gt;(&amp;(*ruleIter)));
+                         }
+-                        ++ruleIter;
+-                    }
+-                    std::set&lt;std::string&gt;::const_iterator namesIter=names.begin();
+-                    std::set&lt;std::string&gt;::const_iterator namesEnd =names.end();
++                        else
++                        {
++                           if_rules.push_back(const_cast&lt;rule_type*&gt;(&amp;(*ruleIter))); 		    
++                        }
++                     }
++                     ++ruleIter;
++                  }
++                  std::set&lt;std::string&gt;::const_iterator namesIter=names.begin();
++                  std::set&lt;std::string&gt;::const_iterator namesEnd =names.end();
+                     
+-                    // push all property names
+-                    while (namesIter!=namesEnd)
+-                    {
+-                        q.add_property_name(*namesIter);
+-                        ++namesIter;
+-                    }
+-                    if (active_rules)
+-                    {
+-                        featureset_ptr fs=ds-&gt;features(q);
+-                        if (fs)
+-                        {   	    
+-                            feature_ptr feature;
+-                            while ((feature = fs-&gt;next()))
+-                            {		   
+-                                bool do_else=true;		    
+-                                std::vector&lt;rule_type*&gt;::const_iterator itr=if_rules.begin();
+-                                std::vector&lt;rule_type*&gt;::const_iterator end=if_rules.end();
+-                                while (itr != end)
+-                                {
+-                                    filter_ptr const&amp; filter=(*itr)-&gt;get_filter();    
+-                                    if (filter-&gt;pass(*feature))
+-                                    {   
+-                                        do_else=false;
+-                                        const symbolizers&amp; symbols = (*itr)-&gt;get_symbolizers();
+-                                        symbolizers::const_iterator symIter=symbols.begin();
+-                                        symbolizers::const_iterator symEnd =symbols.end();
+-                                        while (symIter != symEnd)
+-                                        {   
+-                                            boost::apply_visitor
+-                                                (symbol_dispatch(p,*feature,prj_trans),*symIter++);
+-                                        }
+-                                    }			    
+-                                    ++itr;
+-                                }
+-                                if (do_else)
+-                                {
+-                                    //else filter
+-                                    std::vector&lt;rule_type*&gt;::const_iterator itr=
+-                                        else_rules.begin();
+-                                    std::vector&lt;rule_type*&gt;::const_iterator end=
+-                                        else_rules.end();
+-                                    while (itr != end)
+-                                    {
+-                                        const symbolizers&amp; symbols = (*itr)-&gt;get_symbolizers();
+-                                        symbolizers::const_iterator symIter= symbols.begin();
+-                                        symbolizers::const_iterator symEnd = symbols.end();
++                  // push all property names
++                  while (namesIter!=namesEnd)
++                  {
++                     q.add_property_name(*namesIter);
++                     ++namesIter;
++                  }
++                  if (active_rules)
++                  {
++                     featureset_ptr fs=ds-&gt;features(q);
++                     if (fs)
++                     {   	    
++                        feature_ptr feature;
++                        while ((feature = fs-&gt;next()))
++                        {		   
++                           bool do_else=true;		    
++                           std::vector&lt;rule_type*&gt;::const_iterator itr=if_rules.begin();
++                           std::vector&lt;rule_type*&gt;::const_iterator end=if_rules.end();
++                           while (itr != end)
++                           {
++                              filter_ptr const&amp; filter=(*itr)-&gt;get_filter();    
++                              if (filter-&gt;pass(*feature))
++                              {   
++                                 do_else=false;
++                                 const symbolizers&amp; symbols = (*itr)-&gt;get_symbolizers();
++                                 symbolizers::const_iterator symIter=symbols.begin();
++                                 symbolizers::const_iterator symEnd =symbols.end();
++                                 while (symIter != symEnd)
++                                 {   
++                                    boost::apply_visitor
++                                       (symbol_dispatch(p,*feature,prj_trans),*symIter++);
++                                 }
++                              }			    
++                              ++itr;
++                           }
++                           if (do_else)
++                           {
++                              //else filter
++                              std::vector&lt;rule_type*&gt;::const_iterator itr=
++                                 else_rules.begin();
++                              std::vector&lt;rule_type*&gt;::const_iterator end=
++                                 else_rules.end();
++                              while (itr != end)
++                              {
++                                 const symbolizers&amp; symbols = (*itr)-&gt;get_symbolizers();
++                                 symbolizers::const_iterator symIter= symbols.begin();
++                                 symbolizers::const_iterator symEnd = symbols.end();
+                                         
+-                                        while (symIter!=symEnd)
+-                                        {
+-                                            boost::apply_visitor
+-                                                (symbol_dispatch(p,*feature,prj_trans),
+-                                                 *symIter++);
+-                                        }
+-                                        ++itr;
+-                                    }
+-                                }	  
+-                            }
++                                 while (symIter!=symEnd)
++                                 {
++                                    boost::apply_visitor
++                                       (symbol_dispatch(p,*feature,prj_trans),
++                                        *symIter++);
++                                 }
++                                 ++itr;
++                              }
++                           }	  
+                         }
+-                    }
+-                }
++                     }
++                  }
++               }
+                 
+             }
+             p.end_layer_processing(lay);
+-        }	
+-        Map const&amp; m_;
+-    };
++         }	
++         Map const&amp; m_;
++   };
+ }
+ 
+ #endif //FEATURE_STYLE_PROCESSOR_HPP
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000326.html">[Mapnik-svn] r441 - trunk/plugins/input/postgis
+</A></li>
+	<LI>Next message: <A HREF="000328.html">[Mapnik-svn] r443 - trunk/utils/shapeindex
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#327">[ date ]</a>
+              <a href="thread.html#327">[ thread ]</a>
+              <a href="subject.html#327">[ subject ]</a>
+              <a href="author.html#327">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

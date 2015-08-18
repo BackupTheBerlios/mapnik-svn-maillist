@@ -1,0 +1,445 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r444 - in trunk: include/mapnik src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r444%20-%20in%20trunk%3A%20include/mapnik%20src&In-Reply-To=%3C200702091632.l19GWn9w003106%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000328.html">
+   <LINK REL="Next"  HREF="000330.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r444 - in trunk: include/mapnik src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r444%20-%20in%20trunk%3A%20include/mapnik%20src&In-Reply-To=%3C200702091632.l19GWn9w003106%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r444 - in trunk: include/mapnik src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Fri Feb  9 17:32:49 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000328.html">[Mapnik-svn] r443 - trunk/utils/shapeindex
+</A></li>
+        <LI>Next message: <A HREF="000330.html">[Mapnik-svn] r445 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#329">[ date ]</a>
+              <a href="thread.html#329">[ thread ]</a>
+              <a href="subject.html#329">[ subject ]</a>
+              <a href="author.html#329">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2007-02-09 17:32:44 +0100 (Fri, 09 Feb 2007)
+New Revision: 444
+
+Modified:
+   trunk/include/mapnik/placement_finder.hpp
+   trunk/src/agg_renderer.cpp
+   trunk/src/load_map.cpp
+   trunk/src/placement_finder.cpp
+   trunk/src/text_symbolizer.cpp
+Log:
+Restored support for the text displacement (point placement only at moment)
+
+
+
+Modified: trunk/include/mapnik/placement_finder.hpp
+===================================================================
+--- trunk/include/mapnik/placement_finder.hpp	2007-02-08 00:36:14 UTC (rev 443)
++++ trunk/include/mapnik/placement_finder.hpp	2007-02-09 16:32:44 UTC (rev 444)
+@@ -37,88 +37,98 @@
+ namespace mapnik
+ {
+ 
+-    struct placement_element
+-    {
+-        double starting_x;
+-        double starting_y;
++   struct placement_element
++   {
++         double starting_x;
++         double starting_y;
+     
+-        text_path path;
+-    };
++         text_path path;
++   };
+ 
+-  struct placement
+-  {
+-    typedef  coord_transform2&lt;CoordTransform,geometry_type&gt; path_type;
+-
+-    //For shields
+-    placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, std::pair&lt;double, double&gt; dimensions_);
++   struct placement
++   {
++         typedef  coord_transform2&lt;CoordTransform,geometry_type&gt; path_type;
++         
++         //For shields
++         placement(string_info *info_, 
++                   CoordTransform *ctrans_, 
++                   const proj_transform *proj_trans_, 
++                   geometry_ptr geom_, 
++                   std::pair&lt;double, double&gt; dimensions_);
+     
+-    //For text
+-    placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, label_placement_e placement_);
++         //For text
++         placement(string_info *info_, 
++                   CoordTransform *ctrans_, 
++                   const proj_transform *proj_trans_, 
++                   geometry_ptr geom_,
++                   position const&amp; displacement,
++                   label_placement_e placement_);
++         
++         ~placement();
++        
++         unsigned path_size() const;
++         string_info *info;
+     
+-    ~placement();
++         CoordTransform *ctrans;
++         const proj_transform *proj_trans;
+ 
+-      unsigned path_size() const;
+-      string_info *info;
+-    
+-    CoordTransform *ctrans;
+-    const proj_transform *proj_trans;
++         geometry_ptr geom;
++         position displacement_;
++         label_placement_e label_placement;
++         std::pair&lt;double, double&gt; dimensions;
+ 
+-    geometry_ptr geom;
+-    label_placement_e label_placement;
+-    std::pair&lt;double, double&gt; dimensions;
+-
+-    bool has_dimensions;
++         bool has_dimensions;
+     
+-    path_type shape_path;
+-    std::queue&lt; Envelope&lt;double&gt; &gt; envelopes;
++         path_type shape_path;
++         std::queue&lt; Envelope&lt;double&gt; &gt; envelopes;
+     
+-    //output
+-    std::vector&lt;placement_element&gt; placements;
++         //output
++         std::vector&lt;placement_element&gt; placements;
+ 
+-    // caching output
+-    placement_element current_placement;
++         // caching output
++         placement_element current_placement;
+     
+-    //helpers
+-    std::pair&lt;double, double&gt; get_position_at_distance(double target_distance);
+-    double get_total_distance();
+-    void clear_envelopes();
++         //helpers
++         std::pair&lt;double, double&gt; get_position_at_distance(double target_distance);
++         double get_total_distance();
++         void clear_envelopes();
+     
+-    double total_distance_; //cache for distance
++         double total_distance_; //cache for distance
+     
+-    int wrap_width;
+-    int text_ratio;
++         int wrap_width;
++         int text_ratio;
+ 
+-    int label_spacing; // distance between repeated labels on a single geometry
+-    unsigned label_position_tolerance; //distance the label can be moved on the line to fit, if 0 the default is used
+-	bool force_odd_labels; //Always try render an odd amount of labels
++         int label_spacing; // distance between repeated labels on a single geometry
++         unsigned label_position_tolerance; //distance the label can be moved on the line to fit, if 0 the default is used
++         bool force_odd_labels; //Always try render an odd amount of labels
+ 
+-    double max_char_angle_delta;
++         double max_char_angle_delta;
+     
+-    bool avoid_edges;
+-  };
++         bool avoid_edges;
++   };
+ 
+ 
+   
+-  class placement_finder : boost::noncopyable
+-  {
+-  public:
+-    //E is the dimensions of the map, buffer is the buffer used for collission detection.
+-    placement_finder(Envelope&lt;double&gt; e, unsigned buffer);
++   class placement_finder : boost::noncopyable
++   {
++      public:
++         //e is the dimensions of the map, buffer is the buffer used for collission detection.
++         placement_finder(Envelope&lt;double&gt; e, unsigned buffer);
+   
+-    bool find_placements(placement *p);
++         bool find_placements(placement *p);
+     
+-  protected:
+-    bool find_placement_follow(placement *p);
+-    bool find_placement_horizontal(placement *p);
++      protected:
++         bool find_placement_follow(placement *p);
++         bool find_placement_horizontal(placement *p);
+ 
+-    bool build_path_follow(placement *p, double target_distance);
+-    bool build_path_horizontal(placement *p, double target_distance);
++         bool build_path_follow(placement *p, double target_distance);
++         bool build_path_horizontal(placement *p, double target_distance);
+ 
+-    void update_detector(placement *p);
++         void update_detector(placement *p);
+   
+-    Envelope&lt;double&gt; dimensions_;
+-    label_collision_detector3 detector_;
+-  };
++         Envelope&lt;double&gt; dimensions_;
++         label_collision_detector3 detector_;
++   };
+   
+ }
+ 
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2007-02-08 00:36:14 UTC (rev 443)
++++ trunk/src/agg_renderer.cpp	2007-02-09 16:32:44 UTC (rev 444)
+@@ -521,7 +521,10 @@
+                     
+                ren.get_string_info(text, &amp;info);
+                     
+-               placement text_placement(&amp;info, &amp;t_, &amp;prj_trans, geom, sym.get_label_placement());
++               placement text_placement(&amp;info, &amp;t_, &amp;prj_trans, geom, 
++                                        sym.get_displacement(),
++                                        sym.get_label_placement());
++               
+                text_placement.text_ratio = sym.get_text_ratio();
+                text_placement.wrap_width = sym.get_wrap_width();
+                text_placement.label_spacing = sym.get_label_spacing();
+@@ -530,25 +533,22 @@
+                text_placement.max_char_angle_delta = sym.get_max_char_angle_delta();
+                text_placement.avoid_edges = sym.get_avoid_edges();
+                   
+-               bool found = finder_.find_placements(&amp;text_placement);
+-               if (!found) {
+-                  return;
+-               }
++               if ( !finder_.find_placements(&amp;text_placement)) return;
+                     
+                for (unsigned int ii = 0; ii &lt; text_placement.placements.size(); ++ ii)
+                {
+                   double x = text_placement.placements[ii].starting_x;
+                   double y = text_placement.placements[ii].starting_y;
+-                        
++                  
+                   Envelope&lt;double&gt; dim = ren.prepare_glyphs(&amp;text_placement.placements[ii].path);
+-                        
+-                  Envelope&lt;double&gt; text_box(x + dim.minx() ,y - dim.maxy(), x + dim.maxx(),y - dim.miny());
++                  
++                  //Envelope&lt;double&gt; text_box(x + dim.minx() ,y - dim.maxy(), x + dim.maxx(),y - dim.miny());
+ 		        
+-                  if (sym.get_halo_radius() &gt; 0)
+-                  {
+-                     text_box.width(text_box.width() + sym.get_halo_radius()*2);
+-                     text_box.height(text_box.height() + sym.get_halo_radius()*2);
+-                  }
++                  //if (sym.get_halo_radius() &gt; 0)
++                  //{
++                  //   text_box.width(text_box.width() + sym.get_halo_radius()*2);
++                  //   text_box.height(text_box.height() + sym.get_halo_radius()*2);
++                  //}
+                   ren.render(x,y);
+                }
+             }
+
+Modified: trunk/src/load_map.cpp
+===================================================================
+--- trunk/src/load_map.cpp	2007-02-08 00:36:14 UTC (rev 443)
++++ trunk/src/load_map.cpp	2007-02-09 16:32:44 UTC (rev 444)
+@@ -187,6 +187,12 @@
+                                 std::string placement_str = 
+                                     sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.placement&quot;,&quot;point&quot;);
+                                 
++                                // displacement 
++                                
++                                int dx = sym.second.get&lt;int&gt;(&quot;&lt;xmlattr&gt;.dx&quot;,0);
++                                int dy = sym.second.get&lt;int&gt;(&quot;&lt;xmlattr&gt;.dy&quot;,0);
++                                text_symbol.set_displacement(dx,dy);
++                                
+                                 if (placement_str == &quot;line&quot;)
+                                 {
+                                     text_symbol.set_label_placement(line_placement);
+@@ -400,10 +406,6 @@
+                                     }
+                                 }
+                                 rule.append(poly_sym);
+-                            }
+-                            else if ( sym.first == &quot;TextSymbolizer&quot;)
+-                            {
+-                                std::cout &lt;&lt; sym.first &lt;&lt; &quot;\n&quot;;
+                             } 
+                             else if ( sym.first == &quot;RasterSymbolizer&quot;)
+                             {
+
+Modified: trunk/src/placement_finder.cpp
+===================================================================
+--- trunk/src/placement_finder.cpp	2007-02-08 00:36:14 UTC (rev 443)
++++ trunk/src/placement_finder.cpp	2007-02-09 16:32:44 UTC (rev 444)
+@@ -32,6 +32,7 @@
+ #include &lt;boost/utility.hpp&gt;
+ #include &lt;boost/ptr_container/ptr_vector.hpp&gt;
+ #include &lt;boost/thread/mutex.hpp&gt;
++#include &lt;boost/tuple/tuple.hpp&gt;
+ 
+ //mapnik
+ #include &lt;mapnik/geometry.hpp&gt;
+@@ -45,14 +46,53 @@
+ namespace mapnik
+ {
+     //For shields
+-    placement::placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, std::pair&lt;double, double&gt; dimensions_)
+-        : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(point_placement), dimensions(dimensions_), has_dimensions(true), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0), wrap_width(0), text_ratio(0), label_spacing(0), label_position_tolerance(0), force_odd_labels(false), max_char_angle_delta(0.0), avoid_edges(false)
++    placement::placement(string_info *info_, 
++                         CoordTransform *ctrans_, 
++                         const proj_transform *proj_trans_, 
++                         geometry_ptr geom_, 
++                         std::pair&lt;double, double&gt; dimensions_)
++        : info(info_), 
++          ctrans(ctrans_), 
++          proj_trans(proj_trans_), 
++          geom(geom_),
++          displacement_(0,0),
++          label_placement(point_placement), 
++          dimensions(dimensions_), 
++          has_dimensions(true), 
++          shape_path(*ctrans_, *geom_, *proj_trans_), 
++          total_distance_(-1.0), 
++          wrap_width(0), 
++          text_ratio(0), 
++          label_spacing(0), 
++          label_position_tolerance(0), 
++          force_odd_labels(false), 
++          max_char_angle_delta(0.0), avoid_edges(false)
+     {
+     }
+ 
+     //For text
+-    placement::placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, label_placement_e placement_)
+-        : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(placement_), has_dimensions(false), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0), wrap_width(0), text_ratio(0), label_spacing(0), label_position_tolerance(0), force_odd_labels(false), max_char_angle_delta(0.0), avoid_edges(false)
++    placement::placement(string_info *info_, 
++                         CoordTransform *ctrans_, 
++                         const proj_transform *proj_trans_, 
++                         geometry_ptr geom_,
++                         position const&amp; displacement,
++                         label_placement_e placement_)
++       : info(info_), 
++         ctrans(ctrans_), 
++         proj_trans(proj_trans_), 
++         geom(geom_), 
++         displacement_(displacement),
++         label_placement(placement_), 
++         has_dimensions(false), 
++         shape_path(*ctrans_, *geom_, *proj_trans_), 
++         total_distance_(-1.0), 
++         wrap_width(0), 
++         text_ratio(0), 
++         label_spacing(0), 
++         label_position_tolerance(0), 
++         force_odd_labels(false), 
++         max_char_angle_delta(0.0), 
++         avoid_edges(false)
+     {
+     }
+   
+@@ -143,7 +183,8 @@
+   
+   
+     placement_finder::placement_finder(Envelope&lt;double&gt; e, unsigned buffer)
+-        : dimensions_(e), detector_(Envelope&lt;double&gt;(e.minx() - buffer, e.miny() - buffer, e.maxx() + buffer, e.maxy() + buffer))
++        : dimensions_(e), 
++          detector_(Envelope&lt;double&gt;(e.minx() - buffer, e.miny() - buffer, e.maxx() + buffer, e.maxy() + buffer))
+     {
+     }
+ 
+@@ -574,6 +615,9 @@
+             double z=0;  
+             p-&gt;proj_trans-&gt;backward(p-&gt;current_placement.starting_x, p-&gt;current_placement.starting_y, z);
+             p-&gt;ctrans-&gt;forward(&amp;p-&gt;current_placement.starting_x, &amp;p-&gt;current_placement.starting_y);
++            // apply displacement ( in pixels ) 
++            p-&gt;current_placement.starting_x += boost::tuples::get&lt;0&gt;(p-&gt;displacement_);
++            p-&gt;current_placement.starting_y += boost::tuples::get&lt;1&gt;(p-&gt;displacement_); 
+         }
+         
+         double line_height = 0;
+@@ -606,11 +650,17 @@
+                 Envelope&lt;double&gt; e;
+                 if (p-&gt;has_dimensions)
+                 {
+-                    e.init(p-&gt;current_placement.starting_x - (p-&gt;dimensions.first/2.0), p-&gt;current_placement.starting_y - (p-&gt;dimensions.second/2.0), p-&gt;current_placement.starting_x + (p-&gt;dimensions.first/2.0), p-&gt;current_placement.starting_y + (p-&gt;dimensions.second/2.0));
++                    e.init(p-&gt;current_placement.starting_x - (p-&gt;dimensions.first/2.0), 
++                           p-&gt;current_placement.starting_y - (p-&gt;dimensions.second/2.0), 
++                           p-&gt;current_placement.starting_x + (p-&gt;dimensions.first/2.0), 
++                           p-&gt;current_placement.starting_y + (p-&gt;dimensions.second/2.0));
+                 }
+                 else
+                 {
+-                    e.init(p-&gt;current_placement.starting_x + x, p-&gt;current_placement.starting_y - y, p-&gt;current_placement.starting_x + x + ci.width, p-&gt;current_placement.starting_y - y - ci.height);
++                    e.init(p-&gt;current_placement.starting_x + x, 
++                           p-&gt;current_placement.starting_y - y, 
++                           p-&gt;current_placement.starting_x + x + ci.width, 
++                           p-&gt;current_placement.starting_y - y - ci.height);
+                 }
+                 
+                 if (!detector_.has_placement(e))
+
+Modified: trunk/src/text_symbolizer.cpp
+===================================================================
+--- trunk/src/text_symbolizer.cpp	2007-02-08 00:36:14 UTC (rev 443)
++++ trunk/src/text_symbolizer.cpp	2007-02-09 16:32:44 UTC (rev 444)
+@@ -213,7 +213,7 @@
+         displacement_ = boost::make_tuple(x,y);
+     }
+     
+-    position const&amp;  text_symbolizer::get_displacement() const
++    position const&amp; text_symbolizer::get_displacement() const
+     {
+         return displacement_;
+     }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000328.html">[Mapnik-svn] r443 - trunk/utils/shapeindex
+</A></li>
+	<LI>Next message: <A HREF="000330.html">[Mapnik-svn] r445 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#329">[ date ]</a>
+              <a href="thread.html#329">[ thread ]</a>
+              <a href="subject.html#329">[ subject ]</a>
+              <a href="author.html#329">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,1065 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r376 - in trunk: . include/mapnik	plugins/input/postgis plugins/input/raster	plugins/input/shape src utils/shapeindex
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-November/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r376%20-%20in%20trunk%3A%20.%20include/mapnik%0A%09plugins/input/postgis%20plugins/input/raster%0A%09plugins/input/shape%20src%20utils/shapeindex&In-Reply-To=%3C200611191713.kAJHDhsf006225%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000260.html">
+   <LINK REL="Next"  HREF="000262.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r376 - in trunk: . include/mapnik	plugins/input/postgis plugins/input/raster	plugins/input/shape src utils/shapeindex</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r376%20-%20in%20trunk%3A%20.%20include/mapnik%0A%09plugins/input/postgis%20plugins/input/raster%0A%09plugins/input/shape%20src%20utils/shapeindex&In-Reply-To=%3C200611191713.kAJHDhsf006225%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r376 - in trunk: . include/mapnik	plugins/input/postgis plugins/input/raster	plugins/input/shape src utils/shapeindex">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Sun Nov 19 18:13:43 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000260.html">[Mapnik-svn] r375 - trunk/src
+</A></li>
+        <LI>Next message: <A HREF="000262.html">[Mapnik-svn] r377 - in trunk: include/mapnik src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#261">[ date ]</a>
+              <a href="thread.html#261">[ thread ]</a>
+              <a href="subject.html#261">[ subject ]</a>
+              <a href="author.html#261">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-11-19 18:13:33 +0100 (Sun, 19 Nov 2006)
+New Revision: 376
+
+Modified:
+   trunk/SConstruct
+   trunk/include/mapnik/feature_style_processor.hpp
+   trunk/include/mapnik/font_engine_freetype.hpp
+   trunk/include/mapnik/pool.hpp
+   trunk/include/mapnik/utils.hpp
+   trunk/plugins/input/postgis/connection.hpp
+   trunk/plugins/input/postgis/postgis.cpp
+   trunk/plugins/input/postgis/postgisfs.cpp
+   trunk/plugins/input/raster/raster_featureset.cpp
+   trunk/plugins/input/shape/shape.cpp
+   trunk/plugins/input/shape/shape_featureset.cpp
+   trunk/plugins/input/shape/shape_index_featureset.cpp
+   trunk/src/agg_renderer.cpp
+   trunk/src/datasource_cache.cpp
+   trunk/src/load_map.cpp
+   trunk/src/map.cpp
+   trunk/src/memory.cpp
+   trunk/src/png_reader.cpp
+   trunk/src/polygon_pattern_symbolizer.cpp
+   trunk/src/shield_symbolizer.cpp
+   trunk/utils/shapeindex/shapeindex.cpp
+Log:
+disable clog printing in release mode. Pass -DMAPNIK_DEBUG to enable.
+
+
+
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/SConstruct	2006-11-19 17:13:33 UTC (rev 376)
+@@ -145,7 +145,7 @@
+ # Setup the c++ args for our own codebase
+ 
+ if env['DEBUG']:
+-    env.Append(CXXFLAGS = '-ansi -Wall -ftemplate-depth-100 -O0 -fno-inline -g -pthread -DDEBUG -DBOOST_PROPERTY_TREE_XML_PARSER_TINYXML -DTIXML_USE_STL')
++    env.Append(CXXFLAGS = '-ansi -Wall -ftemplate-depth-100 -O0 -fno-inline -g -pthread -DDEBUG -DMAPNIK_DEBUG -DBOOST_PROPERTY_TREE_XML_PARSER_TINYXML -DTIXML_USE_STL')
+ else:
+     env.Append(CXXFLAGS = '-ansi -Wall -ftemplate-depth-100 -O3 -finline-functions -Wno-inline -pthread -DNDEBUG -DBOOST_PROPERTY_TREE_XML_PARSER_TINYXML -DTIXML_USE_STL')
+ 
+
+Modified: trunk/include/mapnik/feature_style_processor.hpp
+===================================================================
+--- trunk/include/mapnik/feature_style_processor.hpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/include/mapnik/feature_style_processor.hpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -77,8 +77,9 @@
+             {
+                 projection proj(m_.srs()); // map projection
+                 double scale_denom = scale_denominator(m_,proj.is_geographic());
++#ifdef MAPNIK_DEBUG
+                 std::clog &lt;&lt; &quot;scale denominator = &quot; &lt;&lt; scale_denom &lt;&lt; &quot;\n&quot;;
+-                
++#endif
+                 std::vector&lt;Layer&gt;::const_iterator itr = m_.layers().begin();
+                 std::vector&lt;Layer&gt;::const_iterator end = m_.layers().end();
+             
+@@ -120,8 +121,9 @@
+                 prj_trans.forward(x0,y0,z0);
+                 prj_trans.forward(x1,y1,z1);
+                 Envelope&lt;double&gt; bbox(x0,y0,x1,y1);
++#ifdef MAPNIK_DEBUG
+                 std::clog &lt;&lt; bbox &lt;&lt; &quot;\n&quot;;
+-                
++#endif                
+                 std::vector&lt;std::string&gt; const&amp; style_names = lay.styles();
+                 std::vector&lt;std::string&gt;::const_iterator stylesIter = style_names.begin();
+                 std::vector&lt;std::string&gt;::const_iterator stylesEnd = style_names.end();
+
+Modified: trunk/include/mapnik/font_engine_freetype.hpp
+===================================================================
+--- trunk/include/mapnik/font_engine_freetype.hpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/include/mapnik/font_engine_freetype.hpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -95,7 +95,9 @@
+ 	
+     	~font_face()
+     	{
++#ifdef MAPNIK_DEBUG
+     	    std::clog &lt;&lt; &quot;clean up face:&quot; &lt;&lt; family_name()&lt;&lt;&quot;:&quot; &lt;&lt; style_name() &lt;&lt; std::endl;
++#endif
+     	    FT_Done_Face(face_);
+     	}
+ 	
+
+Modified: trunk/include/mapnik/pool.hpp
+===================================================================
+--- trunk/include/mapnik/pool.hpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/include/mapnik/pool.hpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -91,8 +91,10 @@
+             mutex::scoped_lock lock(mutex_);
+             typename ContType::iterator itr=unusedPool_.begin();
+             if (itr!=unusedPool_.end())
+-            {  
++            { 
++#ifdef MAPNIK_DEBUG
+                 std::clog&lt;&lt;&quot;borrow &quot;&lt;&lt;(*itr).get()&lt;&lt;&quot;\n&quot;;
++#endif
+                 usedPool_.push_back(*itr);
+                 itr=unusedPool_.erase(itr);
+                 return usedPool_[usedPool_.size()-1];
+@@ -109,7 +111,9 @@
+             {
+                 if (obj.get()==(*itr).get()) 
+                 {
++#ifdef MAPNIK_DEBUG
+                     std::clog&lt;&lt;&quot;return &quot;&lt;&lt;(*itr).get()&lt;&lt;&quot;\n&quot;;
++#endif
+                     unusedPool_.push_back(*itr);
+                     usedPool_.erase(itr);
+                     return;
+
+Modified: trunk/include/mapnik/utils.hpp
+===================================================================
+--- trunk/include/mapnik/utils.hpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/include/mapnik/utils.hpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -163,30 +163,6 @@
+             }
+         }
+     };
+-
+-
+-    struct timer
+-    {
+-        //struct timeval tv_;
+-        timer()
+-        {
+-            //gettimeofday (&amp;tv_,0);
+-        }
+-        void start()
+-        {
+-            //gettimeofday (&amp;tv_,0);
+-        }
+-        void stop()
+-        {
+-            //timeval tv;
+-            //gettimeofday (&amp;tv,0);
+-            //std::ostringstream s;
+-            //long sec=1000*(tv.tv_sec-tv_.tv_sec);
+-            //long total_ms=sec+static_cast&lt;long&gt;(0.001*(tv.tv_usec-tv_.tv_usec));
+-            //s &lt;&lt; &quot;elapsed time is &quot;&lt;&lt;total_ms&lt;&lt;&quot; ms&quot;;
+-            //std::clog&lt;&lt;s.str()&lt;&lt;std::endl;
+-        }
+-    };
+     
+     //converters
+     class BadConversion : public std::runtime_error
+
+Modified: trunk/plugins/input/postgis/connection.hpp
+===================================================================
+--- trunk/plugins/input/postgis/connection.hpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/plugins/input/postgis/connection.hpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -59,10 +59,6 @@
+             std::clog &lt;&lt; &quot;connection to &quot;&lt;&lt; connStr &lt;&lt; &quot; failed\n&quot;
+                       &lt;&lt; PQerrorMessage(conn_)&lt;&lt; std::endl;
+         }
+-        else
+-        {
+-            std::clog &lt;&lt;&quot;connected ok &quot;&lt;&lt;std::endl;
+-        }
+     }
+     bool execute(const std::string&amp; sql) const
+     {
+
+Modified: trunk/plugins/input/postgis/postgis.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.cpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/plugins/input/postgis/postgis.cpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -36,7 +36,6 @@
+ const std::string postgis_datasource::SPATIAL_REF_SYS=&quot;spatial_ref_system&quot;;
+ 
+ using std::clog;
+-using std::clog;
+ using std::endl;
+ 
+ using boost::lexical_cast;
+@@ -219,7 +218,7 @@
+             s &lt;&lt; std::setprecision(16);
+             s &lt;&lt; box.minx() &lt;&lt; &quot; &quot; &lt;&lt; box.miny() &lt;&lt; &quot;,&quot;;
+             s &lt;&lt; box.maxx() &lt;&lt; &quot; &quot; &lt;&lt; box.maxy() &lt;&lt; &quot;)'::box3d,&quot;&lt;&lt;srid_&lt;&lt;&quot;)&quot;;
+-            clog &lt;&lt; s.str() &lt;&lt; endl;
++            
+             shared_ptr&lt;ResultSet&gt; rs=conn-&gt;executeQuery(s.str(),1);
+             fs=new postgis_featureset(rs,props.size());
+         }
+
+Modified: trunk/plugins/input/postgis/postgisfs.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgisfs.cpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/plugins/input/postgis/postgisfs.cpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -97,8 +97,6 @@
+     else
+     {
+         rs_-&gt;close();
+-        std::clog &lt;&lt; &quot;totalGeomSize=&quot;&lt;&lt;totalGeomSize_&lt;&lt;&quot; bytes&quot;&lt;&lt;std::endl;
+-        std::clog &lt;&lt; &quot;count=&quot;&lt;&lt;count_&lt;&lt;std::endl;
+         return feature_ptr();
+     }
+ }
+
+Modified: trunk/plugins/input/raster/raster_featureset.cpp
+===================================================================
+--- trunk/plugins/input/raster/raster_featureset.cpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/plugins/input/raster/raster_featureset.cpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -45,10 +45,8 @@
+     {
+         feature_ptr feature(new Feature(+id_));
+         try
+-        {
+-            std::clog&lt;&lt;&quot;raster_featureset &quot;&lt;&lt;curIter_-&gt;format()&lt;&lt;&quot; &quot;&lt;&lt;curIter_-&gt;file()&lt;&lt;std::endl;
++        {         
+             std::auto_ptr&lt;ImageReader&gt; reader(get_image_reader(curIter_-&gt;format(),curIter_-&gt;file()));
+-            std::clog&lt;&lt;reader.get()&lt;&lt;std::endl;
+             if (reader.get())
+             {
+                 int image_width=reader-&gt;width();
+
+Modified: trunk/plugins/input/shape/shape.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape.cpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/plugins/input/shape/shape.cpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -72,10 +72,10 @@
+                     break;
+                 }
+             default:
+-                //
++#ifdef MAPNIK_DEBUG                
+                 std::clog &lt;&lt; &quot;unknown type &quot;&lt;&lt;fd.type_&lt;&lt;&quot;\n&quot;;
++#endif 
+                 break;
+-
+             }
+         }
+     }
+@@ -123,9 +123,12 @@
+         file.close();
+     }
+ 
++#ifdef MAPNIK_DEBUG
+     std::clog &lt;&lt; extent_ &lt;&lt; std::endl;
+     std::clog &lt;&lt; &quot;file_length=&quot; &lt;&lt; file_length_ &lt;&lt; std::endl;
+     std::clog &lt;&lt; &quot;shape_type=&quot; &lt;&lt; shape_type &lt;&lt; std::endl;
++#endif
++
+ }
+ 
+ int shape_datasource::type() const
+
+Modified: trunk/plugins/input/shape/shape_featureset.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape_featureset.cpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/plugins/input/shape/shape_featureset.cpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -25,9 +25,9 @@
+ 
+ template &lt;typename filterT&gt;
+ shape_featureset&lt;filterT&gt;::shape_featureset(const filterT&amp; filter, 
+-					    const std::string&amp; shape_file,
+-					    const std::set&lt;std::string&gt;&amp; attribute_names,
+-					    long file_length )
++                                            const std::string&amp; shape_file,
++                                            const std::set&lt;std::string&gt;&amp; attribute_names,
++                                            long file_length )
+     : filter_(filter),
+       shape_type_(shape_io::shape_null),
+       shape_(shape_file),
+@@ -40,15 +40,15 @@
+     typename std::set&lt;std::string&gt;::const_iterator pos=attribute_names.begin();
+     while (pos!=attribute_names.end())
+     {
+-	for (int i=0;i&lt;shape_.dbf().num_fields();++i)
+-	{
+-	    if (shape_.dbf().descriptor(i).name_ == *pos)
+-	    {
+-		attr_ids_.push_back(i);
+-		break;
+-	    }
+-	}
+-	++pos;
++        for (int i=0;i&lt;shape_.dbf().num_fields();++i)
++        {
++            if (shape_.dbf().descriptor(i).name_ == *pos)
++            {
++                attr_ids_.push_back(i);
++                break;
++            }
++        }
++        ++pos;
+     }
+ }
+ 
+@@ -61,126 +61,128 @@
+     if (pos &lt; std::streampos(file_length_ * 2))
+     {
+         shape_.move_to(pos);
+-	int type=shape_.type();
+-	feature_ptr feature(new Feature(shape_.id_));
+-	if (type == shape_io::shape_point)
+-	{
+-	    double x=shape_.shp().read_double();
+-	    double y=shape_.shp().read_double();
+-	    geometry_ptr point(new point_impl(-1));
+-	    point-&gt;move_to(x,y);
+-	    feature-&gt;set_geometry(point);
+-	    ++count_;
+-	}
+-	else if (type == shape_io::shape_pointm)
+-	{
+-	    double x=shape_.shp().read_double();
+-	    double y=shape_.shp().read_double();
+-	    shape_.shp().read_double();//m
+-	    geometry_ptr point(new point_impl(-1));
+-	    point-&gt;move_to(x,y);
+-	    feature-&gt;set_geometry(point);
+-	    ++count_;
+-	}
+-	else if (type == shape_io::shape_pointz)
+-	{
+-	    double x=shape_.shp().read_double();
+-	    double y=shape_.shp().read_double();
+-	    shape_.shp().read_double();//z
+-	    shape_.shp().read_double();//m
+-	    geometry_ptr point(new point_impl(-1));
+-	    point-&gt;move_to(x,y);
+-	    feature-&gt;set_geometry(point);
+-	    ++count_;
+-	}
+-	else
+-	{
+-	    while (!filter_.pass(shape_.current_extent()))
+-	    {	
+-		unsigned reclen=shape_.reclength_;
+-		if (!shape_.shp().is_eof())
+-		{
+-		    long pos = shape_.shp().pos();
+-		    shape_.move_to(pos + 2 * reclen - 36);
+-		}
+-		else
+-		{
+-		    return feature_ptr();
++        int type=shape_.type();
++        feature_ptr feature(new Feature(shape_.id_));
++        if (type == shape_io::shape_point)
++        {
++            double x=shape_.shp().read_double();
++            double y=shape_.shp().read_double();
++            geometry_ptr point(new point_impl(-1));
++            point-&gt;move_to(x,y);
++            feature-&gt;set_geometry(point);
++            ++count_;
++        }
++        else if (type == shape_io::shape_pointm)
++        {
++            double x=shape_.shp().read_double();
++            double y=shape_.shp().read_double();
++            shape_.shp().read_double();//m
++            geometry_ptr point(new point_impl(-1));
++            point-&gt;move_to(x,y);
++            feature-&gt;set_geometry(point);
++            ++count_;
++        }
++        else if (type == shape_io::shape_pointz)
++        {
++            double x=shape_.shp().read_double();
++            double y=shape_.shp().read_double();
++            shape_.shp().read_double();//z
++            shape_.shp().read_double();//m
++            geometry_ptr point(new point_impl(-1));
++            point-&gt;move_to(x,y);
++            feature-&gt;set_geometry(point);
++            ++count_;
++        }
++        else
++        {
++            while (!filter_.pass(shape_.current_extent()))
++            {	
++                unsigned reclen=shape_.reclength_;
++                if (!shape_.shp().is_eof())
++                {
++                    long pos = shape_.shp().pos();
++                    shape_.move_to(pos + 2 * reclen - 36);
++                }
++                else
++                {
++                    return feature_ptr();
+ 
+-		}
+-	    }
++                }
++            }
+ 	    
+-	    switch (type)
++            switch (type)
+             {
+ 	  
+-	    case shape_io::shape_polyline:
+-		{
+-		    geometry_ptr line = shape_.read_polyline();
+-		    feature-&gt;set_geometry(line);
+-		    ++count_;
+-		    break;
+-		}
+-	    case shape_io::shape_polylinem:
+-		{
+-		    geometry_ptr line = shape_.read_polylinem();
+-		    feature-&gt;set_geometry(line);
+-		    ++count_;
+-		    break;
+-		}
+-	    case shape_io::shape_polylinez:
+-		{
+-		    geometry_ptr line = shape_.read_polylinez();
+-		    feature-&gt;set_geometry(line);
+-		    ++count_;
+-		    break;
+-		}
+-	    case shape_io::shape_polygon:
+-		{		 
+-		    geometry_ptr poly = shape_.read_polygon();
+-		    feature-&gt;set_geometry(poly);
+-		    ++count_;
+-		    break;
+-		}
+-	    case shape_io::shape_polygonm:
+-		{		 
+-		    geometry_ptr poly = shape_.read_polygonm();
+-		    feature-&gt;set_geometry(poly);
+-		    ++count_;
+-		    break;
+-		}
+-	    case shape_io::shape_polygonz:
+-		{
+-		    geometry_ptr poly = shape_.read_polygonz();
+-		    feature-&gt;set_geometry(poly);
+-		    ++count_;
+-		    break;
+-		}
++            case shape_io::shape_polyline:
++                {
++                    geometry_ptr line = shape_.read_polyline();
++                    feature-&gt;set_geometry(line);
++                    ++count_;
++                    break;
++                }
++            case shape_io::shape_polylinem:
++                {
++                    geometry_ptr line = shape_.read_polylinem();
++                    feature-&gt;set_geometry(line);
++                    ++count_;
++                    break;
++                }
++            case shape_io::shape_polylinez:
++                {
++                    geometry_ptr line = shape_.read_polylinez();
++                    feature-&gt;set_geometry(line);
++                    ++count_;
++                    break;
++                }
++            case shape_io::shape_polygon:
++                {		 
++                    geometry_ptr poly = shape_.read_polygon();
++                    feature-&gt;set_geometry(poly);
++                    ++count_;
++                    break;
++                }
++            case shape_io::shape_polygonm:
++                {		 
++                    geometry_ptr poly = shape_.read_polygonm();
++                    feature-&gt;set_geometry(poly);
++                    ++count_;
++                    break;
++                }
++            case shape_io::shape_polygonz:
++                {
++                    geometry_ptr poly = shape_.read_polygonz();
++                    feature-&gt;set_geometry(poly);
++                    ++count_;
++                    break;
++                }
+ 
+             }
+-	}
+-	if (attr_ids_.size())
+-	{
+-	    shape_.dbf().move_to(shape_.id_);
+-	    typename std::vector&lt;int&gt;::const_iterator pos=attr_ids_.begin();
+-	    while (pos!=attr_ids_.end())
+-	    {
+-		try 
+-		{
+-		    shape_.dbf().add_attribute(*pos,*feature);//TODO optimize!!!
+-		}
+-		catch (...)
+-		{
+-		    std::clog &lt;&lt; &quot;error processing attributes &quot; &lt;&lt; std::endl;
+-		}
+-		++pos;
+-	    }
+-	}
+-	return feature;
++        }
++        if (attr_ids_.size())
++        {
++            shape_.dbf().move_to(shape_.id_);
++            typename std::vector&lt;int&gt;::const_iterator pos=attr_ids_.begin();
++            while (pos!=attr_ids_.end())
++            {
++                try 
++                {
++                    shape_.dbf().add_attribute(*pos,*feature);//TODO optimize!!!
++                }
++                catch (...)
++                {
++                    std::clog &lt;&lt; &quot;error processing attributes &quot; &lt;&lt; std::endl;
++                }
++                ++pos;
++            }
++        }
++        return feature;
+     }
+     else
+     {
+-	std::clog&lt;&lt;&quot; total shapes read=&quot;&lt;&lt;count_&lt;&lt;&quot;\n&quot;;
+-	return feature_ptr();
++#ifdef MAPNIK_DEBUG
++        std::clog&lt;&lt;&quot; total shapes read=&quot;&lt;&lt;count_&lt;&lt;&quot;\n&quot;;
++#endif
++        return feature_ptr();
+     }
+ }
+ 
+
+Modified: trunk/plugins/input/shape/shape_index_featureset.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape_index_featureset.cpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/plugins/input/shape/shape_index_featureset.cpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -27,8 +27,8 @@
+ 
+ template &lt;typename filterT&gt;
+ shape_index_featureset&lt;filterT&gt;::shape_index_featureset(const filterT&amp; filter,
+-							const std::string&amp; shape_file,
+-							const std::set&lt;std::string&gt;&amp; attribute_names)
++                                                        const std::string&amp; shape_file,
++                                                        const std::set&lt;std::string&gt;&amp; attribute_names)
+     : filter_(filter),
+       shape_type_(0),
+       shape_(shape_file),
+@@ -43,22 +43,26 @@
+         shp_index&lt;filterT&gt;::query(filter,file,ids_);
+         file.close();
+     }
++
++#ifdef MAPNIK_DEBUG
+     std::clog&lt;&lt; &quot;query size=&quot; &lt;&lt; ids_.size() &lt;&lt; &quot;\n&quot;;
++#endif
++
+     itr_ = ids_.begin();
+ 
+     // deal with attributes
+     std::set&lt;std::string&gt;::const_iterator pos=attribute_names.begin();
+     while (pos!=attribute_names.end())
+     {
+-	for (int i=0;i&lt;shape_.dbf().num_fields();++i)
+-	{
+-	    if (shape_.dbf().descriptor(i).name_ == *pos)
+-	    {
+-		attr_ids_.push_back(i);
+-		break;
+-	    }
+-	}
+-	++pos;
++        for (int i=0;i&lt;shape_.dbf().num_fields();++i)
++        {
++            if (shape_.dbf().descriptor(i).name_ == *pos)
++            {
++                attr_ids_.push_back(i);
++                break;
++            }
++        }
++        ++pos;
+     }
+ }
+ 
+@@ -69,119 +73,122 @@
+     if (itr_!=ids_.end())
+     {
+         int pos=*itr_++;
+-	shape_.move_to(pos);
++        shape_.move_to(pos);
+         int type=shape_.type();
+-	feature_ptr feature(feature_factory::create(shape_.id_));
++        feature_ptr feature(feature_factory::create(shape_.id_));
+         
+         if (type==shape_io::shape_point)
+         {
+             double x=shape_.shp().read_double();
+-	    double y=shape_.shp().read_double();	    
+-	    geometry_ptr point(new point_impl(-1));
+-	    point-&gt;move_to(x,y);
+-	    feature-&gt;set_geometry(point);
+-	    ++count_;
++            double y=shape_.shp().read_double();	    
++            geometry_ptr point(new point_impl(-1));
++            point-&gt;move_to(x,y);
++            feature-&gt;set_geometry(point);
++            ++count_;
+         }
+-	else if (type == shape_io::shape_pointm)
+-	{
+-	    double x=shape_.shp().read_double();
+-	    double y=shape_.shp().read_double();
+-	    shape_.shp().read_double();// m
+-	    geometry_ptr point(new point_impl(-1));
+-	    point-&gt;move_to(x,y);
+-	    feature-&gt;set_geometry(point);
+-	    ++count_;
+-	}
+-	else if (type == shape_io::shape_pointz)
+-	{
+-	    double x=shape_.shp().read_double();
+-	    double y=shape_.shp().read_double();
+-	    shape_.shp().read_double();// z
+-	    shape_.shp().read_double();// m
+-	    geometry_ptr point(new point_impl(-1));
+-	    point-&gt;move_to(x,y);
+-	    feature-&gt;set_geometry(point);
+-	    ++count_;
+-	}	
++        else if (type == shape_io::shape_pointm)
++        {
++            double x=shape_.shp().read_double();
++            double y=shape_.shp().read_double();
++            shape_.shp().read_double();// m
++            geometry_ptr point(new point_impl(-1));
++            point-&gt;move_to(x,y);
++            feature-&gt;set_geometry(point);
++            ++count_;
++        }
++        else if (type == shape_io::shape_pointz)
++        {
++            double x=shape_.shp().read_double();
++            double y=shape_.shp().read_double();
++            shape_.shp().read_double();// z
++            shape_.shp().read_double();// m
++            geometry_ptr point(new point_impl(-1));
++            point-&gt;move_to(x,y);
++            feature-&gt;set_geometry(point);
++            ++count_;
++        }	
+         else
+         {
+             while(!filter_.pass(shape_.current_extent()) &amp;&amp; 
+ 	    		  itr_!=ids_.end())
+-	    {
++            {
+                 pos=*itr_++;
+                 shape_.move_to(pos);
+-	    }
++            }
+ 	    
+             switch (type)
+             {
+ 	        case shape_io::shape_polyline:
+-		{
+-		    geometry_ptr line = shape_.read_polyline();
+-		    feature-&gt;set_geometry(line);
+-		    ++count_;
+-		    break;
+-		}
+-		case shape_io::shape_polylinem:
+-		{
+-		    geometry_ptr line = shape_.read_polylinem();
+-		    feature-&gt;set_geometry(line);
+-		    ++count_;
+-		    break;
+-		}
+-		case shape_io::shape_polylinez:
+-		{
+-		    geometry_ptr line = shape_.read_polylinez();
+-		    feature-&gt;set_geometry(line);
+-		    ++count_;
+-		    break;
+-		}
++                {
++                    geometry_ptr line = shape_.read_polyline();
++                    feature-&gt;set_geometry(line);
++                    ++count_;
++                    break;
++                }
++            case shape_io::shape_polylinem:
++                {
++                    geometry_ptr line = shape_.read_polylinem();
++                    feature-&gt;set_geometry(line);
++                    ++count_;
++                    break;
++                }
++            case shape_io::shape_polylinez:
++                {
++                    geometry_ptr line = shape_.read_polylinez();
++                    feature-&gt;set_geometry(line);
++                    ++count_;
++                    break;
++                }
+ 	        case shape_io::shape_polygon:
+-		{
++                {
+ 		 
+-		    geometry_ptr poly = shape_.read_polygon();
+-		    feature-&gt;set_geometry(poly);
+-		    ++count_;
+-		    break;
+-		}
++                    geometry_ptr poly = shape_.read_polygon();
++                    feature-&gt;set_geometry(poly);
++                    ++count_;
++                    break;
++                }
+ 	        case shape_io::shape_polygonm:
+-		{ 
+-		    geometry_ptr poly = shape_.read_polygonm();
+-		    feature-&gt;set_geometry(poly);
+-		    ++count_;
+-		    break;
+-		}
++                { 
++                    geometry_ptr poly = shape_.read_polygonm();
++                    feature-&gt;set_geometry(poly);
++                    ++count_;
++                    break;
++                }
+ 	        case shape_io::shape_polygonz:
+-		{
+-		    geometry_ptr poly = shape_.read_polygonz();
+-		    feature-&gt;set_geometry(poly);
+-		    ++count_;
+-		    break;
+-		}
++                {
++                    geometry_ptr poly = shape_.read_polygonz();
++                    feature-&gt;set_geometry(poly);
++                    ++count_;
++                    break;
++                }
+             }
+         }
+-	if (attr_ids_.size())
+-	{
+-	    shape_.dbf().move_to(shape_.id_);
+-	    std::vector&lt;int&gt;::const_iterator pos=attr_ids_.begin();
+-	    while (pos!=attr_ids_.end())
+-	    {
+-		try 
+-		{
+-		    shape_.dbf().add_attribute(*pos,*feature);
+-		}
+-		catch (...)
+-		{
+-		    std::clog&lt;&lt;&quot;exception caught\n&quot;;
+-		}
+-		++pos;
+-	    }
+-	}
+-	return feature;
++        if (attr_ids_.size())
++        {
++            shape_.dbf().move_to(shape_.id_);
++            std::vector&lt;int&gt;::const_iterator pos=attr_ids_.begin();
++            while (pos!=attr_ids_.end())
++            {
++                try 
++                {
++                    shape_.dbf().add_attribute(*pos,*feature);
++                }
++                catch (...)
++                {
++                    std::clog&lt;&lt;&quot;exception caught\n&quot;;
++                }
++                ++pos;
++            }
++        }
++        return feature;
+     }
+     else
+     {
+-	std::clog&lt;&lt;count_&lt;&lt;&quot; features\n&quot;;
+-	return feature_ptr();
++
++#ifdef MAPNIK_DEBUG
++        std::clog&lt;&lt;count_&lt;&lt;&quot; features\n&quot;;
++#endif
++        return feature_ptr();
+     }
+ }
+ 
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/src/agg_renderer.cpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -100,33 +100,43 @@
+     {
+         Color const&amp; bg=m.getBackground();
+         pixmap_.setBackground(bg);
++#ifdef MAPNIK_DEBUG
+         std::clog &lt;&lt; &quot;scale=&quot; &lt;&lt; m.scale() &lt;&lt; &quot;\n&quot;;
++#endif
+     }
+     
+     template &lt;typename T&gt;
+     void agg_renderer&lt;T&gt;::start_map_processing(Map const&amp; map)
+     {
++#ifdef MAPNIK_DEBUG
+         std::clog &lt;&lt; &quot;start map processing bbox=&quot; 
+                   &lt;&lt; map.getCurrentExtent() &lt;&lt; &quot;\n&quot;;
++#endif
+     }
+ 
+     template &lt;typename T&gt;
+     void agg_renderer&lt;T&gt;::end_map_processing(Map const&amp; )
+     {
++#ifdef MAPNIK_DEBUG
+         std::clog &lt;&lt; &quot;end map processing&quot; &lt;&lt; std::endl;
++#endif
+     }
+     
+     template &lt;typename T&gt;
+     void agg_renderer&lt;T&gt;::start_layer_processing(Layer const&amp; lay)
+     {
++#ifdef MAPNIK_DEBUG
+         std::clog &lt;&lt; &quot;start layer processing : &quot; &lt;&lt; lay.name()  &lt;&lt; std::endl;
+         std::clog &lt;&lt; &quot;datasource = &quot; &lt;&lt; lay.datasource().get() &lt;&lt; std::endl;
++#endif 
+     }
+     
+     template &lt;typename T&gt;
+     void agg_renderer&lt;T&gt;::end_layer_processing(Layer const&amp;)
+     {
++#ifdef MAPNIK_DEBUG
+         std::clog &lt;&lt; &quot;end layer processing&quot; &lt;&lt; std::endl;
++#endif
+     }
+     
+     template &lt;typename T&gt;	
+
+Modified: trunk/src/datasource_cache.cpp
+===================================================================
+--- trunk/src/datasource_cache.cpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/src/datasource_cache.cpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -75,15 +75,17 @@
+                     std::clog &lt;&lt; &quot;Cannot load library: &quot; &lt;&lt; &quot;  &quot;&lt;&lt; lt_dlerror() &lt;&lt; std::endl;
+                 }
+             }
++#ifdef MAPNIK_DEBUG
+             std::clog&lt;&lt;&quot;datasource=&quot;&lt;&lt;ds&lt;&lt;&quot; type=&quot;&lt;&lt;type&lt;&lt;std::endl;
++#endif
+         }
+         catch (datasource_exception&amp; ex)
+         {
+-            std::clog&lt;&lt;ex.what()&lt;&lt;std::endl;
++            std::clog &lt;&lt; ex.what() &lt;&lt; &quot;\n&quot;;
+         }
+         catch (...)
+         {
+-            std::clog&lt;&lt;&quot; exception caught\n&quot;;
++            std::clog &lt;&lt; &quot; exception caught\n&quot;;
+         }
+         return ds;
+     }
+@@ -112,14 +114,16 @@
+                         datasource_name* ds_name = 
+                             (datasource_name*) lt_dlsym(module, &quot;datasource_name&quot;);
+                         if (ds_name &amp;&amp; insert(ds_name(),module))
+-                        {                           
++                        {            
++#ifdef MAPNIK_DEBUG
+                             std::clog&lt;&lt;&quot;registered datasource : &quot;&lt;&lt;ds_name()&lt;&lt;std::endl;
++#endif 
+                             registered_=true;
+                         }
+                     }
+                     else
+                     {
+-                        std::clog&lt;&lt;lt_dlerror()&lt;&lt;std::endl;
++                        std::clog &lt;&lt; lt_dlerror() &lt;&lt; &quot;\n&quot;;
+                     }
+                 }
+             }   
+
+Modified: trunk/src/load_map.cpp
+===================================================================
+--- trunk/src/load_map.cpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/src/load_map.cpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -446,7 +446,6 @@
+                             {
+                                 std::string name = param_tag.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.name&quot;);
+                                 std::string value = param_tag.second.data();
+-                                std::clog &lt;&lt; &quot;name = &quot; &lt;&lt; name &lt;&lt; &quot; value = &quot; &lt;&lt; value &lt;&lt; &quot;\n&quot;;
+                                 params[name] = value; 
+                             }
+                         }
+
+Modified: trunk/src/map.cpp
+===================================================================
+--- trunk/src/map.cpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/src/map.cpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -222,9 +222,10 @@
+                 prj_trans.backward(x1,y1,z1);
+                 
+                 Envelope&lt;double&gt; layerExt2(x0,y0,x1,y1);
++#ifdef MAPNIK_DEBUG
+                 std::clog &lt;&lt; &quot; layer1 - &gt; &quot; &lt;&lt; layerExt &lt;&lt; &quot;\n&quot;;
+                 std::clog &lt;&lt; &quot; layer2 - &gt; &quot; &lt;&lt; layerExt2 &lt;&lt; &quot;\n&quot;;
+-                
++#endif                
+                 if (first)
+                 {
+                     ext = layerExt2;
+
+Modified: trunk/src/memory.cpp
+===================================================================
+--- trunk/src/memory.cpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/src/memory.cpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -46,9 +46,9 @@
+         ::operator delete(p);
+     }
+ 
+-    void Object::operator delete(void* p, MemoryManager* manager)
++    void Object::operator delete(void* , MemoryManager* )
+     {
+-        std::clog &lt;&lt;&quot;operator delete with Manager &quot;&lt;&lt;std::hex&lt;&lt;p&lt;&lt;&quot; &quot;&lt;&lt;manager&lt;&lt;std::endl;
++        //std::clog &lt;&lt;&quot;operator delete with Manager &quot;&lt;&lt;std::hex&lt;&lt;p&lt;&lt;&quot; &quot;&lt;&lt;manager&lt;&lt;std::endl;
+     }
+ 
+     inline size_t MemoryUtils::alignPointerSize(size_t ptrSize)
+
+Modified: trunk/src/png_reader.cpp
+===================================================================
+--- trunk/src/png_reader.cpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/src/png_reader.cpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -74,7 +74,7 @@
+         } 
+         catch (const ImageReaderException&amp; e) 
+         {
+-            std::clog&lt;&lt;e.what()&lt;&lt;std::endl;
++            std::clog &lt;&lt; e.what() &lt;&lt; '\n';
+             throw;
+         }
+     }
+@@ -134,8 +134,9 @@
+ 
+         width_=width;
+         height_=height;
+-
++#ifdef MAPNIK_DEBUG
+         std::clog&lt;&lt;&quot;bit_depth=&quot;&lt;&lt;bit_depth_&lt;&lt;&quot; color_type=&quot;&lt;&lt;color_type_&lt;&lt;std::endl;
++#endif
+         png_destroy_read_struct(&amp;png_ptr,&amp;info_ptr,0);	
+         fclose(fp);
+     }
+
+Modified: trunk/src/polygon_pattern_symbolizer.cpp
+===================================================================
+--- trunk/src/polygon_pattern_symbolizer.cpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/src/polygon_pattern_symbolizer.cpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -41,7 +41,7 @@
+         } 
+         catch (...) 
+         {
+-            std::clog&lt;&lt;&quot;exception caught...&quot;&lt;&lt;std::endl;
++            std::clog &lt;&lt; &quot;exception caught...\n&quot;;
+         }
+     }
+     polygon_pattern_symbolizer::polygon_pattern_symbolizer(polygon_pattern_symbolizer const&amp; rhs)
+
+Modified: trunk/src/shield_symbolizer.cpp
+===================================================================
+--- trunk/src/shield_symbolizer.cpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/src/shield_symbolizer.cpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -62,7 +62,7 @@
+         } 
+         catch (...) 
+         {
+-            std::clog&lt;&lt;&quot;exception caught...&quot; &lt;&lt; std::endl;
++            std::clog &lt;&lt; &quot;exception caught...&quot; &lt;&lt; std::endl;
+         }
+     }
+     
+
+Modified: trunk/utils/shapeindex/shapeindex.cpp
+===================================================================
+--- trunk/utils/shapeindex/shapeindex.cpp	2006-11-18 16:47:29 UTC (rev 375)
++++ trunk/utils/shapeindex/shapeindex.cpp	2006-11-19 17:13:33 UTC (rev 376)
+@@ -71,7 +71,7 @@
+ 	
+         if (vm.count(&quot;version&quot;))
+         {
+-            clog&lt;&lt;&quot;version 0.2.0a&quot; &lt;&lt;endl;
++            clog&lt;&lt;&quot;version 0.3.0&quot; &lt;&lt;endl;
+             return 1;
+         }
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000260.html">[Mapnik-svn] r375 - trunk/src
+</A></li>
+	<LI>Next message: <A HREF="000262.html">[Mapnik-svn] r377 - in trunk: include/mapnik src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#261">[ date ]</a>
+              <a href="thread.html#261">[ thread ]</a>
+              <a href="subject.html#261">[ subject ]</a>
+              <a href="author.html#261">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

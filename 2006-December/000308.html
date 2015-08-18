@@ -1,0 +1,120 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r423 - in trunk: bindings/python include/mapnik
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-December/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r423%20-%20in%20trunk%3A%20bindings/python%20include/mapnik&In-Reply-To=%3C200612311144.kBVBiZp4001578%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000307.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r423 - in trunk: bindings/python include/mapnik</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r423%20-%20in%20trunk%3A%20bindings/python%20include/mapnik&In-Reply-To=%3C200612311144.kBVBiZp4001578%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r423 - in trunk: bindings/python include/mapnik">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Sun Dec 31 12:44:35 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000307.html">[Mapnik-svn] r422 - trunk/src
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#308">[ date ]</a>
+              <a href="thread.html#308">[ thread ]</a>
+              <a href="subject.html#308">[ subject ]</a>
+              <a href="author.html#308">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-12-31 12:44:34 +0100 (Sun, 31 Dec 2006)
+New Revision: 423
+
+Modified:
+   trunk/bindings/python/mapnik_feature.cpp
+   trunk/include/mapnik/feature.hpp
+Log:
+reflect feature's properties in Python
+(see wiki for more info and usage)
+
+
+
+Modified: trunk/bindings/python/mapnik_feature.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_feature.cpp	2006-12-31 11:42:57 UTC (rev 422)
++++ trunk/bindings/python/mapnik_feature.cpp	2006-12-31 11:44:34 UTC (rev 423)
+@@ -22,6 +22,7 @@
+ //$Id$
+ 
+ // boost
++#include &lt;boost/python/suite/indexing/map_indexing_suite.hpp&gt;
+ #include &lt;boost/python.hpp&gt;
+ // mapnik
+ #include &lt;mapnik/feature.hpp&gt;
+@@ -33,7 +34,19 @@
+     class_&lt;Feature,boost::shared_ptr&lt;Feature&gt;,
+         boost::noncopyable&gt;(&quot;Feature&quot;,no_init)
+         .def(&quot;id&quot;,&amp;Feature::id)
+-        //.def(&quot;__iter__&quot;, range&lt;&gt;())
+         .def(&quot;__str__&quot;,&amp;Feature::to_string)
++	.add_property(&quot;properties&quot;, 
++		      make_function(&amp;Feature::props,return_value_policy&lt;reference_existing_object&gt;()))
+         ;
++    
++    //implicitly_convertible&lt;std::string,mapnik::value&gt;();
++    
++    class_&lt;std::map&lt;std::string, mapnik::value&gt; &gt;(&quot;Properties&quot;)
++	.def(map_indexing_suite&lt;std::map&lt;std::string, mapnik::value
++	     &gt; &gt;())
++	;
++    
++    class_&lt;mapnik::value&gt;(&quot;Value&quot;)
++	.def(&quot;__str__&quot;,&amp;mapnik::value::to_string)
++	;
+ }
+
+Modified: trunk/include/mapnik/feature.hpp
+===================================================================
+--- trunk/include/mapnik/feature.hpp	2006-12-31 11:42:57 UTC (rev 422)
++++ trunk/include/mapnik/feature.hpp	2006-12-31 11:44:34 UTC (rev 423)
+@@ -92,7 +92,7 @@
+             raster_=raster;
+         }
+ 	
+-        const properties&amp; get_properties() const 
++        std::map&lt;std::string,value&gt; const&amp; props() const 
+         {
+             return props_;
+         }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000307.html">[Mapnik-svn] r422 - trunk/src
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#308">[ date ]</a>
+              <a href="thread.html#308">[ thread ]</a>
+              <a href="subject.html#308">[ subject ]</a>
+              <a href="author.html#308">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

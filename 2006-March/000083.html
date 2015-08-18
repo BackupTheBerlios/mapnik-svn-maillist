@@ -1,0 +1,979 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r197 - trunk/include
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r197%20-%20trunk/include&In-Reply-To=%3C200603221553.k2MFrBbe024765%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000082.html">
+   <LINK REL="Next"  HREF="000084.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r197 - trunk/include</H1>
+    <B>pavlenko at berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r197%20-%20trunk/include&In-Reply-To=%3C200603221553.k2MFrBbe024765%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r197 - trunk/include">pavlenko at berlios.de
+       </A><BR>
+    <I>Wed Mar 22 16:53:11 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000082.html">[Mapnik-svn] r196 - trunk/include
+</A></li>
+        <LI>Next message: <A HREF="000084.html">[Mapnik-svn] r198 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#83">[ date ]</a>
+              <a href="thread.html#83">[ thread ]</a>
+              <a href="subject.html#83">[ subject ]</a>
+              <a href="author.html#83">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-22 16:52:29 +0100 (Wed, 22 Mar 2006)
+New Revision: 197
+
+Modified:
+   trunk/include/agg_renderer.hpp
+   trunk/include/attribute.hpp
+   trunk/include/color.hpp
+   trunk/include/color_factory.hpp
+   trunk/include/ctrans.hpp
+   trunk/include/datasource.hpp
+   trunk/include/datasource_cache.hpp
+   trunk/include/envelope.hpp
+   trunk/include/expression.hpp
+   trunk/include/filter.hpp
+   trunk/include/filter_factory.hpp
+   trunk/include/filter_visitor.hpp
+   trunk/include/font_engine_freetype.hpp
+   trunk/include/gamma.hpp
+   trunk/include/graphics.hpp
+   trunk/include/image_util.hpp
+   trunk/include/layer.hpp
+   trunk/include/line_pattern_symbolizer.hpp
+   trunk/include/line_symbolizer.hpp
+   trunk/include/map.hpp
+   trunk/include/mapnik.hpp
+   trunk/include/point_symbolizer.hpp
+   trunk/include/polygon_pattern_symbolizer.hpp
+   trunk/include/polygon_symbolizer.hpp
+   trunk/include/raster_symbolizer.hpp
+   trunk/include/stroke.hpp
+   trunk/include/text_symbolizer.hpp
+   trunk/include/utils.hpp
+   trunk/include/value.hpp
+Log:
+added __declspec(dllexport)
+
+Modified: trunk/include/agg_renderer.hpp
+===================================================================
+--- trunk/include/agg_renderer.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/agg_renderer.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -29,26 +29,27 @@
+ namespace mapnik
+ {
+     template &lt;typename T&gt;
+-    struct agg_renderer : public feature_style_processor&lt;agg_renderer&lt;T&gt; &gt;,
++	class MAPNIK_DECL agg_renderer : public feature_style_processor&lt;agg_renderer&lt;T&gt; &gt;,
+ 			  private boost::noncopyable
+     {
+-	agg_renderer(Map const&amp; m, T &amp; pixmap);
+-	void start_map_processing(Map const&amp; map);
+-	void end_map_processing(Map const&amp; map);
+-	void start_layer_processing(Layer const&amp; lay);
+-	void end_layer_processing(Layer const&amp; lay);
+-	void process(point_symbolizer const&amp; sym,Feature const&amp; feature);	    	       
+-	void process(line_symbolizer const&amp; sym,Feature const&amp; feature);
+-	void process(line_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
+-	void process(polygon_symbolizer const&amp; sym,Feature const&amp; feature);
+-	void process(polygon_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
+-	void process(raster_symbolizer const&amp; sym,Feature const&amp; feature);
+-	void process(text_symbolizer const&amp; sym,Feature const&amp; feature);
++	public:
++		agg_renderer(Map const&amp; m, T &amp; pixmap);
++		void start_map_processing(Map const&amp; map);
++		void end_map_processing(Map const&amp; map);
++		void start_layer_processing(Layer const&amp; lay);
++		void end_layer_processing(Layer const&amp; lay);
++		void process(point_symbolizer const&amp; sym,Feature const&amp; feature);	    	       
++		void process(line_symbolizer const&amp; sym,Feature const&amp; feature);
++		void process(line_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
++		void process(polygon_symbolizer const&amp; sym,Feature const&amp; feature);
++		void process(polygon_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
++		void process(raster_symbolizer const&amp; sym,Feature const&amp; feature);
++		void process(text_symbolizer const&amp; sym,Feature const&amp; feature);
+     private:
+-	T &amp; pixmap_;
+-	CoordTransform t_;
+-	face_manager&lt;freetype_engine&gt; font_manager_;
+-	label_collision_detector2 detector_;
++		T &amp; pixmap_;
++		CoordTransform t_;
++		face_manager&lt;freetype_engine&gt; font_manager_;
++		label_collision_detector2 detector_;
+     };
+ }
+ 
+
+Modified: trunk/include/attribute.hpp
+===================================================================
+--- trunk/include/attribute.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/attribute.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -49,7 +49,7 @@
+ 	}
+     };
+     
+-    class attribute
++    class MAPNIK_DECL attribute
+     {	
+     public:
+ 	attribute()
+
+Modified: trunk/include/color.hpp
+===================================================================
+--- trunk/include/color.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/color.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -21,11 +21,12 @@
+ #ifndef COLOR_HPP
+ #define COLOR_HPP
+ 
++#include &quot;config.hpp&quot;
+ #include &lt;sstream&gt;
+ 
+ namespace mapnik {
+ 
+-    class Color
++    class MAPNIK_DECL Color
+     {
+     private:
+ 	unsigned int rgba_;
+
+Modified: trunk/include/color_factory.hpp
+===================================================================
+--- trunk/include/color_factory.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/color_factory.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -26,7 +26,7 @@
+ namespace mapnik
+ {
+     using namespace boost::spirit;
+-    class color_factory
++    class MAPNIK_DECL color_factory
+     {
+     public:
+ 	static Color from_string(char const* css_color)
+
+Modified: trunk/include/ctrans.hpp
+===================================================================
+--- trunk/include/ctrans.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/ctrans.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -29,7 +29,7 @@
+     typedef coord_array&lt;coord2d&gt; CoordinateArray;
+     
+     template &lt;typename Transform,typename Geometry&gt;
+-    struct coord_transform
++    struct MAPNIK_DECL coord_transform
+     {
+ 	coord_transform(Transform const&amp; t,Geometry&amp; geom)
+ 	    : t_(t), geom_(geom) {}
+@@ -54,10 +54,10 @@
+     class CoordTransform
+     {
+     private:
+-	int width;
+-	int height;
+-	double scale_;
+-	Envelope&lt;double&gt; extent;
++	    int width;
++	    int height;
++	    double scale_;
++	    Envelope&lt;double&gt; extent;
+     public:
+ 	CoordTransform(int width,int height,const Envelope&lt;double&gt;&amp; extent)
+             :width(width),height(height),extent(extent)
+
+Modified: trunk/include/datasource.hpp
+===================================================================
+--- trunk/include/datasource.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/datasource.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -33,15 +33,15 @@
+ 
+ namespace mapnik
+ {    
+-    typedef shared_ptr&lt;Feature&gt; feature_ptr;
+-    struct Featureset
++    typedef MAPNIK_DECL shared_ptr&lt;Feature&gt; feature_ptr;
++    struct MAPNIK_DECL Featureset
+     {
+         virtual feature_ptr next()=0;
+         virtual ~Featureset() {};
+     };
+     
+     typedef shared_ptr&lt;Featureset&gt; featureset_ptr;    
+-    class datasource_exception : public std::exception
++    class MAPNIK_DECL datasource_exception : public std::exception
+     {
+     private:
+         const std::string message_;
+@@ -56,7 +56,7 @@
+ 	}
+     };
+     
+-    class datasource
++    class MAPNIK_DECL datasource
+     {
+     public:
+ 	enum {
+@@ -88,15 +88,15 @@
+     
+     ///////////////////////////////////////////
+     #define DATASOURCE_PLUGIN(classname) \
+-        extern &quot;C&quot; std::string datasource_name() \
++        extern &quot;C&quot; MAPNIK_DECL std::string datasource_name() \
+         { \
+         return classname::name();\
+         }\
+-        extern &quot;C&quot;  datasource* create(const parameters &amp;params)	\
++        extern &quot;C&quot;  MAPNIK_DECL datasource* create(const parameters &amp;params)	\
+         { \
+ 	    return new classname(params);	\
+         }\
+-        extern &quot;C&quot; void destroy(datasource *ds) \
++        extern &quot;C&quot; MAPNIK_DECL void destroy(datasource *ds) \
+         { \
+         delete ds;\
+         }\
+
+Modified: trunk/include/datasource_cache.hpp
+===================================================================
+--- trunk/include/datasource_cache.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/datasource_cache.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -30,7 +30,7 @@
+ 
+ namespace mapnik
+ {
+-    class datasource_cache : public singleton &lt;datasource_cache,CreateStatic&gt;
++    class MAPNIK_DECL datasource_cache : public singleton &lt;datasource_cache,CreateStatic&gt;
+     {
+         friend class CreateStatic&lt;datasource_cache&gt;;
+     private:
+
+Modified: trunk/include/envelope.hpp
+===================================================================
+--- trunk/include/envelope.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/envelope.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -21,12 +21,13 @@
+ #ifndef ENVELOPE_HPP
+ #define ENVELOPE_HPP
+ 
++#include &quot;config.hpp&quot;
+ #include &quot;coord.hpp&quot;
+ 
+ namespace mapnik
+ {
+ 
+-    template &lt;class T&gt; class Envelope
++	template &lt;class T&gt; class MAPNIK_DECL Envelope
+     {
+     public:
+ 	typedef Envelope&lt;T&gt; EnvelopeType;
+
+Modified: trunk/include/expression.hpp
+===================================================================
+--- trunk/include/expression.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/expression.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -28,8 +28,9 @@
+ {
+     template &lt;typename FeatureT&gt; class filter_visitor;
+     template &lt;typename FeatureT&gt;
+-    struct expression
++    class expression
+     {
++    public:
+ 	virtual value get_value(FeatureT const&amp; feature) const=0;
+ 	virtual void accept(filter_visitor&lt;FeatureT&gt;&amp; v)=0;
+ 	virtual expression&lt;FeatureT&gt;* clone() const=0;
+@@ -81,14 +82,14 @@
+     {
+     public:
+ 	property(std::string const&amp; name)
+-	    : expression&lt;FeatureT&gt;(),
+-	      name_(name)
+-	{}
++        : expression&lt;FeatureT&gt;(),
++	    name_(name)
++	    {}
+ 	
+ 	property(property const&amp; other)
+ 	    : expression&lt;FeatureT&gt;(),
+-	      name_(other.name_)
+-	{}
++	     name_(other.name_)
++	    {}
+ 
+ 	value get_value(FeatureT const&amp; feature) const
+ 	{
+@@ -111,10 +112,11 @@
+ 	{
+ 	    return &quot;[&quot;+name_+&quot;]&quot;;
+ 	}
+-        ~property() {}
++
++    ~property() {}
++
+     private:
+-	std::string name_;
+-
++	    std::string name_;
+     };
+ }
+ 
+
+Modified: trunk/include/filter.hpp
+===================================================================
+--- trunk/include/filter.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/filter.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -28,58 +28,59 @@
+ {
+     template &lt;typename FeatureT&gt; class filter_visitor;
+     template &lt;typename FeatureT&gt;
+-    struct filter
++    class MAPNIK_DECL filter
+     {
+-	virtual bool pass(const FeatureT&amp; feature) const=0; 
+-	virtual filter&lt;FeatureT&gt;* clone() const=0;
+-	virtual void accept(filter_visitor&lt;FeatureT&gt;&amp; v) = 0;
++	public:
++		virtual bool pass(const FeatureT&amp; feature) const=0; 
++		virtual filter&lt;FeatureT&gt;* clone() const=0;
++		virtual void accept(filter_visitor&lt;FeatureT&gt;&amp; v) = 0;
+         virtual std::string to_string() const=0;
+-	virtual ~filter() {}
++		virtual ~filter() {}
+     };
+     
+     typedef boost::shared_ptr&lt;filter&lt;Feature&gt; &gt; filter_ptr;
+     
+     template &lt;typename FeatureT&gt;
+-    struct all_filter : public filter&lt;FeatureT&gt;
++    class all_filter : public filter&lt;FeatureT&gt;
+     {
+-
+-	bool pass (const FeatureT&amp;) const
+-	{
+-	    return true;
+-	}
++	public:
++		bool pass (const FeatureT&amp;) const
++		{
++			return true;
++		}
+ 	
+-	filter&lt;FeatureT&gt;* clone() const
+-	{
+-	    return new all_filter&lt;FeatureT&gt;;
+-	}
+-	std::string to_string() const
+-	{
+-	    return &quot;true&quot;;
+-	}  
++		filter&lt;FeatureT&gt;* clone() const
++		{
++			return new all_filter&lt;FeatureT&gt;;
++		}
++		std::string to_string() const
++		{
++			return &quot;true&quot;;
++		}  
+         void accept(filter_visitor&lt;FeatureT&gt;&amp;) {}
+-	virtual ~all_filter() {}
++		virtual ~all_filter() {}
+     };
+       
+     template &lt;typename FeatureT&gt;
+-    struct none_filter : public filter&lt;FeatureT&gt;
++    class none_filter : public filter&lt;FeatureT&gt;
+     {
+-
+-	bool pass (const FeatureT&amp;) const
+-	{
+-	    return false;
+-	}
++	public:
++		bool pass (const FeatureT&amp;) const
++		{
++			return false;
++		}
+ 	
+-	filter&lt;FeatureT&gt;* clone() const
+-	{
+-	    return new none_filter&lt;FeatureT&gt;;
+-	}
+-	std::string to_string() const
+-	{
+-	    return &quot;false&quot;;
+-	}  
+-        void accept(filter_visitor&lt;FeatureT&gt;&amp;) {}
+-	virtual ~none_filter() {}
+-    };
++		filter&lt;FeatureT&gt;* clone() const
++		{
++			return new none_filter&lt;FeatureT&gt;;
++		}
++		std::string to_string() const
++		{
++			return &quot;false&quot;;
++		}  
++	    void accept(filter_visitor&lt;FeatureT&gt;&amp;) {}
++		virtual ~none_filter() {}
++	};
+ }
+ 
+ #endif //FILTER_HPP
+
+Modified: trunk/include/filter_factory.hpp
+===================================================================
+--- trunk/include/filter_factory.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/filter_factory.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -30,7 +30,7 @@
+ namespace mapnik
+ {
+     template&lt;typename FeatureT&gt;
+-    class filter_factory
++    class MAPNIK_DECL filter_factory
+     {
+     public:
+ 	static filter_ptr compile(string const&amp; str)
+
+Modified: trunk/include/filter_visitor.hpp
+===================================================================
+--- trunk/include/filter_visitor.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/filter_visitor.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -29,12 +29,13 @@
+     template &lt;typename FeatureT&gt; class expression;
+     template &lt;typename Feature,template &lt;typename&gt; class Filter&gt; class rule;
+     template &lt;typename FeatureT&gt;
+-    struct filter_visitor
++    class filter_visitor
+     {
+-	virtual void visit(filter&lt;FeatureT&gt;&amp; filter)=0;
+-	virtual void visit(expression&lt;FeatureT&gt;&amp;)=0;
+-	virtual void visit(rule&lt;FeatureT,filter&gt; const&amp; r)=0;
+-	virtual ~filter_visitor() {}
++	public:
++		virtual void visit(filter&lt;FeatureT&gt;&amp; filter)=0;
++		virtual void visit(expression&lt;FeatureT&gt;&amp;)=0;
++		virtual void visit(rule&lt;FeatureT,filter&gt; const&amp; r)=0;
++		virtual ~filter_visitor() {}
+     };    
+ }
+ 
+
+Modified: trunk/include/font_engine_freetype.hpp
+===================================================================
+--- trunk/include/font_engine_freetype.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/font_engine_freetype.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -92,7 +92,7 @@
+     
+     typedef boost::shared_ptr&lt;font_face&gt; face_ptr;
+     
+-    class freetype_engine : public mapnik::singleton&lt;freetype_engine,mapnik::CreateStatic&gt;,
++    class MAPNIK_DECL freetype_engine : public mapnik::singleton&lt;freetype_engine,mapnik::CreateStatic&gt;,
+ 		       private boost::noncopyable
+     {
+ 	friend class mapnik::CreateStatic&lt;freetype_engine&gt;;
+@@ -165,7 +165,7 @@
+     
+     
+     template &lt;typename T&gt;
+-    class face_manager : private boost::noncopyable
++    class MAPNIK_DECL face_manager : private boost::noncopyable
+     {
+ 	typedef T font_engine_type;
+ 	typedef std::map&lt;std::string,face_ptr&gt; faces;
+@@ -238,7 +238,7 @@
+ 	    {
+ 		code = p;            // U+0000 - U+007f (ascii)
+ 	    }
+-	    out.push_back(code);
++	    out.push_back(wchar_t(code));
+ 	}
+ 	return out;
+     }
+@@ -308,7 +308,7 @@
+ 	    pen.x = 0;
+ 	    pen.y = 0;
+ 	    
+-	    use_kerning = FT_HAS_KERNING(face);
++        use_kerning = FT_HAS_KERNING(face)&gt;0?true:false;
+ 	    
+ 	    FT_BBox bbox;   
+ 	    bbox.xMin = bbox.yMin = 32000; 
+
+Modified: trunk/include/gamma.hpp
+===================================================================
+--- trunk/include/gamma.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/gamma.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -23,7 +23,7 @@
+ 
+ namespace mapnik 
+ {
+-    struct gamma
++    struct MAPNIK_DECL gamma
+     {
+ 	unsigned char g2l[256];
+ 	unsigned char l2g[256];
+@@ -33,7 +33,7 @@
+ 	    for (int i=0;i&lt; 256;i++)
+ 	    {
+ 		result=(int)(pow(i/255.0,gamma) * 255.0 + 0.5);
+-		g2l[i]=(unsigned short)result;
++		g2l[i]=(unsigned char)result;
+ 	    }
+ 	    for (int i = 0; i &lt; 256; i++)
+ 	    {
+
+Modified: trunk/include/graphics.hpp
+===================================================================
+--- trunk/include/graphics.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/graphics.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -31,19 +31,19 @@
+ 
+ namespace mapnik
+ {
+-    class Image32
++    class MAPNIK_DECL Image32
+     {
+     private:
+ 	unsigned width_;
+ 	unsigned height_;
+ 	Color background_;
+ 	ImageData32 data_;
+-	static gamma gammaTable_;
++	//static gamma gammaTable_;
+     public:
+ 	Image32(int width,int height);
+ 	Image32(const Image32&amp; rhs);
+ 	~Image32();
+-	static void setGamma(double gamma);
++	//static void setGamma(double gamma);
+ 	void setBackground(const Color&amp; background);
+ 	const Color&amp; getBackground() const;     
+ 	const ImageData32&amp; data() const;
+@@ -76,6 +76,7 @@
+ 		data_(x,y)=rgba;
+ 	    }
+ 	}
++    /*
+ 	inline int blendColor(int c0,int c1,int t)
+ 	{
+ 	    int bgRed=(c1&gt;&gt;16)&amp;0xff;
+@@ -94,7 +95,7 @@
+ 	    
+ 	    return 0xff &lt;&lt; 24 | r &lt;&lt; 16 | g &lt;&lt; 8 | b;
+ 	}
+-
++*/
+ 	inline void blendPixel(int x,int y,unsigned int rgba1,int t)
+ 	{
+ 	    if (checkBounds(x,y))
+
+Modified: trunk/include/image_util.hpp
+===================================================================
+--- trunk/include/image_util.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/image_util.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -23,7 +23,7 @@
+ 
+ namespace mapnik
+ {
+-    class ImageUtils
++    class MAPNIK_DECL ImageUtils
+     {
+     public:
+ 	static void save_to_file(const std::string&amp; filename,const std::string&amp; type,const Image32&amp; image);
+
+Modified: trunk/include/layer.hpp
+===================================================================
+--- trunk/include/layer.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/layer.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -29,7 +29,7 @@
+ 
+ namespace mapnik
+ {
+-    class Layer
++    class MAPNIK_DECL Layer
+     {
+ 	friend class boost::serialization::access;
+ 	template &lt;typename Archive&gt;
+
+Modified: trunk/include/line_pattern_symbolizer.hpp
+===================================================================
+--- trunk/include/line_pattern_symbolizer.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/line_pattern_symbolizer.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -26,7 +26,7 @@
+ 
+ namespace mapnik 
+ {      
+-    struct line_pattern_symbolizer
++    struct MAPNIK_DECL line_pattern_symbolizer
+     {
+ 	line_pattern_symbolizer(std::string const&amp; file,
+ 				std::string const&amp; type,
+
+Modified: trunk/include/line_symbolizer.hpp
+===================================================================
+--- trunk/include/line_symbolizer.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/line_symbolizer.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -25,7 +25,7 @@
+ 
+ namespace mapnik 
+ {
+-    struct line_symbolizer
++    struct MAPNIK_DECL line_symbolizer
+     {
+ 	line_symbolizer(stroke const&amp; stroke)
+ 	    : stroke_(stroke) {}
+@@ -42,7 +42,7 @@
+ 	}
+ 
+     private:
+-	stroke stroke_;
++		stroke stroke_;
+     };
+ }
+ 
+
+Modified: trunk/include/map.hpp
+===================================================================
+--- trunk/include/map.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/map.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -29,7 +29,7 @@
+ {
+     class Layer;
+ 
+-    class Map
++    class MAPNIK_DECL Map
+     {
+ 	friend class boost::serialization::access;
+ 	template &lt;typename Archive&gt;
+
+Modified: trunk/include/mapnik.hpp
+===================================================================
+--- trunk/include/mapnik.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/mapnik.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -71,6 +71,8 @@
+ #include &quot;css_color_parser.hpp&quot;
+ #include &quot;color_factory.hpp&quot;
+ 
++
++
+ namespace mapnik
+ {
+     void save_to_xml(Map const&amp; map,const char* filename);  
+
+Modified: trunk/include/point_symbolizer.hpp
+===================================================================
+--- trunk/include/point_symbolizer.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/point_symbolizer.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -26,7 +26,7 @@
+ 
+ namespace mapnik 
+ {   
+-    struct point_symbolizer
++    struct MAPNIK_DECL point_symbolizer
+     {	
+ 	point_symbolizer(std::string const&amp; file,
+ 			 std::string const&amp; type,
+
+Modified: trunk/include/polygon_pattern_symbolizer.hpp
+===================================================================
+--- trunk/include/polygon_pattern_symbolizer.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/polygon_pattern_symbolizer.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -26,7 +26,7 @@
+ 
+ namespace mapnik
+ {
+-    struct polygon_pattern_symbolizer
++    struct MAPNIK_DECL polygon_pattern_symbolizer
+     {
+ 	
+ 	polygon_pattern_symbolizer(std::string const&amp; file,
+
+Modified: trunk/include/polygon_symbolizer.hpp
+===================================================================
+--- trunk/include/polygon_symbolizer.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/polygon_symbolizer.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -23,10 +23,11 @@
+ 
+ //#include &quot;symbolizer.hpp&quot;
+ //#include &lt;boost/utility.hpp&gt;
++#include &quot;color.hpp&quot;
+ 
+ namespace mapnik 
+ {
+-    struct polygon_symbolizer
++    struct MAPNIK_DECL polygon_symbolizer
+     {
+ 	polygon_symbolizer(Color const&amp; fill)
+ 	    : fill_(fill) {}
+
+Modified: trunk/include/raster_symbolizer.hpp
+===================================================================
+--- trunk/include/raster_symbolizer.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/raster_symbolizer.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -25,7 +25,7 @@
+ 
+ namespace mapnik
+ {
+-    struct raster_symbolizer { /* TODO */};
++    struct MAPNIK_DECL raster_symbolizer { /* TODO */};
+ }
+ 
+ #endif //RASTER_SYMBOLIZER
+
+Modified: trunk/include/stroke.hpp
+===================================================================
+--- trunk/include/stroke.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/stroke.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -142,7 +142,7 @@
+ 	}
+ 	bool has_dash() const 
+ 	{
+-	    return dash_.size();
++		return dash_.size()&gt;0 ? true : false ;
+ 	}
+ 	
+ 	dash_array const&amp; get_dash_array() const
+
+Modified: trunk/include/text_symbolizer.hpp
+===================================================================
+--- trunk/include/text_symbolizer.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/text_symbolizer.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -34,7 +34,7 @@
+         
+     typedef boost::tuple&lt;double,double&gt; position;
+     
+-    struct text_symbolizer
++    struct MAPNIK_DECL text_symbolizer
+     {		
+ 	text_symbolizer(std::string const&amp; name,unsigned size,Color const&amp; fill);	
+ 	text_symbolizer(text_symbolizer const&amp; rhs);
+
+Modified: trunk/include/utils.hpp
+===================================================================
+--- trunk/include/utils.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/utils.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -24,9 +24,10 @@
+ #include &lt;stdexcept&gt;
+ #include &lt;limits&gt;
+ #include &lt;ctime&gt;
+-#include &lt;sys/time.h&gt;
++//#include &lt;sys/time.h&gt;
+ #include &lt;sstream&gt;
+ #include &lt;iostream&gt;
++#include &lt;algorithm&gt;
+ #include &lt;cmath&gt;
+ 
+ #include &lt;boost/thread/mutex.hpp&gt;
+@@ -167,24 +168,24 @@
+ 
+     struct timer
+     {
+-        struct timeval tv_;
++        //struct timeval tv_;
+         timer()
+         {
+-            gettimeofday (&amp;tv_,0);
++            //gettimeofday (&amp;tv_,0);
+         }
+         void start()
+         {
+-            gettimeofday (&amp;tv_,0);
++            //gettimeofday (&amp;tv_,0);
+         }
+         void stop()
+         {
+-            timeval tv;
+-            gettimeofday (&amp;tv,0);
+-            std::ostringstream s;
+-            long sec=1000*(tv.tv_sec-tv_.tv_sec);
+-            long total_ms=sec+static_cast&lt;long&gt;(0.001*(tv.tv_usec-tv_.tv_usec));
+-            s &lt;&lt; &quot;elapsed time is &quot;&lt;&lt;total_ms&lt;&lt;&quot; ms&quot;;
+-            std::clog&lt;&lt;s.str()&lt;&lt;std::endl;
++            //timeval tv;
++            //gettimeofday (&amp;tv,0);
++            //std::ostringstream s;
++            //long sec=1000*(tv.tv_sec-tv_.tv_sec);
++            //long total_ms=sec+static_cast&lt;long&gt;(0.001*(tv.tv_usec-tv_.tv_usec));
++            //s &lt;&lt; &quot;elapsed time is &quot;&lt;&lt;total_ms&lt;&lt;&quot; ms&quot;;
++            //std::clog&lt;&lt;s.str()&lt;&lt;std::endl;
+         }
+     };
+     
+@@ -217,31 +218,31 @@
+ 	    throw BadConversion(&quot;fromString(&quot;+s+&quot;)&quot;);
+     }
+     
+-    inline bool space (char c)
+-    {
+-	return isspace(c);
+-    }
++    //inline bool space (char c)
++    //{
++//		return isspace(c);
++ //   }
+     
+-    inline bool not_space (char c)
+-    {
+-	return !isspace(c);
+-    }
++   // inline bool not_space (char c)
++    //{
++//		return !isspace(c);
++ //   }
+     
+-    inline std::string trim_left(const std::string&amp; str)
+-    {
+-	typedef std::string::const_iterator iter;
+-	iter i = find_if(str.begin(),str.end(),not_space);
+-	return std::string(i,str.end());	
+-    }
+-    inline std::string trim_right(const std::string&amp; str)
+-    {
+-	std::string::size_type idx=str.find_last_not_of(&quot; &quot;);
+-	return str.substr(0,idx+1);
+-    }
+-    inline std::string trim(const std::string&amp; str)
+-    {
+-	return trim_left(trim_right(str));
+-    }
++    //inline std::string trim_left(const std::string&amp; str)
++    //{
++//		typedef std::string::const_iterator iter;
++//		iter i = std::find_if(str.begin(),str.end(),not_space);
++		//return std::string(i,str.end());	
++    //}
++    //inline std::string trim_right(const std::string&amp; str)
++    //{
++	//	std::string::size_type idx=str.find_last_not_of(&quot; &quot;);
++//		return str.substr(0,idx+1);
++ //   }
++//	inline std::string trim(const std::string&amp; str)
++  //  {
++	//	return trim_left(trim_right(str));
++	//}
+ }
+ 
+ 
+
+Modified: trunk/include/value.hpp
+===================================================================
+--- trunk/include/value.hpp	2006-03-22 15:51:06 UTC (rev 196)
++++ trunk/include/value.hpp	2006-03-22 15:52:29 UTC (rev 197)
+@@ -28,7 +28,7 @@
+ using namespace boost;
+ namespace mapnik {
+ 
+-    typedef variant&lt;int,double,std::string&gt; value_base;
++	typedef variant&lt;std::string,int,double&gt; value_base;
+     
+     namespace impl {
+ 	struct equals
+@@ -352,6 +352,17 @@
+ 	template &lt;typename T&gt; value(T _val_)
+ 	    : value_base(_val_) {}
+ 	
++	value (const value&amp; rhs)
++	{
++        //todo!!!!!!!!!
++	}
++	value&amp; operator=(value const&amp; rhs)
++	{
++		if (this == &amp;rhs)
++			return  *this;
++		//TODO!!!!!	
++		return *this;	
++	}
+ 	bool operator==(value const&amp; other) const
+ 	{
+ 	    return boost::apply_visitor(impl::equals(),*this,other);
+@@ -419,31 +430,35 @@
+     
+     inline const value operator+(value const&amp; p1,value const&amp; p2)
+     {
+-	value tmp(p1);
+-	tmp+=p2;
+-	return tmp;
++	//value tmp(p1);
++	//tmp+=p2;
++	//return tmp;
++		return boost::apply_visitor(impl::add&lt;value&gt;(),p1, p2);
+     }
+ 
+     inline const value operator-(value const&amp; p1,value const&amp; p2)
+     {
+-	value tmp(p1);
+-	tmp-=p2;
+-	return tmp;
++	//value tmp(p1);
++	//tmp-=p2;
++	//return tmp;
++		return boost::apply_visitor(impl::sub&lt;value&gt;(),p1, p2);
+     }
+ 
+     inline const value operator*(value const&amp; p1,value const&amp; p2)
+     {
+-	value tmp(p1);
+-	tmp*=p2;
+-	return tmp;
++	//value tmp(p1);
++	//tmp*=p2;
++	//return tmp;
++		return boost::apply_visitor(impl::mult&lt;value&gt;(),p1, p2);
+     }
+ 
+     inline const value operator/(value const&amp; p1,value const&amp; p2)
+     {
+-	value tmp(p1);
+-	tmp/=p2;
+-	return tmp;
+-    }
++	//value tmp(p1);
++	//tmp/=p2;
++	//return tmp;
++	    return boost::apply_visitor(impl::div&lt;value&gt;(),p1, p2);
++	}
+ 
+     //template &lt;typename charT, typename traits&gt;
+     //inline std::basic_ostream&lt;charT,traits&gt;&amp; 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000082.html">[Mapnik-svn] r196 - trunk/include
+</A></li>
+	<LI>Next message: <A HREF="000084.html">[Mapnik-svn] r198 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#83">[ date ]</a>
+              <a href="thread.html#83">[ thread ]</a>
+              <a href="subject.html#83">[ subject ]</a>
+              <a href="author.html#83">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

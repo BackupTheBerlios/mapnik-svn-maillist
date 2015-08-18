@@ -1,0 +1,202 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r151 - in trunk: include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-February/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r151%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200602071616.k17GGvXq012754%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000036.html">
+   <LINK REL="Next"  HREF="000038.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r151 - in trunk: include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r151%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200602071616.k17GGvXq012754%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r151 - in trunk: include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Tue Feb  7 17:16:57 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000036.html">[Mapnik-svn] r150 - in trunk: include src
+</A></li>
+        <LI>Next message: <A HREF="000038.html">[Mapnik-svn] r152 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#37">[ date ]</a>
+              <a href="thread.html#37">[ thread ]</a>
+              <a href="subject.html#37">[ subject ]</a>
+              <a href="author.html#37">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-02-07 17:16:54 +0100 (Tue, 07 Feb 2006)
+New Revision: 151
+
+Added:
+   trunk/include/raster_symbolizer.hpp
+Modified:
+   trunk/include/agg_renderer.hpp
+   trunk/include/feature_style_processor.hpp
+   trunk/include/mapnik.hpp
+   trunk/include/rule.hpp
+   trunk/src/agg_renderer.cpp
+Log:
+added raster_symbolizer
+
+
+
+Modified: trunk/include/agg_renderer.hpp
+===================================================================
+--- trunk/include/agg_renderer.hpp	2006-02-07 14:41:41 UTC (rev 150)
++++ trunk/include/agg_renderer.hpp	2006-02-07 16:16:54 UTC (rev 151)
+@@ -33,6 +33,7 @@
+ 	void process(line_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
+ 	void process(polygon_symbolizer const&amp; sym,Feature const&amp; feature);
+ 	void process(polygon_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
++	void process(raster_symbolizer const&amp; sym,Feature const&amp; feature);
+     private:
+ 	Image32 &amp; pixmap_;
+ 	CoordTransform t_;
+
+Modified: trunk/include/feature_style_processor.hpp
+===================================================================
+--- trunk/include/feature_style_processor.hpp	2006-02-07 14:41:41 UTC (rev 150)
++++ trunk/include/feature_style_processor.hpp	2006-02-07 16:16:54 UTC (rev 151)
+@@ -67,6 +67,11 @@
+ 	    {
+ 		output_.process(sym,f_);
+ 	    }
++
++	    void operator () (raster_symbolizer const&amp; sym) const
++	    {
++		output_.process(sym,f_);
++	    }
+ 	    
+ 	    Processor &amp; output_;
+ 	    Feature const&amp; f_;
+
+Modified: trunk/include/mapnik.hpp
+===================================================================
+--- trunk/include/mapnik.hpp	2006-02-07 14:41:41 UTC (rev 150)
++++ trunk/include/mapnik.hpp	2006-02-07 16:16:54 UTC (rev 151)
+@@ -49,6 +49,7 @@
+ #include &quot;polygon_pattern_symbolizer.hpp&quot;
+ #include &quot;line_pattern_symbolizer.hpp&quot;
+ #include &quot;point_symbolizer.hpp&quot;
++#include &quot;raster_symbolizer.hpp&quot;
+ #include &quot;image_util.hpp&quot;
+ #include &quot;datasource.hpp&quot;
+ #include &quot;layer.hpp&quot;
+
+Added: trunk/include/raster_symbolizer.hpp
+===================================================================
+--- trunk/include/raster_symbolizer.hpp	2006-02-07 14:41:41 UTC (rev 150)
++++ trunk/include/raster_symbolizer.hpp	2006-02-07 16:16:54 UTC (rev 151)
+@@ -0,0 +1,31 @@
++/* This file is part of Mapnik (c++ mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++#ifndef RASTER_SYMBOLIZER_HPP
++#define RASTER_SYMBOLIZER_HPP
++
++#include &lt;boost/shared_ptr.hpp&gt; 
++
++namespace mapnik
++{
++    struct raster_symbolizer { /* TODO */};
++}
++
++#endif //RASTER_SYMBOLIZER
+
+Modified: trunk/include/rule.hpp
+===================================================================
+--- trunk/include/rule.hpp	2006-02-07 14:41:41 UTC (rev 150)
++++ trunk/include/rule.hpp	2006-02-07 16:16:54 UTC (rev 151)
+@@ -24,6 +24,7 @@
+ #include &quot;polygon_symbolizer.hpp&quot;
+ #include &quot;polygon_pattern_symbolizer.hpp&quot;
+ #include &quot;point_symbolizer.hpp&quot;
++#include &quot;raster_symbolizer.hpp&quot;
+ #include &quot;filter.hpp&quot;
+ #include &lt;boost/shared_ptr.hpp&gt;
+ #include &lt;boost/variant.hpp&gt;
+@@ -37,7 +38,8 @@
+ 			   line_symbolizer,
+ 			   line_pattern_symbolizer,
+ 			   polygon_symbolizer,
+-			   polygon_pattern_symbolizer&gt; symbolizer;
++			   polygon_pattern_symbolizer,
++			   raster_symbolizer&gt; symbolizer;
+     
+     typedef std::vector&lt;symbolizer&gt; symbolizers;    
+     template &lt;typename FeatureT&gt; class all_filter;
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-02-07 14:41:41 UTC (rev 150)
++++ trunk/src/agg_renderer.cpp	2006-02-07 16:16:54 UTC (rev 151)
+@@ -332,4 +332,15 @@
+ 	    agg::render_scanlines(ras, sl, rp);   
+ 	}
+     }
++    void agg_renderer::process(raster_symbolizer const&amp; ,Feature const&amp; feature)
++    {
++	// TODO -- at the moment raster_symbolizer is an empty class 
++	// used for type dispatching, but we can have some fancy raster
++	// processing in a future (filters??). Just copy raster into pixmap for now.
++	raster_ptr const&amp; raster=feature.get_raster();
++	if (raster)
++	{
++	    pixmap_.set_rectangle(raster-&gt;x_,raster-&gt;y_,raster-&gt;data_);
++	}
++    }
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000036.html">[Mapnik-svn] r150 - in trunk: include src
+</A></li>
+	<LI>Next message: <A HREF="000038.html">[Mapnik-svn] r152 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#37">[ date ]</a>
+              <a href="thread.html#37">[ thread ]</a>
+              <a href="subject.html#37">[ subject ]</a>
+              <a href="author.html#37">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

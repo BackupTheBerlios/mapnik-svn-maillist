@@ -1,0 +1,88 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r415 - trunk/bindings/python
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-December/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r415%20-%20trunk/bindings/python&In-Reply-To=%3C200612171208.kBHC8FfI026626%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000299.html">
+   <LINK REL="Next"  HREF="000301.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r415 - trunk/bindings/python</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r415%20-%20trunk/bindings/python&In-Reply-To=%3C200612171208.kBHC8FfI026626%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r415 - trunk/bindings/python">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Sun Dec 17 13:08:15 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000299.html">[Mapnik-svn] r414 - in trunk: . bindings/python fonts	plugins/input/postgis plugins/input/raster	plugins/input/shape src utils/shapeindex
+</A></li>
+        <LI>Next message: <A HREF="000301.html">[Mapnik-svn] r416 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#300">[ date ]</a>
+              <a href="thread.html#300">[ thread ]</a>
+              <a href="subject.html#300">[ subject ]</a>
+              <a href="author.html#300">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-12-17 13:08:11 +0100 (Sun, 17 Dec 2006)
+New Revision: 415
+
+Modified:
+   trunk/bindings/python/mapnik_layer.cpp
+Log:
+reflected Layer 'active' property in Python ( Thanks, Luiz Fernando Vital!)
+
+
+
+Modified: trunk/bindings/python/mapnik_layer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_layer.cpp	2006-12-17 12:05:47 UTC (rev 414)
++++ trunk/bindings/python/mapnik_layer.cpp	2006-12-17 12:08:11 UTC (rev 415)
+@@ -74,6 +74,10 @@
+                       &amp;Layer::datasource,
+                       &amp;Layer::set_datasource,
+                       &quot;The datasource attached to this layer&quot;)
++
++        .add_property(&quot;active&quot;,
++                      &amp;Layer::isActive,
++                      &amp;Layer::setActive)
+         
+         .def(&quot;envelope&quot;,&amp;Layer::envelope, 
+              &quot;Return the geographic envelope/bounding box &quot;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000299.html">[Mapnik-svn] r414 - in trunk: . bindings/python fonts	plugins/input/postgis plugins/input/raster	plugins/input/shape src utils/shapeindex
+</A></li>
+	<LI>Next message: <A HREF="000301.html">[Mapnik-svn] r416 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#300">[ date ]</a>
+              <a href="thread.html#300">[ thread ]</a>
+              <a href="subject.html#300">[ subject ]</a>
+              <a href="author.html#300">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,127 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r156 - in trunk: agg/include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-February/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r156%20-%20in%20trunk%3A%20agg/include%20src&In-Reply-To=%3C200602110039.k1B0dvTq029152%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000041.html">
+   <LINK REL="Next"  HREF="000043.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r156 - in trunk: agg/include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r156%20-%20in%20trunk%3A%20agg/include%20src&In-Reply-To=%3C200602110039.k1B0dvTq029152%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r156 - in trunk: agg/include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Sat Feb 11 01:39:57 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000041.html">[Mapnik-svn] r155 - in trunk: include plugins/input/postgis plugins/input/shape src
+</A></li>
+        <LI>Next message: <A HREF="000043.html">[Mapnik-svn] r157 - tags/release-0.2.5a/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#42">[ date ]</a>
+              <a href="thread.html#42">[ thread ]</a>
+              <a href="subject.html#42">[ subject ]</a>
+              <a href="author.html#42">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-02-11 01:39:50 +0100 (Sat, 11 Feb 2006)
+New Revision: 156
+
+Modified:
+   trunk/agg/include/agg_renderer_outline_aa.h
+   trunk/src/agg_renderer.cpp
+Log:
+some line rendering fixes and optimizations
+
+
+
+Modified: trunk/agg/include/agg_renderer_outline_aa.h
+===================================================================
+--- trunk/agg/include/agg_renderer_outline_aa.h	2006-02-10 17:13:02 UTC (rev 155)
++++ trunk/agg/include/agg_renderer_outline_aa.h	2006-02-11 00:39:50 UTC (rev 156)
+@@ -1657,7 +1657,7 @@
+                         }
+                         else
+                         {
+-                            while(abs(sx - lp.x1) + abs(sy - lp.y1) &gt; lp2.len)
++                            while(abs(sx - lp.x1) + abs(sy - lp.y1) &gt; 2 * lp2.len)
+                             {
+                                 sx = (lp.x1 + sx) &gt;&gt; 1;
+                                 sy = (lp.y1 + sy) &gt;&gt; 1;
+@@ -1724,7 +1724,7 @@
+                         }
+                         else
+                         {
+-                            while(abs(ex - lp.x2) + abs(ey - lp.y2) &gt; lp2.len)
++                            while(abs(ex - lp.x2) + abs(ey - lp.y2) &gt; 2 * lp2.len)
+                             {
+                                 ex = (lp.x2 + ex) &gt;&gt; 1;
+                                 ey = (lp.y2 + ey) &gt;&gt; 1;
+@@ -1796,7 +1796,7 @@
+                         }
+                         else
+                         {
+-                            while(abs(sx - lp.x1) + abs(sy - lp.y1) &gt; lp2.len)
++                            while(abs(sx - lp.x1) + abs(sy - lp.y1) &gt; 2 * lp2.len)
+                             {
+                                 sx = (lp.x1 + sx) &gt;&gt; 1;
+                                 sy = (lp.y1 + sy) &gt;&gt; 1;
+@@ -1809,7 +1809,7 @@
+                         }
+                         else
+                         {
+-                            while(abs(ex - lp.x2) + abs(ey - lp.y2) &gt; lp2.len)
++                            while(abs(ex - lp.x2) + abs(ey - lp.y2) &gt; 2 * lp2.len)
+                             {
+                                 ex = (lp.x2 + ex) &gt;&gt; 1;
+                                 ey = (lp.y2 + ey) &gt;&gt; 1;
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-02-10 17:13:02 UTC (rev 155)
++++ trunk/src/agg_renderer.cpp	2006-02-11 00:39:50 UTC (rev 156)
+@@ -192,7 +192,6 @@
+ 	    }
+ 	    else if (stroke_.get_width() &lt;= 1.0)
+ 	    {
+-		//faster but clipping doesn't work 
+ 		agg::line_profile_aa prof;
+ 		prof.width(stroke_.get_width());
+ 		renderer_oaa ren_oaa(renb, prof);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000041.html">[Mapnik-svn] r155 - in trunk: include plugins/input/postgis plugins/input/shape src
+</A></li>
+	<LI>Next message: <A HREF="000043.html">[Mapnik-svn] r157 - tags/release-0.2.5a/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#42">[ date ]</a>
+              <a href="thread.html#42">[ thread ]</a>
+              <a href="subject.html#42">[ subject ]</a>
+              <a href="author.html#42">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

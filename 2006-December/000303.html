@@ -1,0 +1,332 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r418 - in trunk: bindings/python include/mapnik src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-December/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r418%20-%20in%20trunk%3A%20bindings/python%20include/mapnik%20src&In-Reply-To=%3C200612200023.kBK0N4lZ024195%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000302.html">
+   <LINK REL="Next"  HREF="000304.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r418 - in trunk: bindings/python include/mapnik src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r418%20-%20in%20trunk%3A%20bindings/python%20include/mapnik%20src&In-Reply-To=%3C200612200023.kBK0N4lZ024195%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r418 - in trunk: bindings/python include/mapnik src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Wed Dec 20 01:23:04 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000302.html">[Mapnik-svn] r417 - trunk/src
+</A></li>
+        <LI>Next message: <A HREF="000304.html">[Mapnik-svn] r419 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#303">[ date ]</a>
+              <a href="thread.html#303">[ thread ]</a>
+              <a href="subject.html#303">[ subject ]</a>
+              <a href="author.html#303">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-12-20 01:22:45 +0100 (Wed, 20 Dec 2006)
+New Revision: 418
+
+Modified:
+   trunk/bindings/python/mapnik_layer.cpp
+   trunk/include/mapnik/color.hpp
+   trunk/include/mapnik/feature_type_style.hpp
+   trunk/include/mapnik/layer.hpp
+   trunk/include/mapnik/map.hpp
+   trunk/include/mapnik/params.hpp
+   trunk/src/layer.cpp
+   trunk/src/map.cpp
+   trunk/src/tiff_reader.cpp
+Log:
+1.added more accessors
+2.in tiff_reader check for valid file prior opening.
+
+
+
+Modified: trunk/bindings/python/mapnik_layer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_layer.cpp	2006-12-18 10:27:09 UTC (rev 417)
++++ trunk/bindings/python/mapnik_layer.cpp	2006-12-20 00:22:45 UTC (rev 418)
+@@ -30,6 +30,8 @@
+ using mapnik::Layer;
+ using mapnik::parameters;
+ 
++std::vector&lt;std::string&gt; &amp; (mapnik::Layer::*_styles_)() = &amp;mapnik::Layer::styles;
++
+ void export_layer()
+ {
+     using namespace boost::python;
+@@ -67,7 +69,7 @@
+                       &amp;Layer::setMaxZoom)
+         
+         .add_property(&quot;styles&quot;,
+-                      make_function(&amp;Layer::styles,
++                      make_function(_styles_,
+                                     return_value_policy&lt;reference_existing_object&gt;()))
+ 
+         .add_property(&quot;datasource&quot;,
+
+Modified: trunk/include/mapnik/color.hpp
+===================================================================
+--- trunk/include/mapnik/color.hpp	2006-12-18 10:27:09 UTC (rev 417)
++++ trunk/include/mapnik/color.hpp	2006-12-20 00:22:45 UTC (rev 418)
+@@ -117,9 +117,10 @@
+         
+         inline std::string to_hex_string() const
+         {
+-            std::stringstream ss;
+-            ss &lt;&lt; boost::format(&quot;#%1$02x%2$02x%3$02x&quot;) % red() % green() % blue();
+-            return ss.str();
++            return (boost::format(&quot;#%1$02x%2$02x%3$02x&quot;) 
++		    % red() 
++		    % green() 
++		    % blue() ).str();
+         }
+     };    
+ }
+
+Modified: trunk/include/mapnik/feature_type_style.hpp
+===================================================================
+--- trunk/include/mapnik/feature_type_style.hpp	2006-12-18 10:27:09 UTC (rev 417)
++++ trunk/include/mapnik/feature_type_style.hpp	2006-12-20 00:22:45 UTC (rev 418)
+@@ -59,7 +59,7 @@
+         {
+             return rules_;
+         }
+-	
++        
+         ~feature_type_style() {}
+     };
+ }
+
+Modified: trunk/include/mapnik/layer.hpp
+===================================================================
+--- trunk/include/mapnik/layer.hpp	2006-12-18 10:27:09 UTC (rev 417)
++++ trunk/include/mapnik/layer.hpp	2006-12-20 00:22:45 UTC (rev 418)
+@@ -65,6 +65,7 @@
+         std::string const&amp; srs() const;
+         void add_style(std::string const&amp; stylename);
+         std::vector&lt;std::string&gt; const&amp; styles() const;
++        std::vector&lt;std::string&gt;&amp; styles();
+         void selection_style(const std::string&amp; name);
+         const std::string&amp; selection_style() const;
+         void setMinZoom(double minZoom);
+
+Modified: trunk/include/mapnik/map.hpp
+===================================================================
+--- trunk/include/mapnik/map.hpp	2006-12-18 10:27:09 UTC (rev 417)
++++ trunk/include/mapnik/map.hpp	2006-12-20 00:22:45 UTC (rev 418)
+@@ -44,14 +44,17 @@
+         Envelope&lt;double&gt; currentExtent_;
+         
+     public:
+-        typedef std::map&lt;std::string,feature_type_style&gt;::const_iterator style_iterator;
++        typedef std::map&lt;std::string,feature_type_style&gt;::const_iterator const_style_iterator;
++        typedef std::map&lt;std::string,feature_type_style&gt;::iterator style_iterator;
+         
+         Map();
+         Map(int width, int height, std::string const&amp; srs=&quot;+proj=latlong +datum=WGS84&quot;);
+         Map(const Map&amp; rhs);
+         Map&amp; operator=(const Map&amp; rhs);
+-        style_iterator begin_styles() const;
+-        style_iterator end_styles() const;
++        const_style_iterator begin_styles() const;
++        const_style_iterator end_styles() const;
++        style_iterator begin_styles();
++        style_iterator end_styles();
+         bool insert_style(std::string const&amp; name,feature_type_style const&amp; style);
+         void remove_style(const std::string&amp; name);
+         feature_type_style const&amp; find_style(std::string const&amp; name) const;
+
+Modified: trunk/include/mapnik/params.hpp
+===================================================================
+--- trunk/include/mapnik/params.hpp	2006-12-18 10:27:09 UTC (rev 417)
++++ trunk/include/mapnik/params.hpp	2006-12-20 00:22:45 UTC (rev 418)
+@@ -47,6 +47,17 @@
+             }
+             return std::string();
+         }
++        
++        param_map::const_iterator iterator(std::string const&amp; key) const
++        {
++	    return find(key);
++        }
++        
++        param_map::iterator iterator(std::string const&amp; key)
++        {
++	    return find(key);
++        }
++        
+     };
+ }
+ 
+
+Modified: trunk/src/layer.cpp
+===================================================================
+--- trunk/src/layer.cpp	2006-12-18 10:27:09 UTC (rev 417)
++++ trunk/src/layer.cpp	2006-12-20 00:22:45 UTC (rev 418)
+@@ -140,6 +140,11 @@
+     {
+         return styles_;
+     }
++    
++    std::vector&lt;std::string&gt; &amp; Layer::styles()
++    {
++        return styles_;
++    }
+ 
+     void Layer::setMinZoom(double minZoom)
+     {
+
+Modified: trunk/src/map.cpp
+===================================================================
+--- trunk/src/map.cpp	2006-12-18 10:27:09 UTC (rev 417)
++++ trunk/src/map.cpp	2006-12-20 00:22:45 UTC (rev 418)
+@@ -64,15 +64,26 @@
+         return *this;
+     }
+     
+-    Map::style_iterator  Map::begin_styles() const
++    Map::style_iterator Map::begin_styles()
+     {
+         return styles_.begin();
+     }
+-    Map::style_iterator  Map::end_styles() const
++    
++    Map::style_iterator Map::end_styles()
+     {
+         return styles_.end();
+     }
+     
++    Map::const_style_iterator  Map::begin_styles() const
++    {
++        return styles_.begin();
++    }
++    
++    Map::const_style_iterator  Map::end_styles() const
++    {
++        return styles_.end();
++    }
++    
+     bool Map::insert_style(std::string const&amp; name,feature_type_style const&amp; style) 
+     {
+         return styles_.insert(make_pair(name,style)).second;
+
+Modified: trunk/src/tiff_reader.cpp
+===================================================================
+--- trunk/src/tiff_reader.cpp	2006-12-18 10:27:09 UTC (rev 417)
++++ trunk/src/tiff_reader.cpp	2006-12-20 00:22:45 UTC (rev 418)
+@@ -23,6 +23,7 @@
+ //$Id: tiff_reader.cpp 17 2005-03-08 23:58:43Z pavlenko $
+ // stl
+ #include &lt;iostream&gt;
++#include &lt;boost/filesystem/operations.hpp&gt;
+ // mapnik
+ #include &lt;mapnik/image_reader.hpp&gt;
+ 
+@@ -65,6 +66,7 @@
+         void read_generic(unsigned x,unsigned y,ImageData32&amp; image);
+         void read_stripped(unsigned x,unsigned y,ImageData32&amp; image);
+         void read_tiled(unsigned x,unsigned y,ImageData32&amp; image);
++        TIFF* load_if_exists(const std::string&amp; filename);
+     };
+ 
+     namespace
+@@ -100,8 +102,9 @@
+ 
+     void TiffReader::init()
+     {
+-        TIFF* tif = TIFFOpen(file_name_.c_str(), &quot;rb&quot;);
+-        if (!tif) throw ImageReaderException(&quot;cannot open &quot;+file_name_);
++	TIFF* tif = load_if_exists(file_name_);
++        if (!tif) return;
++	
+         char msg[1024];
+ 
+         if (TIFFRGBAImageOK(tif,msg))
+@@ -165,7 +168,7 @@
+ 
+     void TiffReader::read_generic(unsigned x,unsigned y,ImageData32&amp; image)
+     {
+-        TIFF* tif = TIFFOpen(file_name_.c_str(), &quot;rb&quot;);
++	TIFF* tif = load_if_exists(file_name_);
+         if (tif)
+         {
+             std::clog&lt;&lt;&quot;TODO:tiff is not stripped or tiled\n&quot;;
+@@ -176,7 +179,7 @@
+ 
+     void TiffReader::read_tiled(unsigned x0,unsigned y0,ImageData32&amp; image)
+     {
+-        TIFF* tif=TIFFOpen(file_name_.c_str(), &quot;rb&quot;);
++	TIFF* tif = load_if_exists(file_name_);
+         if (tif)
+         {
+             uint32* buf = (uint32*)_TIFFmalloc(tile_width_*tile_height_*sizeof(uint32));
+@@ -221,7 +224,7 @@
+ 
+     void TiffReader::read_stripped(unsigned x0,unsigned y0,ImageData32&amp; image)
+     {
+-        TIFF* tif = TIFFOpen(file_name_.c_str(), &quot;rb&quot;);
++	TIFF* tif = load_if_exists(file_name_);
+         if (tif)
+         {
+             uint32* buf = (uint32*)_TIFFmalloc(width_*rows_per_strip_*sizeof(uint32));
+@@ -258,5 +261,21 @@
+             TIFFClose(tif);
+         }
+     }
++    
++    TIFF* TiffReader::load_if_exists(const std::string&amp; filename)
++    {
++        TIFF* tif = 0;
++        boost::filesystem::path path(file_name_);
++        if (exists(path) &amp;&amp; is_regular(path)) {
++            // File path is a full file path and does exist
++            tif = TIFFOpen(filename.c_str(), &quot;rb&quot;);
++        } else {
++            return 0;
++        }
++        if (!tif) {
++            throw ImageReaderException(&quot;cannot open &quot;+file_name_);
++        }
++        return tif;
++    }
+ }
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000302.html">[Mapnik-svn] r417 - trunk/src
+</A></li>
+	<LI>Next message: <A HREF="000304.html">[Mapnik-svn] r419 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#303">[ date ]</a>
+              <a href="thread.html#303">[ thread ]</a>
+              <a href="subject.html#303">[ subject ]</a>
+              <a href="author.html#303">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

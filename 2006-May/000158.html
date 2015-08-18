@@ -1,0 +1,178 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r273 - trunk/include
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-May/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r273%20-%20trunk/include&In-Reply-To=%3C200605261309.k4QD90aE003426%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000157.html">
+   <LINK REL="Next"  HREF="000159.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r273 - trunk/include</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r273%20-%20trunk/include&In-Reply-To=%3C200605261309.k4QD90aE003426%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r273 - trunk/include">pavlenko at berlios.de
+       </A><BR>
+    <I>Fri May 26 15:09:00 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000157.html">[Mapnik-svn] r272 - trunk/include
+</A></li>
+        <LI>Next message: <A HREF="000159.html">[Mapnik-svn] r274 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#158">[ date ]</a>
+              <a href="thread.html#158">[ thread ]</a>
+              <a href="subject.html#158">[ subject ]</a>
+              <a href="author.html#158">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-05-26 15:08:48 +0200 (Fri, 26 May 2006)
+New Revision: 273
+
+Modified:
+   trunk/include/image_reader.hpp
+Log:
+added MAPNIK_DECL
+
+Modified: trunk/include/image_reader.hpp
+===================================================================
+--- trunk/include/image_reader.hpp	2006-05-25 14:19:21 UTC (rev 272)
++++ trunk/include/image_reader.hpp	2006-05-26 13:08:48 UTC (rev 273)
+@@ -1,64 +1,66 @@
+ /*****************************************************************************
+- * 
+- * This file is part of Mapnik (c++ mapping toolkit)
+- *
+- * Copyright (C) 2006 Artem Pavlenko
+- *
+- * This library is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU Lesser General Public
+- * License as published by the Free Software Foundation; either
+- * version 2.1 of the License, or (at your option) any later version.
+- *
+- * This library is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+- * Lesser General Public License for more details.
+- *
+- * You should have received a copy of the GNU Lesser General Public
+- * License along with this library; if not, write to the Free Software
+- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+- *
+- *****************************************************************************/
++* 
++* This file is part of Mapnik (c++ mapping toolkit)
++*
++* Copyright (C) 2006 Artem Pavlenko
++*
++* This library is free software; you can redistribute it and/or
++* modify it under the terms of the GNU Lesser General Public
++* License as published by the Free Software Foundation; either
++* version 2.1 of the License, or (at your option) any later version.
++*
++* This library is distributed in the hope that it will be useful,
++* but WITHOUT ANY WARRANTY; without even the implied warranty of
++* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++* Lesser General Public License for more details.
++*
++* You should have received a copy of the GNU Lesser General Public
++* License along with this library; if not, write to the Free Software
++* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++*
++*****************************************************************************/
+ 
+ //$Id: image_reader.hpp 39 2005-04-10 20:39:53Z pavlenko $
+ 
+ #ifndef IMAGE_READER_HPP
+ #define IMAGE_READER_HPP
+ 
+-#include &quot;image_data.hpp&quot;
+ #include &lt;stdexcept&gt;
+ #include &lt;string&gt;
+ 
++#include &quot;image_data.hpp&quot;
++#include &quot;config.hpp&quot;
+ 
++
+ namespace mapnik 
+ {
+     class ImageReaderException : public std::exception
+     {
+     private:
+-	std::string message_;
++        std::string message_;
+     public:
+-	ImageReaderException(const std::string&amp; message) 
+-	    : message_(message) {}
++        ImageReaderException(const std::string&amp; message) 
++            : message_(message) {}
+ 
+-	~ImageReaderException() throw() {}
++        ~ImageReaderException() throw() {}
+ 
+-	virtual const char* what() const throw()
+-	{
+-	    return message_.c_str();
+-	}
++        virtual const char* what() const throw()
++        {
++            return message_.c_str();
++        }
+     };
+ 
+-    struct ImageReader
++    struct MAPNIK_DECL ImageReader
+     {
+-	virtual unsigned width() const=0;
+-	virtual unsigned height() const=0;
+-	virtual void read(unsigned x,unsigned y,ImageData32&amp; image)=0;
+-	virtual ~ImageReader() {}
++        virtual unsigned width() const=0;
++        virtual unsigned height() const=0;
++        virtual void read(unsigned x,unsigned y,ImageData32&amp; image)=0;
++        virtual ~ImageReader() {}
+     };
+ 
+     bool register_image_reader(const std::string&amp; type,ImageReader* (*)(const std::string&amp;));
+-    ImageReader* get_image_reader(const std::string&amp; type,const std::string&amp; file);
+-    
++    MAPNIK_DECL ImageReader* get_image_reader(const std::string&amp; type,const std::string&amp; file);
++
+ }
+ 
+ #endif                                            //IMAGE_READER_HPP
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000157.html">[Mapnik-svn] r272 - trunk/include
+</A></li>
+	<LI>Next message: <A HREF="000159.html">[Mapnik-svn] r274 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#158">[ date ]</a>
+              <a href="thread.html#158">[ thread ]</a>
+              <a href="subject.html#158">[ subject ]</a>
+              <a href="author.html#158">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,94 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r327 - trunk/bindings/python
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r327%20-%20trunk/bindings/python&In-Reply-To=%3C200610092207.k99M7fQf001476%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000211.html">
+   <LINK REL="Next"  HREF="000213.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r327 - trunk/bindings/python</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r327%20-%20trunk/bindings/python&In-Reply-To=%3C200610092207.k99M7fQf001476%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r327 - trunk/bindings/python">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Tue Oct 10 00:07:41 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000211.html">[Mapnik-svn] r326 - trunk/plugins/input/postgis
+</A></li>
+        <LI>Next message: <A HREF="000213.html">[Mapnik-svn] r328 - in trunk: include/mapnik src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#212">[ date ]</a>
+              <a href="thread.html#212">[ thread ]</a>
+              <a href="subject.html#212">[ subject ]</a>
+              <a href="author.html#212">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-10 00:07:39 +0200 (Tue, 10 Oct 2006)
+New Revision: 327
+
+Modified:
+   trunk/bindings/python/mapnik_python.cpp
+Log:
+check if can extract std::string from dict.
+
+
+
+Modified: trunk/bindings/python/mapnik_python.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_python.cpp	2006-10-09 20:57:04 UTC (rev 326)
++++ trunk/bindings/python/mapnik_python.cpp	2006-10-09 22:07:39 UTC (rev 327)
+@@ -80,9 +80,13 @@
+         boost::python::list keys=d.keys();
+         for (int i=0; i&lt;len(keys); ++i)
+         {
+-            std::string key=extract&lt;std::string&gt;(keys[i]);
+-            std::string value=extract&lt;std::string&gt;(d[key]);
+-            params[key] = value;
++            std::string key = extract&lt;std::string&gt;(keys[i]);
++            object obj = d[key];
++            extract&lt;std::string&gt; ex(obj);
++            if (ex.check())
++            {
++                params[key] = ex();
++            }            
+         }
+         
+         return mapnik::datasource_cache::create(params);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000211.html">[Mapnik-svn] r326 - trunk/plugins/input/postgis
+</A></li>
+	<LI>Next message: <A HREF="000213.html">[Mapnik-svn] r328 - in trunk: include/mapnik src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#212">[ date ]</a>
+              <a href="thread.html#212">[ thread ]</a>
+              <a href="subject.html#212">[ subject ]</a>
+              <a href="author.html#212">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

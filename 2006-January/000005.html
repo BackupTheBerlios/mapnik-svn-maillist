@@ -1,0 +1,148 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r118 - trunk/include
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-January/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r118%20-%20trunk/include&In-Reply-To=%3C200601231026.k0NAQiVC024156%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000004.html">
+   <LINK REL="Next"  HREF="000006.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r118 - trunk/include</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r118%20-%20trunk/include&In-Reply-To=%3C200601231026.k0NAQiVC024156%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r118 - trunk/include">pavlenko at berlios.de
+       </A><BR>
+    <I>Mon Jan 23 11:26:44 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000004.html">[Mapnik-svn] r117 - trunk/include
+</A></li>
+        <LI>Next message: <A HREF="000006.html">[Mapnik-svn] r119 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#5">[ date ]</a>
+              <a href="thread.html#5">[ thread ]</a>
+              <a href="subject.html#5">[ subject ]</a>
+              <a href="author.html#5">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-01-23 11:26:43 +0100 (Mon, 23 Jan 2006)
+New Revision: 118
+
+Modified:
+   trunk/include/polygon_symbolizer.hpp
+Log:
+fixed pattern fill symbolizer
+
+Modified: trunk/include/polygon_symbolizer.hpp
+===================================================================
+--- trunk/include/polygon_symbolizer.hpp	2006-01-23 10:25:38 UTC (rev 117)
++++ trunk/include/polygon_symbolizer.hpp	2006-01-23 10:26:43 UTC (rev 118)
+@@ -57,17 +57,17 @@
+ 	    agg::pixfmt_rgba32 pixf(buf);
+ 	    ren_base renb(pixf);	    
+ 	    
+-	    double r=fill_.red()/255.0;
+-	    double g=fill_.green()/255.0;
+-	    double b=fill_.blue()/255.0;
+-	    double a=fill_.alpha()/255.0;
++	    unsigned r=fill_.red();
++	    unsigned g=fill_.green();
++	    unsigned b=fill_.blue();
++	    unsigned a=fill_.alpha();
+ 	    renderer ren(renb);
+ 	    
+ 	    agg::rasterizer_scanline_aa&lt;&gt; ras;
+ 	    agg::scanline_u8 sl;
+ 	    ras.clip_box(0,0,image.width(),image.height());
+ 	    ras.add_path(geom);
+-	    ren.color(agg::rgba(r, g, b, a));
++	    ren.color(agg::rgba8(r, g, b, a));
+ 	    agg::render_scanlines(ras, sl, ren);
+ 	}
+ 	
+@@ -102,9 +102,7 @@
+ 
+ 	void render(geometry_type&amp; geom,Image32&amp; image) const
+ 	{
+-	    /*
+ 	    typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base; 
+-
+ 	    agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(),image.width(),image.height(),
+ 					       image.width()*4);
+ 	    agg::pixfmt_rgba32 pixf(buf);
+@@ -120,29 +118,29 @@
+ 		wrap_x_type,
+ 		wrap_y_type&gt; img_source_type;
+ 
+-	    typedef agg::span_pattern_rgba&lt;agg::rgba8, 
+-		agg::order_rgba,
+-		wrap_x_type,
+-		wrap_y_type&gt; span_gen_type;
+-
++	    typedef agg::span_pattern_rgba&lt;img_source_type&gt; span_gen_type;
+ 	    
+ 	    typedef agg::renderer_scanline_aa&lt;ren_base, 
+ 		agg::span_allocator&lt;agg::rgba8&gt;,
+ 		span_gen_type&gt; renderer_type;  
+ 	    
+-	    unsigned offset_x = 0;
+-	    unsigned offset_y = 0;
++	    double x0,y0;
++	    geom.vertex(&amp;x0,&amp;y0);
++	    geom.rewind(0);
++
++	    unsigned offset_x = unsigned(image.width() - x0);
++	    unsigned offset_y = unsigned(image.height() - y0);
+ 	    
+ 	    agg::span_allocator&lt;agg::rgba8&gt; sa;
+-	    span_gen_type sg(pattern_rbuf,offset_x, offset_y);
++	    img_source_type img_src(pattern_rbuf);
++	    span_gen_type sg(img_src, offset_x, offset_y);
+ 	    renderer_type rp(renb,sa, sg);
+ 
+ 	    agg::rasterizer_scanline_aa&lt;&gt; ras;
+ 	    agg::scanline_u8 sl;
+ 	    ras.clip_box(0,0,image.width(),image.height());
+ 	    ras.add_path(geom);
+-	    agg::render_scanlines(ras, sl, rp);
+-	    */   
++	    agg::render_scanlines(ras, sl, rp);   
+ 	}
+ 	
+     private:
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000004.html">[Mapnik-svn] r117 - trunk/include
+</A></li>
+	<LI>Next message: <A HREF="000006.html">[Mapnik-svn] r119 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#5">[ date ]</a>
+              <a href="thread.html#5">[ thread ]</a>
+              <a href="subject.html#5">[ subject ]</a>
+              <a href="author.html#5">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

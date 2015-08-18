@@ -1,0 +1,98 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r322 - trunk/src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r322%20-%20trunk/src&In-Reply-To=%3C200610091030.k99AU2Ec013352%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000206.html">
+   <LINK REL="Next"  HREF="000208.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r322 - trunk/src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r322%20-%20trunk/src&In-Reply-To=%3C200610091030.k99AU2Ec013352%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r322 - trunk/src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Mon Oct  9 12:30:02 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000206.html">[Mapnik-svn] r321 - trunk/include/mapnik
+</A></li>
+        <LI>Next message: <A HREF="000208.html">[Mapnik-svn] r323 - trunk/plugins/input/postgis
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#207">[ date ]</a>
+              <a href="thread.html#207">[ thread ]</a>
+              <a href="subject.html#207">[ subject ]</a>
+              <a href="author.html#207">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-09 12:29:57 +0200 (Mon, 09 Oct 2006)
+New Revision: 322
+
+Modified:
+   trunk/src/map.cpp
+Log:
+in remove_all clear all styles as well!
+
+
+
+Modified: trunk/src/map.cpp
+===================================================================
+--- trunk/src/map.cpp	2006-10-09 10:28:48 UTC (rev 321)
++++ trunk/src/map.cpp	2006-10-09 10:29:57 UTC (rev 322)
+@@ -105,6 +105,7 @@
+     void Map::remove_all() 
+     {
+         layers_.clear();
++        styles_.clear();
+     }
+     
+     const Layer&amp; Map::getLayer(size_t index) const
+@@ -181,8 +182,10 @@
+         coord2d center = currentExtent_.center();
+         double w = factor * currentExtent_.width();
+         double h = factor * currentExtent_.height();
+-        currentExtent_ = Envelope&lt;double&gt;(center.x - 0.5 * w, center.y - 0.5 * h,
+-                                          center.x + 0.5 * w, center.y + 0.5 * h);
++        currentExtent_ = Envelope&lt;double&gt;(center.x - 0.5 * w, 
++                                          center.y - 0.5 * h,
++                                          center.x + 0.5 * w, 
++                                          center.y + 0.5 * h);
+         fixAspectRatio();
+     }
+     
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000206.html">[Mapnik-svn] r321 - trunk/include/mapnik
+</A></li>
+	<LI>Next message: <A HREF="000208.html">[Mapnik-svn] r323 - trunk/plugins/input/postgis
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#207">[ date ]</a>
+              <a href="thread.html#207">[ thread ]</a>
+              <a href="subject.html#207">[ subject ]</a>
+              <a href="author.html#207">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,150 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r356 - trunk/src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r356%20-%20trunk/src&In-Reply-To=%3C200610262020.k9QKKhv5007601%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000240.html">
+   <LINK REL="Next"  HREF="000242.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r356 - trunk/src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r356%20-%20trunk/src&In-Reply-To=%3C200610262020.k9QKKhv5007601%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r356 - trunk/src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Thu Oct 26 22:20:43 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000240.html">[Mapnik-svn] r355 - trunk/include/mapnik
+</A></li>
+        <LI>Next message: <A HREF="000242.html">[Mapnik-svn] r357 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#241">[ date ]</a>
+              <a href="thread.html#241">[ thread ]</a>
+              <a href="subject.html#241">[ subject ]</a>
+              <a href="author.html#241">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-26 22:20:41 +0200 (Thu, 26 Oct 2006)
+New Revision: 356
+
+Modified:
+   trunk/src/load_map.cpp
+Log:
+support for ShieldSymbolizer and LinePatternSymbolizer tags
+
+
+
+Modified: trunk/src/load_map.cpp
+===================================================================
+--- trunk/src/load_map.cpp	2006-10-21 12:17:41 UTC (rev 355)
++++ trunk/src/load_map.cpp	2006-10-26 20:20:41 UTC (rev 356)
+@@ -27,7 +27,11 @@
+ #include &lt;boost/lexical_cast.hpp&gt;
+ #include &lt;boost/tokenizer.hpp&gt;
+ #include &lt;boost/property_tree/ptree.hpp&gt;
++
++// use tinyxml 
++#define BOOST_PROPERTY_TREE_XML_PARSER_TINYXML
+ #include &lt;boost/property_tree/xml_parser.hpp&gt;
++
+ // mapnik
+ #include &lt;mapnik/color.hpp&gt;
+ #include &lt;mapnik/color_factory.hpp&gt;
+@@ -127,12 +131,26 @@
+                             {
+                                 std::cout &lt;&lt; sym.first &lt;&lt; &quot;\n&quot;;
+                             } 
++                            else if ( sym.first == &quot;LinePatternSymbolizer&quot;)
++                            {
++                                std::string file =  
++                                    sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.file&quot;); 
++                                std::string type =  
++                                    sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.type&quot;);
++                                unsigned width =  
++                                    sym.second.get&lt;unsigned&gt;(&quot;&lt;xmlattr&gt;.width&quot;);
++                                unsigned height =  
++                                    sym.second.get&lt;unsigned&gt;(&quot;&lt;xmlattr&gt;.height&quot;);
++                                
++                                rule.append(line_pattern_symbolizer(file,type,width,height));
++                                
++                            }
+                             else if ( sym.first == &quot;TextSymbolizer&quot;)
+                             {
+                                 std::string name =  
+                                     sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.name&quot;);                      
+                                 std::string face_name =  
+-                                    sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.face_name&quot;);                      
++                                    sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.face_name&quot;);              
+                                 unsigned size = 
+                                     sym.second.get&lt;unsigned&gt;(&quot;&lt;xmlattr&gt;.size&quot;,10);                      
+                                 std::string color_str = 
+@@ -151,6 +169,32 @@
+                                 
+                                 rule.append(text_symbol);
+                             }
++                            else if ( sym.first == &quot;ShieldSymbolizer&quot;)
++                            {
++                                std::string name =  
++                                    sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.name&quot;);                      
++                                std::string face_name =  
++                                    sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.face_name&quot;);              
++                                unsigned size = 
++                                    sym.second.get&lt;unsigned&gt;(&quot;&lt;xmlattr&gt;.size&quot;,10);                      
++                                std::string color_str = 
++                                    sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.fill&quot;,&quot;black&quot;);
++                                Color fill = color_factory::from_string(color_str.c_str());
++                                
++                                std::string image_file =
++                                    sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.file&quot;);
++                                std::string type =
++                                    sym.second.get&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.type&quot;);
++                                unsigned width =  
++                                    sym.second.get&lt;unsigned&gt;(&quot;&lt;xmlattr&gt;.width&quot;);
++                                unsigned height =  
++                                    sym.second.get&lt;unsigned&gt;(&quot;&lt;xmlattr&gt;.height&quot;);
++                                
++                                shield_symbolizer shield_symbol(name,face_name,size,fill,
++                                                                image_file,type,width,height);
++                                
++                                rule.append(shield_symbol);
++                            }
+                             else if ( sym.first == &quot;LineSymbolizer&quot;)
+                             {
+                                 stroke strk;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000240.html">[Mapnik-svn] r355 - trunk/include/mapnik
+</A></li>
+	<LI>Next message: <A HREF="000242.html">[Mapnik-svn] r357 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#241">[ date ]</a>
+              <a href="thread.html#241">[ thread ]</a>
+              <a href="subject.html#241">[ subject ]</a>
+              <a href="author.html#241">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

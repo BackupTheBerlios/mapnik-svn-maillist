@@ -1,0 +1,193 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r413 - in trunk: . include/mapnik
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-December/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r413%20-%20in%20trunk%3A%20.%20include/mapnik&In-Reply-To=%3C200612171157.kBHBv8l0017649%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000297.html">
+   <LINK REL="Next"  HREF="000299.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r413 - in trunk: . include/mapnik</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r413%20-%20in%20trunk%3A%20.%20include/mapnik&In-Reply-To=%3C200612171157.kBHBv8l0017649%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r413 - in trunk: . include/mapnik">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Sun Dec 17 12:57:08 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000297.html">[Mapnik-svn] r412 - trunk/demo/data
+</A></li>
+        <LI>Next message: <A HREF="000299.html">[Mapnik-svn] r414 - in trunk: . bindings/python fonts	plugins/input/postgis plugins/input/raster	plugins/input/shape src utils/shapeindex
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#298">[ date ]</a>
+              <a href="thread.html#298">[ thread ]</a>
+              <a href="subject.html#298">[ subject ]</a>
+              <a href="author.html#298">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-12-17 12:56:57 +0100 (Sun, 17 Dec 2006)
+New Revision: 413
+
+Modified:
+   trunk/SConstruct
+   trunk/include/mapnik/unicode.hpp
+Log:
+added support for right to left languages by using
+the fribidi library (patch from Ehud Shabtai, thanks!)
+
+
+
+
+Modified: trunk/SConstruct
+===================================================================
+--- trunk/SConstruct	2006-12-16 17:49:30 UTC (rev 412)
++++ trunk/SConstruct	2006-12-17 11:56:57 UTC (rev 413)
+@@ -32,6 +32,8 @@
+ opts.Add(PathOption('BOOST_INCLUDES', 'Search path for boost include files', '/usr/include'))
+ opts.Add(PathOption('BOOST_LIBS', 'Search path for boost library files', '/usr/' + LIBDIR_SCHEMA))
+ opts.Add(PathOption('FREETYPE_CONFIG', 'The path to the freetype-config executable.', '/usr/bin/freetype-config'))
++opts.Add(PathOption('FRIBIDI_INCLUDES', 'Search path for fribidi include files', '/usr/include'))
++opts.Add(PathOption('FRIBIDI_LIBS','Search path for fribidi include files','/usr/' + LIBDIR_SCHEMA))
+ opts.Add(PathOption('PNG_INCLUDES', 'Search path for libpng include files', '/usr/include'))
+ opts.Add(PathOption('PNG_LIBS','Search path for libpng include files','/usr/' + LIBDIR_SCHEMA))
+ opts.Add(PathOption('JPEG_INCLUDES', 'Search path for libjpeg include files', '/usr/include'))
+@@ -46,6 +48,7 @@
+ opts.Add(ListOption('INPUT_PLUGINS','Input drivers to include','all',['postgis','shape','raster']))
+ opts.Add(ListOption('BINDINGS','Language bindings to build','all',['python']))
+ opts.Add('DEBUG', 'Compile a debug version of mapnik', '')
++opts.Add('BIDI', 'BIDI support', '')
+ 
+ env = Environment(ENV=os.environ, options=opts)
+ env['LIBDIR_SCHEMA'] = LIBDIR_SCHEMA
+@@ -78,6 +81,14 @@
+     
+ env.ParseConfig(env['FREETYPE_CONFIG'] + ' --libs --cflags')
+ 
++if env['BIDI']:
++    env.Append(CXXFLAGS = '-DUSE_FRIBIDI')
++    if env['FRIBIDI_INCLUDES'] not in env['CPPPATH']:
++        env['CPPPATH'].append(env['FRIBIDI_INCLUDES'])
++    if env['FRIBIDI_LIBS'] not in env['LIBPATH']:
++        env['CPPPATH'].append(env['FRIBIDI_LIBS'])  
++    env['LIBS'].append('fribidi')
++
+ C_LIBSHEADERS = [
+     ['m', 'math.h', True],
+     ['ltdl', 'ltdl.h', True],
+@@ -89,6 +100,8 @@
+     ['pq', 'libpq-fe.h', False]
+ ]
+ 
++if env['BIDI'] : C_LIBSHEADERS.append(['fribidi','fribidi/fribidi.h',True])
++
+ BOOST_LIBSHEADERS = [
+     ['thread', 'boost/thread/mutex.hpp', True],
+     ['filesystem', 'boost/filesystem/operations.hpp', True],
+
+Modified: trunk/include/mapnik/unicode.hpp
+===================================================================
+--- trunk/include/mapnik/unicode.hpp	2006-12-16 17:49:30 UTC (rev 412)
++++ trunk/include/mapnik/unicode.hpp	2006-12-17 11:56:57 UTC (rev 413)
+@@ -26,8 +26,53 @@
+ 
+ #include &lt;string&gt;
+ 
++#ifdef USE_FRIBIDI
++#include &lt;fribidi/fribidi.h&gt;
++#endif
++
+ namespace mapnik {
+     
++/*
++** Use FRIBIDI to encode the string.
++** The return value must be freed by the caller.
++*/
++
++#ifdef USE_FRIBIDI
++    inline wchar_t* bidi_string(const wchar_t *logical)
++    {
++        FriBidiCharType base = FRIBIDI_TYPE_ON;
++        size_t len;
++
++        len = wcslen(logical);
++
++        FriBidiChar *visual;
++
++        FriBidiStrIndex *ltov, *vtol;
++        FriBidiLevel *levels;
++        FriBidiStrIndex new_len;
++        fribidi_boolean log2vis;
++        
++        visual = (FriBidiChar *) malloc (sizeof (FriBidiChar) * (len + 1));
++        ltov = 0;
++        vtol = 0;
++        levels = 0;
++
++        /* Create a bidi string. */
++        log2vis = fribidi_log2vis ((FriBidiChar *)logical, len, &amp;base,
++                /* output */
++                visual, ltov, vtol, levels);
++
++        if (!log2vis) {
++            return 0;
++        }
++
++        new_len = len;
++
++        return (wchar_t *)visual;
++    }
++#endif
++
++
+     inline std::wstring to_unicode(std::string const&amp; text)
+     {
+         std::wstring out;
+@@ -75,6 +120,12 @@
+             }
+             out.push_back(wchar_t(code));
+         }
++#ifdef USE_FRIBIDI
++        wchar_t *bidi_text = bidi_string(out.c_str());
++        out = bidi_text;
++        free(bidi_text);
++#endif
++        
+         return out;
+     }
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000297.html">[Mapnik-svn] r412 - trunk/demo/data
+</A></li>
+	<LI>Next message: <A HREF="000299.html">[Mapnik-svn] r414 - in trunk: . bindings/python fonts	plugins/input/postgis plugins/input/raster	plugins/input/shape src utils/shapeindex
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#298">[ date ]</a>
+              <a href="thread.html#298">[ thread ]</a>
+              <a href="subject.html#298">[ subject ]</a>
+              <a href="author.html#298">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

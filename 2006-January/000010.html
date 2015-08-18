@@ -1,0 +1,780 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r123 - in trunk: include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-January/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r123%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200601232233.k0NMXcFe020291%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000009.html">
+   <LINK REL="Next"  HREF="000011.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r123 - in trunk: include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r123%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200601232233.k0NMXcFe020291%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r123 - in trunk: include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Mon Jan 23 23:33:38 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000009.html">[Mapnik-svn] r122 - in trunk: agg include python src
+</A></li>
+        <LI>Next message: <A HREF="000011.html">[Mapnik-svn] r124 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#10">[ date ]</a>
+              <a href="thread.html#10">[ thread ]</a>
+              <a href="subject.html#10">[ subject ]</a>
+              <a href="author.html#10">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-01-23 23:33:37 +0100 (Mon, 23 Jan 2006)
+New Revision: 123
+
+Modified:
+   trunk/include/ctrans.hpp
+   trunk/include/feature.hpp
+   trunk/include/image_symbolizer.hpp
+   trunk/include/line_pattern_symbolizer.hpp
+   trunk/include/line_symbolizer.hpp
+   trunk/include/polygon_pattern_symbolizer.hpp
+   trunk/include/polygon_symbolizer.hpp
+   trunk/include/symbolizer.hpp
+   trunk/src/image_symbolizer.cpp
+   trunk/src/line_pattern_symbolizer.cpp
+   trunk/src/line_symbolizer.cpp
+   trunk/src/polygon_pattern_symbolizer.cpp
+   trunk/src/polygon_symbolizer.cpp
+   trunk/src/render.cpp
+Log:
+changed symbolizer interface to accept 'feature' and CoordTransform, instead of
+geometry (feature centric OGC model:).
+
+
+
+Modified: trunk/include/ctrans.hpp
+===================================================================
+--- trunk/include/ctrans.hpp	2006-01-23 13:24:41 UTC (rev 122)
++++ trunk/include/ctrans.hpp	2006-01-23 22:33:37 UTC (rev 123)
+@@ -27,7 +27,30 @@
+ namespace mapnik
+ {
+     typedef coord_array&lt;coord2d&gt; CoordinateArray;
+-
++    
++    template &lt;typename Transform,typename Geometry&gt;
++    struct coord_transform
++    {
++	coord_transform(Transform const&amp; t,Geometry&amp; geom)
++	    : t_(t), geom_(geom) {}
++	
++	unsigned  vertex(double *x , double *y) const
++	{
++	    unsigned command = geom_.vertex(x,y);
++	    *x = t_.forward_x_(x);
++	    *y = t_.forward_y_(y);
++	    return command;
++	}
++	void rewind (unsigned pos)
++	{
++	    geom_.rewind(pos);
++	}
++	
++    private:
++	Transform const&amp; t_;
++	Geometry&amp; geom_;
++    };
++    
+     class CoordTransform
+     {
+     private:
+@@ -58,7 +81,17 @@
+ 	{
+ 	    *y = (extent.maxy() - *y) * scale_;
+ 	}
++
++	inline double forward_x_(double* x) const 
++	{
++	    return (*x - extent.minx() ) * scale_;   
++	}
+ 	
++	inline double forward_y_(double* y) const 
++	{
++	    return (extent.maxy() - *y) * scale_;
++	}
++
+ 	inline void backward_x(double* x) const
+ 	{
+ 	    *x = extent.minx() + *x/scale_;
+
+Modified: trunk/include/feature.hpp
+===================================================================
+--- trunk/include/feature.hpp	2006-01-23 13:24:41 UTC (rev 122)
++++ trunk/include/feature.hpp	2006-01-23 22:33:37 UTC (rev 123)
+@@ -77,7 +77,7 @@
+ 	    geom_=geom;
+ 	}
+ 	
+-	geometry_type&amp; get_geometry()
++	geometry_type const&amp; get_geometry() const
+ 	{
+ 	    return geom_;
+ 	}
+
+Modified: trunk/include/image_symbolizer.hpp
+===================================================================
+--- trunk/include/image_symbolizer.hpp	2006-01-23 13:24:41 UTC (rev 122)
++++ trunk/include/image_symbolizer.hpp	2006-01-23 22:33:37 UTC (rev 123)
+@@ -34,8 +34,7 @@
+ 			 std::string const&amp; type,
+ 			 unsigned width,unsigned height);
+ 	
+-	void render(geometry_type&amp; geom,Image32&amp; image) const;
+-
++	void render(Feature const&amp; feat, CoordTransform const&amp; t,Image32&amp; image) const;
+     private:
+ 	ImageData32 symbol_;
+     };
+
+Modified: trunk/include/line_pattern_symbolizer.hpp
+===================================================================
+--- trunk/include/line_pattern_symbolizer.hpp	2006-01-23 13:24:41 UTC (rev 122)
++++ trunk/include/line_pattern_symbolizer.hpp	2006-01-23 22:33:37 UTC (rev 123)
+@@ -32,8 +32,7 @@
+ 	line_pattern_symbolizer(std::string const&amp; file,
+ 				std::string const&amp; type,
+ 				unsigned width,unsigned height);
+-	void render(geometry_type&amp; geom,Image32&amp; image) const;
+-	
++	void render(Feature const&amp; feat, CoordTransform const&amp; t,Image32&amp; image) const;
+     private:
+ 	ImageData32 pattern_;
+     };    
+
+Modified: trunk/include/line_symbolizer.hpp
+===================================================================
+--- trunk/include/line_symbolizer.hpp	2006-01-23 13:24:41 UTC (rev 122)
++++ trunk/include/line_symbolizer.hpp	2006-01-23 22:33:37 UTC (rev 123)
+@@ -34,7 +34,7 @@
+     {
+ 	line_symbolizer(stroke const&amp; stroke);
+ 	line_symbolizer(const Color&amp; pen,float width=1.0);	
+-	void render(geometry_type&amp; geom, Image32&amp; image) const;
++	void render(Feature const&amp; feat, CoordTransform const&amp; t,Image32&amp; image) const;
+     private:
+ 	stroke stroke_;
+     };
+
+Modified: trunk/include/polygon_pattern_symbolizer.hpp
+===================================================================
+--- trunk/include/polygon_pattern_symbolizer.hpp	2006-01-23 13:24:41 UTC (rev 122)
++++ trunk/include/polygon_pattern_symbolizer.hpp	2006-01-23 22:33:37 UTC (rev 123)
+@@ -33,8 +33,8 @@
+ 	polygon_pattern_symbolizer(std::string const&amp; file,
+ 				   std::string const&amp; type,
+ 				   unsigned width,unsigned height);
+-	
+-	void render(geometry_type&amp; geom,Image32&amp; image) const;
++        
++	void render(Feature const&amp; feat, CoordTransform const&amp; t,Image32&amp; image) const;
+     private:
+ 	ImageData32 pattern_;
+     };
+
+Modified: trunk/include/polygon_symbolizer.hpp
+===================================================================
+--- trunk/include/polygon_symbolizer.hpp	2006-01-23 13:24:41 UTC (rev 122)
++++ trunk/include/polygon_symbolizer.hpp	2006-01-23 22:33:37 UTC (rev 123)
+@@ -30,7 +30,7 @@
+ 				private boost::noncopyable
+     {
+ 	polygon_symbolizer(const Color&amp; fill);
+-	void render(geometry_type&amp; geom,Image32&amp; image) const;
++	void render(Feature const&amp; feat, CoordTransform const&amp; t,Image32&amp; image) const;
+     private:
+ 	Color fill_;
+     };  
+
+Modified: trunk/include/symbolizer.hpp
+===================================================================
+--- trunk/include/symbolizer.hpp	2006-01-23 13:24:41 UTC (rev 122)
++++ trunk/include/symbolizer.hpp	2006-01-23 22:33:37 UTC (rev 123)
+@@ -22,6 +22,7 @@
+ #define SYMBOLIZER_HPP
+ 
+ #include &quot;graphics.hpp&quot; 
++#include &quot;feature.hpp&quot;
+ #include &quot;geometry.hpp&quot;
+ #include &lt;limits&gt;
+ 
+@@ -31,7 +32,7 @@
+ 
+     struct symbolizer
+     {
+-    	virtual void render(geometry_type&amp; geom, Image32&amp; image) const=0;
++    	virtual void render(Feature const&amp; feat, CoordTransform const&amp; t, Image32&amp; image) const=0;
+     	virtual ~symbolizer() {}
+     }; 
+ }
+
+Modified: trunk/src/image_symbolizer.cpp
+===================================================================
+--- trunk/src/image_symbolizer.cpp	2006-01-23 13:24:41 UTC (rev 122)
++++ trunk/src/image_symbolizer.cpp	2006-01-23 22:33:37 UTC (rev 123)
+@@ -41,18 +41,24 @@
+ 	    }
+ 	}
+   
+-    void image_symbolizer::render(geometry_type&amp; geom,Image32&amp; image) const 
++    void image_symbolizer::render(Feature const&amp; feat,CoordTransform const&amp; t,Image32&amp; image) const	
+     {
+-	int w=symbol_.width();
+-	int h=symbol_.height();
+-	double x,y;
+-	unsigned size = geom.num_points();
+-	for (unsigned pos = 0; pos &lt; size ;++pos)
++	typedef coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
++	geometry_ptr const&amp; geom=feat.get_geometry();
++	if (geom)
+ 	{
+-	    geom.vertex(&amp;x,&amp;y);
+-	    int px=int(x - 0.5 * w);
+-	    int py=int(y - 0.5 * h);
+-	    image.set_rectangle_alpha(px,py,symbol_);
++	    path_type path(t,*geom);
++	    unsigned num_points=geom-&gt;num_points();
++	    int w=symbol_.width();
++	    int h=symbol_.height();
++	    double x,y;
++	    for(unsigned i=0;i&lt;num_points;++i)
++	    {
++		path.vertex(&amp;x,&amp;y);
++		int px=int(x - 0.5 * w);
++		int py=int(y - 0.5 * h);
++		image.set_rectangle_alpha(px,py,symbol_);
++	    }
+ 	}
+     }
+ }
+
+Modified: trunk/src/line_pattern_symbolizer.cpp
+===================================================================
+--- trunk/src/line_pattern_symbolizer.cpp	2006-01-23 13:24:41 UTC (rev 122)
++++ trunk/src/line_pattern_symbolizer.cpp	2006-01-23 22:33:37 UTC (rev 123)
+@@ -73,29 +73,34 @@
+ 	} 
+ 	catch (...) 
+ 	{
+-	    std::cerr&lt;&lt;&quot;exception caught...&quot;&lt;&lt;std::endl;
++	    std::cerr &lt;&lt; &quot;exception caught...&quot; &lt;&lt; std::endl;
+ 	}
+     }
+     
+-    void line_pattern_symbolizer::render(geometry_type&amp; geom,Image32&amp; image) const
++    void line_pattern_symbolizer::render(Feature const&amp; feat, CoordTransform const&amp; t,Image32&amp; image) const
+     { 
+-	
++	typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
+ 	typedef agg::line_image_pattern&lt;agg::pattern_filter_bilinear_rgba8&gt; pattern_type;
+ 	typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; renderer_base;
+ 	typedef agg::renderer_outline_image&lt;renderer_base, pattern_type&gt; renderer_type;
+ 	typedef agg::rasterizer_outline_aa&lt;renderer_type&gt; rasterizer_type;
+-	
+-	unsigned int width=image.width();
+-	unsigned int height=image.height();
+-	agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(), width, height,width*4);
+-	agg::pixfmt_rgba32 pixf(buf);
+-	renderer_base ren_base(pixf);  
+-	agg::pattern_filter_bilinear_rgba8 filter; 
+-	pattern_source source(pattern_);
+-	pattern_type pattern (filter,source);
+-	renderer_type ren(ren_base, pattern);
+-	ren.clip_box(0,0,width,height);
+-	rasterizer_type ras(ren);	    
+-	ras.add_path(geom);    
++
++	geometry_ptr const&amp; geom=feat.get_geometry();
++	if (geom)
++	{
++	    path_type path(t,*geom);
++	    unsigned int width=image.width();
++	    unsigned int height=image.height();
++	    agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(), width, height,width*4);
++	    agg::pixfmt_rgba32 pixf(buf);
++	    renderer_base ren_base(pixf);  
++	    agg::pattern_filter_bilinear_rgba8 filter; 
++	    pattern_source source(pattern_);
++	    pattern_type pattern (filter,source);
++	    renderer_type ren(ren_base, pattern);
++	    ren.clip_box(0,0,width,height);
++	    rasterizer_type ras(ren);	    
++	    ras.add_path(path);    
++	}
+     }
+ }
+
+Modified: trunk/src/line_symbolizer.cpp
+===================================================================
+--- trunk/src/line_symbolizer.cpp	2006-01-23 13:24:41 UTC (rev 122)
++++ trunk/src/line_symbolizer.cpp	2006-01-23 22:33:37 UTC (rev 123)
+@@ -52,109 +52,116 @@
+ 	    : symbolizer(),
+ 	      stroke_(pen,width) {}
+ 	
+-    void line_symbolizer::render(geometry_type&amp; geom, Image32&amp; image) const 
++    void line_symbolizer::render(Feature const&amp; feat, CoordTransform const&amp; t,Image32&amp; image) const 
+     {
+-	typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base;    
+-	agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(),image.width(),image.height(),
+-					   image.width()*4);
+-	agg::pixfmt_rgba32 pixf(buf);
+-	ren_base renb(pixf);	    
++	typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base; 
++	typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
++	geometry_ptr const&amp; geom=feat.get_geometry();
++	if (geom)
++	{
++	    path_type path(t,*geom);
++	    agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(),image.width(),image.height(),
++					       image.width()*4);
++	    agg::pixfmt_rgba32 pixf(buf);
++	    ren_base renb(pixf);	    
+ 	
+-	Color const&amp; col = stroke_.get_color();
+-	unsigned r=col.red();
+-	unsigned g=col.green();
+-	unsigned b=col.blue();	    
+-	
+-	if (0)//stroke_.get_width() &lt;= 1.0)
+-	{
+-	    typedef agg::renderer_outline_aa&lt;ren_base&gt; renderer_oaa;
+-	    typedef agg::rasterizer_outline_aa&lt;renderer_oaa&gt; rasterizer_outline_aa;
+-	    agg::line_profile_aa prof;
+-	    prof.width(stroke_.get_width());
+-	    renderer_oaa ren_oaa(renb, prof);
+-	    rasterizer_outline_aa ras_oaa(ren_oaa);
++	    Color const&amp; col = stroke_.get_color();
++	    unsigned r=col.red();
++	    unsigned g=col.green();
++	    unsigned b=col.blue();	    
++             
+ 	    
+-	    ren_oaa.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
+-	    ren_oaa.clip_box(0,0,image.width(),image.height());
+-	    ras_oaa.add_path(geom);		
+-	    
+-	}
+-	else 
+-	{
+-	    typedef agg::renderer_scanline_aa_solid&lt;ren_base&gt; renderer;
+-	    renderer ren(renb);	
+-	    agg::rasterizer_scanline_aa&lt;&gt; ras;
+-	    agg::scanline_u8 sl;
+-	    
+-	    if (stroke_.has_dash())
++	    if (0)//stroke_.get_width() &lt;= 1.0)
+ 	    {
++		typedef agg::renderer_outline_aa&lt;ren_base&gt; renderer_oaa;
++		typedef agg::rasterizer_outline_aa&lt;renderer_oaa&gt; rasterizer_outline_aa;
++		agg::line_profile_aa prof;
++		prof.width(stroke_.get_width());
++		renderer_oaa ren_oaa(renb, prof);
++		rasterizer_outline_aa ras_oaa(ren_oaa);
+ 		
+-		agg::conv_dash&lt;geometry&lt;vertex2d&gt; &gt; dash(geom);
+-		dash_array const&amp; d = stroke_.get_dash_array();
+-		dash_array::const_iterator itr = d.begin();
+-		dash_array::const_iterator end = d.end();
+-		while (itr != end)
+-		{
+-		    dash.add_dash(itr-&gt;first, itr-&gt;second);
+-		    ++itr;
+-		}
+-		agg::conv_stroke&lt;agg::conv_dash&lt;geometry&lt;vertex2d&gt; &gt; &gt; stroke(dash);
++		ren_oaa.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
++		ren_oaa.clip_box(0,0,image.width(),image.height());
++		ras_oaa.add_path(path);		
+ 		
+-		line_join_e join=stroke_.get_line_join();
+-		if ( join == MITER_JOIN)
+-		    stroke.generator().line_join(agg::miter_join);
+-		else if( join == MITER_REVERT_JOIN) 
+-		    stroke.generator().line_join(agg::miter_join);
+-		else if( join == ROUND_JOIN) 
+-		    stroke.generator().line_join(agg::round_join);
+-		else
+-		    stroke.generator().line_join(agg::bevel_join);
+-		    
+-		line_cap_e cap=stroke_.get_line_cap();
+-		if (cap == BUTT_CAP)    
+-		    stroke.generator().line_cap(agg::butt_cap);
+-		else if (cap == SQUARE_CAP)
+-		    stroke.generator().line_cap(agg::square_cap);
+-		else 
+-		    stroke.generator().line_cap(agg::round_cap);
+-
+-		stroke.generator().miter_limit(4.0);
+-		stroke.generator().width(stroke_.get_width());
+-		
+-		ras.clip_box(0,0,image.width(),image.height());
+-		ras.add_path(stroke);
+-		ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
+-		agg::render_scanlines(ras, sl, ren);
+ 	    }
+ 	    else 
+ 	    {
+-		agg::conv_stroke&lt;geometry&lt;vertex2d&gt; &gt;  stroke(geom);
++		typedef agg::renderer_scanline_aa_solid&lt;ren_base&gt; renderer;
++		renderer ren(renb);	
++		agg::rasterizer_scanline_aa&lt;&gt; ras;
++		agg::scanline_u8 sl;
+ 		
+-		line_join_e join=stroke_.get_line_join();
+-		if ( join == MITER_JOIN)
+-		    stroke.generator().line_join(agg::miter_join);
+-		else if( join == MITER_REVERT_JOIN) 
+-		    stroke.generator().line_join(agg::miter_join);
+-		else if( join == ROUND_JOIN) 
+-		    stroke.generator().line_join(agg::round_join);
+-		else
+-		    stroke.generator().line_join(agg::bevel_join);
++		if (stroke_.has_dash())
++		{
+ 		    
+-		line_cap_e cap=stroke_.get_line_cap();
+-		if (cap == BUTT_CAP)    
+-		    stroke.generator().line_cap(agg::butt_cap);
+-		else if (cap == SQUARE_CAP)
+-		    stroke.generator().line_cap(agg::square_cap);
++		    agg::conv_dash&lt;path_type&gt; dash(path);
++		    dash_array const&amp; d = stroke_.get_dash_array();
++		    dash_array::const_iterator itr = d.begin();
++		    dash_array::const_iterator end = d.end();
++		    while (itr != end)
++		    {
++			dash.add_dash(itr-&gt;first, itr-&gt;second);
++			++itr;
++		    }
++		    agg::conv_stroke&lt;agg::conv_dash&lt;path_type &gt; &gt; stroke(dash);
++		    
++		    line_join_e join=stroke_.get_line_join();
++		    if ( join == MITER_JOIN)
++			stroke.generator().line_join(agg::miter_join);
++		    else if( join == MITER_REVERT_JOIN) 
++			stroke.generator().line_join(agg::miter_join);
++		    else if( join == ROUND_JOIN) 
++			stroke.generator().line_join(agg::round_join);
++		    else
++			stroke.generator().line_join(agg::bevel_join);
++		    
++		    line_cap_e cap=stroke_.get_line_cap();
++		    if (cap == BUTT_CAP)    
++			stroke.generator().line_cap(agg::butt_cap);
++		    else if (cap == SQUARE_CAP)
++			stroke.generator().line_cap(agg::square_cap);
++		    else 
++			stroke.generator().line_cap(agg::round_cap);
++		    
++		    stroke.generator().miter_limit(4.0);
++		    stroke.generator().width(stroke_.get_width());
++		    
++		    ras.clip_box(0,0,image.width(),image.height());
++		    ras.add_path(stroke);
++		    ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
++		    agg::render_scanlines(ras, sl, ren);
++		}
+ 		else 
+-		    stroke.generator().line_cap(agg::round_cap);
+-
+-		stroke.generator().miter_limit(4.0);
+-		stroke.generator().width(stroke_.get_width());
++		{
++		    agg::conv_stroke&lt;path_type&gt;  stroke(path);
+ 		    
+-		ras.clip_box(0,0,image.width(),image.height());
+-		ras.add_path(stroke);
+-		ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
+-		agg::render_scanlines(ras, sl, ren);
++		    line_join_e join=stroke_.get_line_join();
++		    if ( join == MITER_JOIN)
++			stroke.generator().line_join(agg::miter_join);
++		    else if( join == MITER_REVERT_JOIN) 
++			stroke.generator().line_join(agg::miter_join);
++		    else if( join == ROUND_JOIN) 
++			stroke.generator().line_join(agg::round_join);
++		    else
++			stroke.generator().line_join(agg::bevel_join);
++		    
++		    line_cap_e cap=stroke_.get_line_cap();
++		    if (cap == BUTT_CAP)    
++			stroke.generator().line_cap(agg::butt_cap);
++		    else if (cap == SQUARE_CAP)
++			stroke.generator().line_cap(agg::square_cap);
++		    else 
++			stroke.generator().line_cap(agg::round_cap);
++		    
++		    stroke.generator().miter_limit(4.0);
++		    stroke.generator().width(stroke_.get_width());
++		    
++		    ras.clip_box(0,0,image.width(),image.height());
++		    ras.add_path(stroke);
++		    ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
++		    agg::render_scanlines(ras, sl, ren);
++		}
+ 	    }
+ 	}
+     }
+
+Modified: trunk/src/polygon_pattern_symbolizer.cpp
+===================================================================
+--- trunk/src/polygon_pattern_symbolizer.cpp	2006-01-23 13:24:41 UTC (rev 122)
++++ trunk/src/polygon_pattern_symbolizer.cpp	2006-01-23 22:33:37 UTC (rev 123)
+@@ -52,18 +52,10 @@
+ 	}
+     }
+     
+-    void polygon_pattern_symbolizer::render(geometry_type&amp; geom,Image32&amp; image) const
++    void polygon_pattern_symbolizer::render(Feature const&amp; feat,CoordTransform const&amp; t,Image32&amp; image) const
+     {
++	typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
+ 	typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base; 
+-	agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(),image.width(),image.height(),
+-					   image.width()*4);
+-	agg::pixfmt_rgba32 pixf(buf);
+-	ren_base renb(pixf);
+-	
+-	unsigned w=pattern_.width();
+-	unsigned h=pattern_.height();
+-	agg::row_ptr_cache&lt;agg::int8u&gt; pattern_rbuf((agg::int8u*)pattern_.getBytes(),w,h,w*4);  
+-	
+ 	typedef agg::wrap_mode_repeat wrap_x_type;
+ 	typedef agg::wrap_mode_repeat wrap_y_type;
+ 	typedef agg::image_accessor_wrap&lt;agg::pixfmt_rgba32, 
+@@ -75,23 +67,37 @@
+ 	typedef agg::renderer_scanline_aa&lt;ren_base, 
+ 	    agg::span_allocator&lt;agg::rgba8&gt;,
+ 	    span_gen_type&gt; renderer_type;  
++	geometry_ptr const&amp; geom=feat.get_geometry();
++	if (geom)
++	{
++	    path_type path(t,*geom);
++	    
++	    agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(),image.width(),image.height(),
++					       image.width()*4);
++	    agg::pixfmt_rgba32 pixf(buf);
++	    ren_base renb(pixf);
+ 	
+-	double x0,y0;
+-	geom.vertex(&amp;x0,&amp;y0);
+-	geom.rewind(0);
++	    unsigned w=pattern_.width();
++	    unsigned h=pattern_.height();
++	    agg::row_ptr_cache&lt;agg::int8u&gt; pattern_rbuf((agg::int8u*)pattern_.getBytes(),w,h,w*4);  
++	    
++	    double x0,y0;
++	    path.vertex(&amp;x0,&amp;y0);
++	    path.rewind(0);
+ 	
+-	unsigned offset_x = unsigned(image.width() - x0);
+-	unsigned offset_y = unsigned(image.height() - y0);
++	    unsigned offset_x = unsigned(image.width() - x0);
++	    unsigned offset_y = unsigned(image.height() - y0);
+ 	
+-	agg::span_allocator&lt;agg::rgba8&gt; sa;
+-	img_source_type img_src(pattern_rbuf);
+-	span_gen_type sg(img_src, offset_x, offset_y);
+-	renderer_type rp(renb,sa, sg);
++	    agg::span_allocator&lt;agg::rgba8&gt; sa;
++	    img_source_type img_src(pattern_rbuf);
++	    span_gen_type sg(img_src, offset_x, offset_y);
++	    renderer_type rp(renb,sa, sg);
+ 	
+-	agg::rasterizer_scanline_aa&lt;&gt; ras;
+-	agg::scanline_u8 sl;
+-	ras.clip_box(0,0,image.width(),image.height());
+-	ras.add_path(geom);
+-	agg::render_scanlines(ras, sl, rp);   
++	    agg::rasterizer_scanline_aa&lt;&gt; ras;
++	    agg::scanline_u8 sl;
++	    ras.clip_box(0,0,image.width(),image.height());
++	    ras.add_path(path);
++	    agg::render_scanlines(ras, sl, rp);   
++	}
+     }
+ }
+
+Modified: trunk/src/polygon_symbolizer.cpp
+===================================================================
+--- trunk/src/polygon_symbolizer.cpp	2006-01-23 13:24:41 UTC (rev 122)
++++ trunk/src/polygon_symbolizer.cpp	2006-01-23 22:33:37 UTC (rev 123)
+@@ -38,26 +38,34 @@
+ 	: symbolizer(),
+ 	  fill_(fill) {}
+     
+-    void polygon_symbolizer::render(geometry_type&amp; geom,Image32&amp; image) const 
++ 
++    void  polygon_symbolizer::render(Feature const&amp; feat,CoordTransform const&amp; t,Image32&amp; image) const
+     {
++	typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
+ 	typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base;    
+ 	typedef agg::renderer_scanline_aa_solid&lt;ren_base&gt; renderer;
+-	agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(),image.width(),image.height(),
+-					   image.width()*4);
+-	agg::pixfmt_rgba32 pixf(buf);
+-	ren_base renb(pixf);	    
+-	
+-	unsigned r=fill_.red();
+-	unsigned g=fill_.green();
+-	unsigned b=fill_.blue();
+-	unsigned a=fill_.alpha();
+-	renderer ren(renb);
+-	
+-	agg::rasterizer_scanline_aa&lt;&gt; ras;
+-	agg::scanline_u8 sl;
+-	ras.clip_box(0,0,image.width(),image.height());
+-	ras.add_path(geom);
+-	ren.color(agg::rgba8(r, g, b, a));
+-	agg::render_scanlines(ras, sl, ren);
++
++	geometry_ptr const&amp; geom=feat.get_geometry();
++	if (geom)
++	{
++	    path_type path(t,*geom);
++	    agg::row_ptr_cache&lt;agg::int8u&gt; buf(image.raw_data(),image.width(),image.height(),
++					       image.width()*4);
++	    agg::pixfmt_rgba32 pixf(buf);
++	    ren_base renb(pixf);	    
++	    
++	    unsigned r=fill_.red();
++	    unsigned g=fill_.green();
++	    unsigned b=fill_.blue();
++	    unsigned a=fill_.alpha();
++	    renderer ren(renb);
++	    
++	    agg::rasterizer_scanline_aa&lt;&gt; ras;
++	    agg::scanline_u8 sl;
++	    ras.clip_box(0,0,image.width(),image.height());
++	    ras.add_path(path);
++	    ren.color(agg::rgba8(r, g, b, a));
++	    agg::render_scanlines(ras, sl, ren);
++	}
+     }
+ }
+
+Modified: trunk/src/render.cpp
+===================================================================
+--- trunk/src/render.cpp	2006-01-23 13:24:41 UTC (rev 122)
++++ trunk/src/render.cpp	2006-01-23 22:33:37 UTC (rev 123)
+@@ -96,45 +96,45 @@
+ 		    while ((feature = fs-&gt;next()))
+ 		    {		   
+ 			bool do_else=true;
+-			geometry_ptr&amp; geom=feature-&gt;get_geometry();
+-			if (geom)
++			//geometry_ptr&amp; geom=feature-&gt;get_geometry();
++			//if (geom)
++			
++			    //geom-&gt;transform(t);//todo: transform once
++			    //  coord_transform&lt;CoordTransform,geometry_type&gt; path(t,*geom);
++			    
++			std::vector&lt;rule_type*&gt;::const_iterator itr=if_rules.begin();
++			while (itr!=if_rules.end())
+ 			{
+-			    geom-&gt;transform(t);//todo: transform once
+-			
+-			    std::vector&lt;rule_type*&gt;::const_iterator itr=if_rules.begin();
+-			    while (itr!=if_rules.end())
++			    const filter_ptr&amp; filter=(*itr)-&gt;get_filter();    
++			    if (filter-&gt;pass(*feature))
++			    {   
++				do_else=false;
++				const symbolizers&amp; symbols = (*itr)-&gt;get_symbolizers();
++				symbolizers::const_iterator symIter=symbols.begin();
++				while (symIter!=symbols.end())
++				{
++				    (*symIter)-&gt;render(*feature,t,image);
++				    ++symIter;
++				}
++			    }			    
++			    ++itr;
++			}
++			if (do_else)
++			{
++			    //else filter
++			    std::vector&lt;rule_type*&gt;::const_iterator itr=else_rules.begin();
++			    while (itr != else_rules.end())
+ 			    {
+-				const filter_ptr&amp; filter=(*itr)-&gt;get_filter();    
+-				if (filter-&gt;pass(*feature))
+-				{   
+-				    do_else=false;
+-				    const symbolizers&amp; symbols = (*itr)-&gt;get_symbolizers();
+-				    symbolizers::const_iterator symIter=symbols.begin();
+-				    while (symIter!=symbols.end())
+-				    {
+-					(*symIter)-&gt;render(*geom,image);
+-					++symIter;
+-				    }
+-				}			    
+-				++itr;
+-			    }
+-			    if (do_else)
+-			    {
+-				//else filter
+-				std::vector&lt;rule_type*&gt;::const_iterator itr=else_rules.begin();
+-				while (itr != else_rules.end())
++				const symbolizers&amp; symbols = (*itr)-&gt;get_symbolizers();
++				symbolizers::const_iterator symIter=symbols.begin();
++				while (symIter!=symbols.end())
+ 				{
+-				    const symbolizers&amp; symbols = (*itr)-&gt;get_symbolizers();
+-				    symbolizers::const_iterator symIter=symbols.begin();
+-				    while (symIter!=symbols.end())
+-				    {
+-					(*symIter)-&gt;render(*geom,image);
+-					++symIter;
+-				    }
+-				    ++itr;
++				    (*symIter)-&gt;render(*feature,t,image);
++				    ++symIter;
+ 				}
++				++itr;
+ 			    }
+-			}  
++			}	  
+ 		    }
+ 		}
+ 	    }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000009.html">[Mapnik-svn] r122 - in trunk: agg include python src
+</A></li>
+	<LI>Next message: <A HREF="000011.html">[Mapnik-svn] r124 - trunk/include
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#10">[ date ]</a>
+              <a href="thread.html#10">[ thread ]</a>
+              <a href="subject.html#10">[ subject ]</a>
+              <a href="author.html#10">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

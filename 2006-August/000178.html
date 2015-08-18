@@ -1,0 +1,87 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r293 - trunk/bindings/python
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-August/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r293%20-%20trunk/bindings/python&In-Reply-To=%3C200608232035.k7NKZ25J009147%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000177.html">
+   <LINK REL="Next"  HREF="000179.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r293 - trunk/bindings/python</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r293%20-%20trunk/bindings/python&In-Reply-To=%3C200608232035.k7NKZ25J009147%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r293 - trunk/bindings/python">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Wed Aug 23 22:35:02 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000177.html">[Mapnik-svn] r292 - trunk/src
+</A></li>
+        <LI>Next message: <A HREF="000179.html">[Mapnik-svn] r294 - in trunk: include plugins/input/postgis src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#178">[ date ]</a>
+              <a href="thread.html#178">[ thread ]</a>
+              <a href="subject.html#178">[ subject ]</a>
+              <a href="author.html#178">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-08-23 22:35:01 +0200 (Wed, 23 Aug 2006)
+New Revision: 293
+
+Modified:
+   trunk/bindings/python/mapnik_map.cpp
+Log:
+added zoom_all method
+
+Modified: trunk/bindings/python/mapnik_map.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_map.cpp	2006-08-23 20:34:24 UTC (rev 292)
++++ trunk/bindings/python/mapnik_map.cpp	2006-08-23 20:35:01 UTC (rev 293)
+@@ -93,8 +93,10 @@
+         .def(&quot;envelope&quot;,make_function(&amp;Map::getCurrentExtent,
+                                       return_value_policy&lt;copy_const_reference&gt;()),
+              &quot;The current extent of the map&quot;)
+-        
+         .def(&quot;scale&quot;, &amp;Map::scale)
++        .def(&quot;zoom_all&quot;,&amp;Map::zoom_all,
++             &quot;Set the geographical extent of the map &quot;
++             &quot;to the combined extents of all active layers&quot;)
+         .def(&quot;zoom_to_box&quot;,&amp;Map::zoomToBox, &quot;Set the geographical extent of the map.&quot;)
+         .def(&quot;pan&quot;,&amp;Map::pan)
+         .def(&quot;zoom&quot;,&amp;Map::zoom)
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000177.html">[Mapnik-svn] r292 - trunk/src
+</A></li>
+	<LI>Next message: <A HREF="000179.html">[Mapnik-svn] r294 - in trunk: include plugins/input/postgis src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#178">[ date ]</a>
+              <a href="thread.html#178">[ thread ]</a>
+              <a href="subject.html#178">[ subject ]</a>
+              <a href="author.html#178">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,111 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r218 - trunk/bindings/python
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r218%20-%20trunk/bindings/python&In-Reply-To=%3C200603292226.k2TMQuZM021737%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000102.html">
+   <LINK REL="Next"  HREF="000104.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r218 - trunk/bindings/python</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r218%20-%20trunk/bindings/python&In-Reply-To=%3C200603292226.k2TMQuZM021737%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r218 - trunk/bindings/python">pavlenko at berlios.de
+       </A><BR>
+    <I>Thu Mar 30 00:26:56 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000102.html">[Mapnik-svn] r217 - in trunk: include src
+</A></li>
+        <LI>Next message: <A HREF="000104.html">[Mapnik-svn] r219 - trunk/plugins/input/postgis
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#103">[ date ]</a>
+              <a href="thread.html#103">[ thread ]</a>
+              <a href="subject.html#103">[ subject ]</a>
+              <a href="author.html#103">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-30 00:26:55 +0200 (Thu, 30 Mar 2006)
+New Revision: 218
+
+Modified:
+   trunk/bindings/python/mapnik_image.cpp
+Log:
+fix rawdata() method to return PyString_FromStringAndSize
+
+Modified: trunk/bindings/python/mapnik_image.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_image.cpp	2006-03-28 15:39:38 UTC (rev 217)
++++ trunk/bindings/python/mapnik_image.cpp	2006-03-29 22:26:55 UTC (rev 218)
+@@ -18,21 +18,30 @@
+ 
+ //$Id$
+ 
+-#include &lt;boost/python.hpp&gt;
+-#include &lt;mapnik.hpp&gt;
++# include &lt;boost/python.hpp&gt;
++# include &lt;boost/python/module.hpp&gt;
++# include &lt;boost/python/def.hpp&gt;
++# include &lt;mapnik.hpp&gt;
+ 
+ using mapnik::Image32;
+ 
+ 
+-char const* rawdata(const Image32&amp; image)
++using namespace boost::python;
++
++
++PyObject* rawdata( Image32 const&amp; im)
+ {
+-    return (char const* )image.raw_data();
++    int size = im.width() * im.height() * 4;
++    return ::PyString_FromStringAndSize((const char*)im.raw_data(),size);
+ }
+ 
+ void export_image()
+ {
+     using namespace boost::python;
+     class_&lt;Image32&gt;(&quot;Image&quot;,&quot;This class represents a 32 bit image.&quot;,init&lt;int,int&gt;())
+-    ;
++	.def(&quot;width&quot;,&amp;Image32::width)
++	.def(&quot;height&quot;,&amp;Image32::height)
++	;
++    
+     def(&quot;rawdata&quot;,&amp;rawdata);
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000102.html">[Mapnik-svn] r217 - in trunk: include src
+</A></li>
+	<LI>Next message: <A HREF="000104.html">[Mapnik-svn] r219 - trunk/plugins/input/postgis
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#103">[ date ]</a>
+              <a href="thread.html#103">[ thread ]</a>
+              <a href="subject.html#103">[ subject ]</a>
+              <a href="author.html#103">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

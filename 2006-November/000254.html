@@ -1,0 +1,135 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r369 - trunk/include/mapnik
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-November/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r369%20-%20trunk/include/mapnik&In-Reply-To=%3C200611131013.kADADHoT029666%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000253.html">
+   <LINK REL="Next"  HREF="000255.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r369 - trunk/include/mapnik</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r369%20-%20trunk/include/mapnik&In-Reply-To=%3C200611131013.kADADHoT029666%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r369 - trunk/include/mapnik">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Mon Nov 13 11:13:17 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000253.html">[Mapnik-svn] r368 - trunk/agg/include
+</A></li>
+        <LI>Next message: <A HREF="000255.html">[Mapnik-svn] r370 - trunk/demo/c++
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#254">[ date ]</a>
+              <a href="thread.html#254">[ thread ]</a>
+              <a href="subject.html#254">[ subject ]</a>
+              <a href="author.html#254">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-11-13 11:13:14 +0100 (Mon, 13 Nov 2006)
+New Revision: 369
+
+Modified:
+   trunk/include/mapnik/config.hpp
+   trunk/include/mapnik/proj_transform.hpp
+   trunk/include/mapnik/projection.hpp
+   trunk/include/mapnik/scale_denominator.hpp
+Log:
+export symbols for win32 dlls
+
+
+
+Modified: trunk/include/mapnik/config.hpp
+===================================================================
+--- trunk/include/mapnik/config.hpp	2006-11-09 23:48:09 UTC (rev 368)
++++ trunk/include/mapnik/config.hpp	2006-11-13 10:13:14 UTC (rev 369)
+@@ -23,7 +23,7 @@
+ #ifndef CONFIG_HPP
+ #define CONFIG_HPP
+ 
+-// Window DLL support
++// Windows DLL support
+ 
+ #ifdef _WINDOWS
+ # define MAPNIK_DECL __declspec (dllexport)
+
+Modified: trunk/include/mapnik/proj_transform.hpp
+===================================================================
+--- trunk/include/mapnik/proj_transform.hpp	2006-11-09 23:48:09 UTC (rev 368)
++++ trunk/include/mapnik/proj_transform.hpp	2006-11-13 10:13:14 UTC (rev 369)
+@@ -32,7 +32,7 @@
+ 
+ namespace mapnik {
+     
+-    class proj_transform : private boost::noncopyable
++    class MAPNIK_DECL proj_transform : private boost::noncopyable
+     {
+     public:
+         proj_transform(projection const&amp; source, 
+
+Modified: trunk/include/mapnik/projection.hpp
+===================================================================
+--- trunk/include/mapnik/projection.hpp	2006-11-09 23:48:09 UTC (rev 368)
++++ trunk/include/mapnik/projection.hpp	2006-11-13 10:13:14 UTC (rev 369)
+@@ -43,7 +43,7 @@
+             : std::runtime_error(&quot;failed to initialize projection with:&quot; + params) {}
+     };
+     
+-    class projection
++    class MAPNIK_DECL projection
+     {
+         friend class proj_transform;
+     public:
+
+Modified: trunk/include/mapnik/scale_denominator.hpp
+===================================================================
+--- trunk/include/mapnik/scale_denominator.hpp	2006-11-09 23:48:09 UTC (rev 368)
++++ trunk/include/mapnik/scale_denominator.hpp	2006-11-13 10:13:14 UTC (rev 369)
+@@ -21,10 +21,11 @@
+  *****************************************************************************/
+ 
+ //$Id$
++#include &lt;mapnik/config.hpp&gt;
+ 
+ namespace mapnik {
+  
+     class Map;
+     class projection;
+-    double scale_denominator(Map const&amp; map,projection const&amp; prj); 
++    MAPNIK_DECL double scale_denominator(Map const&amp; map,projection const&amp; prj); 
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000253.html">[Mapnik-svn] r368 - trunk/agg/include
+</A></li>
+	<LI>Next message: <A HREF="000255.html">[Mapnik-svn] r370 - trunk/demo/c++
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#254">[ date ]</a>
+              <a href="thread.html#254">[ thread ]</a>
+              <a href="subject.html#254">[ subject ]</a>
+              <a href="author.html#254">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

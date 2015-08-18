@@ -1,0 +1,93 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r157 - tags/release-0.2.5a/src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-February/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r157%20-%20tags/release-0.2.5a/src&In-Reply-To=%3C200602132026.k1DKQv3I014783%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000042.html">
+   <LINK REL="Next"  HREF="000044.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r157 - tags/release-0.2.5a/src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r157%20-%20tags/release-0.2.5a/src&In-Reply-To=%3C200602132026.k1DKQv3I014783%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r157 - tags/release-0.2.5a/src">pavlenko at berlios.de
+       </A><BR>
+    <I>Mon Feb 13 21:26:57 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000042.html">[Mapnik-svn] r156 - in trunk: agg/include src
+</A></li>
+        <LI>Next message: <A HREF="000044.html">[Mapnik-svn] r158 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#43">[ date ]</a>
+              <a href="thread.html#43">[ thread ]</a>
+              <a href="subject.html#43">[ subject ]</a>
+              <a href="author.html#43">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-02-13 21:26:42 +0100 (Mon, 13 Feb 2006)
+New Revision: 157
+
+Modified:
+   tags/release-0.2.5a/src/mapnik.cpp
+Log:
+changed headers order to keep boost::serialization library (1_33_0) happy.
+
+
+
+Modified: tags/release-0.2.5a/src/mapnik.cpp
+===================================================================
+--- tags/release-0.2.5a/src/mapnik.cpp	2006-02-11 00:39:50 UTC (rev 156)
++++ tags/release-0.2.5a/src/mapnik.cpp	2006-02-13 20:26:42 UTC (rev 157)
+@@ -18,13 +18,14 @@
+ 
+ //$Id$
+ 
+-#include &quot;mapnik.hpp&quot;
+ #include &lt;fstream&gt;
+ #include &lt;boost/archive/text_oarchive.hpp&gt;
+ #include &lt;boost/archive/text_iarchive.hpp&gt;
+ #include &lt;boost/archive/xml_iarchive.hpp&gt;
+ #include &lt;boost/archive/xml_oarchive.hpp&gt;
+ 
++#include &quot;mapnik.hpp&quot;
++
+ namespace mapnik
+ {
+     void save_to_xml(Map const&amp; m,const char* filename)
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000042.html">[Mapnik-svn] r156 - in trunk: agg/include src
+</A></li>
+	<LI>Next message: <A HREF="000044.html">[Mapnik-svn] r158 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#43">[ date ]</a>
+              <a href="thread.html#43">[ thread ]</a>
+              <a href="subject.html#43">[ subject ]</a>
+              <a href="author.html#43">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

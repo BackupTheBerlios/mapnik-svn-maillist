@@ -1,0 +1,1709 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r155 - in trunk: include plugins/input/postgis plugins/input/shape src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-February/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r155%20-%20in%20trunk%3A%20include%20plugins/input/postgis%20plugins/input/shape%20src&In-Reply-To=%3C200602101713.k1AHD4Gr029121%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000040.html">
+   <LINK REL="Next"  HREF="000042.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r155 - in trunk: include plugins/input/postgis plugins/input/shape src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r155%20-%20in%20trunk%3A%20include%20plugins/input/postgis%20plugins/input/shape%20src&In-Reply-To=%3C200602101713.k1AHD4Gr029121%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r155 - in trunk: include plugins/input/postgis plugins/input/shape src">pavlenko at berlios.de
+       </A><BR>
+    <I>Fri Feb 10 18:13:04 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000040.html">[Mapnik-svn] r154 - in trunk/agg: include src
+</A></li>
+        <LI>Next message: <A HREF="000042.html">[Mapnik-svn] r156 - in trunk: agg/include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#41">[ date ]</a>
+              <a href="thread.html#41">[ thread ]</a>
+              <a href="subject.html#41">[ subject ]</a>
+              <a href="author.html#41">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-02-10 18:13:02 +0100 (Fri, 10 Feb 2006)
+New Revision: 155
+
+Modified:
+   trunk/include/agg_renderer.hpp
+   trunk/include/attribute_collector.hpp
+   trunk/include/expression.hpp
+   trunk/include/feature.hpp
+   trunk/include/feature_style_processor.hpp
+   trunk/include/feature_type_style.hpp
+   trunk/include/filter.hpp
+   trunk/include/filter_visitor.hpp
+   trunk/include/mapnik.hpp
+   trunk/include/property_index.hpp
+   trunk/include/rule.hpp
+   trunk/include/text_symbolizer.hpp
+   trunk/include/value.hpp
+   trunk/plugins/input/postgis/postgisfs.cpp
+   trunk/plugins/input/shape/dbffile.cpp
+   trunk/plugins/input/shape/dbffile.hpp
+   trunk/plugins/input/shape/shape_featureset.cpp
+   trunk/plugins/input/shape/shape_index_featureset.cpp
+   trunk/src/agg_renderer.cpp
+Log:
+1. new feature model - based on boost::property_map concept
+       f = feature(id);
+       f[&quot;name&quot;] = &quot;what is my name?&quot;;
+       boost.put(f,&quot;area&quot;,123123.4325);
+       
+2. simplified and corrected value class and operators
+3. updated input plug-ins to work with new features
+4. add text_symbolizer (getting there:)
+5. template version of agg_renderer 
+6. attribute_collector how accepts rules 
+	(to collect attribute names for text labels)
+  	
+
+
+Modified: trunk/include/agg_renderer.hpp
+===================================================================
+--- trunk/include/agg_renderer.hpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/include/agg_renderer.hpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -26,18 +26,20 @@
+ 
+ namespace mapnik
+ {
+-    struct agg_renderer : public feature_style_processor&lt;agg_renderer&gt;,
++    template &lt;typename T&gt;
++    struct agg_renderer : public feature_style_processor&lt;agg_renderer&lt;T&gt; &gt;,
+ 			  private boost::noncopyable
+     {
+-	agg_renderer(Map const&amp; m, Image32 &amp; pixmap);
++	agg_renderer(Map const&amp; m, T &amp; pixmap);
+ 	void process(point_symbolizer const&amp; sym,Feature const&amp; feature);	    	       
+ 	void process(line_symbolizer const&amp; sym,Feature const&amp; feature);
+ 	void process(line_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
+ 	void process(polygon_symbolizer const&amp; sym,Feature const&amp; feature);
+ 	void process(polygon_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
+ 	void process(raster_symbolizer const&amp; sym,Feature const&amp; feature);
++	void process(text_symbolizer const&amp; sym,Feature const&amp; feature);
+     private:
+-	Image32 &amp; pixmap_;
++	T &amp; pixmap_;
+ 	CoordTransform t_;
+     };
+ }
+
+Modified: trunk/include/attribute_collector.hpp
+===================================================================
+--- trunk/include/attribute_collector.hpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/include/attribute_collector.hpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -24,15 +24,35 @@
+ #include &quot;filter.hpp&quot;
+ #include &quot;expression.hpp&quot;
+ #include &quot;feature_layer_desc.hpp&quot;
+-
++#include &quot;rule.hpp&quot;
+ #include &lt;set&gt;
++#include &lt;iostream&gt;
+ 
+ namespace mapnik
+ {
++    
++    struct symbolizer_attributes : public boost::static_visitor&lt;&gt;
++    {
++	symbolizer_attributes(std::set&lt;std::string&gt;&amp; names)
++	    : names_(names) {}
++	
++	template &lt;typename T&gt;
++	void operator () (T const&amp;) const {}
++	void operator () (text_symbolizer const&amp; sym)
++	{
++	    names_.insert(sym.get_name());
++	}
++    private:
++	std::set&lt;std::string&gt;&amp; names_;
++    };
++
+     template &lt;typename FeatureT&gt;
+     class attribute_collector : public filter_visitor&lt;FeatureT&gt;
+     {
++    private:
++	std::set&lt;std::string&gt;&amp; names_;
+     public:
++	
+ 	attribute_collector(std::set&lt;std::string&gt;&amp; names)
+ 	    : names_(names) {}
+ 	
+@@ -48,15 +68,27 @@
+ 	    {
+ 		names_.insert(pf-&gt;name());
+ 	    }
+-	}	
++	}
++	void visit(rule_type const&amp; r)
++	{	    
++	    const symbolizers&amp; symbols = r.get_symbolizers();
++	    symbolizers::const_iterator symIter=symbols.begin();
++	    symbolizer_attributes attr(names_);
++	    while (symIter != symbols.end())
++	    {
++		boost::apply_visitor(attr,*symIter++);
++	    }
++	    filter_ptr const&amp; filter = r.get_filter();
++	    filter-&gt;accept(*this);
++	}
++
+ 	virtual ~attribute_collector() {}
+     private:
++	
+ 	// no copying 
+ 	attribute_collector(attribute_collector const&amp;);
+ 	attribute_collector&amp; operator=(attribute_collector const&amp;);
+-    private:
+-	std::set&lt;std::string&gt;&amp; names_;
+-    };
++    };   
+ }
+ 
+ #endif //ATTRIBUTE_COLLECTOR_HPP
+
+Modified: trunk/include/expression.hpp
+===================================================================
+--- trunk/include/expression.hpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/include/expression.hpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -82,19 +82,19 @@
+     public:
+ 	property(std::string const&amp; name)
+ 	    : expression&lt;FeatureT&gt;(),
+-	      name_(name),
+-	      index_(0),
+-	      valid_(false) {}
++	      name_(name)
++	{}
+ 	
+ 	property(property const&amp; other)
+ 	    : expression&lt;FeatureT&gt;(),
+-	      name_(other.name_),
+-	      index_(other.index_),
+-	      valid_(other.valid_) {}
++	      name_(other.name_)
++	      //index_(other.index_),
++	      //valid_(other.valid_)
++	{}
+ 
+ 	value get_value(FeatureT const&amp; feature) const
+ 	{
+-	    return feature.get_property(index_);
++	    return feature[name_];
+ 	}
+ 	void accept(filter_visitor&lt;FeatureT&gt;&amp; v)
+ 	{
+@@ -110,8 +110,8 @@
+ 	}
+ 	void set_index(size_t index) 
+ 	{
+-	    index_=index;
+-	    valid_=true;
++	    //index_=index;
++	    //valid_=true;
+ 	}
+ 	std::string to_string() const
+ 	{
+@@ -120,8 +120,8 @@
+         ~property() {}
+     private:
+ 	std::string name_;
+-	size_t index_;
+-	bool valid_;
++	//size_t index_;
++	//bool valid_;
+     };
+ }
+ 
+
+Modified: trunk/include/feature.hpp
+===================================================================
+--- trunk/include/feature.hpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/include/feature.hpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -24,15 +24,20 @@
+ #include &quot;geometry.hpp&quot;
+ #include &quot;raster.hpp&quot;
+ #include &quot;value.hpp&quot;
+-#include &lt;vector&gt;
++#include &lt;map&gt;
+ 
++#include &lt;boost/property_map.hpp&gt;
++#include &lt;boost/utility.hpp&gt;
++
+ namespace mapnik
+ {
+     typedef boost::shared_ptr&lt;raster&gt; raster_ptr;    
+-    typedef std::vector&lt;value&gt; properties;
++    //typedef std::vector&lt;value&gt; properties;
++    typedef boost::associative_property_map&lt;std::map&lt;std::string,value&gt; &gt; properties;
+     
+     template &lt;typename T1,typename T2&gt;
+-    struct feature
++    struct feature : public properties,
++		     private boost::noncopyable
+     {
+     public:
+ 	typedef T1 geometry_type;
+@@ -41,32 +46,20 @@
+ 	int id_;
+ 	geometry_type geom_;
+ 	raster_type   raster_;
+-	properties props_;
++	std::map&lt;std::string,value&gt; props_;
+     public:
+ 	explicit feature(int id)
+-	    : id_(id),
++	    : properties(props_),
++	      id_(id),
+ 	      geom_(),
+ 	      raster_() {}
+ 
+ 	feature(int id,const geometry_type&amp; geom)
+-	    : id_(id),
++	    : properties(props_),
++	      id_(id),
+ 	      geom_(geom),
+ 	      raster_() {}
+ 
+-	feature(const feature&lt;T1,T2&gt;&amp; rhs)
+-	    : id_(rhs.id_),
+-	      geom_(rhs.geom_),
+-	      raster_(rhs.raster_) {}
+-
+-	feature&lt;T1,T2&gt;&amp; operator=(const feature&lt;T1,T2&gt;&amp; rhs) 
+-	{
+-	    feature&lt;T1,T2&gt; tmp;
+-	    swap(tmp);
+-	    return *this;
+-	}
+-	
+-	~feature() {}
+-
+ 	int id() const 
+ 	{
+ 	    return id_;
+@@ -90,51 +83,32 @@
+ 	{
+ 	    raster_=raster;
+ 	}
+-
+-        void reserve_props(unsigned n)
+-	{
+-	    props_.reserve(n);
+-	}
+-
+-	void add_property(int v)
+-	{
+-	    return props_.push_back(value(v));
+-	}
+ 	
+-	void add_property(double v)
+-	{
+-	    return props_.push_back(value(v));
+-	}
+-	
+-	void add_property(std::string const&amp; v)
+-	{
+-	    return props_.push_back(value(v));
+-	}
+-
+-	value get_property(size_t index) const
+-	{
+-	    if (index &lt; props_.size())
+-		return props_[index]; 
+-	    else
+-		return value(&quot;&quot;);
+-	}
+-	
+ 	const properties&amp; get_properties() const 
+ 	{
+ 	    return props_;
+ 	}
+-   
+-    private:
+-	void swap(const feature&lt;T1,T2&gt;&amp; rhs) throw()
++	
++	std::string to_string() const
+ 	{
+-	    std::swap(id_,rhs.id_);
+-	    std::swap(geom_,rhs.geom_);
+-	    std::swap(raster_,rhs.raster_);
+-	    std::swap(props_,rhs.props_);
++	    std::stringstream ss;
++	    ss &lt;&lt; &quot;feature (&quot; &lt;&lt; std::endl;
++	    for (std::map&lt;std::string,value&gt;::const_iterator itr=props_.begin();
++		 itr != props_.end();++itr)
++	    {
++		ss &lt;&lt; &quot;  &quot; &lt;&lt; itr-&gt;first  &lt;&lt; &quot;:&quot; &lt;&lt;  itr-&gt;second &lt;&lt; std::endl;
++	    }
++	    ss &lt;&lt; &quot;)&quot; &lt;&lt; std::endl;
++	    return ss.str();
+ 	}
+     };
+ 
+     typedef feature&lt;geometry_ptr,raster_ptr&gt; Feature;
+     
++    inline std::ostream&amp; operator&lt;&lt; (std::ostream &amp; out,Feature const&amp; f)
++    {
++	out &lt;&lt; f.to_string();
++    	return out;
++    }
+ }
+ #endif                                            //FEATURE_HPP
+
+Modified: trunk/include/feature_style_processor.hpp
+===================================================================
+--- trunk/include/feature_style_processor.hpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/include/feature_style_processor.hpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -29,7 +29,6 @@
+ #include &quot;layer.hpp&quot;
+ #include &quot;map.hpp&quot;
+ #include &quot;attribute_collector.hpp&quot;
+-#include &quot;property_index.hpp&quot;
+ #include &quot;utils.hpp&quot;
+ 
+ namespace mapnik
+@@ -64,7 +63,8 @@
+ 	    std::vector&lt;Layer&gt;::const_iterator itr = m_.layers().begin();
+ 	    while (itr != m_.layers().end())
+ 	    {
+-		if (itr-&gt;isVisible(m_.scale()))// &amp;&amp; itr-&gt;envelope().intersects(extent))
++		if (itr-&gt;isVisible(m_.scale()) &amp;&amp; 
++		    itr-&gt;envelope().intersects(m_.getCurrentExtent()))
+ 		{
+ 		    apply_to_layer(*itr,p);
+ 		}
+@@ -87,7 +87,7 @@
+ 		{
+ 		    std::set&lt;std::string&gt; names;
+ 		    attribute_collector&lt;Feature&gt; collector(names);
+-		    property_index&lt;Feature&gt; indexer(names);
++		    //property_index&lt;Feature&gt; indexer(names);
+ 		    std::vector&lt;rule_type*&gt; if_rules;
+ 		    std::vector&lt;rule_type*&gt; else_rules;
+ 		
+@@ -104,9 +104,10 @@
+ 			if (ruleIter-&gt;active(scale))
+ 			{
+ 			    active_rules=true;
+-			    filter_ptr&amp; filter=const_cast&lt;filter_ptr&amp;&gt;(ruleIter-&gt;get_filter());
+-			    filter-&gt;accept(collector);
+-			    filter-&gt;accept(indexer);
++			    //filter_ptr&amp; filter=const_cast&lt;filter_ptr&amp;&gt;(ruleIter-&gt;get_filter());
++			    //filter-&gt;accept(collector);
++			    ruleIter-&gt;accept(collector);
++			    //filter-&gt;accept(indexer);
+ 			    if (ruleIter-&gt;has_else_filter())
+ 			    {
+ 				else_rules.push_back(const_cast&lt;rule_type*&gt;(&amp;(*ruleIter)));
+
+Modified: trunk/include/feature_type_style.hpp
+===================================================================
+--- trunk/include/feature_type_style.hpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/include/feature_type_style.hpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -28,7 +28,6 @@
+ 
+ namespace mapnik
+ {
+-    typedef rule&lt;Feature,filter&gt; rule_type;
+     typedef std::vector&lt;rule_type&gt; rules;
+     class feature_type_style
+     {
+
+Modified: trunk/include/filter.hpp
+===================================================================
+--- trunk/include/filter.hpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/include/filter.hpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -21,12 +21,11 @@
+ #ifndef FILTER_HPP
+ #define FILTER_HPP
+ 
+-#include &quot;filter_visitor.hpp&quot;
++//#include &quot;filter_visitor.hpp&quot;
+ #include &quot;feature.hpp&quot;
++
+ namespace mapnik
+ {
+-    typedef boost::shared_ptr&lt;filter&lt;Feature&gt; &gt; filter_ptr;
+-
+     template &lt;typename FeatureT&gt; class filter_visitor;
+     template &lt;typename FeatureT&gt;
+     struct filter
+@@ -37,8 +36,9 @@
+         virtual std::string to_string() const=0;
+ 	virtual ~filter() {}
+     };
+-
+     
++    typedef boost::shared_ptr&lt;filter&lt;Feature&gt; &gt; filter_ptr;
++    
+     template &lt;typename FeatureT&gt;
+     struct all_filter : public filter&lt;FeatureT&gt;
+     {
+
+Modified: trunk/include/filter_visitor.hpp
+===================================================================
+--- trunk/include/filter_visitor.hpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/include/filter_visitor.hpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -26,11 +26,14 @@
+ {
+     template &lt;typename FeatureT&gt; class filter;
+     template &lt;typename FeatureT&gt; class expression;
++    template &lt;typename FeatureT&gt; class expression;
++    template &lt;typename Feature,template &lt;typename&gt; class Filter&gt; class rule;
+     template &lt;typename FeatureT&gt;
+     struct filter_visitor
+     {
+ 	virtual void visit(filter&lt;FeatureT&gt;&amp; filter)=0;
+ 	virtual void visit(expression&lt;FeatureT&gt;&amp;)=0;
++	virtual void visit(rule&lt;FeatureT,filter&gt; const&amp; r)=0;
+ 	virtual ~filter_visitor() {}
+     };    
+ }
+
+Modified: trunk/include/mapnik.hpp
+===================================================================
+--- trunk/include/mapnik.hpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/include/mapnik.hpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -50,6 +50,7 @@
+ #include &quot;line_pattern_symbolizer.hpp&quot;
+ #include &quot;point_symbolizer.hpp&quot;
+ #include &quot;raster_symbolizer.hpp&quot;
++#include &quot;text_symbolizer.hpp&quot;
+ #include &quot;image_util.hpp&quot;
+ #include &quot;datasource.hpp&quot;
+ #include &quot;layer.hpp&quot;
+
+Modified: trunk/include/property_index.hpp
+===================================================================
+--- trunk/include/property_index.hpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/include/property_index.hpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -28,6 +28,8 @@
+ 
+ namespace mapnik
+ {
++
++    /*
+     template &lt;typename FeatureT&gt;
+     class property_index : public filter_visitor&lt;FeatureT&gt;
+     {
+@@ -63,6 +65,7 @@
+ 	std::set&lt;std::string&gt; const&amp; names_;
+ 
+     };
++*/
+ }
+ 
+ #endif //PROPERTY_INDEX_HPP
+
+Modified: trunk/include/rule.hpp
+===================================================================
+--- trunk/include/rule.hpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/include/rule.hpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -25,7 +25,10 @@
+ #include &quot;polygon_pattern_symbolizer.hpp&quot;
+ #include &quot;point_symbolizer.hpp&quot;
+ #include &quot;raster_symbolizer.hpp&quot;
++#include &quot;text_symbolizer.hpp&quot;
+ #include &quot;filter.hpp&quot;
++#include &quot;filter_visitor.hpp&quot;
++
+ #include &lt;boost/shared_ptr.hpp&gt;
+ #include &lt;boost/variant.hpp&gt;
+ #include &lt;string&gt;
+@@ -39,7 +42,8 @@
+ 			   line_pattern_symbolizer,
+ 			   polygon_symbolizer,
+ 			   polygon_pattern_symbolizer,
+-			   raster_symbolizer&gt; symbolizer;
++			   raster_symbolizer,
++			   text_symbolizer&gt; symbolizer;
+     
+     typedef std::vector&lt;symbolizer&gt; symbolizers;    
+     template &lt;typename FeatureT&gt; class all_filter;
+@@ -128,12 +132,12 @@
+ 	    name_=name;
+ 	}
+ 	
+-	const std::string&amp; get_name() const
++	std::string const&amp; get_name() const
+ 	{
+ 	    return name_;
+ 	}
+ 	
+-	const std::string&amp; get_title() const
++	std::string const&amp; get_title() const
+ 	{
+ 	    return  title_;
+ 	}
+@@ -143,12 +147,12 @@
+ 	    title_=title;
+ 	}
+   
+-	void set_abstract(const std::string&amp; abstract)
++	void set_abstract(std::string const&amp; abstract)
+ 	{
+ 	    abstract_=abstract;
+ 	}
+ 	
+-	const std::string&amp; get_abstract() const
++	std::string const&amp; get_abstract() const
+ 	{
+ 	    return abstract_;
+ 	}
+@@ -186,7 +190,7 @@
+ 	    filter_=filter;
+ 	}
+ 
+-	const filter_ptr&amp; get_filter() const
++	filter_ptr const&amp; get_filter() const
+ 	{
+ 	    return filter_;
+ 	}
+@@ -206,6 +210,11 @@
+ 	    return ( scale &gt; min_scale_ &amp;&amp; scale &lt; max_scale_ );
+ 	}
+ 
++	void accept(filter_visitor&lt;FeatureT&gt;&amp; v) const
++	{
++	    v.visit(*this);
++	}
++	
+     private:
+ 	
+ 	void swap(rule&amp; rhs) throw()
+@@ -220,6 +229,8 @@
+ 	    else_filter_=rhs.else_filter_;
+ 	}
+     };
++
++    typedef rule&lt;Feature,filter&gt; rule_type;
+ }
+ 
+ #endif //RULE_HPP
+
+Modified: trunk/include/text_symbolizer.hpp
+===================================================================
+--- trunk/include/text_symbolizer.hpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/include/text_symbolizer.hpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -21,34 +21,33 @@
+ #ifndef TEXT_SYMBOLIZER_HPP
+ #define TEXT_SYMBOLIZER_HPP
+ 
+-#include &quot;symbolizer.hpp&quot;
+-#include &quot;fill.hpp&quot;
+-#include &quot;expression.hpp&quot;
++//#include &quot;symbolizer.hpp&quot;
++//#include &quot;fill.hpp&quot;
++//#include &quot;expression.hpp&quot;
+ 
+ namespace mapnik
+ {
+-    template &lt;typename FeatureT&gt;
+-    struct text_symbolizer : public symbolizer
++    struct text_symbolizer
+     {
+-	text_symbolizer(expression&lt;FeatureT&gt; const&amp; label,fill const&amp; f)
+-	    : label_(label.clone()),
+-	      fill_(f) {}
++	text_symbolizer(std::string const&amp; name,Color const&amp; fill)
++	    : name_(name),
++	      fill_(fill) {}
++
++	text_symbolizer(text_symbolizer const&amp; rhs)
++	    : name_(rhs.name_),
++	      fill_(rhs.fill_) {}
+ 	
+ 	~text_symbolizer()
+ 	{
+-	    delete label_;
++	    //
+ 	}
+-	
+-	void render(geometry_type&amp; geom,Image32&amp; image) const
++	std::string const&amp; get_name() const
+ 	{
+-	    //todo : render text
++	    return name_;
+ 	}
+     private:
+-	expression&lt;FeatureT&gt;* label_;
+-	fill fill_;		    
+-    private:
+-        text_symbolizer(text_symbolizer const&amp;);
+-	text_symbolizer&amp; operator=(text_symbolizer const&amp;);
++	std::string name_;
++	Color fill_;		    
+     };
+ }
+ 
+
+Modified: trunk/include/value.hpp
+===================================================================
+--- trunk/include/value.hpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/include/value.hpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -25,445 +25,376 @@
+ #include &lt;sstream&gt;
+ #include &lt;boost/variant.hpp&gt;
+ 
+-using std::string;
+ using namespace boost;
+-namespace mapnik { namespace impl {
++namespace mapnik {
+ 
+-    typedef variant&lt;int,double,string&gt; value_holder;
++    typedef variant&lt;int,double,std::string&gt; value_base;
+     
+-    class equals
+-	: public boost::static_visitor&lt;bool&gt;
+-    {
+-    public:
+-	template &lt;typename T, typename U&gt;
+-	bool operator()( const T &amp;, const U &amp; ) const
++    namespace impl {
++	struct equals
++	    : public boost::static_visitor&lt;bool&gt;
+ 	{
+-	    return false;
+-	}
++	    template &lt;typename T, typename U&gt;
++	    bool operator() (const T &amp;, const U &amp; ) const
++	    {
++		return false;
++	    }
+ 	
+-	bool operator() (int lhs, int rhs) const
+-	{
+-	    return  lhs == rhs;
+-	}
++	    template &lt;typename T&gt;
++	    bool operator() (T lhs, T rhs) const
++	    {
++		return lhs == rhs;
++	    }
+ 	
+-	bool operator() (double lhs, double rhs) const
+-	{
+-	    return  lhs == rhs;
+-	}
+-
+-	bool operator() (int lhs, double rhs) const
+-	{
+-	    return  lhs == rhs;
+-	}
++	    bool operator() (int lhs, double rhs) const
++	    {
++		return  lhs == rhs;
++	    }
+ 	
+-	bool operator() (double lhs, int rhs) const
+-	{
+-	    return  lhs == rhs;
+-	}
++	    bool operator() (double lhs, int rhs) const
++	    {
++		return  lhs == rhs;
++	    }
+ 	
+-	template &lt;typename T&gt;
+-	bool operator()( const T &amp; lhs, const T &amp; rhs ) const
+-	{
+-	    return lhs == rhs;
+-	}
+-    };
++	    bool operator() (std::string const&amp; lhs, std::string const&amp; rhs) const
++	    {
++		return  lhs == rhs;
++	    }
++	};
+     
+-    class greater_than
+-	: public boost::static_visitor&lt;bool&gt;
+-    {
+-    public:	
+-	template &lt;typename T, typename U&gt;
+-	bool operator()( const T &amp;, const U &amp; ) const
++	struct greater_than
++	    : public boost::static_visitor&lt;bool&gt;
+ 	{
+-	    return false;
+-	}
++	    template &lt;typename T, typename U&gt;
++	    bool operator()( const T &amp;, const U &amp; ) const
++	    {
++		return false;
++	    }
+ 	
+-	bool operator() (int lhs, int rhs) const
+-	{
+-	    return  lhs &gt; rhs;
+-	}
++	    template &lt;typename T&gt;
++	    bool operator()( T lhs, T rhs ) const
++	    {
++		return lhs &gt; rhs;
++	    }
+ 	
+-	bool operator() (double lhs, double rhs) const
+-	{
+-	    return  lhs &gt; rhs;
+-	}
++	    bool operator() (int lhs, double rhs) const
++	    {
++		return  lhs &gt; rhs;
++	    }
+ 	
+-	bool operator() (int lhs, double rhs) const
+-	{
+-	    return  lhs &gt; rhs;
+-	}
++	    bool operator() (double lhs, int rhs) const
++	    {
++		return  lhs &gt; rhs;
++	    }
+ 	
+-	bool operator() (double lhs, int rhs) const
+-	{
+-	    return  lhs &gt; rhs;
+-	}
++	    bool operator() (std::string const&amp; lhs, std::string const&amp; rhs) const
++	    {
++		return  lhs &gt; rhs;
++	    }
++	};
++    
++	struct greater_or_equal
++	    : public boost::static_visitor&lt;bool&gt;
++	{	
++	    template &lt;typename T, typename U&gt;
++	    bool operator()( const T &amp;, const U &amp; ) const
++	    {
++		return false;
++	    }
+ 	
+-	template &lt;typename T&gt;
+-	bool operator()( const T &amp; lhs, const T &amp; rhs ) const
+-	{
+-	    return lhs &gt; rhs;
+-	}
+-    };
+-    class greater_or_equal
+-	: public boost::static_visitor&lt;bool&gt;
+-    {
+-    public:	
+-	template &lt;typename T, typename U&gt;
+-	bool operator()( const T &amp;, const U &amp; ) const
+-	{
+-	    return false;
+-	}
++	    template &lt;typename T&gt;
++	    bool operator() (T lhs, T rhs) const
++	    {
++		return lhs &gt;= rhs;
++	    }
++      
++	    bool operator() (int lhs, double rhs) const
++	    {
++		return  lhs &gt;= rhs;
++	    }
+ 	
+-	bool operator() (int lhs, int rhs) const
+-	{
+-	    return  lhs &gt;= rhs;
+-	}
++	    bool operator() (double lhs, int rhs) const
++	    {
++		return  lhs &gt;= rhs;
++	    }
+ 	
+-	bool operator() (double lhs, double rhs) const
+-	{
+-	    return  lhs &gt;= rhs;
+-	}
+-	
+-	bool operator() (int lhs, double rhs) const
+-	{
+-	    return  lhs &gt;= rhs;
+-	}
+-	
+-	bool operator() (double lhs, int rhs) const
+-	{
+-	    return  lhs &gt;= rhs;
+-	}
+-	
+-	template &lt;typename T&gt;
+-	bool operator()( const T &amp; lhs, const T &amp; rhs ) const
+-	{
+-	    return lhs &gt;= rhs;
+-	}
+-    };
++	    bool operator() (std::string const&amp; lhs, std::string const&amp; rhs ) const
++	    {
++		return lhs &gt;= rhs;
++	    }
++	};
+     
+-    class less_than
+-	: public boost::static_visitor&lt;bool&gt;
+-    {
+-    public:	
+-	template &lt;typename T, typename U&gt;
+-	bool operator()( const T &amp;, const U &amp; ) const
+-	{
+-	    return false;
+-	}
++	struct less_than
++	    : public boost::static_visitor&lt;bool&gt;
++	{	
++	    template &lt;typename T, typename U&gt;
++	    bool operator()( const T &amp;, const U &amp; ) const
++	    {
++		return false;
++	    }
+ 	
+-	bool operator() (int lhs, int rhs) const
+-	{
+-	    return  lhs &lt; rhs;
+-	}
++	    template &lt;typename T&gt;
++	    bool operator()( T  lhs,T  rhs) const
++	    {
++		return lhs &lt; rhs;
++	    }
+ 	
+-	bool operator() (double lhs, double rhs) const
+-	{
+-	    return  lhs &lt; rhs;
+-	}
++	    bool operator() (int lhs, double rhs) const
++	    {
++		return  lhs &lt; rhs;
++	    }
++	   
++	    bool operator() (double lhs, int rhs) const
++	    {
++		return  lhs &lt; rhs;
++	    }
+ 	
+-	bool operator() (int lhs, double rhs) const
+-	{
+-	    return  lhs &lt; rhs;
+-	}
+-	
+-	bool operator() (double lhs, int rhs) const
+-	{
+-	    return  lhs &lt; rhs;
+-	}
+-	
+-	template &lt;typename T&gt;
+-	bool operator()( const T &amp; lhs, const T &amp; rhs ) const
+-	{
+-	    return lhs &lt; rhs;
+-	}
+-    };
++	    bool operator()( std::string const&amp; lhs, std::string const&amp; rhs ) const
++	    {
++		return lhs &lt; rhs;
++	    }
++	};
+ 
+-    class less_or_equal
+-	: public boost::static_visitor&lt;bool&gt;
+-    {
+-    public:	
+-	template &lt;typename T, typename U&gt;
+-	bool operator()( const T &amp;, const U &amp; ) const
+-	{
+-	    return false;
+-	}
++	struct less_or_equal
++	    : public boost::static_visitor&lt;bool&gt;
++	{	
++	    template &lt;typename T, typename U&gt;
++	    bool operator()( const T &amp;, const U &amp; ) const
++	    {
++		return false;
++	    }
+ 	
+-	bool operator() (int lhs, int rhs) const
+-	{
+-	    return  lhs &lt;= rhs;
+-	}
++	    template &lt;typename T&gt;
++	    bool operator()(T lhs, T rhs ) const
++	    {
++		return lhs &lt;= rhs;
++	    }
++	    
++	    bool operator() (int lhs, double rhs) const
++	    {
++		return  lhs &lt;= rhs;
++	    }
+ 	
+-	bool operator() (double lhs, double rhs) const
+-	{
+-	    return  lhs &lt;= rhs;
+-	}
++	    bool operator() (double lhs, int rhs) const
++	    {
++		return  lhs &lt;= rhs;
++	    }
+ 	
+-	bool operator() (int lhs, double rhs) const
+-	{
+-	    return  lhs &lt;= rhs;
+-	}
+-	
+-	bool operator() (double lhs, int rhs) const
+-	{
+-	    return  lhs &lt;= rhs;
+-	}
+-	
+-	template &lt;typename T&gt;
+-	bool operator()( const T &amp; lhs, const T &amp; rhs ) const
+-	{
+-	    return lhs &lt;= rhs;
+-	}
+-    };
++	    template &lt;typename T&gt;
++	    bool operator()( std::string const&amp; lhs, std::string const&amp; rhs ) const
++	    {
++		return lhs &lt;= rhs;
++	    }
++	};
+     
+-    struct add : public boost::static_visitor&lt;value_holder&gt;
+-    { 
+-	template &lt;typename T1, typename T2&gt;
+-	value_holder operator() (T1 const&amp; , T2 const&amp;) const
+-	{
+-	    return value_holder();
+-	}
+-	template &lt;typename T&gt;
+-	value_holder operator() (T const&amp; lhs, T const&amp;  rhs) const
+-	{
+-	    return lhs + rhs ;
+-	}
+-	value_holder operator() (int lhs,int rhs) const
+-	{
+-	    return lhs + rhs;
+-	}
+-	value_holder operator() (double lhs, double rhs) const
+-	{
+-	    return lhs + rhs;
+-	}
++	template &lt;typename V&gt;
++	struct add : public boost::static_visitor&lt;V&gt;
++	{ 
++	    typedef V value_type;
++	    template &lt;typename T1, typename T2&gt;
++	    value_type operator() (T1 const&amp; lhs, T2 const&amp;) const
++	    {
++		return lhs;
++	    }
++	    template &lt;typename T&gt;
++	    value_type operator() (T lhs, T rhs) const
++	    {
++		return lhs + rhs ;
++	    }
+ 	
+-	value_holder operator() (double lhs, int rhs) const
+-	{
+-	    return lhs + rhs;
+-	}
++	    value_type operator() (std::string const&amp; lhs,std::string const&amp; rhs ) const
++	    {
++		return lhs + rhs;
++	    }
+ 	
+-	value_holder operator() (int lhs, double rhs) const
+-	{
+-	    return lhs + rhs;
+-	}
+-    };
+-    
+-    struct sub : public boost::static_visitor&lt;value_holder&gt;
+-    { 
+-	template &lt;typename T1, typename T2&gt;
+-	value_holder operator() (T1 const&amp; lhs, T2 const&amp;) const
+-	{
+-	    return value_holder(lhs);
+-	}
++	    value_type operator() (double lhs, int rhs) const
++	    {
++		return lhs + rhs;
++	    }
++	
++	    value_type operator() (int lhs, double rhs) const
++	    {
++		return lhs + rhs;
++	    }
++	};
++	template &lt;typename V&gt;
++	struct sub : public boost::static_visitor&lt;V&gt;
++	{ 
++	    typedef V value_type;
++	    template &lt;typename T1, typename T2&gt;
++	    value_type operator() (T1 const&amp; lhs, T2 const&amp;) const
++	    {
++		return lhs;
++	    }
+ 
+-	template &lt;typename T&gt;
+-	value_holder operator() (T const&amp; lhs, T const&amp;  rhs) const
+-	{
+-	    return lhs - rhs ;
+-	}
++	    template &lt;typename T&gt;
++	    value_type operator() (T  lhs, T rhs) const
++	    {
++		return lhs - rhs ;
++	    }
+ 
+-	value_holder operator() (string const&amp; lhs,string const&amp; ) const
+-	{
+-	    return lhs;
+-	}
+-
+-	value_holder operator() (int lhs,int rhs) const
+-	{
+-	    return lhs - rhs;
+-	}
+-
+-	value_holder operator() (double lhs, double rhs) const
+-	{
+-	    return lhs - rhs;
+-	}
++	    value_type operator() (std::string const&amp; lhs,std::string const&amp; ) const
++	    {
++		return lhs;
++	    }
++        	
++	    value_type operator() (double lhs, int rhs) const
++	    {
++		return lhs - rhs;
++	    }
+ 	
+-	value_holder operator() (double lhs, int rhs) const
+-	{
+-	    return lhs - rhs;
+-	}
+-	
+-	value_holder operator() (int lhs, double rhs) const
+-	{
+-	    return lhs - rhs;
+-	}
+-    };
++	    value_type operator() (int lhs, double rhs) const
++	    {
++		return lhs - rhs;
++	    }
++	};
+     
+-    struct mult : public boost::static_visitor&lt;value_holder&gt;
+-    { 
+-	template &lt;typename T1, typename T2&gt;
+-	value_holder operator() (T1 const&amp;, T2 const&amp; ) const
+-	{
+-	    return value_holder();
+-	}
+-	template &lt;typename T&gt;
+-	value_holder operator() (T const&amp; lhs, T const&amp;  rhs) const
+-	{
+-	    return lhs * rhs;
+-	}
++	template &lt;typename V&gt;
++	struct mult : public boost::static_visitor&lt;V&gt;
++	{ 
++	    typedef V value_type;
++	    template &lt;typename T1, typename T2&gt;
++	    value_type operator() (T1 const&amp; lhs , T2 const&amp; ) const
++	    {
++		return lhs;
++	    }
++	    template &lt;typename T&gt;
++	    value_type operator() (T lhs, T rhs) const
++	    {
++		return lhs * rhs;
++	    }
+ 	
+-	value_holder operator() (string const&amp; lhs,string const&amp; ) const
+-	{
+-	    return lhs;
+-	}
+-
+-	value_holder operator() (int lhs,int rhs) const
+-	{
+-	    return lhs * rhs;
+-	}
+-
+-	value_holder operator() (double lhs, double rhs) const
+-	{
+-	    return lhs * rhs;
+-	}
++	    value_type operator() (std::string const&amp; lhs,std::string const&amp; ) const
++	    {
++		return lhs;
++	    }	
+ 	
+-	value_holder operator() (double lhs, int rhs) const
+-	{
+-	    return lhs * rhs;
+-	}
++	    value_type operator() (double lhs, int rhs) const
++	    {
++		return lhs * rhs;
++	    }
+ 	
+-	value_holder operator() (int lhs, double rhs) const
+-	{
+-	    return lhs * rhs;
+-	}
+-    };
++	    value_type operator() (int lhs, double rhs) const
++	    {
++		return lhs * rhs;
++	    }
++	};
+ 
+-    struct div: public boost::static_visitor&lt;value_holder&gt;
+-    { 
+-	template &lt;typename T1, typename T2&gt;
+-	value_holder operator() (T1 const&amp;, T2 const&amp;) const
+-	{
+-	    return value_holder();
+-	}
+-	template &lt;typename T&gt;
+-	value_holder operator() (T const&amp; lhs, T const&amp;  rhs) const
+-	{
+-	    return lhs / rhs;
+-	}
++	template &lt;typename V&gt;
++	struct div: public boost::static_visitor&lt;V&gt;
++	{ 
++	    typedef V value_type;
++	    template &lt;typename T1, typename T2&gt;
++	    value_type operator() (T1 const&amp; lhs, T2 const&amp;) const
++	    {
++		return lhs;
++	    }
++	    
++	    template &lt;typename T&gt;
++	    value_type operator() (T lhs, T rhs) const
++	    {
++		return lhs / rhs;
++	    }
+ 	
+-	value_holder operator() (string const&amp; lhs,string const&amp;) const
+-	{
+-	    return lhs;
+-	}
+-
+-	value_holder operator() (int lhs,int rhs) const
+-	{
+-	    return lhs / rhs;
+-	}
+-
+-	value_holder operator() (double lhs, double rhs) const
+-	{
+-	    return lhs / rhs;
+-	}
++	    value_type operator() (std::string const&amp; lhs,std::string const&amp;) const
++	    {
++		return lhs;
++	    }
+ 	
+-	value_holder operator() (double lhs, int rhs) const
+-	{
+-	    return lhs / rhs;
+-	}
++	    value_type operator() (double lhs, int rhs) const
++	    {
++		return lhs / rhs;
++	    }
+ 	
+-	value_holder operator() (int lhs, double rhs) const
+-	{
+-	    return lhs / rhs;
+-	}
+-    };
++	    value_type operator() (int lhs, double rhs) const
++	    {
++		return lhs / rhs;
++	    }
++	};
+     
+-    struct to_string : public boost::static_visitor&lt;std::string&gt;
+-    {
+-	template &lt;typename T&gt;
+-	std::string operator() (T val) const
++	struct to_string : public boost::static_visitor&lt;std::string&gt;
+ 	{
+-	    std::stringstream ss;
+-	    ss &lt;&lt; val;
+-	    return ss.str();
+-	} 
+-	std::string operator() (std::string const&amp; val) const
+-	{
+-	    return &quot;'&quot; + val + &quot;'&quot;;
+-	}
+-    };
+-}
++	    template &lt;typename T&gt;
++	    std::string operator() (T val) const
++	    {
++		std::stringstream ss;
++		ss &lt;&lt; val;
++		return ss.str();
++	    } 
++	    std::string operator() (std::string const&amp; val) const
++	    {
++		return &quot;'&quot; + val + &quot;'&quot;;
++	    }
++	};
++    }
+     
+-    using namespace impl;
+-
+-    class value 
++    class value : public value_base
+     {
+     public:
+-	value(int i)
+-	    : v_(i) {}
++	value ()
++	    : value_base(0) {}
+ 	
+-	value(double d)
+-	    : v_(d) {}
++	template &lt;typename T&gt; value(T _val_)
++	    : value_base(_val_) {}
+ 	
+-	value(string const&amp; str)
+-	    : v_(str) {}
+-	
+-	value(value const&amp; other)
+-	    : v_ (other.v_) {}
+-	
+ 	bool operator==(value const&amp; other) const
+ 	{
+-	    return apply_visitor(equals(),v_,other.get());
++	    return boost::apply_visitor(impl::equals(),*this,other);
+ 	}
+ 
+ 	bool operator!=(value const&amp; other) const
+ 	{
+-	    return !(apply_visitor(equals(),v_,other.get()));
++	    return !(boost::apply_visitor(impl::equals(),*this,other));
+ 	}
+ 	
+ 	bool operator&gt;(value const&amp; other) const
+ 	{
+-	    return apply_visitor(greater_than(),v_,other.get());
++	    return boost::apply_visitor(impl::greater_than(),*this,other);
+ 	}
+ 
+ 	bool operator&gt;=(value const&amp; other) const
+ 	{
+-	    return apply_visitor(greater_or_equal(),v_,other.get());
++	    return boost::apply_visitor(impl::greater_or_equal(),*this,other);
+ 	}
+ 
+ 	bool operator&lt;(value const&amp; other) const
+ 	{
+-	    return apply_visitor(less_than(),v_,other.get());
++	    return boost::apply_visitor(impl::less_than(),*this,other);
+ 	}
+ 
+ 	bool operator&lt;=(value const&amp; other) const
+ 	{
+-	    return apply_visitor(less_or_equal(),v_,other.get());
++	    return boost::apply_visitor(impl::less_or_equal(),*this,other);
+ 	}
+ 
+ 	value&amp; operator+=(value const&amp; other)
+ 	{
+-	    v_ = apply_visitor(add(),v_,other.get());
++	    *this = boost::apply_visitor(impl::add&lt;value&gt;(),*this,other);
+ 	    return *this;
+ 	}
+ 
+ 	value&amp; operator-=(value const&amp; other)
+ 	{
+-	    v_ = apply_visitor(sub(),v_,other.get());
++	    *this = boost::apply_visitor(impl::sub&lt;value&gt;(),*this,other);
+ 	    return *this;
+ 	}
+ 
+ 	value&amp; operator*=(value const&amp; other)
+ 	{
+-	    v_ = apply_visitor(mult(),v_,other.get());
++	    *this = boost::apply_visitor(impl::mult&lt;value&gt;(),*this,other);
+ 	    return *this;
+ 	}
+ 	
+ 	value&amp; operator/=(value const&amp; other)
+ 	{
+-	    v_ = apply_visitor(div(),v_,other.get());
++	    *this = boost::apply_visitor(impl::div&lt;value&gt;(),*this,other);
+ 	    return *this;
+ 	}
+ 	
+-	value_holder const&amp; get() const
++	std::string to_string() const
+ 	{
+-	    return v_;
++	    return boost::apply_visitor(impl::to_string(),*this);
+ 	}
+-
+-	string to_string() const
+-	{
+-	    return apply_visitor(impl::to_string(),v_);
+-	}
+-     
+-    private:
+-	value_holder v_;
+     };
+     
+     inline const value operator+(value const&amp; p1,value const&amp; p2)
+@@ -494,14 +425,14 @@
+ 	return tmp;
+     }
+ 
+-    template &lt;typename charT, typename traits&gt;
+-    inline std::basic_ostream&lt;charT,traits&gt;&amp; 
+-    operator &lt;&lt; (std::basic_ostream&lt;charT,traits&gt;&amp; out,
+-		 value const&amp; v)
+-    {
+-	out &lt;&lt; v.get();
+-	return out; 
+-    }
++    //template &lt;typename charT, typename traits&gt;
++    //inline std::basic_ostream&lt;charT,traits&gt;&amp; 
++    //operator &lt;&lt; (std::basic_ostream&lt;charT,traits&gt;&amp; out,/
++    //		 value const&amp; v)
++    // {
++    //	out &lt;&lt; v.get();
++    //	return out; 
++    //}
+ }
+ 
+ #endif //VALUE_HPP
+
+Modified: trunk/plugins/input/postgis/postgisfs.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgisfs.cpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/plugins/input/postgis/postgisfs.cpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -49,10 +49,10 @@
+         if (geom)
+         {
+             feature-&gt;set_geometry(geom);
+-	    feature-&gt;reserve_props(num_attrs_);
+ 	    unsigned start=2;
+ 	    for (unsigned pos=0;pos&lt;num_attrs_;++pos)
+ 	    {
++		std::string name = rs_-&gt;getFieldName(start + pos);
+ 		const char* buf=rs_-&gt;getValue(start + pos);
+ 		//int field_size = rs_-&gt;getFieldLength(start + pos);
+ 		int oid = rs_-&gt;getTypeOID(start + pos);
+@@ -60,32 +60,32 @@
+ 		if (oid==23) //int4
+ 		{
+ 		    int val = int4net(buf);
+-		    feature-&gt;add_property(val);
++		    boost::put(*feature,name,val);
+ 		}
+ 		else if (oid==21) //int2
+ 		{
+ 		    int val = int2net(buf);
+-		    feature-&gt;add_property(val);
++		    boost::put(*feature,name,val);
+ 		}
+ 		else if (oid == 700) // float4
+ 		{
+ 		    float val;
+ 		    float4net(val,buf);
+-		    feature-&gt;add_property((double)val);
++		    boost::put(*feature,name,val);
+ 		}
+ 		else if (oid == 701) // float8
+ 		{
+ 		    double val;
+ 		    float8net(val,buf);
+-		    feature-&gt;add_property(val);
++		    boost::put(*feature,name,val);
+ 		}
+ 		else if (oid==1042 || oid==1043) //bpchar or varchar
+ 		{
+-		    feature-&gt;add_property(string(buf));
++		    boost::put(*feature,name,buf);
+ 		}
+ 		else 
+ 		{
+-		    feature-&gt;add_property(string(&quot;null&quot;));
++		    boost::put(*feature,name,0);
+ 		}
+ 	    }
+             ++count_;
+
+Modified: trunk/plugins/input/shape/dbffile.cpp
+===================================================================
+--- trunk/plugins/input/shape/dbffile.cpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/plugins/input/shape/dbffile.cpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -110,11 +110,11 @@
+ }
+ 
+ 
+-void dbf_file::add_attribute(int col,Feature* f) const throw()
++void dbf_file::add_attribute(int col,Feature const&amp; f) const throw()
+ {
+     if (col&gt;=0 &amp;&amp; col&lt;num_fields_)
+     {
+-        
++        std::string name=fields_[col].name_;
+ 	std::string str=trim(std::string(record_+fields_[col].offset_,fields_[col].length_));
+         
+         switch (fields_[col].type_)
+@@ -123,27 +123,27 @@
+ 	case 'D'://todo handle date?
+ 	case 'M':
+ 	case 'L':
+-	    f-&gt;add_property(str);
++	    f[name] = str; 
+ 	    break;
+ 	case 'N':
+         case 'F':
+ 	    {
+ 		if (str[0]=='*')
+ 		{
+-		    f-&gt;add_property(&quot;null&quot;);
++		    boost::put(f,name,0);
+ 		    break;
+ 		}
+ 		if (fields_[col].dec_&gt;0)
+ 		{   
+ 		    double d;
+ 		    fromString(str,d);
+-		    f-&gt;add_property(d);
++		    boost::put(f,name,d);
+ 		}
+ 		else
+ 		{
+ 		    int i;
+ 		    fromString(str,i);
+-		    f-&gt;add_property(i);
++		    boost::put(f,name,i);
+ 		}
+ 		break;
+ 	    }
+
+Modified: trunk/plugins/input/shape/dbffile.hpp
+===================================================================
+--- trunk/plugins/input/shape/dbffile.hpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/plugins/input/shape/dbffile.hpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -61,7 +61,7 @@
+         field_descriptor const&amp; descriptor(int col) const;
+         void move_to(int index);
+         std::string string_value(int col) const;
+-        void add_attribute(int col,Feature* f) const throw();
++        void add_attribute(int col,Feature const&amp; f) const throw();
+     private:
+         dbf_file(const dbf_file&amp;);
+         dbf_file&amp; operator=(const dbf_file&amp;);
+
+Modified: trunk/plugins/input/shape/shape_featureset.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape_featureset.cpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/plugins/input/shape/shape_featureset.cpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -162,7 +162,7 @@
+ 	    {
+ 		try 
+ 		{
+-		    shape_.dbf().add_attribute(*pos,feature.get());//TODO optimize!!!
++		    shape_.dbf().add_attribute(*pos,*feature);//TODO optimize!!!
+ 		}
+ 		catch (...)
+ 		{
+
+Modified: trunk/plugins/input/shape/shape_index_featureset.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape_index_featureset.cpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/plugins/input/shape/shape_index_featureset.cpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -157,14 +157,14 @@
+         }
+ 	if (attr_ids_.size())
+ 	{
+-	    feature-&gt;reserve_props(attr_ids_.size());
++	    //feature-&gt;reserve_props(attr_ids_.size());
+ 	    shape_.dbf().move_to(shape_.id_);
+ 	    std::vector&lt;int&gt;::const_iterator pos=attr_ids_.begin();
+ 	    while (pos!=attr_ids_.end())
+ 	    {
+ 		try 
+ 		{
+-		    shape_.dbf().add_attribute(*pos,feature.get());
++		    shape_.dbf().add_attribute(*pos,*feature);
+ 		}
+ 		catch (...)
+ 		{
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-02-10 17:07:15 UTC (rev 154)
++++ trunk/src/agg_renderer.cpp	2006-02-10 17:13:02 UTC (rev 155)
+@@ -52,10 +52,10 @@
+ 
+ #include &lt;boost/utility.hpp&gt;
+ 
++#include &lt;iostream&gt;
++
+ namespace mapnik
+ {
+-
+-
+     class pattern_source : private boost::noncopyable
+     {
+     public:
+@@ -79,16 +79,18 @@
+ 	ImageData32 const&amp; pattern_;
+     };
+ 
+-    
+-    agg_renderer::agg_renderer(Map const&amp; m, Image32 &amp; pixmap)
+-	: feature_style_processor&lt;agg_renderer&gt;(m),pixmap_(pixmap),
++    template &lt;typename T&gt;
++    agg_renderer&lt;T&gt;::agg_renderer(Map const&amp; m, T &amp; pixmap)
++	: feature_style_processor&lt;agg_renderer&gt;(m),
++	  pixmap_(pixmap),
+ 	  t_(m.getWidth(),m.getHeight(),m.getCurrentExtent())
+     {
+ 	Color const&amp; bg=m.getBackground();
+ 	pixmap_.setBackground(bg);
++	std::cout &lt;&lt; &quot;scale=&quot;&lt;&lt;m.scale()&lt;&lt;std::endl;
+     }
+-		
+-    void agg_renderer::process(polygon_symbolizer const&amp; sym,Feature const&amp; feature)
++    template &lt;typename T&gt;	
++    void agg_renderer&lt;T&gt;::process(polygon_symbolizer const&amp; sym,Feature const&amp; feature)
+     {
+ 	typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
+ 	typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base;    
+@@ -120,7 +122,9 @@
+ 	    agg::render_scanlines(ras, sl, ren);
+ 	}
+     }
+-    void agg_renderer::process(line_symbolizer const&amp; sym,Feature const&amp; feature)
++
++    template &lt;typename T&gt;
++    void agg_renderer&lt;T&gt;::process(line_symbolizer const&amp; sym,Feature const&amp; feature)
+     {   
+ 	typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base; 
+ 	typedef coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
+@@ -186,7 +190,7 @@
+ 		ren.color(agg::rgba8(r, g, b, int(255*stroke_.get_opacity())));
+ 		agg::render_scanlines(ras, sl, ren);
+ 	    }
+-	    else if (0) //(stroke_.get_width() &lt;= 1.0)
++	    else if (stroke_.get_width() &lt;= 1.0)
+ 	    {
+ 		//faster but clipping doesn't work 
+ 		agg::line_profile_aa prof;
+@@ -234,8 +238,9 @@
+ 	    }
+ 	}
+     }
+-    
+-    void agg_renderer::process(point_symbolizer const&amp; sym,Feature const&amp; feature)
++
++    template &lt;typename T&gt;
++    void agg_renderer&lt;T&gt;::process(point_symbolizer const&amp; sym,Feature const&amp; feature)
+     {
+ 	geometry_ptr const&amp; geom=feature.get_geometry();
+ 	if (geom)
+@@ -253,7 +258,9 @@
+ 	    pixmap_.set_rectangle_alpha(px,py,data);
+ 	}
+     }
+-    void  agg_renderer::process(line_pattern_symbolizer const&amp; sym,Feature const&amp; feature)
++    
++    template &lt;typename T&gt;
++    void  agg_renderer&lt;T&gt;::process(line_pattern_symbolizer const&amp; sym,Feature const&amp; feature)
+     {
+ 	typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
+ 	typedef agg::line_image_pattern&lt;agg::pattern_filter_bilinear_rgba8&gt; pattern_type;
+@@ -281,7 +288,8 @@
+ 	}
+     }
+     
+-    void agg_renderer::process(polygon_pattern_symbolizer const&amp; sym,Feature const&amp; feature)
++    template &lt;typename T&gt;
++    void agg_renderer&lt;T&gt;::process(polygon_pattern_symbolizer const&amp; sym,Feature const&amp; feature)
+     {
+ 	typedef  coord_transform&lt;CoordTransform,geometry_type&gt; path_type;
+ 	typedef agg::renderer_base&lt;agg::pixfmt_rgba32&gt; ren_base; 
+@@ -332,7 +340,9 @@
+ 	    agg::render_scanlines(ras, sl, rp);   
+ 	}
+     }
+-    void agg_renderer::process(raster_symbolizer const&amp; ,Feature const&amp; feature)
++
++    template &lt;typename T&gt;
++    void agg_renderer&lt;T&gt;::process(raster_symbolizer const&amp; ,Feature const&amp; feature)
+     {
+ 	// TODO -- at the moment raster_symbolizer is an empty class 
+ 	// used for type dispatching, but we can have some fancy raster
+@@ -343,4 +353,14 @@
+ 	    pixmap_.set_rectangle(raster-&gt;x_,raster-&gt;y_,raster-&gt;data_);
+ 	}
+     }
++    
++    template &lt;typename T&gt;
++    void agg_renderer&lt;T&gt;::process(text_symbolizer const&amp; sym ,Feature const&amp; feature)
++    {
++	//TODO - implement text
++	//std::cout &lt;&lt; feature &lt;&lt; std::endl;
++	std::cout &lt;&lt; sym.get_name() &lt;&lt;&quot;:&quot; &lt;&lt; feature[sym.get_name()] &lt;&lt; std::endl;
++    }
++
++    template class agg_renderer&lt;Image32&gt;;
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000040.html">[Mapnik-svn] r154 - in trunk/agg: include src
+</A></li>
+	<LI>Next message: <A HREF="000042.html">[Mapnik-svn] r156 - in trunk: agg/include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#41">[ date ]</a>
+              <a href="thread.html#41">[ thread ]</a>
+              <a href="subject.html#41">[ subject ]</a>
+              <a href="author.html#41">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,147 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r216 - in trunk: plugins/input/shape utils/shapeindex
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r216%20-%20in%20trunk%3A%20plugins/input/shape%20utils/shapeindex&In-Reply-To=%3C200603281009.k2SA9PJv011652%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000100.html">
+   <LINK REL="Next"  HREF="000102.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r216 - in trunk: plugins/input/shape utils/shapeindex</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r216%20-%20in%20trunk%3A%20plugins/input/shape%20utils/shapeindex&In-Reply-To=%3C200603281009.k2SA9PJv011652%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r216 - in trunk: plugins/input/shape utils/shapeindex">pavlenko at berlios.de
+       </A><BR>
+    <I>Tue Mar 28 12:09:25 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000100.html">[Mapnik-svn] r215 - in trunk: include src utils/shapeindex
+</A></li>
+        <LI>Next message: <A HREF="000102.html">[Mapnik-svn] r217 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#101">[ date ]</a>
+              <a href="thread.html#101">[ thread ]</a>
+              <a href="subject.html#101">[ subject ]</a>
+              <a href="author.html#101">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-28 12:09:24 +0200 (Tue, 28 Mar 2006)
+New Revision: 216
+
+Modified:
+   trunk/plugins/input/shape/shape_index_featureset.cpp
+   trunk/plugins/input/shape/shape_io.cpp
+   trunk/utils/shapeindex/shapeindex.cpp
+Log:
+fixed pointz/pointm reading
+
+Modified: trunk/plugins/input/shape/shape_index_featureset.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape_index_featureset.cpp	2006-03-28 08:29:36 UTC (rev 215)
++++ trunk/plugins/input/shape/shape_index_featureset.cpp	2006-03-28 10:09:24 UTC (rev 216)
+@@ -93,7 +93,7 @@
+ 	    double x=shape_.shp().read_double();
+ 	    double y=shape_.shp().read_double();
+ 	    shape_.shp().read_double();// z
+-	    shape_.shp().read_double();// m 
++	    shape_.shp().read_double();// m
+ 	    geometry_ptr point(new point_impl(-1));
+ 	    point-&gt;move_to(x,y);
+ 	    feature-&gt;set_geometry(point);
+@@ -157,7 +157,6 @@
+         }
+ 	if (attr_ids_.size())
+ 	{
+-	    //feature-&gt;reserve_props(attr_ids_.size());
+ 	    shape_.dbf().move_to(shape_.id_);
+ 	    std::vector&lt;int&gt;::const_iterator pos=attr_ids_.begin();
+ 	    while (pos!=attr_ids_.end())
+
+Modified: trunk/plugins/input/shape/shape_io.cpp
+===================================================================
+--- trunk/plugins/input/shape/shape_io.cpp	2006-03-28 08:29:36 UTC (rev 215)
++++ trunk/plugins/input/shape/shape_io.cpp	2006-03-28 10:09:24 UTC (rev 216)
+@@ -52,7 +52,7 @@
+     reclength_ = shp_.read_xdr_integer();
+     type_ = shp_.read_ndr_integer();
+ 
+-    if (type_ != shape_point)
++    if (type_ != shape_point &amp;&amp; type_ != shape_pointm &amp;&amp; type_ != shape_pointz)
+     {
+         shp_.read_envelope(cur_extent_);
+     }
+
+Modified: trunk/utils/shapeindex/shapeindex.cpp
+===================================================================
+--- trunk/utils/shapeindex/shapeindex.cpp	2006-03-28 08:29:36 UTC (rev 215)
++++ trunk/utils/shapeindex/shapeindex.cpp	2006-03-28 10:09:24 UTC (rev 216)
+@@ -139,14 +139,15 @@
+ 	    int offset=shp.pos();
+ 	    int record_number=shp.read_xdr_integer();
+ 	    int content_length=shp.read_xdr_integer();
+-    
++	    
+ 	    shp.skip(4);
++	    std::cout &lt;&lt; &quot;offset= &quot;&lt;&lt; offset &lt;&lt; std::endl;
++	    
+ 	    Envelope&lt;double&gt; item_ext;
+ 	    if (shape_type==shape_io::shape_point)
+ 	    {
+ 		double x=shp.read_double();
+ 		double y=shp.read_double();
+-		shp.skip(2*content_length-2*8-4);
+ 		item_ext=Envelope&lt;double&gt;(x,y,x,y);
+ 	
+ 	    }
+@@ -155,7 +156,6 @@
+ 		double x=shp.read_double();
+ 		double y=shp.read_double();
+ 		shp.read_double();
+-		shp.skip(2*content_length-3*8-4);
+ 		item_ext=Envelope&lt;double&gt;(x,y,x,y);
+ 	
+ 	    }
+@@ -165,7 +165,6 @@
+ 		double y=shp.read_double();
+ 		shp.read_double();
+ 		shp.read_double();
+-		shp.skip(2*content_length-4*8-4);
+ 		item_ext=Envelope&lt;double&gt;(x,y,x,y);
+ 	    }
+ 	
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000100.html">[Mapnik-svn] r215 - in trunk: include src utils/shapeindex
+</A></li>
+	<LI>Next message: <A HREF="000102.html">[Mapnik-svn] r217 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#101">[ date ]</a>
+              <a href="thread.html#101">[ thread ]</a>
+              <a href="subject.html#101">[ subject ]</a>
+              <a href="author.html#101">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

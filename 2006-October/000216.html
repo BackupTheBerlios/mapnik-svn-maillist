@@ -1,0 +1,146 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r331 - trunk/include/mapnik
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r331%20-%20trunk/include/mapnik&In-Reply-To=%3C200610161604.k9GG4xYi030713%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000215.html">
+   <LINK REL="Next"  HREF="000217.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r331 - trunk/include/mapnik</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r331%20-%20trunk/include/mapnik&In-Reply-To=%3C200610161604.k9GG4xYi030713%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r331 - trunk/include/mapnik">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Mon Oct 16 18:04:59 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000215.html">[Mapnik-svn] r330 - in trunk: . agg bindings/python	bindings/python/mapnik demo/python include/mapnik src
+</A></li>
+        <LI>Next message: <A HREF="000217.html">[Mapnik-svn] r332 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#216">[ date ]</a>
+              <a href="thread.html#216">[ thread ]</a>
+              <a href="subject.html#216">[ subject ]</a>
+              <a href="author.html#216">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-16 18:04:57 +0200 (Mon, 16 Oct 2006)
+New Revision: 331
+
+Modified:
+   trunk/include/mapnik/feature_layer_desc.hpp
+Log:
+removed commented out code
+
+
+
+Modified: trunk/include/mapnik/feature_layer_desc.hpp
+===================================================================
+--- trunk/include/mapnik/feature_layer_desc.hpp	2006-10-16 13:44:52 UTC (rev 330)
++++ trunk/include/mapnik/feature_layer_desc.hpp	2006-10-16 16:04:57 UTC (rev 331)
+@@ -183,68 +183,7 @@
+         }
+         return out;
+     }
+-    /*    
+-          bool layer_descriptor_to_wkb(layer_descriptor const&amp; desc,array&lt;&gt;&amp; wkb)
+-          {
+-          //srid	
+-          int srid = desc.get_srid();
+-          wkb.write(&amp;srid,sizeof(int));
+ 
+-          //attribute descriptors
+-          vector&lt;attribute_descriptor&gt; const&amp; desc_ar = desc.get_descriptors();
+-          vector&lt;attribute_descriptor&gt;::const_iterator itr=desc_ar.begin();
+-          size_t num_desc = desc_ar.size();
+-          wkb.write(&amp;num_desc,sizeof(int));
+-	
+-          while (itr != desc_ar.end())
+-          {
+-          string name = itr-&gt;get_name();
+-          wkb.write(name.c_str(),name.size()+1);
+-	       
+-          unsigned type = static_cast&lt;int&gt;(itr-&gt;get_type());
+-          wkb.write(&amp;type,sizeof(unsigned));
+-
+-          bool prim_key = itr-&gt;is_primary_key();
+-          wkb.write(&amp;prim_key,sizeof(bool));
+-
+-          int size = itr-&gt;get_size();
+-          wkb.write(&amp;size,sizeof(int));
+-            
+-          ++itr;
+-          }	
+-          return true;
+-          }
+-    
+-          bool layer_descriptor_from_wkb(const char* wkb, layer_descriptor &amp;desc)
+-          {
+-          unsigned pos=0;
+-          int srid;
+-	
+-          memcpy(&amp;srid,wkb+pos,sizeof(int));
+-          desc.set_srid(srid);
+-          pos+=sizeof(int);
+-	
+-          int num_desc;
+-          memcpy(&amp;num_desc,wkb+pos,sizeof(int));
+-          pos+=sizeof(int);
+-	
+-          for (int i=0;i&lt;num_desc;++i)
+-          {
+-          string name = wkb+pos;
+-          pos += name.size()+1;
+-          //std::clog&lt;&lt;&quot;name=&quot;&lt;&lt;name&lt;&lt;&quot;\n&quot;;
+-	    
+-          int type;
+-          memcpy(&amp;type,wkb+pos,sizeof(int));
+-          pos += sizeof(int);
+-          attribute_descriptor ad(name,type);
+-          desc.add_descriptor(ad);
+-          //todo!!!
+-          pos += 4+1;
+-          }
+-          return true;
+-          }
+-    */    
+ }
+ 
+ #endif //FEATURE_LAYER_DESC_HPP
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000215.html">[Mapnik-svn] r330 - in trunk: . agg bindings/python	bindings/python/mapnik demo/python include/mapnik src
+</A></li>
+	<LI>Next message: <A HREF="000217.html">[Mapnik-svn] r332 - trunk/include/mapnik
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#216">[ date ]</a>
+              <a href="thread.html#216">[ thread ]</a>
+              <a href="subject.html#216">[ subject ]</a>
+              <a href="author.html#216">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

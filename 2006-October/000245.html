@@ -1,0 +1,1279 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r360 - in trunk: bindings/python include/mapnik src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r360%20-%20in%20trunk%3A%20bindings/python%20include/mapnik%20src&In-Reply-To=%3C200610271729.k9RHTjDb016525%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000244.html">
+   <LINK REL="Next"  HREF="000246.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r360 - in trunk: bindings/python include/mapnik src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r360%20-%20in%20trunk%3A%20bindings/python%20include/mapnik%20src&In-Reply-To=%3C200610271729.k9RHTjDb016525%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r360 - in trunk: bindings/python include/mapnik src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Fri Oct 27 19:29:45 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000244.html">[Mapnik-svn] r359 - trunk/tinyxml
+</A></li>
+        <LI>Next message: <A HREF="000246.html">[Mapnik-svn] r361 - trunk/boost/property_tree/detail
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#245">[ date ]</a>
+              <a href="thread.html#245">[ thread ]</a>
+              <a href="subject.html#245">[ subject ]</a>
+              <a href="author.html#245">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-27 19:29:39 +0200 (Fri, 27 Oct 2006)
+New Revision: 360
+
+Modified:
+   trunk/bindings/python/mapnik_map.cpp
+   trunk/bindings/python/mapnik_text_symbolizer.cpp
+   trunk/include/mapnik/font_engine_freetype.hpp
+   trunk/include/mapnik/line_pattern_symbolizer.hpp
+   trunk/include/mapnik/placement_finder.hpp
+   trunk/include/mapnik/text_symbolizer.hpp
+   trunk/src/SConscript
+   trunk/src/agg_renderer.cpp
+   trunk/src/load_map.cpp
+   trunk/src/placement_finder.cpp
+   trunk/src/text_symbolizer.cpp
+Log:
+1. applied text-wrap patch from Robert Coup. Thanks! 
+2. by default use tinyxml as a property_tree parser
+3. modified load_map.cpp to allow to test new features
+
+
+
+Modified: trunk/bindings/python/mapnik_map.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_map.cpp	2006-10-27 17:26:45 UTC (rev 359)
++++ trunk/bindings/python/mapnik_map.cpp	2006-10-27 17:29:39 UTC (rev 360)
+@@ -110,6 +110,7 @@
+         .add_property(&quot;layers&quot;,make_function
+                       (&amp;Map::layers,return_value_policy&lt;reference_existing_object&gt;()), 
+                       &quot;Get the list of layers in this map.&quot;)
++        .def(&quot;find_style&quot;,&amp;Map::find_style,return_value_policy&lt;copy_const_reference&gt;())
+         .def_pickle(map_pickle_suite())
+         ;
+ }
+
+Modified: trunk/bindings/python/mapnik_text_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_text_symbolizer.cpp	2006-10-27 17:26:45 UTC (rev 359)
++++ trunk/bindings/python/mapnik_text_symbolizer.cpp	2006-10-27 17:29:39 UTC (rev 360)
+@@ -36,13 +36,19 @@
+         .value(&quot;LINE_PLACEMENT&quot;,mapnik::line_placement)
+         .value(&quot;POINT_PLACEMENT&quot;,mapnik::point_placement)
+         ;
+-
++    
+     class_&lt;text_symbolizer&gt;(&quot;TextSymbolizer&quot;,
+ 			    init&lt;std::string const&amp;,std::string const&amp;, unsigned,Color const&amp;&gt;())
+         .add_property(&quot;halo_fill&quot;,make_function(
+                       &amp;text_symbolizer::get_halo_fill,
+                       return_value_policy&lt;copy_const_reference&gt;()),
+                       &amp;text_symbolizer::set_halo_fill)
++        .add_property(&quot;wrap_width&quot;,
++                      &amp;text_symbolizer::get_wrap_width,
++                      &amp;text_symbolizer::set_wrap_width)
++        .add_property(&quot;text_ratio&quot;,
++                      &amp;text_symbolizer::get_text_ratio,
++                      &amp;text_symbolizer::set_text_ratio)
+         .add_property(&quot;halo_radius&quot;,
+                       &amp;text_symbolizer::get_halo_radius, 
+                       &amp;text_symbolizer::set_halo_radius)
+
+Modified: trunk/include/mapnik/font_engine_freetype.hpp
+===================================================================
+--- trunk/include/mapnik/font_engine_freetype.hpp	2006-10-27 17:26:45 UTC (rev 359)
++++ trunk/include/mapnik/font_engine_freetype.hpp	2006-10-27 17:29:39 UTC (rev 360)
+@@ -264,7 +264,9 @@
+                 double x, y, angle;
+                 
+                 path-&gt;vertex(&amp;c, &amp;x, &amp;y, &amp;angle);
++//                std::clog &lt;&lt; &quot;   prepare_glyph: &quot; &lt;&lt; (unsigned char)c &lt;&lt; &quot;,&quot; &lt;&lt; x &lt;&lt; &quot;,&quot; &lt;&lt; y &lt;&lt; &quot;,&quot; &lt;&lt; angle &lt;&lt; std::endl;
+ 
++
+                 FT_BBox glyph_bbox; 
+                 FT_Glyph image;
+ 		
+@@ -363,8 +365,8 @@
+               
+                 width += char_dim.first;
+                 height = char_dim.second &gt; height ? char_dim.second : height;
++                
+             }
+-            
+             info-&gt;set_dimensions(width, height);
+         }
+ 	
+@@ -376,10 +378,14 @@
+ 	    
+             start.x = unsigned(x0 * (1 &lt;&lt; 6)); 
+             start.y = unsigned((height - y0) * (1 &lt;&lt; 6));
++
++//            std::clog &lt;&lt; &quot;Render text at: &quot; &lt;&lt; x0 &lt;&lt; &quot;,&quot; &lt;&lt; y0 &lt;&lt; &quot; &quot; &lt;&lt; start.x &lt;&lt; &quot;,&quot; &lt;&lt; start.y &lt;&lt; std::endl;
++
+             // now render transformed glyphs
+             typename glyphs_t::iterator pos;
+-
+-            if (halo_radius_ &gt; 0)
++            
++            //make sure we've got reasonable values.
++            if (halo_radius_ &gt; 0 &amp;&amp; halo_radius_ &lt; 256)
+             {
+                 //render halo 
+                 for ( pos = glyphs_.begin(); pos != glyphs_.end();++pos)
+@@ -463,6 +469,8 @@
+         mapnik::Color fill_;
+         mapnik::Color halo_fill_;
+         int halo_radius_;
++        unsigned text_ratio_;
++        unsigned wrap_width_;
+         glyphs_t glyphs_;
+     }; 
+ }
+
+Modified: trunk/include/mapnik/line_pattern_symbolizer.hpp
+===================================================================
+--- trunk/include/mapnik/line_pattern_symbolizer.hpp	2006-10-27 17:26:45 UTC (rev 359)
++++ trunk/include/mapnik/line_pattern_symbolizer.hpp	2006-10-27 17:29:39 UTC (rev 360)
+@@ -34,7 +34,7 @@
+         line_pattern_symbolizer(std::string const&amp; file,
+                                 std::string const&amp; type,
+                                 unsigned width,unsigned height);
+-
++        
+         line_pattern_symbolizer(line_pattern_symbolizer const&amp; rhs);
+         ImageData32 const&amp; get_pattern() const;
+     private:
+
+Modified: trunk/include/mapnik/placement_finder.hpp
+===================================================================
+--- trunk/include/mapnik/placement_finder.hpp	2006-10-27 17:26:45 UTC (rev 359)
++++ trunk/include/mapnik/placement_finder.hpp	2006-10-27 17:29:39 UTC (rev 360)
+@@ -67,14 +67,17 @@
+     double starting_y;
+     
+     text_path path;
++
+     
+-    
+     //helpers
+     std::pair&lt;double, double&gt; get_position_at_distance(double target_distance);
+     double get_total_distance();
+     void clear_envelopes();
+     
+     double total_distance_; //cache for distance
++    
++    int wrap_width;
++    int text_ratio;
+   };
+   
+   class placement_finder : boost::noncopyable
+
+Modified: trunk/include/mapnik/text_symbolizer.hpp
+===================================================================
+--- trunk/include/mapnik/text_symbolizer.hpp	2006-10-27 17:26:45 UTC (rev 359)
++++ trunk/include/mapnik/text_symbolizer.hpp	2006-10-27 17:29:39 UTC (rev 360)
+@@ -38,12 +38,17 @@
+     
+     struct MAPNIK_DECL text_symbolizer
+     {		
+-	text_symbolizer(std::string const&amp; name,std::string const&amp; face_name, unsigned size,Color const&amp; fill);	
++        text_symbolizer(std::string const&amp; name,std::string const&amp; face_name, 
++                        unsigned size,Color const&amp; fill);	
+         text_symbolizer(text_symbolizer const&amp; rhs);
+         text_symbolizer&amp; operator=(text_symbolizer const&amp; rhs);
+         std::string const&amp; get_name() const;
++        unsigned get_text_ratio() const; // target ratio for text bounding box in pixels
++        void set_text_ratio(unsigned ratio);
++        unsigned get_wrap_width() const; // target ratio for text bounding box in pixels
++        void set_wrap_width(unsigned ratio);
+         unsigned get_text_size() const;
+-	std::string const&amp; get_face_name() const;
++        std::string const&amp; get_face_name() const;
+         Color const&amp; get_fill() const;
+         void set_halo_fill(Color const&amp; fill);
+         Color const&amp; get_halo_fill() const;
+@@ -57,8 +62,10 @@
+         position const&amp; get_displacement() const;
+     private:
+         std::string name_;
+-  std::string face_name_;
++        std::string face_name_;
+         unsigned size_;
++        unsigned text_ratio_;
++        unsigned wrap_width_;
+         Color fill_;
+         Color halo_fill_;
+         unsigned halo_radius_;
+
+Modified: trunk/src/SConscript
+===================================================================
+--- trunk/src/SConscript	2006-10-27 17:26:45 UTC (rev 359)
++++ trunk/src/SConscript	2006-10-27 17:29:39 UTC (rev 360)
+@@ -62,9 +62,16 @@
+     scale_denominator.cpp
+     &quot;&quot;&quot;
+     )
++source += Split(
++    &quot;&quot;&quot;
++    ../tinyxml/tinystr.cpp
++    ../tinyxml/tinyxml.cpp
++    ../tinyxml/tinyxmlerror.cpp
++    ../tinyxml/tinyxmlparser.cpp
++    &quot;&quot;&quot;)
+ 
+ mapnik = env.SharedLibrary('mapnik', source, LIBS=libraries, LINKFLAGS=linkflags)
+ 
+ env.Alias(target='install', source=env.Install(prefix + '/' + env['LIBDIR_SCHEMA'], mapnik))
+-includes = glob.glob('../include/mapnik' + '/*.hpp')
++includes = glob.glob('../include/mapnik/*.hpp')
+ env.Alias(target='install', source=env.Install(prefix+'/include/mapnik', includes))
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-10-27 17:26:45 UTC (rev 359)
++++ trunk/src/agg_renderer.cpp	2006-10-27 17:29:39 UTC (rev 360)
+@@ -502,6 +502,8 @@
+                     ren.get_string_info(text, &amp;info);
+                  
+                     placement text_placement(&amp;info, &amp;t_, &amp;prj_trans, geom, sym.get_label_placement());
++                    text_placement.text_ratio = sym.get_text_ratio();
++                    text_placement.wrap_width = sym.get_wrap_width();
+                   
+                     bool found = finder_.find_placement(&amp;text_placement);
+                     if (!found) {
+
+Modified: trunk/src/load_map.cpp
+===================================================================
+--- trunk/src/load_map.cpp	2006-10-27 17:26:45 UTC (rev 359)
++++ trunk/src/load_map.cpp	2006-10-27 17:29:39 UTC (rev 360)
+@@ -27,9 +27,6 @@
+ #include &lt;boost/lexical_cast.hpp&gt;
+ #include &lt;boost/tokenizer.hpp&gt;
+ #include &lt;boost/property_tree/ptree.hpp&gt;
+-
+-// use tinyxml 
+-#define BOOST_PROPERTY_TREE_XML_PARSER_TINYXML
+ #include &lt;boost/property_tree/xml_parser.hpp&gt;
+ 
+ // mapnik
+@@ -166,7 +163,38 @@
+                                 {
+                                     text_symbol.set_label_placement(line_placement);
+                                 }
++                                // halo fill and radius
++                                boost::optional&lt;std::string&gt; halo_fill = 
++                                    sym.second.get_optional&lt;std::string&gt;(&quot;&lt;xmlattr&gt;.halo_fill&quot;);
+                                 
++                                if (halo_fill)
++                                {
++                                    text_symbol.set_halo_fill
++                                        (color_factory::from_string(halo_fill-&gt;c_str()));
++                                }
++                                boost::optional&lt;unsigned&gt; halo_radius = 
++                                    sym.second.get_optional&lt;unsigned&gt;(&quot;&lt;xmlattr&gt;.halo_radius&quot;);
++                                if (halo_radius)
++                                {
++                                    text_symbol.set_halo_radius(*halo_radius);
++                                }
++                                
++                                // text ratio and wrap width
++                                boost::optional&lt;unsigned&gt; text_ratio = 
++                                    sym.second.get_optional&lt;unsigned&gt;(&quot;&lt;xmlattr&gt;.text_ratio&quot;);
++                                
++                                if (text_ratio)
++                                {
++                                    text_symbol.set_text_ratio(*text_ratio);
++                                }
++                                
++                                boost::optional&lt;unsigned&gt; wrap_width = 
++                                    sym.second.get_optional&lt;unsigned&gt;(&quot;&lt;xmlattr&gt;.wrap_width&quot;);
++                                if (wrap_width)
++                                {
++                                    text_symbol.set_wrap_width(*wrap_width);
++                                }
++                                
+                                 rule.append(text_symbol);
+                             }
+                             else if ( sym.first == &quot;ShieldSymbolizer&quot;)
+
+Modified: trunk/src/placement_finder.cpp
+===================================================================
+--- trunk/src/placement_finder.cpp	2006-10-27 17:26:45 UTC (rev 359)
++++ trunk/src/placement_finder.cpp	2006-10-27 17:29:39 UTC (rev 360)
+@@ -40,339 +40,340 @@
+ 
+ namespace mapnik
+ {
+-  placement::placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, std::pair&lt;double, double&gt; dimensions_)
+-    : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(point_placement), dimensions(dimensions_), has_dimensions(true), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0)
+-  {
+-  }
++    placement::placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, std::pair&lt;double, double&gt; dimensions_)
++        : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(point_placement), dimensions(dimensions_), has_dimensions(true), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0), wrap_width(0), text_ratio(0)
++    {
++    }
+   
+-  //For text
+-  placement::placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, label_placement_e placement_)
+-    : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(placement_), has_dimensions(false), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0)
+-  {
+-  }
++    //For text
++    placement::placement(string_info *info_, CoordTransform *ctrans_, const proj_transform *proj_trans_, geometry_ptr geom_, label_placement_e placement_)
++        : info(info_), ctrans(ctrans_), proj_trans(proj_trans_), geom(geom_), label_placement(placement_), has_dimensions(false), shape_path(*ctrans_, *geom_, *proj_trans_), total_distance_(-1.0), wrap_width(0), text_ratio(0)
++    {
++    }
+   
+-  placement::~placement()
+-  {
+-  }
++    placement::~placement()
++    {
++    }
+ 
+-  std::pair&lt;double, double&gt; placement::get_position_at_distance(double target_distance)
+-  {
+-    double old_x, old_y, new_x, new_y;
+-    double x, y;
+-    x = y = 0.0;
++    std::pair&lt;double, double&gt; placement::get_position_at_distance(double target_distance)
++    {
++        double old_x, old_y, new_x, new_y;
++        double x, y;
++        x = y = 0.0;
+     
+-    double distance = 0.0;
++        double distance = 0.0;
+     
+-    shape_path.rewind(0);
+-    shape_path.vertex(&amp;new_x,&amp;new_y);
+-    for (unsigned i = 0; i &lt; geom-&gt;num_points() - 1; i++)
+-    {
+-      double dx, dy;
++        shape_path.rewind(0);
++        shape_path.vertex(&amp;new_x,&amp;new_y);
++        for (unsigned i = 0; i &lt; geom-&gt;num_points() - 1; i++)
++        {
++            double dx, dy;
+ 
+-      old_x = new_x;
+-      old_y = new_y;
++            old_x = new_x;
++            old_y = new_y;
+ 
+-      shape_path.vertex(&amp;new_x,&amp;new_y);
++            shape_path.vertex(&amp;new_x,&amp;new_y);
+       
+-      dx = new_x - old_x;
+-      dy = new_y - old_y;
++            dx = new_x - old_x;
++            dy = new_y - old_y;
+       
+-      double segment_length = sqrt(dx*dx + dy*dy);
++            double segment_length = sqrt(dx*dx + dy*dy);
+       
+-      distance += segment_length;
+-      if (distance &gt; target_distance)
+-      {
+-          x = new_x - dx*(distance - target_distance)/segment_length;
+-          y = new_y - dy*(distance - target_distance)/segment_length;
++            distance += segment_length;
++            if (distance &gt; target_distance)
++            {
++                x = new_x - dx*(distance - target_distance)/segment_length;
++                y = new_y - dy*(distance - target_distance)/segment_length;
+ 
+-          break;
+-      }
++                break;
++            }
++        }
++    
++        return std::pair&lt;double, double&gt;(x, y);
+     }
+-    
+-    return std::pair&lt;double, double&gt;(x, y);
+-  }
+   
+-  double placement::get_total_distance()
+-  {
+-    if (total_distance_ &lt; 0.0)
++    double placement::get_total_distance()
+     {
+-      double old_x, old_y, new_x, new_y;
++        if (total_distance_ &lt; 0.0)
++        {
++            double old_x, old_y, new_x, new_y;
+       
+-      shape_path.rewind(0);
++            shape_path.rewind(0);
+      
+-      shape_path.vertex(&amp;old_x,&amp;old_y);
++            shape_path.vertex(&amp;old_x,&amp;old_y);
+ 
+-      total_distance_ = 0.0;
++            total_distance_ = 0.0;
+       
+-      for (unsigned i = 0; i &lt; geom-&gt;num_points() - 1; i++)
+-      {
+-          double dx, dy;
++            for (unsigned i = 0; i &lt; geom-&gt;num_points() - 1; i++)
++            {
++                double dx, dy;
+           
+-          shape_path.vertex(&amp;new_x,&amp;new_y);
++                shape_path.vertex(&amp;new_x,&amp;new_y);
+           
+-          dx = new_x - old_x;
+-          dy = new_y - old_y;
++                dx = new_x - old_x;
++                dy = new_y - old_y;
+           
+-          total_distance_ += sqrt(dx*dx + dy*dy);
++                total_distance_ += sqrt(dx*dx + dy*dy);
+           
+-          old_x = new_x;
+-          old_y = new_y;
+-      }
++                old_x = new_x;
++                old_y = new_y;
++            }
++        }
++    
++        return total_distance_;
+     }
+-    
+-    return total_distance_;
+-  }
+   
+-  void placement::clear_envelopes()
+-  {
+-    while (!envelopes.empty())
+-      envelopes.pop();
+-  }
++    void placement::clear_envelopes()
++    {
++        while (!envelopes.empty())
++            envelopes.pop();
++    }
+   
+   
+   
+-  placement_finder::placement_finder(Envelope&lt;double&gt; e)
+-    : detector_(e)
+-  {
+-  }
+-
+-  bool placement_finder::find_placement(placement *p)
+-  {
+-    if (p-&gt;label_placement == point_placement)
++    placement_finder::placement_finder(Envelope&lt;double&gt; e)
++        : detector_(e)
+     {
+-      return find_placement_horizontal(p);
+     }
+-    else if (p-&gt;label_placement == line_placement)
++
++    bool placement_finder::find_placement(placement *p)
+     {
+-      return find_placement_follow(p);
++        if (p-&gt;label_placement == point_placement)
++        {
++            return find_placement_horizontal(p);
++        }
++        else if (p-&gt;label_placement == line_placement)
++        {
++            return find_placement_follow(p);
++        }
++    
++        return false;
+     }
+-    
+-    return false;
+-  }
+ 
+-  bool placement_finder::find_placement_follow(placement *p)
+-  {
+-    std::pair&lt;double, double&gt; string_dimensions = p-&gt;info-&gt;get_dimensions();
+-    double string_width = string_dimensions.first;
+-//    double string_height = string_dimensions.second;
++    bool placement_finder::find_placement_follow(placement *p)
++    {
++        std::pair&lt;double, double&gt; string_dimensions = p-&gt;info-&gt;get_dimensions();
++        double string_width = string_dimensions.first;
++        //    double string_height = string_dimensions.second;
+     
+-    double distance = p-&gt;get_total_distance();
++        double distance = p-&gt;get_total_distance();
+     
+-    //~ double delta = string_width/distance;
+-    double delta = distance/100.0;
++        //~ double delta = string_width/distance;
++        double delta = distance/100.0;
+     
+-    for (double i = 0; i &lt; (distance - string_width)/2.0; i += delta)
+-    {
+-      p-&gt;clear_envelopes();
++        for (double i = 0; i &lt; (distance - string_width)/2.0; i += delta)
++        {
++            p-&gt;clear_envelopes();
+       
+-      if ( build_path_follow(p, (distance - string_width)/2.0 + i) ) {
+-        update_detector(p);
+-        return true;
+-      }
++            if ( build_path_follow(p, (distance - string_width)/2.0 + i) ) {
++                update_detector(p);
++                return true;
++            }
+       
+-      p-&gt;clear_envelopes();
++            p-&gt;clear_envelopes();
+       
+-      if ( build_path_follow(p, (distance - string_width)/2.0 - i) ) {
+-        update_detector(p);
+-        return true;
+-      }
+-    }
++            if ( build_path_follow(p, (distance - string_width)/2.0 - i) ) {
++                update_detector(p);
++                return true;
++            }
++        }
+     
+-    p-&gt;starting_x = 0;
+-    p-&gt;starting_y = 0;
++        p-&gt;starting_x = 0;
++        p-&gt;starting_y = 0;
+     
+-    return false;
+-  }
++        return false;
++    }
+   
+-  bool placement_finder::find_placement_horizontal(placement *p)
+-  {
+-    double distance = p-&gt;get_total_distance();
+-    //~ double delta = string_width/distance;
+-    double delta = distance/100.0;
++    bool placement_finder::find_placement_horizontal(placement *p)
++    {
++        double distance = p-&gt;get_total_distance();
++        //~ double delta = string_width/distance;
++        double delta = distance/100.0;
+     
+-    for (double i = 0; i &lt; distance/2.0; i += delta)
+-    {
+-      p-&gt;clear_envelopes();
++        for (double i = 0; i &lt; distance/2.0; i += delta)
++        {
++            p-&gt;clear_envelopes();
+       
+-      if ( build_path_horizontal(p, distance/2.0 + i) ) {
+-        update_detector(p);
+-        return true;
+-      }
++            if ( build_path_horizontal(p, distance/2.0 + i) ) {
++                update_detector(p);
++                return true;
++            }
+       
+-      p-&gt;clear_envelopes();
++            p-&gt;clear_envelopes();
+       
+-      if ( build_path_horizontal(p, distance/2.0 - i) ) {
+-        update_detector(p);
+-        return true;
+-      }
+-    }
++            if ( build_path_horizontal(p, distance/2.0 - i) ) {
++                update_detector(p);
++                return true;
++            }
++        }
+     
+-    p-&gt;starting_x = 0;
+-    p-&gt;starting_y = 0;
++        p-&gt;starting_x = 0;
++        p-&gt;starting_y = 0;
+     
+-    return false;
+-  }
++        return false;
++    }
+   
+-  void placement_finder::update_detector(placement *p)
+-  {
+-    while (!p-&gt;envelopes.empty())
++    void placement_finder::update_detector(placement *p)
+     {
+-      Envelope&lt;double&gt; e = p-&gt;envelopes.front();
++        while (!p-&gt;envelopes.empty())
++        {
++            Envelope&lt;double&gt; e = p-&gt;envelopes.front();
+ 
+-      detector_.insert(e);
++            detector_.insert(e);
+ 
+-      p-&gt;envelopes.pop();
++            p-&gt;envelopes.pop();
++        }
+     }
+-  }
+ 
+-  bool placement_finder::build_path_follow(placement *p, double target_distance)
+-  {
+-    double new_x, new_y, old_x, old_y;
+-    unsigned cur_node = 0;
++    bool placement_finder::build_path_follow(placement *p, double target_distance)
++    {
++        double new_x, new_y, old_x, old_y;
++        unsigned cur_node = 0;
+ 
+-    double angle = 0.0;
+-    int orientation = 0;
++        double angle = 0.0;
++        int orientation = 0;
+     
+-    p-&gt;path.clear();
++        p-&gt;path.clear();
+     
+-    double x, y;
+-    x = y = 0.0;
++        double x, y;
++        x = y = 0.0;
+     
+-    double distance = 0.0;
++        double distance = 0.0;
+ 
+-    std::pair&lt;double, double&gt; string_dimensions = p-&gt;info-&gt;get_dimensions();
+-//    double string_width = string_dimensions.first;
+-    double string_height = string_dimensions.second;
++        std::pair&lt;double, double&gt; string_dimensions = p-&gt;info-&gt;get_dimensions();
++        //    double string_width = string_dimensions.first;
++        double string_height = string_dimensions.second;
+     
+-    p-&gt;shape_path.rewind(0);
+-    p-&gt;shape_path.vertex(&amp;new_x,&amp;new_y);
+-    for (unsigned i = 0; i &lt; p-&gt;geom-&gt;num_points() - 1; i++)
+-    {
+-        double dx, dy;
++        p-&gt;shape_path.rewind(0);
++        p-&gt;shape_path.vertex(&amp;new_x,&amp;new_y);
++        for (unsigned i = 0; i &lt; p-&gt;geom-&gt;num_points() - 1; i++)
++        {
++            double dx, dy;
+ 
+-        cur_node++;
++            cur_node++;
+         
+-        old_x = new_x;
+-        old_y = new_y;
++            old_x = new_x;
++            old_y = new_y;
+ 
+-        p-&gt;shape_path.vertex(&amp;new_x,&amp;new_y);
++            p-&gt;shape_path.vertex(&amp;new_x,&amp;new_y);
+         
+-        dx = new_x - old_x;
+-        dy = new_y - old_y;
++            dx = new_x - old_x;
++            dy = new_y - old_y;
+         
+-        double segment_length = sqrt(dx*dx + dy*dy);
++            double segment_length = sqrt(dx*dx + dy*dy);
+         
+-        distance += segment_length;
+-        if (distance &gt; target_distance)
+-        {
+-            p-&gt;starting_x = new_x - dx*(distance - target_distance)/segment_length;
+-            p-&gt;starting_y = new_y - dy*(distance - target_distance)/segment_length;
++            distance += segment_length;
++            if (distance &gt; target_distance)
++            {
++                p-&gt;starting_x = new_x - dx*(distance - target_distance)/segment_length;
++                p-&gt;starting_y = new_y - dy*(distance - target_distance)/segment_length;
+ 
+-            angle = atan2(-dy, dx);
++                angle = atan2(-dy, dx);
+ 
+-            if (angle &gt; M_PI/2 || angle &lt;= -M_PI/2) {
+-              orientation = -1;
+-            }
+-            else {
+-              orientation = 1;
+-            }
++                if (angle &gt; M_PI/2 || angle &lt;= -M_PI/2) {
++                    orientation = -1;
++                }
++                else {
++                    orientation = 1;
++                }
+ 
+-            distance -= target_distance;
++                distance -= target_distance;
+             
+-            break;
++                break;
++            }
+         }
+-    }
+ 
+-    for (unsigned i = 0; i &lt; p-&gt;info-&gt;num_characters(); i++)
+-    {
+-        character_info ci;
+-        unsigned c;
++        for (unsigned i = 0; i &lt; p-&gt;info-&gt;num_characters(); i++)
++        {
++            character_info ci;
++            unsigned c;
+       
+-        while (distance &lt;= 0) {
+-            double dx, dy;
++            while (distance &lt;= 0) {
++                double dx, dy;
+ 
+-            cur_node++;
++                cur_node++;
+             
+-            if (cur_node &gt;= p-&gt;geom-&gt;num_points()) {
+-              break;
+-            }
++                if (cur_node &gt;= p-&gt;geom-&gt;num_points()) {
++                    break;
++                }
+             
+-            old_x = new_x;
+-            old_y = new_y;
++                old_x = new_x;
++                old_y = new_y;
+ 
+-            p-&gt;shape_path.vertex(&amp;new_x,&amp;new_y);
++                p-&gt;shape_path.vertex(&amp;new_x,&amp;new_y);
+ 
+-            dx = new_x - old_x;
+-            dy = new_y - old_y;
++                dx = new_x - old_x;
++                dy = new_y - old_y;
+ 
+-            angle = atan2(-dy, dx );
++                angle = atan2(-dy, dx );
+             
+-            distance += sqrt(dx*dx+dy*dy);
+-        }
++                distance += sqrt(dx*dx+dy*dy);
++            }
+ 
+-        if (orientation == -1) {
+-            ci = p-&gt;info-&gt;at(p-&gt;info-&gt;num_characters() - i - 1);
+-        }
+-        else
+-        {
+-            ci = p-&gt;info-&gt;at(i);
+-        }
+-        c = ci.character;
++            if (orientation == -1) {
++                ci = p-&gt;info-&gt;at(p-&gt;info-&gt;num_characters() - i - 1);
++            }
++            else
++            {
++                ci = p-&gt;info-&gt;at(i);
++            }
++            c = ci.character;
+ 
+-        Envelope&lt;double&gt; e;
+-        if (p-&gt;has_dimensions)
+-        {
+-            e.init(x, y, x + p-&gt;dimensions.first, y + p-&gt;dimensions.second);
+-        }
++            Envelope&lt;double&gt; e;
++            if (p-&gt;has_dimensions)
++            {
++                e.init(x, y, x + p-&gt;dimensions.first, y + p-&gt;dimensions.second);
++            }
+ 
+-        if (orientation == -1) {
+-            x = new_x - (distance - ci.width)*cos(angle);
+-            y = new_y + (distance - ci.width)*sin(angle);
++            if (orientation == -1) {
++                x = new_x - (distance - ci.width)*cos(angle);
++                y = new_y + (distance - ci.width)*sin(angle);
+ 
+-            //Center the text on the line.
+-            x += (((double)string_height/2.0) - 1.0)*cos(angle+M_PI/2);
+-            y -= (((double)string_height/2.0) - 1.0)*sin(angle+M_PI/2);
++                //Center the text on the line.
++                x += (((double)string_height/2.0) - 1.0)*cos(angle+M_PI/2);
++                y -= (((double)string_height/2.0) - 1.0)*sin(angle+M_PI/2);
+           
+-            if (!p-&gt;has_dimensions)
++                if (!p-&gt;has_dimensions)
++                {
++                    e.init(x, y, x + ci.width*cos(angle+M_PI), y - ci.width*sin(angle+M_PI));
++                    e.expand_to_include(x - ci.height*sin(angle+M_PI), y - ci.height*cos(angle+M_PI));
++                    e.expand_to_include(x + (ci.width*cos(angle+M_PI) - ci.height*sin(angle+M_PI)), y - (ci.width*sin(angle+M_PI) + ci.height*cos(angle+M_PI)));
++                }
++            }
++            else
+             {
+-              e.init(x, y, x + ci.width*cos(angle+M_PI), y - ci.width*sin(angle+M_PI));
+-              e.expand_to_include(x - ci.height*sin(angle+M_PI), y - ci.height*cos(angle+M_PI));
+-              e.expand_to_include(x + (ci.width*cos(angle+M_PI) - ci.height*sin(angle+M_PI)), y - (ci.width*sin(angle+M_PI) + ci.height*cos(angle+M_PI)));
+-            }
+-        }
+-        else
+-        {
+-            x = new_x - distance*cos(angle);
+-            y = new_y + distance*sin(angle);
++                x = new_x - distance*cos(angle);
++                y = new_y + distance*sin(angle);
+ 
+-            //Center the text on the line.
+-            x += (((double)string_height/2.0) - 1.0)*cos(angle-M_PI/2);
+-            y -= (((double)string_height/2.0) - 1.0)*sin(angle-M_PI/2);
++                //Center the text on the line.
++                x += (((double)string_height/2.0) - 1.0)*cos(angle-M_PI/2);
++                y -= (((double)string_height/2.0) - 1.0)*sin(angle-M_PI/2);
+ 
+-            if (!p-&gt;has_dimensions)
++                if (!p-&gt;has_dimensions)
++                {
++                    e.init(x, y, x + ci.width*cos(angle), y - ci.width*sin(angle));
++                    e.expand_to_include(x - ci.height*sin(angle), y - ci.height*cos(angle));
++                    e.expand_to_include(x + (ci.width*cos(angle) - ci.height*sin(angle)), y - (ci.width*sin(angle) + ci.height*cos(angle)));
++                }
++            }
++        
++            if (!detector_.has_placement(e))
+             {
+-              e.init(x, y, x + ci.width*cos(angle), y - ci.width*sin(angle));
+-              e.expand_to_include(x - ci.height*sin(angle), y - ci.height*cos(angle));
+-              e.expand_to_include(x + (ci.width*cos(angle) - ci.height*sin(angle)), y - (ci.width*sin(angle) + ci.height*cos(angle)));
++                return false;
+             }
+-        }
+         
+-        if (!detector_.has_placement(e))
+-        {
+-          return false;
+-        }
++            p-&gt;envelopes.push(e);
+         
+-        p-&gt;envelopes.push(e);
++            p-&gt;path.add_node(c, x - p-&gt;starting_x, -y + p-&gt;starting_y, (orientation == -1 ? angle + M_PI : angle));
+         
+-        p-&gt;path.add_node(c, x - p-&gt;starting_x, -y + p-&gt;starting_y, (orientation == -1 ? angle + M_PI : angle));
+-        
+-        distance -= ci.width;
++            distance -= ci.width;
++        }
++    
++        return true;
+     }
+-    
+-    return true;
+-  }
+-  
+-  bool placement_finder::build_path_horizontal(placement *p, double target_distance)
++
++    /*
++   bool placement_finder::build_path_horizontal(placement *p, double target_distance)
+   {
+     double x, y;
+   
+@@ -433,7 +434,159 @@
+     }
+     return true;
+   }
++    */
++    
++    bool placement_finder::build_path_horizontal(placement *p, double target_distance)
++    {
++    
++        p-&gt;path.clear();
++    
++        std::pair&lt;double, double&gt; string_dimensions = p-&gt;info-&gt;get_dimensions();
++        double string_width = string_dimensions.first;
++        double string_height = string_dimensions.second;
++    
++        // check if we need to wrap the string
++        double wrap_at = string_width + 1;
++        if (p-&gt;wrap_width &amp;&amp; string_width &gt; p-&gt;wrap_width)
++        {
++            if (p-&gt;text_ratio)
++                for (int i = 1; ((wrap_at = string_width/i)/(string_height*i)) &gt; p-&gt;text_ratio &amp;&amp; (string_width/i) &gt; p-&gt;wrap_width; ++i);
++            else
++                wrap_at = p-&gt;wrap_width;
++            //std::clog &lt;&lt; &quot;Wrapping string at&quot; &lt;&lt; wrap_at &lt;&lt; std::endl;
++        }
+ 
+-  
++        // work out where our line breaks need to be
++        std::vector&lt;int&gt; line_breaks;
++        std::vector&lt;double&gt; line_widths;
++        if (wrap_at &lt; string_width &amp;&amp; p-&gt;info-&gt;num_characters() &gt; 0)
++        {
++            int line_count=0; 
++            int last_space = 0;
++            string_width = 0;
++            string_height = 0;
++            double line_width = 0;
++            double line_height = 0;
++            double word_width = 0;
++            double word_height = 0;
++            for (unsigned int ii = 0; ii &lt; p-&gt;info-&gt;num_characters(); ii++)
++            {
++                character_info ci;
++                ci = p-&gt;info-&gt;at(ii);
++            
++                unsigned c = ci.character;
++                word_width += ci.width;
++                word_height = word_height &gt; ci.height ? word_height : ci.height;
++                ++line_count;
++    
++                if (c == ' ')
++                {
++                    last_space = ii;
++                    line_width += word_width;
++                    line_height = line_height &gt; word_height ? line_height : word_height;
++                    word_width = 0;
++                    word_height = 0;
++                }
++                if (line_width &gt; 0 &amp;&amp; line_width &gt; wrap_at)
++                {
++                    string_width = string_width &gt; line_width ? string_width : line_width;
++                    string_height += line_height;
++                    line_breaks.push_back(last_space);
++                    line_widths.push_back(line_width);
++                    ii = last_space;
++                    line_count = 0;
++                    line_width = 0;
++                    line_height = 0;
++                    word_width = 0;
++                    word_height = 0;
++                }
++            }
++            line_width += word_width;
++            string_width = string_width &gt; line_width ? string_width : line_width;
++            line_breaks.push_back(p-&gt;info-&gt;num_characters() + 1);
++            line_widths.push_back(line_width);
++        }
++        if (line_breaks.size() == 0)
++        {
++            line_breaks.push_back(p-&gt;info-&gt;num_characters() + 1);
++            line_widths.push_back(string_width);
++        }
++
++        p-&gt;info-&gt;set_dimensions(string_width, string_height);
++    
++        if (p-&gt;geom-&gt;type() == LineString)
++        {
++            std::pair&lt;double, double&gt; starting_pos = p-&gt;get_position_at_distance(target_distance);
++      
++            p-&gt;starting_x = starting_pos.first;
++            p-&gt;starting_y = starting_pos.second;
++        }
++        else
++        {
++            p-&gt;geom-&gt;label_position(&amp;p-&gt;starting_x, &amp;p-&gt;starting_y);
++            //  TODO: 
++            //  We would only want label position in final 'paper' coords.
++            //  Move view and proj transforms to e.g. label_position(x,y,proj_trans,ctrans)?
++            double z=0;  
++            p-&gt;proj_trans-&gt;backward(p-&gt;starting_x, p-&gt;starting_y, z);
++            p-&gt;ctrans-&gt;forward(&amp;p-&gt;starting_x, &amp;p-&gt;starting_y);
++        }
++    
++        double line_height = 0;
++        unsigned int line_number = 0;
++        unsigned int index_to_wrap_at = line_breaks[line_number];
++        double line_width = line_widths[line_number];
++
++        double x = -line_width/2.0;
++        double y = -string_height/2.0 + 1.0;
++    
++        for (unsigned i = 0; i &lt; p-&gt;info-&gt;num_characters(); i++)
++        {
++            character_info ci;
++            ci = p-&gt;info-&gt;at(i);
++        
++            unsigned c = ci.character;
++      
++            if (i == index_to_wrap_at)
++            {
++                index_to_wrap_at = line_breaks[++line_number];
++                line_width = line_widths[line_number];
++                y -= line_height;
++                x = -line_width/2.0;
++                line_height = 0;
++                continue;
++            }
++            else
++            {
++                p-&gt;path.add_node(c, x, y, 0.0);
++
++                Envelope&lt;double&gt; e;
++                if (p-&gt;has_dimensions)
++                {
++                    e.init(p-&gt;starting_x - (p-&gt;dimensions.first/2.0), 
++                           p-&gt;starting_y - (p-&gt;dimensions.second/2.0), 
++                           p-&gt;starting_x + (p-&gt;dimensions.first/2.0), 
++                           p-&gt;starting_y + (p-&gt;dimensions.second/2.0));
++                }
++                else
++                {
++                    e.init(p-&gt;starting_x + x, 
++                           p-&gt;starting_y - y, 
++                           p-&gt;starting_x + x + ci.width, 
++                           p-&gt;starting_y - y - ci.height);
++                }
++            
++                if (!detector_.has_placement(e))
++                {
++                    return false;
++                }
++            
++                p-&gt;envelopes.push(e);
++            }
++            x += ci.width;
++            line_height = line_height &gt; ci.height ? line_height : ci.height;
++        }
++        return true;
++    }
+ }
+ 
+
+Modified: trunk/src/text_symbolizer.cpp
+===================================================================
+--- trunk/src/text_symbolizer.cpp	2006-10-27 17:26:45 UTC (rev 359)
++++ trunk/src/text_symbolizer.cpp	2006-10-27 17:29:39 UTC (rev 360)
+@@ -22,113 +22,143 @@
+ 
+ //$Id$
+ 
++
++#include &lt;iostream&gt;
++
+ #include &lt;mapnik/text_symbolizer.hpp&gt;
+ 
+ namespace mapnik
+ {
+     text_symbolizer::text_symbolizer(std::string const&amp; name, std::string const&amp; face_name, unsigned size,Color const&amp; fill)
+-	: name_(name),
+-    face_name_(face_name),
+-	  size_(size),
+-	  fill_(fill),
+-	  halo_fill_(Color(255,255,255)),
+-	  halo_radius_(0),
+-	  label_p_(point_placement),
+-	  anchor_(0.0,0.5),
+-	  displacement_(0.0,0.0)  {}
++        : name_(name),
++          face_name_(face_name),
++          size_(size),
++          text_ratio_(0),
++          wrap_width_(0),
++          fill_(fill),
++          halo_fill_(Color(255,255,255)),
++          halo_radius_(0),
++          label_p_(point_placement),
++          anchor_(0.0,0.5),
++          displacement_(0.0,0.0)  {}
+            
+     text_symbolizer::text_symbolizer(text_symbolizer const&amp; rhs)
+-	: name_(rhs.name_),
+-    face_name_(rhs.face_name_),
+-	  size_(rhs.size_),
+-	  fill_(rhs.fill_),
+-	  halo_fill_(rhs.halo_fill_),
+-	  halo_radius_(rhs.halo_radius_),
+-	  label_p_(rhs.label_p_),
+-	  anchor_(rhs.anchor_),
+-	  displacement_(rhs.displacement_) {}
++        : name_(rhs.name_),
++          face_name_(rhs.face_name_),
++          size_(rhs.size_),
++          text_ratio_(rhs.text_ratio_),
++          wrap_width_(rhs.wrap_width_),
++          fill_(rhs.fill_),
++          halo_fill_(rhs.halo_fill_),
++          halo_radius_(rhs.halo_radius_),
++          label_p_(rhs.label_p_),
++          anchor_(rhs.anchor_),
++          displacement_(rhs.displacement_) {}
+ 
+     text_symbolizer&amp; text_symbolizer::operator=(text_symbolizer const&amp; other)
+     {
+-	if (this == &amp;other)
+-	    return *this;
+-	name_ = other.name_;
+-  face_name_ = other.face_name_;
+-	size_ = other.size_;
+-	fill_ = other.fill_;
+-	halo_fill_ = other.halo_fill_;
+-	label_p_ = other.label_p_;
+-	anchor_ = other.anchor_;
+-	displacement_ = other.displacement_; 
+-	return *this;
++        if (this == &amp;other)
++            return *this;
++        name_ = other.name_;
++        face_name_ = other.face_name_;
++        size_ = other.size_;
++        text_ratio_ = other.text_ratio_;
++        wrap_width_ = other.wrap_width_;
++        fill_ = other.fill_;
++        halo_fill_ = other.halo_fill_;
++        halo_radius_ = other.halo_radius_;
++        label_p_ = other.label_p_;
++        anchor_ = other.anchor_;
++        displacement_ = other.displacement_; 
++        return *this;
+     } 
+ 
+     std::string const&amp;  text_symbolizer::get_name() const
+     {
+-	return name_;
++        return name_;
+     }
+     
+     std::string const&amp;  text_symbolizer::get_face_name() const
+     {
+-	return face_name_;
++        return face_name_;
+     }
+     
++    unsigned  text_symbolizer::get_text_ratio() const
++    {
++        return text_ratio_;
++    }
++
++    void  text_symbolizer::set_text_ratio(unsigned ratio) 
++    {
++        text_ratio_ = ratio;
++    }
++
++    unsigned  text_symbolizer::get_wrap_width() const
++    {
++        return wrap_width_;
++    }
++
++    void  text_symbolizer::set_wrap_width(unsigned width) 
++    {
++        wrap_width_ = width;
++    }
++
+     unsigned  text_symbolizer::get_text_size() const
+     {
+-	return size_;
++        return size_;
+     }
+ 	
+     Color const&amp;  text_symbolizer::get_fill() const
+     {
+-	return fill_;
++        return fill_;
+     }
+ 	
+     void  text_symbolizer::set_halo_fill(Color const&amp; fill)
+     {
+-	halo_fill_ = fill;
++        halo_fill_ = fill;
+     }
+ 
+     Color const&amp;  text_symbolizer::get_halo_fill() const
+     {
+-	return halo_fill_;
++        return halo_fill_;
+     }
+ 	
+     void  text_symbolizer::set_halo_radius(unsigned radius)
+     {
+-	halo_radius_ = radius;
++        halo_radius_ = radius;
+     }
+ 	
+     unsigned  text_symbolizer::get_halo_radius() const
+     {
+-	return halo_radius_;
++        return halo_radius_;
+     }
+ 	
+     void  text_symbolizer::set_label_placement(label_placement_e label_p)
+     {
+-	label_p_ = label_p;
++        label_p_ = label_p;
+     }
+ 	
+     label_placement_e  text_symbolizer::get_label_placement() const
+     {
+-	return label_p_;
++        return label_p_;
+     }
+ 
+     void  text_symbolizer::set_anchor(double x, double y)
+     {
+-	anchor_ = boost::make_tuple(x,y);
++        anchor_ = boost::make_tuple(x,y);
+     }
+     
+     position const&amp; text_symbolizer::get_anchor () const
+     {
+-	return anchor_;
++        return anchor_;
+     }
+     void  text_symbolizer::set_displacement(double x, double y)
+     {
+-	displacement_ = boost::make_tuple(x,y);
++        displacement_ = boost::make_tuple(x,y);
+     }
+     
+     position const&amp;  text_symbolizer::get_displacement() const
+     {
+-	return displacement_;
++        return displacement_;
+     }
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000244.html">[Mapnik-svn] r359 - trunk/tinyxml
+</A></li>
+	<LI>Next message: <A HREF="000246.html">[Mapnik-svn] r361 - trunk/boost/property_tree/detail
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#245">[ date ]</a>
+              <a href="thread.html#245">[ thread ]</a>
+              <a href="subject.html#245">[ subject ]</a>
+              <a href="author.html#245">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

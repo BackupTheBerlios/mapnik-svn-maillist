@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r240 - trunk/src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-May/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r240%20-%20trunk/src&In-Reply-To=%3C200605032347.k43NlRgW014049%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="000126.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r240 - trunk/src</H1>
+    <B>jdoyon at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r240%20-%20trunk/src&In-Reply-To=%3C200605032347.k43NlRgW014049%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r240 - trunk/src">jdoyon at berlios.de
+       </A><BR>
+    <I>Thu May  4 01:47:27 CEST 2006</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="000126.html">[Mapnik-svn] r241 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#125">[ date ]</a>
+              <a href="thread.html#125">[ thread ]</a>
+              <a href="subject.html#125">[ subject ]</a>
+              <a href="author.html#125">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jdoyon
+Date: 2006-05-04 01:46:32 +0200 (Thu, 04 May 2006)
+New Revision: 240
+
+Modified:
+   trunk/src/image_util.cpp
+Log:
+Switched from &lt;fstream.h&gt; to &lt;fstream&gt; as per the warning the compiler gave me, and the C++ standard.
+
+
+
+Modified: trunk/src/image_util.cpp
+===================================================================
+--- trunk/src/image_util.cpp	2006-04-22 19:37:59 UTC (rev 239)
++++ trunk/src/image_util.cpp	2006-05-03 23:46:32 UTC (rev 240)
+@@ -25,6 +25,8 @@
+ #include &lt;string&gt;
+ #include &lt;png.h&gt;
+ #include &lt;jpeglib.h&gt;
++#include &lt;gif_lib.h&gt;
++#include &lt;fstream&gt;
+ #include &quot;graphics.hpp&quot;
+ #include &quot;image_util.hpp&quot;
+ #include &quot;memory.hpp&quot;
+@@ -54,6 +56,10 @@
+ 	{
+ 	    save_as_jpeg(filename,85,image);
+ 	}
++        else if (type==&quot;gif&quot;)
++        {
++	    save_as_gif(filename,image);
++        }
+     }
+ 
+     void ImageUtils::save_as_png(const std::string&amp; filename,const Image32&amp; image)
+@@ -151,4 +157,26 @@
+ 	fclose(fp);
+ 	jpeg_destroy_compress(&amp;cinfo);
+     }
++
++    void ImageUtils::save_as_gif(const std::string&amp; filename,const Image32&amp; image)
++    {
++        GifFileType *fp=EGifOpenFileName(filename.c_str(),0);
++        if (!fp) return;
++        int width=image.width();
++        int height=image.height();
++ 	ColorMapObject *OutputColorMap = MakeMapObject(256, NULL);
++
++	EGifPutScreenDesc(fp, width, height, 8, 0, OutputColorMap);
++        EGifPutImageDesc(fp, 0, 0, width, height, FALSE, NULL);
++
++	const ImageData32&amp; imageData=image.data();
++
++        for (int i=0;i&lt;height;i++)
++        {
++            EGifPutLine(fp, (GifPixelType*)imageData.getRow(i), width);
++        }
++
++        EGifCloseFile(fp);
++	FreeMapObject(OutputColorMap);
++    }
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="000126.html">[Mapnik-svn] r241 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#125">[ date ]</a>
+              <a href="thread.html#125">[ thread ]</a>
+              <a href="subject.html#125">[ subject ]</a>
+              <a href="author.html#125">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

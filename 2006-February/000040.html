@@ -1,0 +1,218 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r154 - in trunk/agg: include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-February/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r154%20-%20in%20trunk/agg%3A%20include%20src&In-Reply-To=%3C200602101707.k1AH7GtG028400%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000039.html">
+   <LINK REL="Next"  HREF="000041.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r154 - in trunk/agg: include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r154%20-%20in%20trunk/agg%3A%20include%20src&In-Reply-To=%3C200602101707.k1AH7GtG028400%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r154 - in trunk/agg: include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Fri Feb 10 18:07:16 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000039.html">[Mapnik-svn] r153 - trunk/include
+</A></li>
+        <LI>Next message: <A HREF="000041.html">[Mapnik-svn] r155 - in trunk: include plugins/input/postgis plugins/input/shape src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#40">[ date ]</a>
+              <a href="thread.html#40">[ thread ]</a>
+              <a href="subject.html#40">[ subject ]</a>
+              <a href="author.html#40">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-02-10 18:07:15 +0100 (Fri, 10 Feb 2006)
+New Revision: 154
+
+Modified:
+   trunk/agg/include/agg_scanline_boolean_algebra.h
+   trunk/agg/include/agg_scanline_storage_aa.h
+   trunk/agg/include/agg_scanline_storage_bin.h
+   trunk/agg/include/agg_span_image_filter_gray.h
+   trunk/agg/src/agg_curves.cpp
+Log:
+updated agg-2.4
+
+
+
+Modified: trunk/agg/include/agg_scanline_boolean_algebra.h
+===================================================================
+--- trunk/agg/include/agg_scanline_boolean_algebra.h	2006-02-08 10:44:46 UTC (rev 153)
++++ trunk/agg/include/agg_scanline_boolean_algebra.h	2006-02-10 17:07:15 UTC (rev 154)
+@@ -850,8 +850,8 @@
+         unsigned num1 = sl1.num_spans();
+         unsigned num2 = sl2.num_spans();
+ 
+-        typename Scanline1::const_iterator span1;
+-        typename Scanline2::const_iterator span2;
++        typename Scanline1::const_iterator span1;// = sl1.begin();
++        typename Scanline2::const_iterator span2;// = sl2.begin();
+ 
+         enum invalidation_e 
+         { 
+@@ -1046,7 +1046,11 @@
+ 
+         // Calculate the union of the bounding boxes
+         //-----------------
+-        rect_i ur = unite_rectangles(r1, r2);
++        rect_i ur(1,1,0,0);
++             if(flag1 &amp;&amp; flag2) ur = unite_rectangles(r1, r2);
++        else if(flag1)          ur = r1;
++        else if(flag2)          ur = r2;
++
+         if(!ur.is_valid()) return;
+ 
+         ren.prepare();
+@@ -1176,7 +1180,7 @@
+         ren.prepare();
+ 
+         // A fake span2 processor
+-        sbool_add_span_empty&lt;Scanline1, Scanline&gt; add_span2;
++        sbool_add_span_empty&lt;Scanline2, Scanline&gt; add_span2;
+ 
+         // The main loop
+         // Here we synchronize the scanlines with 
+
+Modified: trunk/agg/include/agg_scanline_storage_aa.h
+===================================================================
+--- trunk/agg/include/agg_scanline_storage_aa.h	2006-02-08 10:44:46 UTC (rev 153)
++++ trunk/agg/include/agg_scanline_storage_aa.h	2006-02-10 17:07:15 UTC (rev 154)
+@@ -196,6 +196,7 @@
+                     const T* covers;
+                 };
+ 
++                const_iterator() : m_storage(0) {}
+                 const_iterator(const embedded_scanline&amp; sl) :
+                     m_storage(sl.m_storage),
+                     m_span_idx(sl.m_scanline.start_span)
+@@ -554,6 +555,7 @@
+                     const T* covers; 
+                 };
+ 
++                const_iterator() : m_ptr(0) {}
+                 const_iterator(const embedded_scanline&amp; sl) :
+                     m_ptr(sl.m_ptr),
+                     m_dx(sl.m_dx)
+@@ -721,9 +723,8 @@
+                 m_min_y = read_int32() + m_dy;
+                 m_max_x = read_int32() + m_dx;
+                 m_max_y = read_int32() + m_dy;
+-                return true;
+             }
+-            return false;
++            return m_ptr &lt; m_end;
+         }
+ 
+         //--------------------------------------------------------------------
+
+Modified: trunk/agg/include/agg_scanline_storage_bin.h
+===================================================================
+--- trunk/agg/include/agg_scanline_storage_bin.h	2006-02-08 10:44:46 UTC (rev 153)
++++ trunk/agg/include/agg_scanline_storage_bin.h	2006-02-10 17:07:15 UTC (rev 154)
+@@ -63,6 +63,7 @@
+             class const_iterator
+             {
+             public:
++                const_iterator() : m_storage(0) {}
+                 const_iterator(const embedded_scanline&amp; sl) :
+                     m_storage(sl.m_storage),
+                     m_span_idx(sl.m_scanline.start_span)
+@@ -360,6 +361,7 @@
+                     int32 len;
+                 };
+ 
++                const_iterator() : m_ptr(0) {}
+                 const_iterator(const embedded_scanline&amp; sl) :
+                     m_ptr(sl.m_ptr),
+                     m_dx(sl.m_dx)
+@@ -503,9 +505,8 @@
+                 m_min_y = read_int32() + m_dy;
+                 m_max_x = read_int32() + m_dx;
+                 m_max_y = read_int32() + m_dy;
+-                return true;
+             }
+-            return false;
++            return m_ptr &lt; m_end;
+         }
+ 
+         //--------------------------------------------------------------------
+
+Modified: trunk/agg/include/agg_span_image_filter_gray.h
+===================================================================
+--- trunk/agg/include/agg_span_image_filter_gray.h	2006-02-08 10:44:46 UTC (rev 153)
++++ trunk/agg/include/agg_span_image_filter_gray.h	2006-02-10 17:07:15 UTC (rev 154)
+@@ -123,7 +123,6 @@
+                 int x_lr = x_hr &gt;&gt; image_subpixel_shift;
+                 int y_lr = y_hr &gt;&gt; image_subpixel_shift;
+ 
+-                unsigned weight;
+                 fg = image_subpixel_scale * image_subpixel_scale / 2;
+ 
+                 x_hr &amp;= image_subpixel_mask;
+@@ -139,7 +138,7 @@
+                 fg    += *fg_ptr * (image_subpixel_scale - x_hr) * y_hr;
+ 
+                 fg_ptr = (const value_type*)base_type::source().next_x();
+-                fg    += fg_ptr * x_hr * y_hr;
++                fg    += *fg_ptr * x_hr * y_hr;
+ 
+                 span-&gt;v = value_type(fg &gt;&gt; (image_subpixel_shift * 2));
+                 span-&gt;a = base_mask;
+
+Modified: trunk/agg/src/agg_curves.cpp
+===================================================================
+--- trunk/agg/src/agg_curves.cpp	2006-02-08 10:44:46 UTC (rev 153)
++++ trunk/agg/src/agg_curves.cpp	2006-02-10 17:07:15 UTC (rev 154)
+@@ -262,9 +262,9 @@
+         double dx3 = x4 - x3;
+         double dy3 = y4 - y3;
+ 
+-        double len = sqrt(dx1 * dx1 + dy1 * dy1) + 
+-                     sqrt(dx2 * dx2 + dy2 * dy2) + 
+-                     sqrt(dx3 * dx3 + dy3 * dy3) * 0.25 * m_scale;
++        double len = (sqrt(dx1 * dx1 + dy1 * dy1) + 
++                      sqrt(dx2 * dx2 + dy2 * dy2) + 
++                      sqrt(dx3 * dx3 + dy3 * dy3)) * 0.25 * m_scale;
+ 
+ #if defined(_MSC_VER) &amp;&amp; _MSC_VER &lt;= 1200
+         m_num_steps = uround(MSC60_fix_ICE(len));
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000039.html">[Mapnik-svn] r153 - trunk/include
+</A></li>
+	<LI>Next message: <A HREF="000041.html">[Mapnik-svn] r155 - in trunk: include plugins/input/postgis plugins/input/shape src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#40">[ date ]</a>
+              <a href="thread.html#40">[ thread ]</a>
+              <a href="subject.html#40">[ subject ]</a>
+              <a href="author.html#40">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

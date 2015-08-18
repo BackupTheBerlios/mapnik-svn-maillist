@@ -1,0 +1,82 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r113 - trunk/include
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-January/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r113%20-%20trunk/include&In-Reply-To=%3C200601011740.k01HefKZ028748%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="000001.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r113 - trunk/include</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r113%20-%20trunk/include&In-Reply-To=%3C200601011740.k01HefKZ028748%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r113 - trunk/include">pavlenko at berlios.de
+       </A><BR>
+    <I>Sun Jan  1 18:40:41 CET 2006</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="000001.html">[Mapnik-svn] r114 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#0">[ date ]</a>
+              <a href="thread.html#0">[ thread ]</a>
+              <a href="subject.html#0">[ subject ]</a>
+              <a href="author.html#0">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-01-01 18:40:26 +0100 (Sun, 01 Jan 2006)
+New Revision: 113
+
+Modified:
+   trunk/include/color.hpp
+Log:
+corrected return value
+
+Modified: trunk/include/color.hpp
+===================================================================
+--- trunk/include/color.hpp	2005-12-23 12:45:25 UTC (rev 112)
++++ trunk/include/color.hpp	2006-01-01 17:40:26 UTC (rev 113)
+@@ -54,7 +54,7 @@
+ 	{
+ 	    return (rgba_&gt;&gt;8)&amp;0xff;
+ 	}
+-	inline int red() const
++	inline unsigned int red() const
+ 	{
+ 	    return rgba_&amp;0xff;
+ 	}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="000001.html">[Mapnik-svn] r114 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#0">[ date ]</a>
+              <a href="thread.html#0">[ thread ]</a>
+              <a href="subject.html#0">[ subject ]</a>
+              <a href="author.html#0">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

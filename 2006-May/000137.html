@@ -1,0 +1,123 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r252 - trunk/plugins/input/shape
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-May/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r252%20-%20trunk/plugins/input/shape&In-Reply-To=%3C200605191226.k4JCQOjY009332%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000136.html">
+   <LINK REL="Next"  HREF="000138.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r252 - trunk/plugins/input/shape</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r252%20-%20trunk/plugins/input/shape&In-Reply-To=%3C200605191226.k4JCQOjY009332%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r252 - trunk/plugins/input/shape">pavlenko at berlios.de
+       </A><BR>
+    <I>Fri May 19 14:26:24 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000136.html">[Mapnik-svn] r251 - trunk/include
+</A></li>
+        <LI>Next message: <A HREF="000138.html">[Mapnik-svn] r253 - in trunk: include plugins/input/shape
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#137">[ date ]</a>
+              <a href="thread.html#137">[ thread ]</a>
+              <a href="subject.html#137">[ subject ]</a>
+              <a href="author.html#137">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-05-19 14:26:23 +0200 (Fri, 19 May 2006)
+New Revision: 252
+
+Modified:
+   trunk/plugins/input/shape/dbffile.cpp
+Log:
+use boost::lexical_cast for conversions
+( thanks to John Leslie &lt;<A HREF="https://lists.berlios.de/mailman/listinfo/mapnik-svn">jleslie at placebase.com</A>&gt; )
+
+
+
+Modified: trunk/plugins/input/shape/dbffile.cpp
+===================================================================
+--- trunk/plugins/input/shape/dbffile.cpp	2006-05-19 08:59:50 UTC (rev 251)
++++ trunk/plugins/input/shape/dbffile.cpp	2006-05-19 12:26:23 UTC (rev 252)
+@@ -23,6 +23,7 @@
+ #include &quot;dbffile.hpp&quot;
+ #include &quot;utils.hpp&quot;
+ #include &lt;boost/algorithm/string.hpp&gt;
++#include &lt;boost/lexical_cast.hpp&gt;
+ #include &lt;string&gt;
+ 
+ dbf_file::dbf_file()
+@@ -137,17 +138,29 @@
+                     boost::put(f,name,0);
+                     break;
+                 }
+-                if (fields_[col].dec_&gt;0)
++                if ( fields_[col].dec_&gt;0 )
+                 {   
+-                    double d;
+-                    fromString(str,d);
+-                    boost::put(f,name,d);
++                    try 
++                    {
++                        double d = boost::lexical_cast&lt;double&gt;(str);
++                        boost::put(f,name,d);
++                    }
++                    catch (boost::bad_lexical_cast &amp;)
++                    {
++                        boost::put(f,name,0.0);
++                    }
+                 }
+                 else
+                 {
+-                    int i;
+-                    fromString(str,i);
+-                    boost::put(f,name,i);
++                    try 
++                    {
++                        int i =  boost::lexical_cast&lt;int&gt;(str); 
++                        boost::put(f,name,i);
++                    }
++                    catch (boost::lexical_cast &amp;)
++                    {
++                        boost::put(f,name,0);
++                    }
+                 }
+                 break;
+             }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000136.html">[Mapnik-svn] r251 - trunk/include
+</A></li>
+	<LI>Next message: <A HREF="000138.html">[Mapnik-svn] r253 - in trunk: include plugins/input/shape
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#137">[ date ]</a>
+              <a href="thread.html#137">[ thread ]</a>
+              <a href="subject.html#137">[ subject ]</a>
+              <a href="author.html#137">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

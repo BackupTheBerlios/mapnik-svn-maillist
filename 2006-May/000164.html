@@ -1,0 +1,323 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r279 - in trunk: bindings/python include
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-May/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r279%20-%20in%20trunk%3A%20bindings/python%20include&In-Reply-To=%3C200605312125.k4VLPM0g020006%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000163.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r279 - in trunk: bindings/python include</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r279%20-%20in%20trunk%3A%20bindings/python%20include&In-Reply-To=%3C200605312125.k4VLPM0g020006%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r279 - in trunk: bindings/python include">pavlenko at berlios.de
+       </A><BR>
+    <I>Wed May 31 23:25:22 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000163.html">[Mapnik-svn] r278 - trunk/src
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#164">[ date ]</a>
+              <a href="thread.html#164">[ thread ]</a>
+              <a href="subject.html#164">[ subject ]</a>
+              <a href="author.html#164">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-05-31 23:25:21 +0200 (Wed, 31 May 2006)
+New Revision: 279
+
+Modified:
+   trunk/bindings/python/mapnik_line_symbolizer.cpp
+   trunk/bindings/python/mapnik_point_symbolizer.cpp
+   trunk/bindings/python/mapnik_polygon_symbolizer.cpp
+   trunk/bindings/python/mapnik_raster_symbolizer.cpp
+   trunk/bindings/python/mapnik_rule.cpp
+   trunk/bindings/python/mapnik_stroke.cpp
+   trunk/include/line_symbolizer.hpp
+   trunk/include/stroke.hpp
+Log:
+1. exposed fill_opacity property in PolygonSymbolizer
+2. added default ctors to {Point,Line,Polygon}Symbolizers 
+
+
+
+Modified: trunk/bindings/python/mapnik_line_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_line_symbolizer.cpp	2006-05-30 21:59:47 UTC (rev 278)
++++ trunk/bindings/python/mapnik_line_symbolizer.cpp	2006-05-31 21:25:21 UTC (rev 279)
+@@ -32,10 +32,13 @@
+ {
+     using namespace boost::python;
+     
+-    class_&lt;line_symbolizer&gt;(&quot;LineSymbolizer&quot;,init&lt;stroke const&amp;&gt;(&quot;TODO&quot;))
+-	.def(init&lt;Color const&amp; ,float&gt;())
+-	.add_property(&quot;stroke&quot;,make_function
+-		      (&amp;line_symbolizer::get_stroke,return_value_policy&lt;reference_existing_object&gt;()),
+-		      &amp;line_symbolizer::set_stroke)
++    class_&lt;line_symbolizer&gt;(&quot;LineSymbolizer&quot;,
++                            init&lt;&gt;(&quot;Default LineSymbolizer - 1px solid black&quot;))
++        .def(init&lt;stroke const&amp;&gt;(&quot;TODO&quot;))
++        .def(init&lt;Color const&amp; ,float&gt;())
++        .add_property(&quot;stroke&quot;,make_function
++                      (&amp;line_symbolizer::get_stroke,
++                       return_value_policy&lt;reference_existing_object&gt;()),
++                      &amp;line_symbolizer::set_stroke)
+ 	;    
+ }
+
+Modified: trunk/bindings/python/mapnik_point_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_point_symbolizer.cpp	2006-05-30 21:59:47 UTC (rev 278)
++++ trunk/bindings/python/mapnik_point_symbolizer.cpp	2006-05-31 21:25:21 UTC (rev 279)
+@@ -30,8 +30,10 @@
+ {
+     using namespace boost::python;
+     
+-    class_&lt;point_symbolizer&gt;(&quot;PointSymbolizer&quot;,init&lt;std::string const&amp;,
+-			     std::string const&amp;,unsigned,unsigned&gt;(&quot;TODO&quot;))
+-	;
++    class_&lt;point_symbolizer&gt;(&quot;PointSymbolizer&quot;,
++                             init&lt;&gt;(&quot;Default Point Symbolizer - 4x4 black square&quot;))
++        .def (init&lt;std::string const&amp;,
++              std::string const&amp;,unsigned,unsigned&gt;(&quot;TODO&quot;))
++        ;
+     
+ }
+
+Modified: trunk/bindings/python/mapnik_polygon_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_polygon_symbolizer.cpp	2006-05-30 21:59:47 UTC (rev 278)
++++ trunk/bindings/python/mapnik_polygon_symbolizer.cpp	2006-05-31 21:25:21 UTC (rev 279)
+@@ -32,11 +32,15 @@
+     using namespace boost::python;
+     
+     class_&lt;polygon_symbolizer&gt;(&quot;PolygonSymbolizer&quot;,
+-				    init&lt;Color const&amp;&gt;(&quot;TODO&quot;))
+-	.add_property(&quot;fill&quot;,make_function
+-		      (&amp;polygon_symbolizer::get_fill,
+-		       return_value_policy&lt;reference_existing_object&gt;()),
+-		      &amp;polygon_symbolizer::set_fill)
+-	;    
++				    init&lt;&gt;(&quot;Default PolygonSymbolizer - solid fill grey&quot;))
++        .def(init&lt;Color const&amp;&gt;(&quot;TODO&quot;))
++        .add_property(&quot;fill&quot;,make_function
++                      (&amp;polygon_symbolizer::get_fill,
++                       return_value_policy&lt;reference_existing_object&gt;()),
++                      &amp;polygon_symbolizer::set_fill)
++        .add_property(&quot;fill_opacity&quot;,
++                      &amp;polygon_symbolizer::get_opacity,
++                      &amp;polygon_symbolizer::set_opacity)
++        ;    
+ 
+ }
+
+Modified: trunk/bindings/python/mapnik_raster_symbolizer.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_raster_symbolizer.cpp	2006-05-30 21:59:47 UTC (rev 278)
++++ trunk/bindings/python/mapnik_raster_symbolizer.cpp	2006-05-31 21:25:21 UTC (rev 279)
+@@ -31,6 +31,6 @@
+     using namespace boost::python;
+     
+     class_&lt;raster_symbolizer&gt;(&quot;RasterSymbolizer&quot;,
+-				    init&lt;&gt;(&quot;TODO&quot;))
++				    init&lt;&gt;(&quot;Default ctor&quot;))
+ 	;    
+ }
+
+Modified: trunk/bindings/python/mapnik_rule.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_rule.cpp	2006-05-30 21:59:47 UTC (rev 278)
++++ trunk/bindings/python/mapnik_rule.cpp	2006-05-31 21:25:21 UTC (rev 279)
+@@ -59,28 +59,28 @@
+     	;
+     
+     class_&lt;rule_type&gt;(&quot;Rule&quot;,init&lt;&gt;(&quot;default constructor&quot;))
+-	.def(init&lt;std::string const&amp;,
+-	     boost::python::optional&lt;std::string const&amp;,double,double&gt; &gt;())
+-	.add_property(&quot;name&quot;,make_function
+-		      (&amp;rule_type::get_name,
+-		       return_value_policy&lt;copy_const_reference&gt;()),
+-		      &amp;rule_type::set_name)
+-	.add_property(&quot;title&quot;,make_function
+-		      (&amp;rule_type::get_title,return_value_policy&lt;copy_const_reference&gt;()),
+-		      &amp;rule_type::set_title)
+-	.add_property(&quot;abstract&quot;,make_function
+-		      (&amp;rule_type::get_abstract,return_value_policy&lt;copy_const_reference&gt;()),
+-		      &amp;rule_type::set_abstract)
+-	.add_property(&quot;filter&quot;,make_function
+-		      (&amp;rule_type::get_filter,return_value_policy&lt;copy_const_reference&gt;()),
+-		      &amp;rule_type::set_filter)
+-	.add_property(&quot;min_scale&quot;,&amp;rule_type::get_min_scale,&amp;rule_type::set_min_scale)
+-	.add_property(&quot;max_scale&quot;,&amp;rule_type::get_max_scale,&amp;rule_type::set_max_scale)
+-	.def(&quot;set_else&quot;,&amp;rule_type::set_else)
+-	.def(&quot;has_else&quot;,&amp;rule_type::has_else_filter)
+-	.def(&quot;active&quot;,&amp;rule_type::active)
+-	.add_property(&quot;symbols&quot;,make_function
+-		      (&amp;rule_type::get_symbolizers,return_value_policy&lt;reference_existing_object&gt;()))
+-	;
++        .def(init&lt;std::string const&amp;,
++             boost::python::optional&lt;std::string const&amp;,double,double&gt; &gt;())
++        .add_property(&quot;name&quot;,make_function
++                      (&amp;rule_type::get_name,
++                       return_value_policy&lt;copy_const_reference&gt;()),
++                      &amp;rule_type::set_name)
++        .add_property(&quot;title&quot;,make_function
++                      (&amp;rule_type::get_title,return_value_policy&lt;copy_const_reference&gt;()),
++                      &amp;rule_type::set_title)
++        .add_property(&quot;abstract&quot;,make_function
++                      (&amp;rule_type::get_abstract,return_value_policy&lt;copy_const_reference&gt;()),
++                      &amp;rule_type::set_abstract)
++        .add_property(&quot;filter&quot;,make_function
++                      (&amp;rule_type::get_filter,return_value_policy&lt;copy_const_reference&gt;()),
++                      &amp;rule_type::set_filter)
++        .add_property(&quot;min_scale&quot;,&amp;rule_type::get_min_scale,&amp;rule_type::set_min_scale)
++        .add_property(&quot;max_scale&quot;,&amp;rule_type::get_max_scale,&amp;rule_type::set_max_scale)
++        .def(&quot;set_else&quot;,&amp;rule_type::set_else)
++        .def(&quot;has_else&quot;,&amp;rule_type::has_else_filter)
++        .def(&quot;active&quot;,&amp;rule_type::active)
++        .add_property(&quot;symbols&quot;,make_function
++                      (&amp;rule_type::get_symbolizers,return_value_policy&lt;reference_existing_object&gt;()))
++        ;
+ }
+ 
+
+Modified: trunk/bindings/python/mapnik_stroke.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_stroke.cpp	2006-05-30 21:59:47 UTC (rev 278)
++++ trunk/bindings/python/mapnik_stroke.cpp	2006-05-31 21:25:21 UTC (rev 279)
+@@ -30,26 +30,26 @@
+     using namespace boost::python;
+ 
+     enum_&lt;line_cap_e&gt;(&quot;line_cap&quot;)
+-	.value(&quot;BUTT_CAP&quot;,BUTT_CAP)
+-	.value(&quot;SQUARE_CAP&quot;,SQUARE_CAP)
+-	.value(&quot;ROUND_CAP&quot;,ROUND_CAP)
+-	;
++        .value(&quot;BUTT_CAP&quot;,BUTT_CAP)
++        .value(&quot;SQUARE_CAP&quot;,SQUARE_CAP)
++        .value(&quot;ROUND_CAP&quot;,ROUND_CAP)
++        ;
+     enum_&lt;line_join_e&gt;(&quot;line_join&quot;)
+-	.value(&quot;MITER_JOIN&quot;,MITER_JOIN)
+-	.value(&quot;MITER_REVERT_JOIN&quot;,MITER_REVERT_JOIN)
+-	.value(&quot;ROUND_JOIN&quot;,ROUND_JOIN)
+-	.value(&quot;BEVEL_JOIN&quot;,BEVEL_JOIN)
+-	;
++        .value(&quot;MITER_JOIN&quot;,MITER_JOIN)
++        .value(&quot;MITER_REVERT_JOIN&quot;,MITER_REVERT_JOIN)
++        .value(&quot;ROUND_JOIN&quot;,ROUND_JOIN)
++        .value(&quot;BEVEL_JOIN&quot;,BEVEL_JOIN)
++        ;
+ 
+     class_&lt;stroke&gt;(&quot;Stroke&quot;,init&lt;&gt;())
+-	.def(init&lt;Color,float&gt;())
+-	.add_property(&quot;color&quot;,make_function
+-		      (&amp;stroke::get_color,return_value_policy&lt;reference_existing_object&gt;()),
+-		      &amp;stroke::set_color)
+-	.add_property(&quot;width&quot;,&amp;stroke::get_width,&amp;stroke::set_width) 
+-	.add_property(&quot;opacity&quot;,&amp;stroke::get_opacity,&amp;stroke::set_opacity)
+-	.add_property(&quot;line_cap&quot;,&amp;stroke::get_line_cap,&amp;stroke::set_line_cap)
+-	.add_property(&quot;line_join&quot;,&amp;stroke::get_line_join,&amp;stroke::set_line_join)
+-	.def(&quot;add_dash&quot;,&amp;stroke::add_dash)
+-	;
++        .def(init&lt;Color,float&gt;())
++        .add_property(&quot;color&quot;,make_function
++                      (&amp;stroke::get_color,return_value_policy&lt;reference_existing_object&gt;()),
++                      &amp;stroke::set_color)
++        .add_property(&quot;width&quot;,&amp;stroke::get_width,&amp;stroke::set_width) 
++        .add_property(&quot;opacity&quot;,&amp;stroke::get_opacity,&amp;stroke::set_opacity)
++        .add_property(&quot;line_cap&quot;,&amp;stroke::get_line_cap,&amp;stroke::set_line_cap)
++        .add_property(&quot;line_join&quot;,&amp;stroke::get_line_join,&amp;stroke::set_line_join)
++        .def(&quot;add_dash&quot;,&amp;stroke::add_dash)
++        ;
+ }
+
+Modified: trunk/include/line_symbolizer.hpp
+===================================================================
+--- trunk/include/line_symbolizer.hpp	2006-05-30 21:59:47 UTC (rev 278)
++++ trunk/include/line_symbolizer.hpp	2006-05-31 21:25:21 UTC (rev 279)
+@@ -30,19 +30,22 @@
+ {
+     struct MAPNIK_DECL line_symbolizer
+     {
+-	line_symbolizer(stroke const&amp; stroke)
+-	    : stroke_(stroke) {}
++        explicit line_symbolizer()
++            : stroke_() {}
++        
++        line_symbolizer(stroke const&amp; stroke)
++            : stroke_(stroke) {}
+ 	
+-	line_symbolizer(const Color&amp; pen,float width=1.0)
+-	    : stroke_(pen,width) {}
+-	stroke const&amp; get_stroke() const
+-	{
+-	    return stroke_;
+-	}
+-	void set_stroke(stroke const&amp; stroke)
+-	{
+-	    stroke_ = stroke;
+-	}
++        line_symbolizer(const Color&amp; pen,float width=1.0)
++            : stroke_(pen,width) {}
++        stroke const&amp; get_stroke() const
++        {
++            return stroke_;
++        }
++        void set_stroke(stroke const&amp; stroke)
++        {
++            stroke_ = stroke;
++        }
+ 
+     private:
+ 		stroke stroke_;
+
+Modified: trunk/include/stroke.hpp
+===================================================================
+--- trunk/include/stroke.hpp	2006-05-30 21:59:47 UTC (rev 278)
++++ trunk/include/stroke.hpp	2006-05-31 21:25:21 UTC (rev 279)
+@@ -57,7 +57,7 @@
+         line_join_e line_join_;
+         dash_array dash_;	
+     public:
+-        stroke() 
++        explicit stroke() 
+             : c_(0,0,0),
+               width_(1.0),
+               opacity_(1.0),
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000163.html">[Mapnik-svn] r278 - trunk/src
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#164">[ date ]</a>
+              <a href="thread.html#164">[ thread ]</a>
+              <a href="subject.html#164">[ subject ]</a>
+              <a href="author.html#164">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

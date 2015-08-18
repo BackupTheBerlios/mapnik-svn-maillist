@@ -1,0 +1,236 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r215 - in trunk: include src utils/shapeindex
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r215%20-%20in%20trunk%3A%20include%20src%20utils/shapeindex&In-Reply-To=%3C200603280830.k2S8UMeN027754%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000099.html">
+   <LINK REL="Next"  HREF="000101.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r215 - in trunk: include src utils/shapeindex</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r215%20-%20in%20trunk%3A%20include%20src%20utils/shapeindex&In-Reply-To=%3C200603280830.k2S8UMeN027754%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r215 - in trunk: include src utils/shapeindex">pavlenko at berlios.de
+       </A><BR>
+    <I>Tue Mar 28 10:30:22 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000099.html">[Mapnik-svn] r214 - trunk/bindings/python/pyprojection
+</A></li>
+        <LI>Next message: <A HREF="000101.html">[Mapnik-svn] r216 - in trunk: plugins/input/shape utils/shapeindex
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#100">[ date ]</a>
+              <a href="thread.html#100">[ thread ]</a>
+              <a href="subject.html#100">[ subject ]</a>
+              <a href="author.html#100">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-28 10:29:36 +0200 (Tue, 28 Mar 2006)
+New Revision: 215
+
+Modified:
+   trunk/include/agg_renderer.hpp
+   trunk/include/layer.hpp
+   trunk/src/agg_renderer.cpp
+   trunk/src/layer.cpp
+   trunk/utils/shapeindex/shapeindex.cpp
+Log:
+added set_datasource method (TODO!!!)
+fixed pointz in shapeindex
+
+
+
+Modified: trunk/include/agg_renderer.hpp
+===================================================================
+--- trunk/include/agg_renderer.hpp	2006-03-28 01:16:11 UTC (rev 214)
++++ trunk/include/agg_renderer.hpp	2006-03-28 08:29:36 UTC (rev 215)
+@@ -29,27 +29,27 @@
+ namespace mapnik
+ {
+     template &lt;typename T&gt;
+-	class MAPNIK_DECL agg_renderer : public feature_style_processor&lt;agg_renderer&lt;T&gt; &gt;,
+-			  private boost::noncopyable
++    class MAPNIK_DECL agg_renderer : public feature_style_processor&lt;agg_renderer&lt;T&gt; &gt;,
++				     private boost::noncopyable
+     {
+-	public:
+-		agg_renderer(Map const&amp; m, T &amp; pixmap);
+-		void start_map_processing(Map const&amp; map);
+-		void end_map_processing(Map const&amp; map);
+-		void start_layer_processing(Layer const&amp; lay);
+-		void end_layer_processing(Layer const&amp; lay);
+-		void process(point_symbolizer const&amp; sym,Feature const&amp; feature);
+-		void process(line_symbolizer const&amp; sym,Feature const&amp; feature);
+-		void process(line_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
+-		void process(polygon_symbolizer const&amp; sym,Feature const&amp; feature);
+-		void process(polygon_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
+-		void process(raster_symbolizer const&amp; sym,Feature const&amp; feature);
+-		void process(text_symbolizer const&amp; sym,Feature const&amp; feature);
++    public:
++	agg_renderer(Map const&amp; m, T &amp; pixmap);
++	void start_map_processing(Map const&amp; map);
++	void end_map_processing(Map const&amp; map);
++	void start_layer_processing(Layer const&amp; lay);
++	void end_layer_processing(Layer const&amp; lay);
++	void process(point_symbolizer const&amp; sym,Feature const&amp; feature);
++	void process(line_symbolizer const&amp; sym,Feature const&amp; feature);
++	void process(line_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
++	void process(polygon_symbolizer const&amp; sym,Feature const&amp; feature);
++	void process(polygon_pattern_symbolizer const&amp; sym,Feature const&amp; feature);
++	void process(raster_symbolizer const&amp; sym,Feature const&amp; feature);
++	void process(text_symbolizer const&amp; sym,Feature const&amp; feature);
+     private:
+-		T &amp; pixmap_;
+-		CoordTransform t_;
+-		face_manager&lt;freetype_engine&gt; font_manager_;
+-		label_collision_detector2 detector_;
++	T &amp; pixmap_;
++	CoordTransform t_;
++	face_manager&lt;freetype_engine&gt; font_manager_;
++	label_collision_detector2 detector_;
+     };
+ }
+ 
+
+Modified: trunk/include/layer.hpp
+===================================================================
+--- trunk/include/layer.hpp	2006-03-28 01:16:11 UTC (rev 214)
++++ trunk/include/layer.hpp	2006-03-28 08:29:36 UTC (rev 215)
+@@ -81,6 +81,7 @@
+ 	void add_to_selection(boost::shared_ptr&lt;Feature&gt;&amp; feature) const;
+ 	std::vector&lt;boost::shared_ptr&lt;Feature&gt; &gt;&amp; selection() const;
+ 	void clear_selection() const;
++	void set_datasource(datasource_p const&amp; ds);
+ 	datasource_p const&amp; datasource() const;
+ 	Envelope&lt;double&gt; envelope() const;
+ 	virtual ~Layer();
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-03-28 01:16:11 UTC (rev 214)
++++ trunk/src/agg_renderer.cpp	2006-03-28 08:29:36 UTC (rev 215)
+@@ -106,6 +106,7 @@
+     void agg_renderer&lt;T&gt;::start_layer_processing(Layer const&amp; lay)
+     {
+ 	std::clog &lt;&lt; &quot;start layer processing : &quot; &lt;&lt; lay.name()  &lt;&lt; std::endl;
++	std::clog &lt;&lt; &quot;datasource = &quot; &lt;&lt; lay.datasource().get() &lt;&lt; std::endl;
+     }
+     
+     template &lt;typename T&gt;
+
+Modified: trunk/src/layer.cpp
+===================================================================
+--- trunk/src/layer.cpp	2006-03-28 01:16:11 UTC (rev 214)
++++ trunk/src/layer.cpp	2006-03-28 08:29:36 UTC (rev 215)
+@@ -30,7 +30,16 @@
+ namespace mapnik
+ {
+     using namespace std;
+-    Layer::Layer() {}
++    Layer::Layer()
++	: params_(),
++	  name_(&quot;uknown&quot;),
++	  minZoom_(0),
++	  maxZoom_(std::numeric_limits&lt;double&gt;::max()),
++	  active_(true),
++	  selectable_(false),
++	  selection_style_(&quot;default_selection&quot;)
++    {}
++
+     Layer::Layer(const parameters&amp; params)
+         :params_(params),
+ 	 name_(params_[&quot;name&quot;]),
+@@ -48,7 +57,7 @@
+ 	 maxZoom_(rhs.maxZoom_),
+ 	 active_(rhs.active_),
+ 	 selectable_(rhs.selectable_),
+-	 //ds_(rhs.ds_),
++	 ds_(rhs.ds_),
+ 	 styles_(rhs.styles_),
+ 	 selection_style_(rhs.selection_style_) {}
+     
+@@ -154,12 +163,17 @@
+ 	    }
+ 	    catch (...)
+ 	    {
+-		std::clog &lt;&lt; &quot;exception caught : can not create datasorce&quot; &lt;&lt; std::endl;  
++		std::clog &lt;&lt; &quot;exception caught : can not create datasource&quot; &lt;&lt; std::endl;  
+ 	    }
+ 	}
+ 	return ds_;
+     }
+-
++    // TODO: !!!!
++    void Layer::set_datasource(datasource_p const&amp; ds)
++    {
++	ds_ = ds;
++    }
++    
+     Envelope&lt;double&gt; Layer::envelope() const
+     {
+ 	datasource_p const&amp; ds = datasource();
+
+Modified: trunk/utils/shapeindex/shapeindex.cpp
+===================================================================
+--- trunk/utils/shapeindex/shapeindex.cpp	2006-03-28 01:16:11 UTC (rev 214)
++++ trunk/utils/shapeindex/shapeindex.cpp	2006-03-28 08:29:36 UTC (rev 215)
+@@ -150,12 +150,22 @@
+ 		item_ext=Envelope&lt;double&gt;(x,y,x,y);
+ 	
+ 	    }
++	    if (shape_type==shape_io::shape_pointm)
++	    {
++		double x=shp.read_double();
++		double y=shp.read_double();
++		shp.read_double();
++		shp.skip(2*content_length-3*8-4);
++		item_ext=Envelope&lt;double&gt;(x,y,x,y);
++	
++	    }
+ 	    else if (shape_type==shape_io::shape_pointz)
+ 	    {
+ 		double x=shp.read_double();
+ 		double y=shp.read_double();
+ 		shp.read_double();
+-		shp.skip(2*content_length-2*8-4);
++		shp.read_double();
++		shp.skip(2*content_length-4*8-4);
+ 		item_ext=Envelope&lt;double&gt;(x,y,x,y);
+ 	    }
+ 	
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000099.html">[Mapnik-svn] r214 - trunk/bindings/python/pyprojection
+</A></li>
+	<LI>Next message: <A HREF="000101.html">[Mapnik-svn] r216 - in trunk: plugins/input/shape utils/shapeindex
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#100">[ date ]</a>
+              <a href="thread.html#100">[ thread ]</a>
+              <a href="subject.html#100">[ subject ]</a>
+              <a href="author.html#100">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

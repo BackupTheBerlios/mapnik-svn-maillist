@@ -1,0 +1,113 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r427 - trunk/plugins/input/postgis
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r427%20-%20trunk/plugins/input/postgis&In-Reply-To=%3C200701161522.l0GFMq5c014435%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000311.html">
+   <LINK REL="Next"  HREF="000313.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r427 - trunk/plugins/input/postgis</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r427%20-%20trunk/plugins/input/postgis&In-Reply-To=%3C200701161522.l0GFMq5c014435%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r427 - trunk/plugins/input/postgis">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Tue Jan 16 16:22:52 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000311.html">[Mapnik-svn] r426 - trunk/src
+</A></li>
+        <LI>Next message: <A HREF="000313.html">[Mapnik-svn] r428 - in trunk: include/mapnik plugins/input/shape
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#312">[ date ]</a>
+              <a href="thread.html#312">[ thread ]</a>
+              <a href="subject.html#312">[ subject ]</a>
+              <a href="author.html#312">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2007-01-16 16:22:49 +0100 (Tue, 16 Jan 2007)
+New Revision: 427
+
+Modified:
+   trunk/plugins/input/postgis/connection_manager.hpp
+Log:
+use all parameters to calculate connection id
+
+
+
+Modified: trunk/plugins/input/postgis/connection_manager.hpp
+===================================================================
+--- trunk/plugins/input/postgis/connection_manager.hpp	2007-01-16 15:18:25 UTC (rev 426)
++++ trunk/plugins/input/postgis/connection_manager.hpp	2007-01-16 15:22:49 UTC (rev 427)
+@@ -38,11 +38,7 @@
+ template &lt;typename T&gt;
+ class ConnectionCreator
+ {
+-    string url_;
+-    string port_;
+-    string dbname_;
+-    string user_;
+-    string pass_;
++
+ public:
+     ConnectionCreator(string const&amp; url,
+                       string const&amp; port,
+@@ -59,10 +55,21 @@
+     {
+         return new T(url_,port_,dbname_,user_,pass_);
+     }
++    
+     std::string id() const 
+     {
+-        return url_ + &quot;:&quot; + dbname_;
++        return url_ + &quot;:&quot; 
++	  + dbname_ + &quot;:&quot; 
++	  + port_ +&quot;:&quot; 
++	  + user_ ; 
+     }
++private:
++    string url_;
++    string port_;
++    string dbname_;
++    string user_;
++    string pass_;
++
+ };
+ 
+ class ConnectionManager : public singleton &lt;ConnectionManager,CreateStatic&gt;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000311.html">[Mapnik-svn] r426 - trunk/src
+</A></li>
+	<LI>Next message: <A HREF="000313.html">[Mapnik-svn] r428 - in trunk: include/mapnik plugins/input/shape
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#312">[ date ]</a>
+              <a href="thread.html#312">[ thread ]</a>
+              <a href="subject.html#312">[ subject ]</a>
+              <a href="author.html#312">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

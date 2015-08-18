@@ -1,0 +1,124 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r316 - trunk/plugins/input/postgis
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-October/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r316%20-%20trunk/plugins/input/postgis&In-Reply-To=%3C200610050900.k9590cd2002557%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000200.html">
+   <LINK REL="Next"  HREF="000202.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r316 - trunk/plugins/input/postgis</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r316%20-%20trunk/plugins/input/postgis&In-Reply-To=%3C200610050900.k9590cd2002557%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r316 - trunk/plugins/input/postgis">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Thu Oct  5 11:00:38 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000200.html">[Mapnik-svn] r315 - trunk/src
+</A></li>
+        <LI>Next message: <A HREF="000202.html">[Mapnik-svn] r317 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#201">[ date ]</a>
+              <a href="thread.html#201">[ thread ]</a>
+              <a href="subject.html#201">[ subject ]</a>
+              <a href="author.html#201">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-10-05 11:00:36 +0200 (Thu, 05 Oct 2006)
+New Revision: 316
+
+Modified:
+   trunk/plugins/input/postgis/connection_manager.hpp
+   trunk/plugins/input/postgis/postgis.hpp
+   trunk/plugins/input/postgis/postgisfs.cpp
+Log:
+Use &lt;mapnik/*.hpp&gt; includes. Thanks to Vince Spader from 10east.com
+
+
+
+Modified: trunk/plugins/input/postgis/connection_manager.hpp
+===================================================================
+--- trunk/plugins/input/postgis/connection_manager.hpp	2006-10-04 18:54:27 UTC (rev 315)
++++ trunk/plugins/input/postgis/connection_manager.hpp	2006-10-05 09:00:36 UTC (rev 316)
+@@ -26,8 +26,8 @@
+ #define CONNECTION_MANAGER_HPP
+ 
+ #include &lt;string&gt;
+-#include &quot;pool.hpp&quot;
+-#include &quot;utils.hpp&quot;
++#include &lt;mapnik/pool.hpp&gt;
++#include &lt;mapnik/utils.hpp&gt;
+ #include &quot;connection.hpp&quot;
+ #include &lt;boost/shared_ptr.hpp&gt;
+ #include &lt;boost/thread/mutex.hpp&gt;
+
+Modified: trunk/plugins/input/postgis/postgis.hpp
+===================================================================
+--- trunk/plugins/input/postgis/postgis.hpp	2006-10-04 18:54:27 UTC (rev 315)
++++ trunk/plugins/input/postgis/postgis.hpp	2006-10-05 09:00:36 UTC (rev 316)
+@@ -26,9 +26,9 @@
+ #define POSTGIS_HPP
+ 
+ 
+-#include &quot;datasource.hpp&quot;
+-#include &quot;envelope.hpp&quot;
+-#include &quot;feature.hpp&quot;
++#include &lt;mapnik/datasource.hpp&gt;
++#include &lt;mapnik/envelope.hpp&gt;
++#include &lt;mapnik/feature.hpp&gt;
+ 
+ #include &quot;connection_manager.hpp&quot;
+ #include &lt;boost/lexical_cast.hpp&gt;
+
+Modified: trunk/plugins/input/postgis/postgisfs.cpp
+===================================================================
+--- trunk/plugins/input/postgis/postgisfs.cpp	2006-10-04 18:54:27 UTC (rev 315)
++++ trunk/plugins/input/postgis/postgisfs.cpp	2006-10-05 09:00:36 UTC (rev 316)
+@@ -24,8 +24,8 @@
+ 
+ 
+ #include &quot;postgis.hpp&quot;
+-#include &quot;global.hpp&quot;
+-#include &quot;wkb.hpp&quot;
++#include &lt;mapnik/global.hpp&gt;
++#include &lt;mapnik/wkb.hpp&gt;
+ 
+ using boost::lexical_cast;
+ using boost::bad_lexical_cast;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000200.html">[Mapnik-svn] r315 - trunk/src
+</A></li>
+	<LI>Next message: <A HREF="000202.html">[Mapnik-svn] r317 - trunk/src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#201">[ date ]</a>
+              <a href="thread.html#201">[ thread ]</a>
+              <a href="subject.html#201">[ subject ]</a>
+              <a href="author.html#201">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

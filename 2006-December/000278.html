@@ -1,0 +1,238 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r393 - in trunk: bindings/python include/mapnik	plugins/input/raster src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-December/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r393%20-%20in%20trunk%3A%20bindings/python%20include/mapnik%0A%09plugins/input/raster%20src&In-Reply-To=%3C200612010937.kB19bfvC027475%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="000279.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r393 - in trunk: bindings/python include/mapnik	plugins/input/raster src</H1>
+    <B>pavlenko at mail.berlios.de</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r393%20-%20in%20trunk%3A%20bindings/python%20include/mapnik%0A%09plugins/input/raster%20src&In-Reply-To=%3C200612010937.kB19bfvC027475%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r393 - in trunk: bindings/python include/mapnik	plugins/input/raster src">pavlenko at mail.berlios.de
+       </A><BR>
+    <I>Fri Dec  1 10:37:41 CET 2006</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="000279.html">[Mapnik-svn] r394 - trunk/plugins/input/postgis
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#278">[ date ]</a>
+              <a href="thread.html#278">[ thread ]</a>
+              <a href="subject.html#278">[ subject ]</a>
+              <a href="author.html#278">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-12-01 10:37:37 +0100 (Fri, 01 Dec 2006)
+New Revision: 393
+
+Modified:
+   trunk/bindings/python/mapnik_python.cpp
+   trunk/include/mapnik/agg_renderer.hpp
+   trunk/include/mapnik/ctrans.hpp
+   trunk/plugins/input/raster/raster_featureset.cpp
+   trunk/src/agg_renderer.cpp
+Log:
+Tiling patch from Toby allows for a selected pixel region within an extent
+to be rendered. This allows for a large extent (larger than can be
+rendered into a single image in memory) to be rendered out as tiles.
+Since the full extent is used for the placement calculations text
+crossing tile boundaries will be consistent.
+
+This method is a little inefficient when a large number of labels need
+placed, an improved method would be to cache these placements between
+tiles, but the attached is a start.
+
+c++ users should simple call the render method with a start X and Y
+coordinate specified, 
+
+for (int TileX = 0;TileX &lt; 5;++TileX)
+{
+	for(int TileY = 0;TileY &lt; 5; ++TileY)
+	{
+		int TileSize=250;
+		int StartX = TileX*TileSize;
+		int StartY = TileY*TileSize;
+		
+		Image32 buf(TileSize,TileSize);
+		agg_renderer&lt;Image32&gt; ren(m,buf,StartX,StartY);
+		
+		ren.apply();
+		char name[324];
+		sprintf(name,&quot;tile_%d_%d.png&quot;,TileX,TileY);
+		ImageUtils::save_to_file(name,&quot;png&quot;,buf);
+	}
+}
+
+python users should call render_tile_to_file
+
+for y in range(tile_count_y):
+	for x in range(tile_count_x):
+		if not os.path.exists(&quot;tiles/%d/%d/&quot; % (map_scale, y)):
+			os.makedirs(&quot;tiles/%d/%d/&quot; % (map_scale, y))
+		render_tile_to_file(m, x*tile_size, y*tile_size, tile_size, tile_size,
+'tiles/%d/%d/%d.png' % (map_scale,y,x), 'png')
+
+
+
+Modified: trunk/bindings/python/mapnik_python.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_python.cpp	2006-11-29 12:28:17 UTC (rev 392)
++++ trunk/bindings/python/mapnik_python.cpp	2006-12-01 09:37:37 UTC (rev 393)
+@@ -55,7 +55,6 @@
+ #include &lt;mapnik/map.hpp&gt;
+ #include &lt;mapnik/agg_renderer.hpp&gt;
+ #include &lt;mapnik/graphics.hpp&gt;
+-#include &lt;mapnik/datasource_cache.hpp&gt;
+ #include &lt;mapnik/load_map.hpp&gt;
+ #include &lt;mapnik/save_map.hpp&gt;
+ 
+@@ -79,19 +78,11 @@
+ BOOST_PYTHON_MODULE(_mapnik)
+ {
+     using namespace boost::python;
+-    using mapnik::Featureset;
+-    using mapnik::featureset_ptr;
+-    using mapnik::datasource;
+-    using mapnik::coord;
+-    using mapnik::filter_ptr;
++ 
+     using mapnik::load_map;
+     using mapnik::save_map;
+     
+-    export_query();
+-    
+-    class_&lt;Featureset,featureset_ptr,boost::noncopyable&gt;(&quot;FeatureSet&quot;,no_init)
+-      ;
+-    
++    export_query();    
+     export_datasource();
+     export_parameters();
+     export_color(); 
+@@ -123,5 +114,5 @@
+     def(&quot;load_map&quot;,&amp;load_map,&quot;load Map object from XML&quot;);
+     def(&quot;save_map&quot;,&amp;load_map,&quot;sace Map object to XML&quot;);
+     
+-    register_ptr_to_python&lt;filter_ptr&gt;();
++    register_ptr_to_python&lt;mapnik::filter_ptr&gt;();
+ }
+
+Modified: trunk/include/mapnik/agg_renderer.hpp
+===================================================================
+--- trunk/include/mapnik/agg_renderer.hpp	2006-11-29 12:28:17 UTC (rev 392)
++++ trunk/include/mapnik/agg_renderer.hpp	2006-12-01 09:37:37 UTC (rev 393)
+@@ -41,7 +41,7 @@
+                                      private boost::noncopyable
+     {
+     public:
+-        agg_renderer(Map const&amp; m, T &amp; pixmap);
++        agg_renderer(Map const&amp; m, T &amp; pixmap, unsigned offset_x=0, unsigned offset_y=0);
+         void start_map_processing(Map const&amp; map);
+         void end_map_processing(Map const&amp; map);
+         void start_layer_processing(Layer const&amp; lay);
+
+Modified: trunk/include/mapnik/ctrans.hpp
+===================================================================
+--- trunk/include/mapnik/ctrans.hpp	2006-11-29 12:28:17 UTC (rev 392)
++++ trunk/include/mapnik/ctrans.hpp	2006-12-01 09:37:37 UTC (rev 393)
+@@ -93,9 +93,11 @@
+ 	    int height;
+ 	    double scale_;
+ 	    Envelope&lt;double&gt; extent_;
++        double offset_x_,offset_y_;
+     public:
+-        CoordTransform(int width,int height,const Envelope&lt;double&gt;&amp; extent)
+-            :width(width),height(height),extent_(extent)
++        CoordTransform(int width,int height,const Envelope&lt;double&gt;&amp; extent,
++                       double offset_x = 0, double offset_y = 0)
++            :width(width),height(height),extent_(extent),offset_x_(offset_x),offset_y_(offset_y)
+         {
+             double sx=((double)width)/extent_.width();
+             double sy=((double)height)/extent_.height();
+@@ -110,14 +112,14 @@
+         inline void forward(double * x, double * y) const
+         {
+             
+-            *x = (*x - extent_.minx()) * scale_;
+-            *y = (extent_.maxy() - *y) * scale_;
++            *x = (*x - extent_.minx()) * scale_ - offset_x_;
++            *y = (extent_.maxy() - *y) * scale_ - offset_y_;
+         }
+         
+         inline void backward(double * x, double * y) const
+         {
+-            *x = extent_.minx() + *x/scale_;
+-            *y = extent_.maxy() - *y/scale_;
++            *x = extent_.minx() + (*x + offset_x_)/scale_;
++            *y = extent_.maxy() - (*y + offset_y_)/scale_;
+         }
+         
+         inline coord2d&amp; forward(coord2d&amp; c) const
+
+Modified: trunk/plugins/input/raster/raster_featureset.cpp
+===================================================================
+--- trunk/plugins/input/raster/raster_featureset.cpp	2006-11-29 12:28:17 UTC (rev 392)
++++ trunk/plugins/input/raster/raster_featureset.cpp	2006-12-01 09:37:37 UTC (rev 393)
+@@ -53,7 +53,7 @@
+                 int image_height=reader-&gt;height();
+                 if (image_width&gt;0 &amp;&amp; image_height&gt;0)
+                 {
+-                    CoordTransform t(image_width,image_height,curIter_-&gt;envelope());
++                    CoordTransform t(image_width,image_height,curIter_-&gt;envelope(),0,0);
+                     Envelope&lt;double&gt; intersect=extent_.intersect(curIter_-&gt;envelope());
+                     Envelope&lt;double&gt; ext=t.forward(intersect);
+                     
+
+Modified: trunk/src/agg_renderer.cpp
+===================================================================
+--- trunk/src/agg_renderer.cpp	2006-11-29 12:28:17 UTC (rev 392)
++++ trunk/src/agg_renderer.cpp	2006-12-01 09:37:37 UTC (rev 393)
+@@ -91,10 +91,10 @@
+     };
+ 
+     template &lt;typename T&gt;
+-    agg_renderer&lt;T&gt;::agg_renderer(Map const&amp; m, T &amp; pixmap)
++    agg_renderer&lt;T&gt;::agg_renderer(Map const&amp; m, T &amp; pixmap, unsigned offset_x, unsigned offset_y)
+         : feature_style_processor&lt;agg_renderer&gt;(m),
+           pixmap_(pixmap),
+-          t_(m.getWidth(),m.getHeight(),m.getCurrentExtent()),
++          t_(m.getWidth(),m.getHeight(),m.getCurrentExtent(),offset_x,offset_y),
+           finder_(Envelope&lt;double&gt;(0 ,0, m.getWidth(), m.getHeight()), 64),
+           point_detector_(Envelope&lt;double&gt;(-64 ,-64, m.getWidth() + 64 ,m.getHeight() + 64))
+     {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="000279.html">[Mapnik-svn] r394 - trunk/plugins/input/postgis
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#278">[ date ]</a>
+              <a href="thread.html#278">[ thread ]</a>
+              <a href="subject.html#278">[ subject ]</a>
+              <a href="author.html#278">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

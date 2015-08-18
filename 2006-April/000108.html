@@ -1,0 +1,877 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r223 - in trunk: include src
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-April/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r223%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200604050827.k358RwTj001365%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="000109.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r223 - in trunk: include src</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r223%20-%20in%20trunk%3A%20include%20src&In-Reply-To=%3C200604050827.k358RwTj001365%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r223 - in trunk: include src">pavlenko at berlios.de
+       </A><BR>
+    <I>Wed Apr  5 10:27:58 CEST 2006</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="000109.html">[Mapnik-svn] r224 - in trunk/demo: data python
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#108">[ date ]</a>
+              <a href="thread.html#108">[ thread ]</a>
+              <a href="subject.html#108">[ subject ]</a>
+              <a href="author.html#108">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-04-05 10:27:45 +0200 (Wed, 05 Apr 2006)
+New Revision: 223
+
+Modified:
+   trunk/include/color.hpp
+   trunk/include/layer.hpp
+   trunk/include/mapnik.hpp
+   trunk/src/layer.cpp
+   trunk/src/line_pattern_symbolizer.cpp
+   trunk/src/png_reader.cpp
+   trunk/src/point_symbolizer.cpp
+   trunk/src/polygon_pattern_symbolizer.cpp
+   trunk/src/tiff_reader.cpp
+Log:
+1. validate image reader 
+2. open files in binary mode (win32)
+ 
+
+
+Modified: trunk/include/color.hpp
+===================================================================
+--- trunk/include/color.hpp	2006-03-31 10:32:02 UTC (rev 222)
++++ trunk/include/color.hpp	2006-04-05 08:27:45 UTC (rev 223)
+@@ -100,11 +100,11 @@
+ 	}
+ 
+ 	inline std::string to_string() const
+-	{
++        {
+ 	    std::stringstream ss;
+ 	    ss &lt;&lt; &quot;rgb (&quot; &lt;&lt; red() &lt;&lt; &quot;,&quot;  &lt;&lt; green() &lt;&lt; &quot;,&quot;  &lt;&lt; blue() &lt;&lt;&quot;)&quot;;
+ 	    return ss.str();
+-	} 
++        } 
+     };    
+ }
+ 
+
+Modified: trunk/include/layer.hpp
+===================================================================
+--- trunk/include/layer.hpp	2006-03-31 10:32:02 UTC (rev 222)
++++ trunk/include/layer.hpp	2006-04-05 08:27:45 UTC (rev 223)
+@@ -53,11 +53,9 @@
+ 	double maxZoom_;
+ 	bool active_;
+ 	bool selectable_;
+-	
+-	std::vector&lt;std::string&gt;  styles_;
+-	std::string selection_style_;
+-
+ 	mutable datasource_p ds_;
++	std::vector&lt;std::string&gt;  styles_;
++	std::string selection_style_;	
+ 	mutable std::vector&lt;boost::shared_ptr&lt;Feature&gt; &gt; selection_;
+         
+     public:
+
+Modified: trunk/include/mapnik.hpp
+===================================================================
+--- trunk/include/mapnik.hpp	2006-03-31 10:32:02 UTC (rev 222)
++++ trunk/include/mapnik.hpp	2006-04-05 08:27:45 UTC (rev 223)
+@@ -78,8 +78,8 @@
+ 
+ namespace mapnik
+ {
+-    void save_to_xml(Map const&amp; map,const char* filename);  
+-    void load_from_xml(Map &amp; map, const char * filename);
++    void MAPNIK_DECL save_to_xml(Map const&amp; map,const char* filename);  
++    void MAPNIK_DECL load_from_xml(Map &amp; map, const char * filename);
+ }
+ 
+ #endif //MAPNIK_HPP
+
+Modified: trunk/src/layer.cpp
+===================================================================
+--- trunk/src/layer.cpp	2006-03-31 10:32:02 UTC (rev 222)
++++ trunk/src/layer.cpp	2006-04-05 08:27:45 UTC (rev 223)
+@@ -85,11 +85,11 @@
+         maxZoom_=rhs.maxZoom_;
+         active_=rhs.active_;
+         selectable_=rhs.selectable_;
+-        //ds_=rhs.ds_;
+         styles_=rhs.styles_;
++	ds_=rhs.ds_;
+ 	selection_style_=rhs.selection_style_;
+     }
+-
++    
+     Layer::~Layer() {}
+ 
+     parameters const&amp; Layer::params() const
+
+Modified: trunk/src/line_pattern_symbolizer.cpp
+===================================================================
+--- trunk/src/line_pattern_symbolizer.cpp	2006-03-31 10:32:02 UTC (rev 222)
++++ trunk/src/line_pattern_symbolizer.cpp	2006-04-05 08:27:45 UTC (rev 223)
+@@ -37,7 +37,8 @@
+ 	try 
+ 	{
+ 	    std::auto_ptr&lt;ImageReader&gt; reader(get_image_reader(type,file));
+-	    reader-&gt;read(0,0,*pattern_);		
++	    if (reader.get())
++		reader-&gt;read(0,0,*pattern_);		
+ 	} 
+ 	catch (...) 
+ 	{
+
+Modified: trunk/src/png_reader.cpp
+===================================================================
+--- trunk/src/png_reader.cpp	2006-03-31 10:32:02 UTC (rev 222)
++++ trunk/src/png_reader.cpp	2006-04-05 08:27:45 UTC (rev 223)
+@@ -31,170 +31,185 @@
+     class PngReader : public ImageReader 
+     {
+     private:
+-	std::string fileName_;
+-	unsigned width_;
+-	unsigned height_;
+-	int bit_depth_;
+-	int color_type_;
++        std::string fileName_;
++        unsigned width_;
++        unsigned height_;
++        int bit_depth_;
++        int color_type_;
+     public:
+-	explicit PngReader(const std::string&amp; fileName);
+-	~PngReader();
+-	unsigned width() const;
+-	unsigned height() const;
+-	void read(unsigned x,unsigned y,ImageData32&amp; image);	
++        explicit PngReader(const std::string&amp; fileName);
++        ~PngReader();
++        unsigned width() const;
++        unsigned height() const;
++        void read(unsigned x,unsigned y,ImageData32&amp; image);	
+     private:
+-	PngReader(const PngReader&amp;);	
+-	PngReader&amp; operator=(const PngReader&amp;);
+-	void init();
++        PngReader(const PngReader&amp;);	
++        PngReader&amp; operator=(const PngReader&amp;);
++        void init();
+     };
+-    
++
+     namespace 
+     {
+-	ImageReader* createPngReader(const std::string&amp; file)
+-	{
+-	    return new PngReader(file);
+-	}
+-	const bool registered = register_image_reader(&quot;png&quot;,createPngReader);
++        ImageReader* createPngReader(const std::string&amp; file)
++        {
++            return new PngReader(file);
++        }
++        const bool registered = register_image_reader(&quot;png&quot;,createPngReader);
+     }
+ 
+     PngReader::PngReader(const std::string&amp; fileName) 
+-	: fileName_(fileName),
++        : fileName_(fileName),
+ 	  width_(0),
+ 	  height_(0),
+ 	  bit_depth_(0),
+ 	  color_type_(0)
+     {
+-	try 
+-	{
+-	    init();
+-	} 
+-	catch (const ImageReaderException&amp; e) 
+-	{
+-	    std::clog&lt;&lt;e.what()&lt;&lt;std::endl;
+-	    throw;
+-	}
++        try 
++        {
++            init();
++        } 
++        catch (const ImageReaderException&amp; e) 
++        {
++            std::clog&lt;&lt;e.what()&lt;&lt;std::endl;
++            throw;
++        }
+     }
+ 
+     PngReader::~PngReader() {}
+-    
++
++    static void
++    png_read_data(png_structp png_ptr, png_bytep data, png_size_t length)
++    {
++        png_size_t check;
++        check = (png_size_t)fread(data, (png_size_t)1, length,
++				  (FILE *)png_ptr-&gt;io_ptr);
++
++        if (check != length)
++        {
++            png_error(png_ptr, &quot;Read Error&quot;);
++        }
++    }
++  
++
+     void PngReader::init()
+     {
+-	FILE *fp=fopen(fileName_.c_str(),&quot;r&quot;);
+-	if (!fp) throw ImageReaderException(&quot;cannot open image file &quot;+fileName_);
+-	png_byte header[8];
+-	memset(header,0,8);
+-	fread(header,1,8,fp);
+-	int is_png=!png_sig_cmp(header,0,8);
+-	if (!is_png)
+-	{
+-	    fclose(fp);
+-	    throw ImageReaderException(fileName_ + &quot; is not a png file&quot;);
+-	}
++        FILE *fp=fopen(fileName_.c_str(),&quot;rb&quot;);
++        if (!fp) throw ImageReaderException(&quot;cannot open image file &quot;+fileName_);
++        png_byte header[8];
++        memset(header,0,8);
++        fread(header,1,8,fp);
++        int is_png=!png_sig_cmp(header,0,8);
++        if (!is_png)
++        {
++            fclose(fp);
++            throw ImageReaderException(fileName_ + &quot; is not a png file&quot;);
++        }
+         png_structp png_ptr = png_create_read_struct
+-	    (PNG_LIBPNG_VER_STRING,0,0,0);
+-	
+-	if (!png_ptr) 
+-	{
+-	    fclose(fp);
+-	    throw ImageReaderException(&quot;failed to allocate png_ptr&quot;);
+-	}
+-	png_infop info_ptr = png_create_info_struct(png_ptr);
+-	if (!info_ptr)
+-	{
+-	    png_destroy_read_struct(&amp;png_ptr,0,0);
+-	    fclose(fp);
+-	    throw ImageReaderException(&quot;failed to create info_ptr&quot;);
+-	}
++            (PNG_LIBPNG_VER_STRING,0,0,0);
+ 
+-	png_init_io(png_ptr, fp);
+-	png_set_sig_bytes(png_ptr,8);
+-	png_read_info(png_ptr, info_ptr);
++        if (!png_ptr) 
++        {
++            fclose(fp);
++            throw ImageReaderException(&quot;failed to allocate png_ptr&quot;);
++        }
++        png_infop info_ptr = png_create_info_struct(png_ptr);
++        if (!info_ptr)
++        {
++            png_destroy_read_struct(&amp;png_ptr,0,0);
++            fclose(fp);
++            throw ImageReaderException(&quot;failed to create info_ptr&quot;);
++        }
+ 
+-	png_uint_32  width, height;
+-	png_get_IHDR(png_ptr, info_ptr, &amp;width, &amp;height, &amp;bit_depth_, &amp;color_type_,0,0,0);
+-	
+-	width_=width;
+-	height_=height;
+-	
+-	std::clog&lt;&lt;&quot;bit_depth=&quot;&lt;&lt;bit_depth_&lt;&lt;&quot; color_type=&quot;&lt;&lt;color_type_&lt;&lt;std::endl;
+-	png_destroy_read_struct(&amp;png_ptr,&amp;info_ptr,0);	
+-	fclose(fp);
++        png_set_read_fn(png_ptr, (png_voidp)fp, png_read_data);
++
++        png_set_sig_bytes(png_ptr,8);
++        png_read_info(png_ptr, info_ptr);
++
++        png_uint_32  width, height;
++        png_get_IHDR(png_ptr, info_ptr, &amp;width, &amp;height, &amp;bit_depth_, &amp;color_type_,0,0,0);
++
++        width_=width;
++        height_=height;
++
++        std::clog&lt;&lt;&quot;bit_depth=&quot;&lt;&lt;bit_depth_&lt;&lt;&quot; color_type=&quot;&lt;&lt;color_type_&lt;&lt;std::endl;
++        png_destroy_read_struct(&amp;png_ptr,&amp;info_ptr,0);	
++        fclose(fp);
+     }
+-    
++
+     unsigned PngReader::width() const 
+     {
+-	return width_;
++        return width_;
+     }
+-    
++
+     unsigned PngReader::height() const 
+     {
+-	return height_;
++        return height_;
+     }
+     
+     void PngReader::read(unsigned x0, unsigned y0,ImageData32&amp; image) 
+     {
+-	FILE *fp=fopen(fileName_.c_str(),&quot;r&quot;);
+-	if (!fp) throw ImageReaderException(&quot;cannot open image file &quot;+fileName_);
+-	
++        FILE *fp=fopen(fileName_.c_str(),&quot;rb&quot;);
++        if (!fp) throw ImageReaderException(&quot;cannot open image file &quot;+fileName_);
++
+         png_structp png_ptr = png_create_read_struct
+-	    (PNG_LIBPNG_VER_STRING,0,0,0);
+-	
+-	if (!png_ptr) 
+-	{
+-	    fclose(fp);
+-	    throw ImageReaderException(&quot;failed to allocate png_ptr&quot;);
+-	}
+-	
+-	png_infop info_ptr = png_create_info_struct(png_ptr);
+-	if (!info_ptr)
+-	{
+-	    png_destroy_read_struct(&amp;png_ptr,0,0);
+-	    fclose(fp);
+-	    throw ImageReaderException(&quot;failed to create info_ptr&quot;);
+-	}
++            (PNG_LIBPNG_VER_STRING,0,0,0);
+ 
+-	png_init_io(png_ptr, fp);
+-	png_read_info(png_ptr, info_ptr);
+-	
+-	if (color_type_ == PNG_COLOR_TYPE_PALETTE)
+-	    png_set_expand(png_ptr);
+-	if (color_type_ == PNG_COLOR_TYPE_GRAY &amp;&amp; bit_depth_ &lt; 8)
+-	    png_set_expand(png_ptr);
+-	if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS))
+-	    png_set_expand(png_ptr);
+-	if (bit_depth_ == 16)
+-	    png_set_strip_16(png_ptr);
+-	if (color_type_ == PNG_COLOR_TYPE_GRAY ||
+-	    color_type_ == PNG_COLOR_TYPE_GRAY_ALPHA)
+-	    png_set_gray_to_rgb(png_ptr);
+-	
+-	// quick hack -- only work in &gt;=libpng 1.2.7
+-	png_set_add_alpha(png_ptr,1,1);
+- 
+-	double gamma;
+-	if (png_get_gAMA(png_ptr, info_ptr, &amp;gamma))
+-	    png_set_gamma(png_ptr, 2.2, gamma);
++        if (!png_ptr) 
++        {
++            fclose(fp);
++            throw ImageReaderException(&quot;failed to allocate png_ptr&quot;);
++        }
+ 
+-	png_read_update_info(png_ptr, info_ptr);
+-	
+-	//START read image rows
+-	unsigned w=std::min((unsigned)image.width(),width_);
+-	unsigned h=std::min((unsigned)image.height(),height_);
+-	
+-	unsigned rowbytes=png_get_rowbytes(png_ptr, info_ptr);
+-	unsigned char* row= new unsigned char[rowbytes];
+-	for (unsigned i=0;i&lt;height_;++i)
+-	{
+-	    png_read_row(png_ptr,row,0);
+-	    if (i&gt;=y0 &amp;&amp; i&lt;h) 
+-	    {
+-		image.setRow(i-y0,(unsigned*) &amp;row[x0],w);
+-	    } 
+-	}
+-	//END
+-	delete [] row;
+-	png_read_end(png_ptr,0);
+-	png_destroy_read_struct(&amp;png_ptr, &amp;info_ptr,0);
+-	fclose(fp);
++        png_infop info_ptr = png_create_info_struct(png_ptr);
++        if (!info_ptr)
++        {
++            png_destroy_read_struct(&amp;png_ptr,0,0);
++            fclose(fp);
++            throw ImageReaderException(&quot;failed to create info_ptr&quot;);
++        }
++
++        png_set_read_fn(png_ptr, (png_voidp)fp, png_read_data);
++        png_read_info(png_ptr, info_ptr);
++
++        if (color_type_ == PNG_COLOR_TYPE_PALETTE)
++            png_set_expand(png_ptr);
++        if (color_type_ == PNG_COLOR_TYPE_GRAY &amp;&amp; bit_depth_ &lt; 8)
++            png_set_expand(png_ptr);
++        if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS))
++            png_set_expand(png_ptr);
++        if (bit_depth_ == 16)
++            png_set_strip_16(png_ptr);
++        if (color_type_ == PNG_COLOR_TYPE_GRAY ||
++            color_type_ == PNG_COLOR_TYPE_GRAY_ALPHA)
++            png_set_gray_to_rgb(png_ptr);
++
++        // quick hack -- only work in &gt;=libpng 1.2.7
++        png_set_add_alpha(png_ptr,1,1);
++
++        double gamma;
++        if (png_get_gAMA(png_ptr, info_ptr, &amp;gamma))
++            png_set_gamma(png_ptr, 2.2, gamma);
++
++        png_read_update_info(png_ptr, info_ptr);
++
++        //START read image rows
++        unsigned w=std::min((unsigned)image.width(),width_);
++        unsigned h=std::min((unsigned)image.height(),height_);
++
++        unsigned rowbytes=png_get_rowbytes(png_ptr, info_ptr);
++        unsigned char* row= new unsigned char[rowbytes];
++        for (unsigned i=0;i&lt;height_;++i)
++        {
++            png_read_row(png_ptr,row,0);
++            if (i&gt;=y0 &amp;&amp; i&lt;h) 
++            {
++                image.setRow(i-y0,(unsigned*) &amp;row[x0],w);
++            } 
++        }
++        //END
++        delete [] row;
++        png_read_end(png_ptr,0);
++        png_destroy_read_struct(&amp;png_ptr, &amp;info_ptr,0);
++        fclose(fp);
+     }
+ }
+
+Modified: trunk/src/point_symbolizer.cpp
+===================================================================
+--- trunk/src/point_symbolizer.cpp	2006-03-31 10:32:02 UTC (rev 222)
++++ trunk/src/point_symbolizer.cpp	2006-04-05 08:27:45 UTC (rev 223)
+@@ -36,7 +36,10 @@
+ 	try 
+ 	{
+ 	    std::auto_ptr&lt;ImageReader&gt; reader(get_image_reader(type,file));
+-	    reader-&gt;read(0,0,*symbol_);		
++	    if (reader.get())
++	    {
++		reader-&gt;read(0,0,*symbol_);		
++	    }
+ 	} 
+ 	catch (...) 
+ 	{
+
+Modified: trunk/src/polygon_pattern_symbolizer.cpp
+===================================================================
+--- trunk/src/polygon_pattern_symbolizer.cpp	2006-03-31 10:32:02 UTC (rev 222)
++++ trunk/src/polygon_pattern_symbolizer.cpp	2006-04-05 08:27:45 UTC (rev 223)
+@@ -36,7 +36,8 @@
+ 	try 
+ 	{
+ 	    std::auto_ptr&lt;ImageReader&gt; reader(get_image_reader(type,file));
+-	    reader-&gt;read(0,0,*pattern_);		
++	    if (reader.get())
++		reader-&gt;read(0,0,*pattern_);		
+ 	} 
+ 	catch (...) 
+ 	{
+
+Modified: trunk/src/tiff_reader.cpp
+===================================================================
+--- trunk/src/tiff_reader.cpp	2006-03-31 10:32:02 UTC (rev 222)
++++ trunk/src/tiff_reader.cpp	2006-04-05 08:27:45 UTC (rev 223)
+@@ -29,9 +29,9 @@
+ namespace mapnik 
+ {
+ 
+-	using std::min;
+-	using std::max;
+-	
++    using std::min;
++    using std::max;
++
+     class TiffReader : public ImageReader
+     {
+     private:
+@@ -44,11 +44,11 @@
+         int tile_height_;
+     public:
+         enum
+-	{
+-	    generic=1,
+-	    stripped,
+-	    tiled
+-	};
++	    {
++		generic=1,
++		stripped,
++		tiled
++	    };
+         explicit TiffReader(const std::string&amp; file_name);
+         virtual ~TiffReader();
+         unsigned width() const;
+@@ -65,16 +65,16 @@
+ 
+     namespace
+     {
+-	ImageReader* createTiffReader(const std::string&amp; file)
+-	{
+-	    return new TiffReader(file);
+-	}
++        ImageReader* createTiffReader(const std::string&amp; file)
++        {
++            return new TiffReader(file);
++        }
+ 
+-	const bool registered = register_image_reader(&quot;tiff&quot;,createTiffReader);
++        const bool registered = register_image_reader(&quot;tiff&quot;,createTiffReader);
+     }
+ 
+     TiffReader::TiffReader(const std::string&amp; file_name)
+-	: file_name_(file_name),
++        : file_name_(file_name),
+ 	  read_method_(generic),
+ 	  width_(0),
+ 	  height_(0),
+@@ -82,177 +82,177 @@
+ 	  tile_width_(0),
+ 	  tile_height_(0)
+     {
+-	try
+-	{
+-	    init();
+-	}
+-	catch (ImageReaderException&amp; ex)
+-	{
+-	    std::clog&lt;&lt;ex.what()&lt;&lt;std::endl;
+-	    throw;
+-	}
++        try
++        {
++            init();
++        }
++        catch (ImageReaderException&amp; ex)
++        {
++            std::clog&lt;&lt;ex.what()&lt;&lt;std::endl;
++            throw;
++        }
+     }
+ 
+ 
+     void TiffReader::init()
+     {
+-	TIFF* tif = TIFFOpen(file_name_.c_str(), &quot;r&quot;);
+-	if (!tif) throw ImageReaderException(&quot;cannot open &quot;+file_name_);
+-	char msg[1024];
++        TIFF* tif = TIFFOpen(file_name_.c_str(), &quot;rb&quot;);
++        if (!tif) throw ImageReaderException(&quot;cannot open &quot;+file_name_);
++        char msg[1024];
+ 
+-	if (TIFFRGBAImageOK(tif,msg))
+-	{
+-	    TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &amp;width_);
+-	    TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &amp;height_);
+-	    if (TIFFIsTiled(tif))
+-	    {
+-		TIFFGetField(tif, TIFFTAG_TILEWIDTH, &amp;tile_width_);
+-		TIFFGetField(tif, TIFFTAG_TILELENGTH, &amp;tile_height_);
+-		read_method_=tiled;
+-	    }
+-	    else if (TIFFGetField(tif,TIFFTAG_ROWSPERSTRIP,&amp;rows_per_strip_)!=0)
+-	    {
+-		read_method_=stripped;
+-	    }
+-	    TIFFClose(tif);
+-	}
+-	else
+-	{
+-	    TIFFClose(tif);
+-	    throw ImageReaderException(msg);
+-	}
++        if (TIFFRGBAImageOK(tif,msg))
++        {
++            TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &amp;width_);
++            TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &amp;height_);
++            if (TIFFIsTiled(tif))
++            {
++                TIFFGetField(tif, TIFFTAG_TILEWIDTH, &amp;tile_width_);
++                TIFFGetField(tif, TIFFTAG_TILELENGTH, &amp;tile_height_);
++                read_method_=tiled;
++            }
++            else if (TIFFGetField(tif,TIFFTAG_ROWSPERSTRIP,&amp;rows_per_strip_)!=0)
++            {
++                read_method_=stripped;
++            }
++            TIFFClose(tif);
++        }
++        else
++        {
++            TIFFClose(tif);
++            throw ImageReaderException(msg);
++        }
+     }
+ 
+ 
+     TiffReader::~TiffReader()
+     {
+-	//
++        //
+     }
+ 
+ 
+     unsigned TiffReader::width() const
+     {
+-	return width_;
++        return width_;
+     }
+ 
+ 
+     unsigned TiffReader::height() const
+     {
+-	return height_;
++        return height_;
+     }
+ 
+ 
+     void TiffReader::read(unsigned x,unsigned y,ImageData32&amp; image)
+     {    
+-	if (read_method_==stripped)
+-	{
+-	    read_stripped(x,y,image);
+-	}
+-	else if (read_method_==tiled)
+-	{
+-	    read_tiled(x,y,image);
+-	}
+-	else
+-	{
+-	    read_generic(x,y,image);
+-	}
++        if (read_method_==stripped)
++        {
++            read_stripped(x,y,image);
++        }
++        else if (read_method_==tiled)
++        {
++            read_tiled(x,y,image);
++        }
++        else
++        {
++            read_generic(x,y,image);
++        }
+     }
+ 
+ 
+     void TiffReader::read_generic(unsigned x,unsigned y,ImageData32&amp; image)
+     {
+-	TIFF* tif = TIFFOpen(file_name_.c_str(), &quot;r&quot;);
+-	if (tif)
+-	{
+-	    std::clog&lt;&lt;&quot;TODO:tiff is not stripped or tiled\n&quot;;
+-	    TIFFClose(tif);
+-	}
++        TIFF* tif = TIFFOpen(file_name_.c_str(), &quot;rb&quot;);
++        if (tif)
++        {
++            std::clog&lt;&lt;&quot;TODO:tiff is not stripped or tiled\n&quot;;
++            TIFFClose(tif);
++        }
+     }
+ 
+ 
+     void TiffReader::read_tiled(unsigned x0,unsigned y0,ImageData32&amp; image)
+     {
+-	TIFF* tif=TIFFOpen(file_name_.c_str(), &quot;r&quot;);
+-	if (tif)
+-	{
+-	    uint32* buf = (uint32*)_TIFFmalloc(tile_width_*tile_height_*sizeof(uint32));
+-	    int width=image.width();
+-	    int height=image.height();
++        TIFF* tif=TIFFOpen(file_name_.c_str(), &quot;rb&quot;);
++        if (tif)
++        {
++            uint32* buf = (uint32*)_TIFFmalloc(tile_width_*tile_height_*sizeof(uint32));
++            int width=image.width();
++            int height=image.height();
+ 
+-	    int start_y=(y0/tile_height_)*tile_height_;
+-	    int end_y=((y0+height)/tile_height_+1)*tile_height_;
++            int start_y=(y0/tile_height_)*tile_height_;
++            int end_y=((y0+height)/tile_height_+1)*tile_height_;
+ 
+-	    int start_x=(x0/tile_width_)*tile_width_;
+-	    int end_x=((x0+width)/tile_width_+1)*tile_width_;
+-	    int row,tx0,tx1,ty0,ty1;
++            int start_x=(x0/tile_width_)*tile_width_;
++            int end_x=((x0+width)/tile_width_+1)*tile_width_;
++            int row,tx0,tx1,ty0,ty1;
+ 
+-	    for (int y=start_y;y&lt;end_y;y+=tile_height_)
+-	    {
+-			ty0 = max(y0,(unsigned)y) - y;
+-			ty1 = min(height+y0,(unsigned)(y+tile_height_)) - y;
++            for (int y=start_y;y&lt;end_y;y+=tile_height_)
++            {
++                ty0 = max(y0,(unsigned)y) - y;
++                ty1 = min(height+y0,(unsigned)(y+tile_height_)) - y;
+ 
+-			int n0=tile_height_-ty1;
+-			int n1=tile_height_-ty0-1;
+-	        
+-			for (int x=start_x;x&lt;end_x;x+=tile_width_)
+-			{
++                int n0=tile_height_-ty1;
++                int n1=tile_height_-ty0-1;
+ 
+-				if (!TIFFReadRGBATile(tif,x,y,buf)) break;
++                for (int x=start_x;x&lt;end_x;x+=tile_width_)
++                {
+ 
+-				tx0=max(x0,(unsigned)x);
+-				tx1=min(width+x0,(unsigned)(x+tile_width_));
+-				row=y+ty0-y0;
+-				for (int n=n1;n&gt;=n0;--n)
+-				{
+-					image.setRow(row,tx0-x0,tx1-x0,(const unsigned*)&amp;buf[n*tile_width_+tx0-x]);
+-					++row;
+-				}
+-			}
+-	    }
+-	    _TIFFfree(buf);
+-	    TIFFClose(tif);
+-	}
++                    if (!TIFFReadRGBATile(tif,x,y,buf)) break;
++
++                    tx0=max(x0,(unsigned)x);
++                    tx1=min(width+x0,(unsigned)(x+tile_width_));
++                    row=y+ty0-y0;
++                    for (int n=n1;n&gt;=n0;--n)
++                    {
++                        image.setRow(row,tx0-x0,tx1-x0,(const unsigned*)&amp;buf[n*tile_width_+tx0-x]);
++                        ++row;
++                    }
++                }
++            }
++            _TIFFfree(buf);
++            TIFFClose(tif);
++        }
+     }
+ 
+ 
+     void TiffReader::read_stripped(unsigned x0,unsigned y0,ImageData32&amp; image)
+     {
+-	TIFF* tif = TIFFOpen(file_name_.c_str(), &quot;r&quot;);
+-	if (tif)
+-	{
+-	    uint32* buf = (uint32*)_TIFFmalloc(width_*rows_per_strip_*sizeof(uint32));
++        TIFF* tif = TIFFOpen(file_name_.c_str(), &quot;rb&quot;);
++        if (tif)
++        {
++            uint32* buf = (uint32*)_TIFFmalloc(width_*rows_per_strip_*sizeof(uint32));
+ 
+-	    int width=image.width();
+-	    int height=image.height();
+-   
+-	    unsigned start_y=(y0/rows_per_strip_)*rows_per_strip_;
+-	    unsigned end_y=((y0+height)/rows_per_strip_+1)*rows_per_strip_;
+-	    bool laststrip=((unsigned)end_y &gt; height_)?true:false;
+-	    int row,tx0,tx1,ty0,ty1;
++            int width=image.width();
++            int height=image.height();
+ 
+-	    tx0=x0;
+-	    tx1=min(width+x0,(unsigned)width_);
++            unsigned start_y=(y0/rows_per_strip_)*rows_per_strip_;
++            unsigned end_y=((y0+height)/rows_per_strip_+1)*rows_per_strip_;
++            bool laststrip=((unsigned)end_y &gt; height_)?true:false;
++            int row,tx0,tx1,ty0,ty1;
+ 
+-	    for (unsigned y=start_y; y &lt; end_y; y+=rows_per_strip_)
+-	    {
+-		ty0 = max(y0,y)-y;
+-		ty1 = min(height+y0,y+rows_per_strip_)-y;
++            tx0=x0;
++            tx1=min(width+x0,(unsigned)width_);
+ 
+-		if (!TIFFReadRGBAStrip(tif,y,buf)) break;
+-		
+-		row=y+ty0-y0;
+-	
+-		int n0=laststrip ? 0:(rows_per_strip_-ty1);
+-		int n1=laststrip ? (ty1-ty0-1):(rows_per_strip_-ty0-1);
+-		for (int n=n1;n&gt;=n0;--n)
+-		{
+-		    image.setRow(row,tx0-x0,tx1-x0,(const unsigned*)&amp;buf[n*width_+tx0]);
+-		    ++row;
+-		}
+-	    }
+-	    _TIFFfree(buf);
+-	    TIFFClose(tif);
+-	}
++            for (unsigned y=start_y; y &lt; end_y; y+=rows_per_strip_)
++            {
++                ty0 = max(y0,y)-y;
++                ty1 = min(height+y0,y+rows_per_strip_)-y;
++
++                if (!TIFFReadRGBAStrip(tif,y,buf)) break;
++
++                row=y+ty0-y0;
++
++                int n0=laststrip ? 0:(rows_per_strip_-ty1);
++                int n1=laststrip ? (ty1-ty0-1):(rows_per_strip_-ty0-1);
++                for (int n=n1;n&gt;=n0;--n)
++                {
++                    image.setRow(row,tx0-x0,tx1-x0,(const unsigned*)&amp;buf[n*width_+tx0]);
++                    ++row;
++                }
++            }
++            _TIFFfree(buf);
++            TIFFClose(tif);
++        }
+     }
+ }
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="000109.html">[Mapnik-svn] r224 - in trunk/demo: data python
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#108">[ date ]</a>
+              <a href="thread.html#108">[ thread ]</a>
+              <a href="subject.html#108">[ subject ]</a>
+              <a href="author.html#108">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>

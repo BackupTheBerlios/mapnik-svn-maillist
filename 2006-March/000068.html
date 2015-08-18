@@ -1,0 +1,170 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Mapnik-svn] r182 - in trunk/bindings/python: . mapnik
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/mapnik-svn/2006-March/index.html" >
+   <LINK REL="made" HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r182%20-%20in%20trunk/bindings/python%3A%20.%20mapnik&In-Reply-To=%3C200603192155.k2JLtxT5000513%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000067.html">
+   <LINK REL="Next"  HREF="000069.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Mapnik-svn] r182 - in trunk/bindings/python: . mapnik</H1>
+    <B>pavlenko at BerliOS</B> 
+    <A HREF="mailto:mapnik-svn%40lists.berlios.de?Subject=Re%3A%20%5BMapnik-svn%5D%20r182%20-%20in%20trunk/bindings/python%3A%20.%20mapnik&In-Reply-To=%3C200603192155.k2JLtxT5000513%40sheep.berlios.de%3E"
+       TITLE="[Mapnik-svn] r182 - in trunk/bindings/python: . mapnik">pavlenko at berlios.de
+       </A><BR>
+    <I>Sun Mar 19 22:55:59 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000067.html">[Mapnik-svn] r181 - trunk/utils/shapeindex
+</A></li>
+        <LI>Next message: <A HREF="000069.html">[Mapnik-svn] r183 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#68">[ date ]</a>
+              <a href="thread.html#68">[ thread ]</a>
+              <a href="subject.html#68">[ subject ]</a>
+              <a href="author.html#68">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pavlenko
+Date: 2006-03-19 22:55:59 +0100 (Sun, 19 Mar 2006)
+New Revision: 182
+
+Added:
+   trunk/bindings/python/mapnik_font_engine.cpp
+Modified:
+   trunk/bindings/python/mapnik/__init__.py
+   trunk/bindings/python/mapnik_python.cpp
+Log:
+added font_engine to python bindings (TODO!)
+
+
+
+
+Modified: trunk/bindings/python/mapnik/__init__.py
+===================================================================
+--- trunk/bindings/python/mapnik/__init__.py	2006-03-19 21:54:40 UTC (rev 181)
++++ trunk/bindings/python/mapnik/__init__.py	2006-03-19 21:55:59 UTC (rev 182)
+@@ -56,6 +56,9 @@
+ #register datasources
+ from mapnik import DatasourceCache
+ DatasourceCache.instance().register_datasources('%s' % inputpluginspath)
++#register some fonts
++from mapnik import FontEngine
++FontEngine.instance().register_font('/usr/local/lib/mapnik/fonts/Vera.ttf')
+ #set dlopen flags back to the original
+ setdlopenflags(flags)
+ 
+
+Added: trunk/bindings/python/mapnik_font_engine.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_font_engine.cpp	2006-03-19 21:54:40 UTC (rev 181)
++++ trunk/bindings/python/mapnik_font_engine.cpp	2006-03-19 21:55:59 UTC (rev 182)
+@@ -0,0 +1,41 @@
++/* This file is part of python_mapnik (c++/python mapping toolkit)
++ * Copyright (C) 2005 Artem Pavlenko, Jean-Francois Doyon
++ *
++ * Mapnik is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for moprovpoly_lyrre details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++ */
++
++//$Id$
++
++#include &lt;boost/python.hpp&gt;
++#include &quot;font_engine_freetype.hpp&quot;
++
++void export_font_engine()
++{
++    using mapnik::freetype_engine;
++    using mapnik::singleton;
++    using mapnik::CreateStatic;
++    using namespace boost::python;
++    class_&lt;singleton&lt;freetype_engine,CreateStatic&gt;,boost::noncopyable&gt;(&quot;Singleton&quot;,no_init)
++        .def(&quot;instance&quot;,&amp;singleton&lt;freetype_engine,CreateStatic&gt;::instance,
++	     return_value_policy&lt;reference_existing_object&gt;())
++        .staticmethod(&quot;instance&quot;)
++        ;
++
++    class_&lt;freetype_engine,bases&lt;singleton&lt;freetype_engine,CreateStatic&gt; &gt;,
++        boost::noncopyable&gt;(&quot;FontEngine&quot;,no_init)
++	.def(&quot;register_font&quot;,&amp;freetype_engine::register_font)
++	.staticmethod(&quot;register_font&quot;)
++        ;
++}
+
+Modified: trunk/bindings/python/mapnik_python.cpp
+===================================================================
+--- trunk/bindings/python/mapnik_python.cpp	2006-03-19 21:54:40 UTC (rev 181)
++++ trunk/bindings/python/mapnik_python.cpp	2006-03-19 21:55:59 UTC (rev 182)
+@@ -8,7 +8,8 @@
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURP
++OSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+@@ -45,6 +46,7 @@
+ void export_polygon_pattern_symbolizer();
+ void export_raster_symbolizer();
+ void export_text_symbolizer();
++void export_font_engine();
+ 
+ void render_to_file(const Map&amp; map,const std::string&amp; file,const std::string&amp; format)
+ {
+@@ -87,7 +89,7 @@
+     export_polygon_pattern_symbolizer();
+     export_raster_symbolizer();
+     export_text_symbolizer();
+-
++    export_font_engine();
+     class_&lt;coord&lt;double,2&gt; &gt;(&quot;Coord&quot;,init&lt;double,double&gt;())
+         .def_readwrite(&quot;x&quot;, &amp;coord&lt;double,2&gt;::x)
+         .def_readwrite(&quot;y&quot;, &amp;coord&lt;double,2&gt;::y)
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000067.html">[Mapnik-svn] r181 - trunk/utils/shapeindex
+</A></li>
+	<LI>Next message: <A HREF="000069.html">[Mapnik-svn] r183 - in trunk: include src
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#68">[ date ]</a>
+              <a href="thread.html#68">[ thread ]</a>
+              <a href="subject.html#68">[ subject ]</a>
+              <a href="author.html#68">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/mapnik-svn">More information about the Mapnik-svn
+mailing list</a><br>
+</body></html>
